@@ -67,6 +67,8 @@ import EmailMarketing from "./pages/EmailMarketing";
 import Shop from "./pages/Shop";
 import Discounts from "./pages/Discounts";
 import Reviews from "./pages/Reviews";
+import Debtors from "./pages/Debtors";
+import Creditors from "./pages/Creditors";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -128,6 +130,8 @@ const App = () => (
                   <Route path="/journal-entries" element={<JournalEntries />} />
                   <Route path="/general-ledger" element={<GeneralLedger />} />
                   <Route path="/open-items" element={<OpenItems />} />
+                  <Route path="/debtors" element={<Debtors />} />
+                  <Route path="/creditors" element={<Creditors />} />
                   <Route path="/balance-sheet" element={<BalanceSheet />} />
                   <Route path="/vat-returns" element={<VatReturns />} />
                   <Route path="/fixed-assets" element={<FixedAssets />} />
