@@ -49,6 +49,7 @@ import {
   UserCheck,
   UserMinus,
   UserPlus2,
+  Search,
 } from "lucide-react";
 import {
   Sidebar,
@@ -71,6 +72,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -411,10 +413,11 @@ function NavGroup({ label, items, location, defaultOpen = true }: NavGroupProps)
 
 export function AppSidebar() {
   const location = useLocation();
+  const [sidebarSearch, setSidebarSearch] = useState("");
 
   return (
     <Sidebar className="border-r border-sidebar-border">
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display font-bold text-lg">
             L
@@ -423,6 +426,15 @@ export function AppSidebar() {
             <span className="font-display font-semibold text-lg">Loomora</span>
             <span className="text-xs text-muted-foreground">loomora.ch</span>
           </div>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Menü durchsuchen..."
+            className="pl-9 h-9 bg-sidebar-accent/50 border-sidebar-border text-sm"
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+          />
         </div>
       </SidebarHeader>
 
