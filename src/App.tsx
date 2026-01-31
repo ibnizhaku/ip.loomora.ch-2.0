@@ -15,21 +15,33 @@ import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import TimeTracking from "./pages/TimeTracking";
 import Invoices from "./pages/Invoices";
+import InvoiceDetail from "./pages/InvoiceDetail";
 import Quotes from "./pages/Quotes";
+import QuoteDetail from "./pages/QuoteDetail";
 import Orders from "./pages/Orders";
+import OrderDetail from "./pages/OrderDetail";
 import DeliveryNotes from "./pages/DeliveryNotes";
+import DeliveryNoteDetail from "./pages/DeliveryNoteDetail";
 import Inventory from "./pages/Inventory";
+import InventoryItemDetail from "./pages/InventoryItemDetail";
 import Finance from "./pages/Finance";
 import Reports from "./pages/Reports";
 import HR from "./pages/HR";
+import EmployeeDetail from "./pages/EmployeeDetail";
 import Tasks from "./pages/Tasks";
+import TaskDetail from "./pages/TaskDetail";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Company from "./pages/Company";
 import Calendar from "./pages/Calendar";
 import Documents from "./pages/Documents";
 import Suppliers from "./pages/Suppliers";
+import SupplierDetail from "./pages/SupplierDetail";
 import Contracts from "./pages/Contracts";
+import ContractDetail from "./pages/ContractDetail";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import CreditNotes from "./pages/CreditNotes";
+import Reminders from "./pages/Reminders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,10 +68,13 @@ const App = () => (
                   
                   {/* Aufgaben */}
                   <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/tasks/:id" element={<TaskDetail />} />
                   
                   {/* CRM */}
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/customers/:id" element={<CustomerDetail />} />
+                  <Route path="/suppliers" element={<Suppliers />} />
+                  <Route path="/suppliers/:id" element={<SupplierDetail />} />
                   
                   {/* Zeit */}
                   <Route path="/time-tracking" element={<TimeTracking />} />
@@ -67,17 +82,25 @@ const App = () => (
                   
                   {/* Verkauf */}
                   <Route path="/quotes" element={<Quotes />} />
+                  <Route path="/quotes/:id" element={<QuoteDetail />} />
                   <Route path="/orders" element={<Orders />} />
+                  <Route path="/orders/:id" element={<OrderDetail />} />
                   <Route path="/invoices" element={<Invoices />} />
+                  <Route path="/invoices/:id" element={<InvoiceDetail />} />
                   <Route path="/delivery-notes" element={<DeliveryNotes />} />
+                  <Route path="/delivery-notes/:id" element={<DeliveryNoteDetail />} />
+                  <Route path="/credit-notes" element={<CreditNotes />} />
+                  <Route path="/reminders" element={<Reminders />} />
                   
                   {/* Einkauf & Lager */}
+                  <Route path="/purchase-orders" element={<PurchaseOrders />} />
                   <Route path="/inventory" element={<Inventory />} />
-                  <Route path="/suppliers" element={<Suppliers />} />
+                  <Route path="/inventory/:id" element={<InventoryItemDetail />} />
                   
                   {/* Finanzen */}
                   <Route path="/finance" element={<Finance />} />
                   <Route path="/contracts" element={<Contracts />} />
+                  <Route path="/contracts/:id" element={<ContractDetail />} />
                   
                   {/* Berichte */}
                   <Route path="/reports" element={<Reports />} />
@@ -87,6 +110,7 @@ const App = () => (
                   
                   {/* Administration */}
                   <Route path="/hr" element={<HR />} />
+                  <Route path="/hr/:id" element={<EmployeeDetail />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/company" element={<Company />} />
                   <Route path="/settings" element={<Settings />} />

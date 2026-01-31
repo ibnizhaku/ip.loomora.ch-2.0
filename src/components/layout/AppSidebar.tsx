@@ -113,6 +113,16 @@ const salesItems: NavItem[] = [
     url: "/invoices",
     icon: Receipt,
   },
+  {
+    title: "Gutschriften",
+    url: "/credit-notes",
+    icon: FileBox,
+  },
+  {
+    title: "Mahnwesen",
+    url: "/reminders",
+    icon: FileText,
+  },
 ];
 
 const managementItems: NavItem[] = [
@@ -120,6 +130,11 @@ const managementItems: NavItem[] = [
     title: "Zeiterfassung",
     url: "/time-tracking",
     icon: Clock,
+  },
+  {
+    title: "Einkauf",
+    url: "/purchase-orders",
+    icon: ShoppingCart,
   },
   {
     title: "Lager",
