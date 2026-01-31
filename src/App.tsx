@@ -55,6 +55,7 @@ import CandidateDetail from "./pages/CandidateDetail";
 import AbsenceDetail from "./pages/AbsenceDetail";
 import TravelExpenseDetail from "./pages/TravelExpenseDetail";
 import UserDetail from "./pages/UserDetail";
+import ReviewDetail from "./pages/ReviewDetail";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Company from "./pages/Company";
@@ -205,6 +206,7 @@ const App = () => (
                   <Route path="/shop" element={<Shop />} />
                   <Route path="/discounts" element={<Discounts />} />
                   <Route path="/reviews" element={<Reviews />} />
+                  <Route path="/reviews/:id" element={<ReviewDetail />} />
                   
                   {/* Berichte */}
                   <Route path="/reports" element={<Reports />} />
