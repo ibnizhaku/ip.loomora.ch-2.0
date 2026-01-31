@@ -61,6 +61,12 @@ import CostCenters from "./pages/CostCenters";
 import Budgets from "./pages/Budgets";
 import Products from "./pages/Products";
 import TravelExpenses from "./pages/TravelExpenses";
+import Campaigns from "./pages/Campaigns";
+import Leads from "./pages/Leads";
+import EmailMarketing from "./pages/EmailMarketing";
+import Shop from "./pages/Shop";
+import Discounts from "./pages/Discounts";
+import Reviews from "./pages/Reviews";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -136,6 +142,16 @@ const App = () => (
                   {/* Stammdaten & Verwaltung */}
                   <Route path="/products" element={<Products />} />
                   <Route path="/travel-expenses" element={<TravelExpenses />} />
+                  
+                  {/* Marketing */}
+                  <Route path="/campaigns" element={<Campaigns />} />
+                  <Route path="/leads" element={<Leads />} />
+                  <Route path="/email-marketing" element={<EmailMarketing />} />
+                  
+                  {/* E-Commerce */}
+                  <Route path="/shop" element={<Shop />} />
+                  <Route path="/discounts" element={<Discounts />} />
+                  <Route path="/reviews" element={<Reviews />} />
                   
                   {/* Berichte */}
                   <Route path="/reports" element={<Reports />} />

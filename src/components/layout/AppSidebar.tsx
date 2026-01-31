@@ -41,6 +41,12 @@ import {
   Target,
   Plane,
   Box,
+  Megaphone,
+  Mail,
+  Store,
+  Percent,
+  Star,
+  UserCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -285,6 +291,42 @@ const hrItems: NavItem[] = [
   },
 ];
 
+const marketingItems: NavItem[] = [
+  {
+    title: "Kampagnen",
+    url: "/campaigns",
+    icon: Megaphone,
+  },
+  {
+    title: "Leads",
+    url: "/leads",
+    icon: UserCheck,
+  },
+  {
+    title: "E-Mail Marketing",
+    url: "/email-marketing",
+    icon: Mail,
+  },
+];
+
+const ecommerceItems: NavItem[] = [
+  {
+    title: "Online-Shop",
+    url: "/shop",
+    icon: Store,
+  },
+  {
+    title: "Rabatte",
+    url: "/discounts",
+    icon: Percent,
+  },
+  {
+    title: "Bewertungen",
+    url: "/reviews",
+    icon: Star,
+  },
+];
+
 const adminItems: NavItem[] = [
   {
     title: "Benutzer",
@@ -373,6 +415,8 @@ export function AppSidebar() {
         <NavGroup label="Verkauf" items={salesItems} location={location} />
         <NavGroup label="Verwaltung" items={managementItems} location={location} />
         <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} />
+        <NavGroup label="Marketing" items={marketingItems} location={location} />
+        <NavGroup label="E-Commerce" items={ecommerceItems} location={location} />
         <NavGroup label="Personal (HR)" items={hrItems} location={location} />
         <NavGroup label="Administration" items={adminItems} location={location} />
       </SidebarContent>
