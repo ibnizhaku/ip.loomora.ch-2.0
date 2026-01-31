@@ -37,6 +37,10 @@ import {
   Scale,
   Wallet,
   PiggyBank,
+  Send,
+  Target,
+  Plane,
+  Box,
 } from "lucide-react";
 import {
   Sidebar,
@@ -154,6 +158,11 @@ const managementItems: NavItem[] = [
     icon: Package,
   },
   {
+    title: "Produkte",
+    url: "/products",
+    icon: Box,
+  },
+  {
     title: "Verträge",
     url: "/contracts",
     icon: FileSignature,
@@ -177,6 +186,16 @@ const accountingItems: NavItem[] = [
     icon: CreditCard,
   },
   {
+    title: "Bankkonten",
+    url: "/bank-accounts",
+    icon: Landmark,
+  },
+  {
+    title: "SEPA-Zahlungen",
+    url: "/sepa-payments",
+    icon: Send,
+  },
+  {
     title: "Kontenplan",
     url: "/chart-of-accounts",
     icon: BookOpen,
@@ -189,7 +208,7 @@ const accountingItems: NavItem[] = [
   {
     title: "Hauptbuch",
     url: "/general-ledger",
-    icon: Landmark,
+    icon: Receipt,
   },
   {
     title: "Offene Posten",
@@ -216,6 +235,16 @@ const accountingItems: NavItem[] = [
     url: "/cash-book",
     icon: Wallet,
   },
+  {
+    title: "Kostenstellen",
+    url: "/cost-centers",
+    icon: Target,
+  },
+  {
+    title: "Budgets",
+    url: "/budgets",
+    icon: PiggyBank,
+  },
 ];
 
 const hrItems: NavItem[] = [
@@ -233,6 +262,11 @@ const hrItems: NavItem[] = [
     title: "Abwesenheiten",
     url: "/absences",
     icon: Palmtree,
+  },
+  {
+    title: "Reisekosten",
+    url: "/travel-expenses",
+    icon: Plane,
   },
   {
     title: "Recruiting",
