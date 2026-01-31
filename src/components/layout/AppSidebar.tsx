@@ -78,6 +78,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import loomoraLogo from "@/assets/loomora-logo.png";
 
 interface NavItem {
   title: string;
@@ -441,13 +442,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display font-bold text-lg">
-            L
-          </div>
-          <div className="flex flex-col">
-            <span className="font-display font-semibold text-lg">Loomora</span>
-            <span className="text-xs text-muted-foreground">loomora.ch</span>
-          </div>
+          <img src={loomoraLogo} alt="Loomora" className="h-8" />
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
