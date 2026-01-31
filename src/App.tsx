@@ -40,6 +40,11 @@ import Training from "./pages/Training";
 import Orgchart from "./pages/Orgchart";
 import Tasks from "./pages/Tasks";
 import TaskDetail from "./pages/TaskDetail";
+import BOMDetail from "./pages/BOMDetail";
+import CalculationDetail from "./pages/CalculationDetail";
+import ProductionDetail from "./pages/ProductionDetail";
+import LeadDetail from "./pages/LeadDetail";
+import EmployeeContractDetail from "./pages/EmployeeContractDetail";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Company from "./pages/Company";
@@ -179,6 +184,7 @@ const App = () => (
                   {/* Marketing */}
                   <Route path="/campaigns" element={<Campaigns />} />
                   <Route path="/leads" element={<Leads />} />
+                  <Route path="/leads/:id" element={<LeadDetail />} />
                   <Route path="/email-marketing" element={<EmailMarketing />} />
                   
                   {/* E-Commerce */}
@@ -196,6 +202,7 @@ const App = () => (
                   <Route path="/hr" element={<HR />} />
                   <Route path="/hr/:id" element={<EmployeeDetail />} />
                   <Route path="/employee-contracts" element={<EmployeeContracts />} />
+                  <Route path="/employee-contracts/:id" element={<EmployeeContractDetail />} />
                   <Route path="/payroll" element={<Payroll />} />
                   <Route path="/absences" element={<Absences />} />
                   <Route path="/recruiting" element={<Recruiting />} />
@@ -212,7 +219,11 @@ const App = () => (
                   
                   {/* Neue Module */}
                   <Route path="/bom" element={<BillOfMaterials />} />
+                  <Route path="/bom/:id" element={<BOMDetail />} />
                   <Route path="/calculation" element={<Calculation />} />
+                  <Route path="/calculation/:id" element={<CalculationDetail />} />
+                  <Route path="/production" element={<Production />} />
+                  <Route path="/production/:id" element={<ProductionDetail />} />
                   <Route path="/qr-invoice" element={<QRInvoice />} />
                   <Route path="/production" element={<Production />} />
                   <Route path="/purchase-invoices" element={<PurchaseInvoices />} />
