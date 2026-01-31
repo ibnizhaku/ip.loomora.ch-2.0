@@ -60,6 +60,8 @@ import SepaPayments from "./pages/SepaPayments";
 import CostCenters from "./pages/CostCenters";
 import Budgets from "./pages/Budgets";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
+import EmployeeContracts from "./pages/EmployeeContracts";
 import TravelExpenses from "./pages/TravelExpenses";
 import Campaigns from "./pages/Campaigns";
 import Leads from "./pages/Leads";
@@ -145,6 +147,7 @@ const App = () => (
                   
                   {/* Stammdaten & Verwaltung */}
                   <Route path="/products" element={<Products />} />
+                  <Route path="/products/:id" element={<ProductDetail />} />
                   <Route path="/travel-expenses" element={<TravelExpenses />} />
                   
                   {/* Marketing */}
@@ -166,6 +169,7 @@ const App = () => (
                   {/* HR / Personal */}
                   <Route path="/hr" element={<HR />} />
                   <Route path="/hr/:id" element={<EmployeeDetail />} />
+                  <Route path="/employee-contracts" element={<EmployeeContracts />} />
                   <Route path="/payroll" element={<Payroll />} />
                   <Route path="/absences" element={<Absences />} />
                   <Route path="/recruiting" element={<Recruiting />} />

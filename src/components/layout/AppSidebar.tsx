@@ -272,6 +272,11 @@ const hrItems: NavItem[] = [
     icon: UsersRound,
   },
   {
+    title: "Arbeitsverträge",
+    url: "/employee-contracts",
+    icon: FileSignature,
+  },
+  {
     title: "Lohnabrechnung",
     url: "/payroll",
     icon: Euro,
