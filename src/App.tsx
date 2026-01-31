@@ -47,6 +47,14 @@ import ContractDetail from "./pages/ContractDetail";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import CreditNotes from "./pages/CreditNotes";
 import Reminders from "./pages/Reminders";
+import ChartOfAccounts from "./pages/ChartOfAccounts";
+import JournalEntries from "./pages/JournalEntries";
+import GeneralLedger from "./pages/GeneralLedger";
+import OpenItems from "./pages/OpenItems";
+import BalanceSheet from "./pages/BalanceSheet";
+import VatReturns from "./pages/VatReturns";
+import FixedAssets from "./pages/FixedAssets";
+import CashBook from "./pages/CashBook";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -102,8 +110,16 @@ const App = () => (
                   <Route path="/inventory" element={<Inventory />} />
                   <Route path="/inventory/:id" element={<InventoryItemDetail />} />
                   
-                  {/* Finanzen */}
+                  {/* Finanzen & Buchhaltung */}
                   <Route path="/finance" element={<Finance />} />
+                  <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
+                  <Route path="/journal-entries" element={<JournalEntries />} />
+                  <Route path="/general-ledger" element={<GeneralLedger />} />
+                  <Route path="/open-items" element={<OpenItems />} />
+                  <Route path="/balance-sheet" element={<BalanceSheet />} />
+                  <Route path="/vat-returns" element={<VatReturns />} />
+                  <Route path="/fixed-assets" element={<FixedAssets />} />
+                  <Route path="/cash-book" element={<CashBook />} />
                   <Route path="/contracts" element={<Contracts />} />
                   <Route path="/contracts/:id" element={<ContractDetail />} />
                   

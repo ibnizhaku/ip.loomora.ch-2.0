@@ -31,6 +31,12 @@ import {
   UserPlus,
   Network,
   AlertTriangle,
+  BookOpen,
+  Calculator,
+  Landmark,
+  Scale,
+  Wallet,
+  PiggyBank,
 } from "lucide-react";
 import {
   Sidebar,
@@ -148,11 +154,6 @@ const managementItems: NavItem[] = [
     icon: Package,
   },
   {
-    title: "Finanzen",
-    url: "/finance",
-    icon: CreditCard,
-  },
-  {
     title: "Verträge",
     url: "/contracts",
     icon: FileSignature,
@@ -166,6 +167,54 @@ const managementItems: NavItem[] = [
     title: "Berichte",
     url: "/reports",
     icon: BarChart3,
+  },
+];
+
+const accountingItems: NavItem[] = [
+  {
+    title: "Finanzen",
+    url: "/finance",
+    icon: CreditCard,
+  },
+  {
+    title: "Kontenplan",
+    url: "/chart-of-accounts",
+    icon: BookOpen,
+  },
+  {
+    title: "Buchungsjournal",
+    url: "/journal-entries",
+    icon: FileText,
+  },
+  {
+    title: "Hauptbuch",
+    url: "/general-ledger",
+    icon: Landmark,
+  },
+  {
+    title: "Offene Posten",
+    url: "/open-items",
+    icon: AlertTriangle,
+  },
+  {
+    title: "Bilanz & GuV",
+    url: "/balance-sheet",
+    icon: Scale,
+  },
+  {
+    title: "USt-Voranmeldung",
+    url: "/vat-returns",
+    icon: Calculator,
+  },
+  {
+    title: "Anlagenbuchhaltung",
+    url: "/fixed-assets",
+    icon: PiggyBank,
+  },
+  {
+    title: "Kassenbuch",
+    url: "/cash-book",
+    icon: Wallet,
   },
 ];
 
@@ -289,6 +338,7 @@ export function AppSidebar() {
         <NavGroup label="CRM" items={crmItems} location={location} />
         <NavGroup label="Verkauf" items={salesItems} location={location} />
         <NavGroup label="Verwaltung" items={managementItems} location={location} />
+        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} />
         <NavGroup label="Personal (HR)" items={hrItems} location={location} />
         <NavGroup label="Administration" items={adminItems} location={location} />
       </SidebarContent>
