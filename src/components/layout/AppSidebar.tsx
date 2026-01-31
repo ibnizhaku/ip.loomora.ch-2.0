@@ -14,6 +14,9 @@ import {
   Clock,
   CreditCard,
   Building2,
+  UserCog,
+  CheckSquare,
+  UsersRound,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,7 +32,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -49,11 +51,11 @@ const mainNavItems = [
     title: "Projekte",
     url: "/projects",
     icon: FolderKanban,
-    subItems: [
-      { title: "Alle Projekte", url: "/projects" },
-      { title: "Kanban Board", url: "/projects/kanban" },
-      { title: "Timeline", url: "/projects/timeline" },
-    ],
+  },
+  {
+    title: "Aufgaben",
+    url: "/tasks",
+    icon: CheckSquare,
   },
   {
     title: "Kunden",
@@ -88,6 +90,19 @@ const managementItems = [
     url: "/reports",
     icon: BarChart3,
   },
+];
+
+const adminItems = [
+  {
+    title: "Personal (HR)",
+    url: "/hr",
+    icon: UsersRound,
+  },
+  {
+    title: "Benutzer",
+    url: "/users",
+    icon: UserCog,
+  },
   {
     title: "Unternehmen",
     url: "/company",
@@ -95,91 +110,8 @@ const managementItems = [
   },
 ];
 
-const NavItem = ({
-  item,
-  isActive,
-}: {
-  item: (typeof mainNavItems)[0];
-  isActive: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(isActive);
-  const hasSubItems = item.subItems && item.subItems.length > 0;
-
-  if (hasSubItems) {
-    return (
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton
-              className={cn(
-                "group/btn transition-all duration-200",
-                isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              <span className="flex-1">{item.title}</span>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 transition-transform duration-200",
-                  isOpen && "rotate-180"
-                )}
-              />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub>
-              {item.subItems?.map((subItem) => (
-                <SidebarMenuSubItem key={subItem.url}>
-                  <SidebarMenuSubButton asChild>
-                    <NavLink
-                      to={subItem.url}
-                      className={({ isActive }) =>
-                        cn(
-                          "transition-colors",
-                          isActive && "text-primary font-medium"
-                        )
-                      }
-                    >
-                      {subItem.title}
-                    </NavLink>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-    );
-  }
-
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        className={cn(
-          "transition-all duration-200",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
-        )}
-      >
-        <NavLink to={item.url}>
-          <item.icon className="h-4 w-4" />
-          <span>{item.title}</span>
-        </NavLink>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-};
-
 export function AppSidebar() {
   const location = useLocation();
-
-  const isItemActive = (item: (typeof mainNavItems)[0]) => {
-    if (location.pathname === item.url) return true;
-    if (item.subItems) {
-      return item.subItems.some((sub) => location.pathname === sub.url);
-    }
-    return false;
-  };
 
   return (
     <Sidebar className="border-r border-sidebar-border">
@@ -203,11 +135,21 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
-                <NavItem
-                  key={item.url}
-                  item={item}
-                  isActive={isItemActive(item)}
-                />
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "transition-all duration-200",
+                      location.pathname === item.url &&
+                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <NavLink to={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -239,12 +181,46 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
+            Administration
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "transition-all duration-200",
+                      location.pathname === item.url &&
+                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <NavLink to={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="transition-all duration-200">
+            <SidebarMenuButton
+              asChild
+              className={cn(
+                "transition-all duration-200",
+                location.pathname === "/settings" &&
+                  "bg-sidebar-accent text-sidebar-accent-foreground"
+              )}
+            >
               <NavLink to="/settings">
                 <Settings className="h-4 w-4" />
                 <span>Einstellungen</span>
