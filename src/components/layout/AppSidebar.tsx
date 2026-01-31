@@ -416,7 +416,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="font-display font-semibold text-lg">Loomora</span>
-            <span className="text-xs text-muted-foreground">ERP System</span>
+            <span className="text-xs text-muted-foreground">loomora.ch</span>
           </div>
         </div>
       </SidebarHeader>
