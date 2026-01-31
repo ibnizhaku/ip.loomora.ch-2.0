@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -130,6 +131,7 @@ const statusConfig = {
 };
 
 export default function Invoices() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredInvoices = invoices.filter(
@@ -161,7 +163,7 @@ export default function Invoices() {
             Erstellen und verwalten Sie Ihre Rechnungen
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/invoices/new")}>
           <Plus className="h-4 w-4" />
           Neue Rechnung
         </Button>
@@ -253,8 +255,9 @@ export default function Invoices() {
               return (
                 <TableRow
                   key={invoice.id}
-                  className="animate-fade-in"
+                  className="animate-fade-in cursor-pointer hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/invoices/${invoice.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -282,13 +285,13 @@ export default function Invoices() {
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/${invoice.id}`)}>
                           <Eye className="h-4 w-4" />
                           Anzeigen
                         </DropdownMenuItem>

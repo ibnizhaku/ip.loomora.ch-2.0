@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -122,6 +123,7 @@ const statusConfig = {
 };
 
 export default function Quotes() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredQuotes = quotes.filter(
@@ -154,7 +156,7 @@ export default function Quotes() {
             Erstellen und verwalten Sie Ihre Angebote
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/quotes/new")}>
           <Plus className="h-4 w-4" />
           Neues Angebot
         </Button>
@@ -244,8 +246,9 @@ export default function Quotes() {
               return (
                 <TableRow
                   key={quote.id}
-                  className="cursor-pointer animate-fade-in"
+                  className="cursor-pointer animate-fade-in hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/quotes/${quote.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -278,13 +281,13 @@ export default function Quotes() {
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Anzeigen</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
                         <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
                         <DropdownMenuItem className="gap-2">
                           <Copy className="h-4 w-4" />
