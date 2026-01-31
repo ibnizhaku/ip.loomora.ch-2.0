@@ -17,6 +17,14 @@ import {
   UserCog,
   CheckSquare,
   UsersRound,
+  CalendarDays,
+  FileBox,
+  ShoppingCart,
+  Truck,
+  Receipt,
+  Handshake,
+  FileSignature,
+  Folder,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,7 +49,14 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-const mainNavItems = [
+interface NavItem {
+  title: string;
+  url: string;
+  icon: any;
+  subItems?: { title: string; url: string }[];
+}
+
+const mainNavItems: NavItem[] = [
   {
     title: "Dashboard",
     url: "/",
@@ -58,23 +73,54 @@ const mainNavItems = [
     icon: CheckSquare,
   },
   {
+    title: "Kalender",
+    url: "/calendar",
+    icon: CalendarDays,
+  },
+];
+
+const crmItems: NavItem[] = [
+  {
     title: "Kunden",
     url: "/customers",
     icon: Users,
   },
   {
-    title: "Zeiterfassung",
-    url: "/time-tracking",
-    icon: Clock,
+    title: "Lieferanten",
+    url: "/suppliers",
+    icon: Handshake,
+  },
+];
+
+const salesItems: NavItem[] = [
+  {
+    title: "Angebote",
+    url: "/quotes",
+    icon: FileText,
+  },
+  {
+    title: "Aufträge",
+    url: "/orders",
+    icon: ShoppingCart,
+  },
+  {
+    title: "Lieferscheine",
+    url: "/delivery-notes",
+    icon: Truck,
   },
   {
     title: "Rechnungen",
     url: "/invoices",
-    icon: FileText,
+    icon: Receipt,
   },
 ];
 
-const managementItems = [
+const managementItems: NavItem[] = [
+  {
+    title: "Zeiterfassung",
+    url: "/time-tracking",
+    icon: Clock,
+  },
   {
     title: "Lager",
     url: "/inventory",
@@ -86,13 +132,23 @@ const managementItems = [
     icon: CreditCard,
   },
   {
+    title: "Verträge",
+    url: "/contracts",
+    icon: FileSignature,
+  },
+  {
+    title: "Dokumente",
+    url: "/documents",
+    icon: Folder,
+  },
+  {
     title: "Berichte",
     url: "/reports",
     icon: BarChart3,
   },
 ];
 
-const adminItems = [
+const adminItems: NavItem[] = [
   {
     title: "Personal (HR)",
     url: "/hr",
@@ -109,6 +165,58 @@ const adminItems = [
     icon: Building2,
   },
 ];
+
+interface NavGroupProps {
+  label: string;
+  items: NavItem[];
+  location: ReturnType<typeof useLocation>;
+  defaultOpen?: boolean;
+}
+
+function NavGroup({ label, items, location, defaultOpen = true }: NavGroupProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <SidebarGroup>
+        <CollapsibleTrigger className="w-full">
+          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 flex items-center justify-between cursor-pointer hover:text-foreground transition-colors">
+            {label}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform duration-200",
+                isOpen && "rotate-180"
+              )}
+            />
+          </SidebarGroupLabel>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "transition-all duration-200",
+                      location.pathname === item.url &&
+                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <NavLink to={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  );
+}
 
 export function AppSidebar() {
   const location = useLocation();
@@ -127,87 +235,12 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
-            Hauptmenü
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    className={cn(
-                      "transition-all duration-200",
-                      location.pathname === item.url &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
-                    )}
-                  >
-                    <NavLink to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
-            Verwaltung
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {managementItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    className={cn(
-                      "transition-all duration-200",
-                      location.pathname === item.url &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
-                    )}
-                  >
-                    <NavLink to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
-            Administration
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    className={cn(
-                      "transition-all duration-200",
-                      location.pathname === item.url &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
-                    )}
-                  >
-                    <NavLink to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="px-2 overflow-y-auto">
+        <NavGroup label="Hauptmenü" items={mainNavItems} location={location} />
+        <NavGroup label="CRM" items={crmItems} location={location} />
+        <NavGroup label="Verkauf" items={salesItems} location={location} />
+        <NavGroup label="Verwaltung" items={managementItems} location={location} />
+        <NavGroup label="Administration" items={adminItems} location={location} />
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
