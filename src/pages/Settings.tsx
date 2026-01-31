@@ -352,6 +352,206 @@ export default function Settings() {
                 </Button>
               </div>
 
+              <Separator />
+
+              {/* Buchhaltungssoftware */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Buchhaltungssoftware
+                </h3>
+                
+                <div className="grid gap-3">
+                  {/* Bexio */}
+                  <div className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#00a3e0]/10">
+                          <span className="text-lg font-bold text-[#00a3e0]">bx</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Bexio</p>
+                          <p className="text-sm text-muted-foreground">
+                            Schweizer Cloud-Buchhaltung für KMU
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Nicht verbunden
+                        </Badge>
+                        <Button>Verbinden</Button>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="text-xs">Debitoren</Badge>
+                      <Badge variant="secondary" className="text-xs">Kreditoren</Badge>
+                      <Badge variant="secondary" className="text-xs">Rechnungen</Badge>
+                      <Badge variant="secondary" className="text-xs">Produkte</Badge>
+                    </div>
+                  </div>
+
+                  {/* Abacus */}
+                  <div className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#e30613]/10">
+                          <span className="text-lg font-bold text-[#e30613]">A</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Abacus</p>
+                          <p className="text-sm text-muted-foreground">
+                            Schweizer ERP & Finanzsoftware
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Nicht verbunden
+                        </Badge>
+                        <Button>Verbinden</Button>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="text-xs">Finanzbuchhaltung</Badge>
+                      <Badge variant="secondary" className="text-xs">Lohnbuchhaltung</Badge>
+                      <Badge variant="secondary" className="text-xs">AbaWeb</Badge>
+                    </div>
+                  </div>
+
+                  {/* Sage */}
+                  <div className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#00dc00]/10">
+                          <span className="text-lg font-bold text-[#00a651]">S</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Sage 50 / Sage 200</p>
+                          <p className="text-sm text-muted-foreground">
+                            Buchhaltung & Warenwirtschaft
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Nicht verbunden
+                        </Badge>
+                        <Button>Verbinden</Button>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="text-xs">Debitoren</Badge>
+                      <Badge variant="secondary" className="text-xs">Kreditoren</Badge>
+                      <Badge variant="secondary" className="text-xs">Kontenplan</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Treuhänder Export */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <ExternalLink className="h-5 w-5" />
+                  Treuhänder-Export
+                </h3>
+                
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Export-Format</p>
+                        <p className="text-sm text-muted-foreground">
+                          Datenformat für den Treuhänder wählen
+                        </p>
+                      </div>
+                      <Select defaultValue="datev">
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="datev">DATEV (Standard)</SelectItem>
+                          <SelectItem value="topal">Topal</SelectItem>
+                          <SelectItem value="banana">Banana</SelectItem>
+                          <SelectItem value="csv">CSV Universal</SelectItem>
+                          <SelectItem value="xml">XML (ISO 20022)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Automatischer Export</p>
+                        <p className="text-sm text-muted-foreground">
+                          Monatlicher Export an Treuhänder senden
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="trusteeEmail">Treuhänder E-Mail</Label>
+                        <Input id="trusteeEmail" type="email" placeholder="treuhänder@example.ch" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="exportDay">Export-Tag</Label>
+                        <Select defaultValue="5">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1. des Monats</SelectItem>
+                            <SelectItem value="5">5. des Monats</SelectItem>
+                            <SelectItem value="10">10. des Monats</SelectItem>
+                            <SelectItem value="15">15. des Monats</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" className="gap-2">
+                        <ExternalLink className="h-4 w-4" />
+                        Vorschau Export
+                      </Button>
+                      <Button className="gap-2">
+                        <Save className="h-4 w-4" />
+                        Jetzt exportieren
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Export History */}
+                <div className="p-4 rounded-xl border border-border">
+                  <h4 className="font-medium mb-3">Letzte Exporte</h4>
+                  <div className="space-y-2">
+                    {[
+                      { date: "31.12.2024", type: "DATEV", status: "success" },
+                      { date: "30.11.2024", type: "DATEV", status: "success" },
+                      { date: "31.10.2024", type: "DATEV", status: "success" },
+                    ].map((exp, i) => (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          <span className="text-sm">{exp.date}</span>
+                          <Badge variant="secondary" className="text-xs">{exp.type}</Badge>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Info Box */}
               <div className="rounded-xl border border-info/30 bg-info/5 p-4">
                 <div className="flex items-start gap-3">
@@ -361,7 +561,7 @@ export default function Settings() {
                   <div>
                     <p className="font-medium text-info">Backend erforderlich</p>
                     <p className="text-sm text-muted-foreground">
-                      Für die vollständige E-Mail- und Kalender-Integration muss Lovable Cloud aktiviert werden. 
+                      Für die vollständige Integration mit Buchhaltungssoftware muss Lovable Cloud aktiviert werden. 
                       Dies ermöglicht OAuth-Authentifizierung und sichere API-Verbindungen.
                     </p>
                   </div>
