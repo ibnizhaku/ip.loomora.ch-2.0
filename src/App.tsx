@@ -28,6 +28,11 @@ import Finance from "./pages/Finance";
 import Reports from "./pages/Reports";
 import HR from "./pages/HR";
 import EmployeeDetail from "./pages/EmployeeDetail";
+import Payroll from "./pages/Payroll";
+import Absences from "./pages/Absences";
+import Recruiting from "./pages/Recruiting";
+import Training from "./pages/Training";
+import Orgchart from "./pages/Orgchart";
 import Tasks from "./pages/Tasks";
 import TaskDetail from "./pages/TaskDetail";
 import Users from "./pages/Users";
@@ -108,9 +113,16 @@ const App = () => (
                   {/* Dokumente */}
                   <Route path="/documents" element={<Documents />} />
                   
-                  {/* Administration */}
+                  {/* HR / Personal */}
                   <Route path="/hr" element={<HR />} />
                   <Route path="/hr/:id" element={<EmployeeDetail />} />
+                  <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/absences" element={<Absences />} />
+                  <Route path="/recruiting" element={<Recruiting />} />
+                  <Route path="/training" element={<Training />} />
+                  <Route path="/orgchart" element={<Orgchart />} />
+                  
+                  {/* Administration */}
                   <Route path="/users" element={<Users />} />
                   <Route path="/company" element={<Company />} />
                   <Route path="/settings" element={<Settings />} />
