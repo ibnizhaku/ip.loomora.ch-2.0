@@ -56,6 +56,14 @@ import AbsenceDetail from "./pages/AbsenceDetail";
 import TravelExpenseDetail from "./pages/TravelExpenseDetail";
 import UserDetail from "./pages/UserDetail";
 import ReviewDetail from "./pages/ReviewDetail";
+import PayslipDetail from "./pages/PayslipDetail";
+import BankAccountDetail from "./pages/BankAccountDetail";
+import BudgetDetail from "./pages/BudgetDetail";
+import FixedAssetDetail from "./pages/FixedAssetDetail";
+import VatReturnDetail from "./pages/VatReturnDetail";
+import DiscountDetail from "./pages/DiscountDetail";
+import TrainingDetail from "./pages/TrainingDetail";
+import RoleDetail from "./pages/RoleDetail";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Company from "./pages/Company";
@@ -180,12 +188,16 @@ const App = () => (
                   <Route path="/creditors" element={<Creditors />} />
                   <Route path="/balance-sheet" element={<BalanceSheet />} />
                   <Route path="/vat-returns" element={<VatReturns />} />
+                  <Route path="/vat-returns/:id" element={<VatReturnDetail />} />
                   <Route path="/fixed-assets" element={<FixedAssets />} />
+                  <Route path="/fixed-assets/:id" element={<FixedAssetDetail />} />
                   <Route path="/cash-book" element={<CashBook />} />
                   <Route path="/bank-accounts" element={<BankAccounts />} />
+                  <Route path="/bank-accounts/:id" element={<BankAccountDetail />} />
                   <Route path="/sepa-payments" element={<SepaPayments />} />
                   <Route path="/cost-centers" element={<CostCenters />} />
                   <Route path="/budgets" element={<Budgets />} />
+                  <Route path="/budgets/:id" element={<BudgetDetail />} />
                   <Route path="/contracts" element={<Contracts />} />
                   <Route path="/contracts/:id" element={<ContractDetail />} />
                   
@@ -205,6 +217,7 @@ const App = () => (
                   {/* E-Commerce */}
                   <Route path="/shop" element={<Shop />} />
                   <Route path="/discounts" element={<Discounts />} />
+                  <Route path="/discounts/:id" element={<DiscountDetail />} />
                   <Route path="/reviews" element={<Reviews />} />
                   <Route path="/reviews/:id" element={<ReviewDetail />} />
                   
@@ -220,11 +233,13 @@ const App = () => (
                   <Route path="/employee-contracts" element={<EmployeeContracts />} />
                   <Route path="/employee-contracts/:id" element={<EmployeeContractDetail />} />
                   <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/payroll/:id" element={<PayslipDetail />} />
                   <Route path="/absences" element={<Absences />} />
                   <Route path="/absences/:id" element={<AbsenceDetail />} />
                   <Route path="/recruiting" element={<Recruiting />} />
                   <Route path="/recruiting/:id" element={<CandidateDetail />} />
                   <Route path="/training" element={<Training />} />
+                  <Route path="/training/:id" element={<TrainingDetail />} />
                   <Route path="/orgchart" element={<Orgchart />} />
                   
                   {/* Administration */}
@@ -233,6 +248,7 @@ const App = () => (
                   <Route path="/company" element={<Company />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/roles" element={<Roles />} />
+                  <Route path="/roles/:id" element={<RoleDetail />} />
                   <Route path="/audit-log" element={<AuditLog />} />
                   <Route path="/notifications" element={<Notifications />} />
                   
