@@ -25,6 +25,12 @@ import {
   Handshake,
   FileSignature,
   Folder,
+  Euro,
+  Palmtree,
+  GraduationCap,
+  UserPlus,
+  Network,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -163,12 +169,40 @@ const managementItems: NavItem[] = [
   },
 ];
 
-const adminItems: NavItem[] = [
+const hrItems: NavItem[] = [
   {
-    title: "Personal (HR)",
+    title: "Mitarbeiter",
     url: "/hr",
     icon: UsersRound,
   },
+  {
+    title: "Lohnabrechnung",
+    url: "/payroll",
+    icon: Euro,
+  },
+  {
+    title: "Abwesenheiten",
+    url: "/absences",
+    icon: Palmtree,
+  },
+  {
+    title: "Recruiting",
+    url: "/recruiting",
+    icon: UserPlus,
+  },
+  {
+    title: "Schulungen",
+    url: "/training",
+    icon: GraduationCap,
+  },
+  {
+    title: "Organigramm",
+    url: "/orgchart",
+    icon: Network,
+  },
+];
+
+const adminItems: NavItem[] = [
   {
     title: "Benutzer",
     url: "/users",
@@ -255,6 +289,7 @@ export function AppSidebar() {
         <NavGroup label="CRM" items={crmItems} location={location} />
         <NavGroup label="Verkauf" items={salesItems} location={location} />
         <NavGroup label="Verwaltung" items={managementItems} location={location} />
+        <NavGroup label="Personal (HR)" items={hrItems} location={location} />
         <NavGroup label="Administration" items={adminItems} location={location} />
       </SidebarContent>
 
