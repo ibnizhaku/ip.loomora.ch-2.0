@@ -50,6 +50,10 @@ import {
   UserMinus,
   UserPlus2,
   Search,
+  Layers,
+  Factory,
+  ClipboardCheck,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
@@ -165,48 +169,19 @@ const salesItems: NavItem[] = [
 ];
 
 const managementItems: NavItem[] = [
-  {
-    title: "Zeiterfassung",
-    url: "/time-tracking",
-    icon: Clock,
-    keywords: ["time", "stunden", "rapporte"],
-  },
-  {
-    title: "Einkauf",
-    url: "/purchase-orders",
-    icon: ShoppingCart,
-    keywords: ["purchase", "bestellung", "beschaffung"],
-  },
-  {
-    title: "Lager",
-    url: "/inventory",
-    icon: Package,
-    keywords: ["inventory", "bestand", "stock", "waren"],
-  },
-  {
-    title: "Produkte",
-    url: "/products",
-    icon: Box,
-    keywords: ["artikel", "product", "ware", "material", "artikelstamm"],
-  },
-  {
-    title: "Verträge",
-    url: "/contracts",
-    icon: FileSignature,
-    keywords: ["contract", "vertrag", "vereinbarung"],
-  },
-  {
-    title: "Dokumente",
-    url: "/documents",
-    icon: Folder,
-    keywords: ["document", "datei", "file", "ablage"],
-  },
-  {
-    title: "Berichte",
-    url: "/reports",
-    icon: BarChart3,
-    keywords: ["report", "statistik", "auswertung"],
-  },
+  { title: "Zeiterfassung", url: "/time-tracking", icon: Clock, keywords: ["time", "stunden"] },
+  { title: "Einkauf", url: "/purchase-orders", icon: ShoppingCart },
+  { title: "Einkaufsrechnungen", url: "/purchase-invoices", icon: Receipt, keywords: ["kreditor", "lieferant"] },
+  { title: "Lager", url: "/inventory", icon: Package, keywords: ["inventory", "bestand"] },
+  { title: "Produkte", url: "/products", icon: Box, keywords: ["artikel", "material"] },
+  { title: "Stücklisten", url: "/bom", icon: Layers, keywords: ["bom", "material"] },
+  { title: "Kalkulation", url: "/calculation", icon: Calculator, keywords: ["kalk", "preis"] },
+  { title: "Produktion", url: "/production", icon: Factory, keywords: ["werkstatt", "fertigung"] },
+  { title: "QS-Prüfung", url: "/quality", icon: ClipboardCheck, keywords: ["qualität", "prüfung"] },
+  { title: "Service", url: "/service", icon: Wrench, keywords: ["wartung", "reparatur"] },
+  { title: "Verträge", url: "/contracts", icon: FileSignature },
+  { title: "Dokumente", url: "/documents", icon: Folder },
+  { title: "Berichte", url: "/reports", icon: BarChart3 },
 ];
 
 const accountingItems: NavItem[] = [
