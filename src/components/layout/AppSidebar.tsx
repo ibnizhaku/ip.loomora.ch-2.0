@@ -79,6 +79,7 @@ interface NavItem {
   title: string;
   url: string;
   icon: any;
+  keywords?: string[]; // Additional search terms
   subItems?: { title: string; url: string }[];
 }
 
@@ -87,21 +88,25 @@ const mainNavItems: NavItem[] = [
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
+    keywords: ["übersicht", "home", "start"],
   },
   {
     title: "Projekte",
     url: "/projects",
     icon: FolderKanban,
+    keywords: ["project", "vorhaben"],
   },
   {
     title: "Aufgaben",
     url: "/tasks",
     icon: CheckSquare,
+    keywords: ["task", "todo", "pendenz"],
   },
   {
     title: "Kalender",
     url: "/calendar",
     icon: CalendarDays,
+    keywords: ["termine", "calendar", "datum"],
   },
 ];
 
@@ -110,11 +115,13 @@ const crmItems: NavItem[] = [
     title: "Kunden",
     url: "/customers",
     icon: Users,
+    keywords: ["customer", "client", "debitor"],
   },
   {
     title: "Lieferanten",
     url: "/suppliers",
     icon: Handshake,
+    keywords: ["supplier", "kreditor", "zulieferer"],
   },
 ];
 
@@ -123,31 +130,37 @@ const salesItems: NavItem[] = [
     title: "Angebote",
     url: "/quotes",
     icon: FileText,
+    keywords: ["offerte", "quote", "kostenvoranschlag"],
   },
   {
     title: "Aufträge",
     url: "/orders",
     icon: ShoppingCart,
+    keywords: ["order", "bestellung"],
   },
   {
     title: "Lieferscheine",
     url: "/delivery-notes",
     icon: Truck,
+    keywords: ["delivery", "versand"],
   },
   {
     title: "Rechnungen",
     url: "/invoices",
     icon: Receipt,
+    keywords: ["invoice", "faktura", "rechnung"],
   },
   {
     title: "Gutschriften",
     url: "/credit-notes",
     icon: FileBox,
+    keywords: ["credit", "storno"],
   },
   {
     title: "Mahnwesen",
     url: "/reminders",
     icon: FileText,
+    keywords: ["mahnung", "reminder", "inkasso"],
   },
 ];
 
@@ -156,36 +169,43 @@ const managementItems: NavItem[] = [
     title: "Zeiterfassung",
     url: "/time-tracking",
     icon: Clock,
+    keywords: ["time", "stunden", "rapporte"],
   },
   {
     title: "Einkauf",
     url: "/purchase-orders",
     icon: ShoppingCart,
+    keywords: ["purchase", "bestellung", "beschaffung"],
   },
   {
     title: "Lager",
     url: "/inventory",
     icon: Package,
+    keywords: ["inventory", "bestand", "stock", "waren"],
   },
   {
     title: "Produkte",
     url: "/products",
     icon: Box,
+    keywords: ["artikel", "product", "ware", "material", "artikelstamm"],
   },
   {
     title: "Verträge",
     url: "/contracts",
     icon: FileSignature,
+    keywords: ["contract", "vertrag", "vereinbarung"],
   },
   {
     title: "Dokumente",
     url: "/documents",
     icon: Folder,
+    keywords: ["document", "datei", "file", "ablage"],
   },
   {
     title: "Berichte",
     url: "/reports",
     icon: BarChart3,
+    keywords: ["report", "statistik", "auswertung"],
   },
 ];
 
@@ -364,29 +384,56 @@ interface NavGroupProps {
   items: NavItem[];
   location: ReturnType<typeof useLocation>;
   defaultOpen?: boolean;
+  searchQuery?: string;
 }
 
-function NavGroup({ label, items, location, defaultOpen = true }: NavGroupProps) {
+function filterItems(items: NavItem[], query: string): NavItem[] {
+  if (!query.trim()) return items;
+  const lowerQuery = query.toLowerCase();
+  return items.filter((item) => {
+    const titleMatch = item.title.toLowerCase().includes(lowerQuery);
+    const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
+    return titleMatch || keywordMatch;
+  });
+}
+
+function NavGroup({ label, items, location, defaultOpen = true, searchQuery = "" }: NavGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const filteredItems = filterItems(items, searchQuery);
+  
+  // Force open when searching and has results
+  const shouldBeOpen = searchQuery ? filteredItems.length > 0 : isOpen;
+
+  // Don't render if no items match search
+  if (searchQuery && filteredItems.length === 0) {
+    return null;
+  }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={shouldBeOpen} onOpenChange={searchQuery ? undefined : setIsOpen}>
       <SidebarGroup>
-        <CollapsibleTrigger className="w-full">
+        <CollapsibleTrigger className="w-full" disabled={!!searchQuery}>
           <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 flex items-center justify-between cursor-pointer hover:text-foreground transition-colors">
             {label}
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                isOpen && "rotate-180"
-              )}
-            />
+            {filteredItems.length !== items.length && searchQuery && (
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                {filteredItems.length}
+              </span>
+            )}
+            {!searchQuery && (
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  shouldBeOpen && "rotate-180"
+                )}
+              />
+            )}
           </SidebarGroupLabel>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
@@ -439,15 +486,23 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 overflow-y-auto">
-        <NavGroup label="Hauptmenü" items={mainNavItems} location={location} />
-        <NavGroup label="CRM" items={crmItems} location={location} />
-        <NavGroup label="Verkauf" items={salesItems} location={location} />
-        <NavGroup label="Verwaltung" items={managementItems} location={location} />
-        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} />
-        <NavGroup label="Marketing" items={marketingItems} location={location} />
-        <NavGroup label="E-Commerce" items={ecommerceItems} location={location} />
-        <NavGroup label="Personal (HR)" items={hrItems} location={location} />
-        <NavGroup label="Administration" items={adminItems} location={location} />
+        <NavGroup label="Hauptmenü" items={mainNavItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="CRM" items={crmItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="Verkauf" items={salesItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="Verwaltung" items={managementItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} searchQuery={sidebarSearch} />
+        <NavGroup label="Marketing" items={marketingItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="E-Commerce" items={ecommerceItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="Personal (HR)" items={hrItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="Administration" items={adminItems} location={location} searchQuery={sidebarSearch} />
+        
+        {sidebarSearch && (
+          <div className="px-2 py-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              Suche: "{sidebarSearch}"
+            </p>
+          </div>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
