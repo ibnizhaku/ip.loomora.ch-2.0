@@ -47,6 +47,8 @@ import {
   Percent,
   Star,
   UserCheck,
+  UserMinus,
+  UserPlus2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -220,6 +222,16 @@ const accountingItems: NavItem[] = [
     title: "Offene Posten",
     url: "/open-items",
     icon: AlertTriangle,
+  },
+  {
+    title: "Debitoren",
+    url: "/debtors",
+    icon: UserPlus2,
+  },
+  {
+    title: "Kreditoren",
+    url: "/creditors",
+    icon: UserMinus,
   },
   {
     title: "Bilanz & GuV",
