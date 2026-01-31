@@ -71,6 +71,21 @@ import Discounts from "./pages/Discounts";
 import Reviews from "./pages/Reviews";
 import Debtors from "./pages/Debtors";
 import Creditors from "./pages/Creditors";
+import BillOfMaterials from "./pages/BillOfMaterials";
+import Calculation from "./pages/Calculation";
+import QRInvoice from "./pages/QRInvoice";
+import Production from "./pages/Production";
+import PurchaseInvoices from "./pages/PurchaseInvoices";
+import Payments from "./pages/Payments";
+import BankImport from "./pages/BankImport";
+import Swissdec from "./pages/Swissdec";
+import WithholdingTax from "./pages/WithholdingTax";
+import Service from "./pages/Service";
+import QualityControl from "./pages/QualityControl";
+import Notifications from "./pages/Notifications";
+import AuditLog from "./pages/AuditLog";
+import Roles from "./pages/Roles";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -180,6 +195,23 @@ const App = () => (
                   <Route path="/users" element={<Users />} />
                   <Route path="/company" element={<Company />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/roles" element={<Roles />} />
+                  <Route path="/audit-log" element={<AuditLog />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  
+                  {/* Neue Module */}
+                  <Route path="/bom" element={<BillOfMaterials />} />
+                  <Route path="/calculation" element={<Calculation />} />
+                  <Route path="/qr-invoice" element={<QRInvoice />} />
+                  <Route path="/production" element={<Production />} />
+                  <Route path="/purchase-invoices" element={<PurchaseInvoices />} />
+                  <Route path="/payments" element={<Payments />} />
+                  <Route path="/bank-import" element={<BankImport />} />
+                  <Route path="/swissdec" element={<Swissdec />} />
+                  <Route path="/withholding-tax" element={<WithholdingTax />} />
+                  <Route path="/service" element={<Service />} />
+                  <Route path="/quality" element={<QualityControl />} />
+                  <Route path="/login" element={<Login />} />
                   
                   {/* 404 */}
                   <Route path="*" element={<NotFound />} />
