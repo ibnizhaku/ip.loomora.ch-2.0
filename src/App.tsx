@@ -16,8 +16,13 @@ import CustomerDetail from "./pages/CustomerDetail";
 import TimeTracking from "./pages/TimeTracking";
 import Invoices from "./pages/Invoices";
 import InvoiceDetail from "./pages/InvoiceDetail";
+import InvoiceCreate from "./pages/InvoiceCreate";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
+import QuoteCreate from "./pages/QuoteCreate";
+import CreditNoteDetail from "./pages/CreditNoteDetail";
+import PurchaseOrderDetail from "./pages/PurchaseOrderDetail";
+import PurchaseInvoiceDetail from "./pages/PurchaseInvoiceDetail";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import DeliveryNotes from "./pages/DeliveryNotes";
@@ -126,18 +131,24 @@ const App = () => (
                   
                   {/* Verkauf */}
                   <Route path="/quotes" element={<Quotes />} />
+                  <Route path="/quotes/new" element={<QuoteCreate />} />
                   <Route path="/quotes/:id" element={<QuoteDetail />} />
                   <Route path="/orders" element={<Orders />} />
                   <Route path="/orders/:id" element={<OrderDetail />} />
                   <Route path="/invoices" element={<Invoices />} />
+                  <Route path="/invoices/new" element={<InvoiceCreate />} />
                   <Route path="/invoices/:id" element={<InvoiceDetail />} />
                   <Route path="/delivery-notes" element={<DeliveryNotes />} />
                   <Route path="/delivery-notes/:id" element={<DeliveryNoteDetail />} />
                   <Route path="/credit-notes" element={<CreditNotes />} />
+                  <Route path="/credit-notes/:id" element={<CreditNoteDetail />} />
                   <Route path="/reminders" element={<Reminders />} />
                   
                   {/* Einkauf & Lager */}
                   <Route path="/purchase-orders" element={<PurchaseOrders />} />
+                  <Route path="/purchase-orders/:id" element={<PurchaseOrderDetail />} />
+                  <Route path="/purchase-invoices" element={<PurchaseInvoices />} />
+                  <Route path="/purchase-invoices/:id" element={<PurchaseInvoiceDetail />} />
                   <Route path="/inventory" element={<Inventory />} />
                   <Route path="/inventory/:id" element={<InventoryItemDetail />} />
                   
