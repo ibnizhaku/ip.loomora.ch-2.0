@@ -45,6 +45,16 @@ import CalculationDetail from "./pages/CalculationDetail";
 import ProductionDetail from "./pages/ProductionDetail";
 import LeadDetail from "./pages/LeadDetail";
 import EmployeeContractDetail from "./pages/EmployeeContractDetail";
+import ServiceDetail from "./pages/ServiceDetail";
+import QualityCheckDetail from "./pages/QualityCheckDetail";
+import CampaignDetail from "./pages/CampaignDetail";
+import JournalEntryDetail from "./pages/JournalEntryDetail";
+import PaymentDetail from "./pages/PaymentDetail";
+import ReminderDetail from "./pages/ReminderDetail";
+import CandidateDetail from "./pages/CandidateDetail";
+import AbsenceDetail from "./pages/AbsenceDetail";
+import TravelExpenseDetail from "./pages/TravelExpenseDetail";
+import UserDetail from "./pages/UserDetail";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Company from "./pages/Company";
@@ -148,6 +158,7 @@ const App = () => (
                   <Route path="/credit-notes" element={<CreditNotes />} />
                   <Route path="/credit-notes/:id" element={<CreditNoteDetail />} />
                   <Route path="/reminders" element={<Reminders />} />
+                  <Route path="/reminders/:id" element={<ReminderDetail />} />
                   
                   {/* Einkauf & Lager */}
                   <Route path="/purchase-orders" element={<PurchaseOrders />} />
@@ -161,6 +172,7 @@ const App = () => (
                   <Route path="/finance" element={<Finance />} />
                   <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
                   <Route path="/journal-entries" element={<JournalEntries />} />
+                  <Route path="/journal-entries/:id" element={<JournalEntryDetail />} />
                   <Route path="/general-ledger" element={<GeneralLedger />} />
                   <Route path="/open-items" element={<OpenItems />} />
                   <Route path="/debtors" element={<Debtors />} />
@@ -180,9 +192,11 @@ const App = () => (
                   <Route path="/products" element={<Products />} />
                   <Route path="/products/:id" element={<ProductDetail />} />
                   <Route path="/travel-expenses" element={<TravelExpenses />} />
+                  <Route path="/travel-expenses/:id" element={<TravelExpenseDetail />} />
                   
                   {/* Marketing */}
                   <Route path="/campaigns" element={<Campaigns />} />
+                  <Route path="/campaigns/:id" element={<CampaignDetail />} />
                   <Route path="/leads" element={<Leads />} />
                   <Route path="/leads/:id" element={<LeadDetail />} />
                   <Route path="/email-marketing" element={<EmailMarketing />} />
@@ -205,12 +219,15 @@ const App = () => (
                   <Route path="/employee-contracts/:id" element={<EmployeeContractDetail />} />
                   <Route path="/payroll" element={<Payroll />} />
                   <Route path="/absences" element={<Absences />} />
+                  <Route path="/absences/:id" element={<AbsenceDetail />} />
                   <Route path="/recruiting" element={<Recruiting />} />
+                  <Route path="/recruiting/:id" element={<CandidateDetail />} />
                   <Route path="/training" element={<Training />} />
                   <Route path="/orgchart" element={<Orgchart />} />
                   
                   {/* Administration */}
                   <Route path="/users" element={<Users />} />
+                  <Route path="/users/:id" element={<UserDetail />} />
                   <Route path="/company" element={<Company />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/roles" element={<Roles />} />
@@ -232,7 +249,10 @@ const App = () => (
                   <Route path="/swissdec" element={<Swissdec />} />
                   <Route path="/withholding-tax" element={<WithholdingTax />} />
                   <Route path="/service" element={<Service />} />
+                  <Route path="/service/:id" element={<ServiceDetail />} />
                   <Route path="/quality" element={<QualityControl />} />
+                  <Route path="/quality/:id" element={<QualityCheckDetail />} />
+                  <Route path="/payments/:id" element={<PaymentDetail />} />
                   <Route path="/login" element={<Login />} />
                   
                   {/* 404 */}
