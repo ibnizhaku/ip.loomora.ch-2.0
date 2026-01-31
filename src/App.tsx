@@ -55,6 +55,12 @@ import BalanceSheet from "./pages/BalanceSheet";
 import VatReturns from "./pages/VatReturns";
 import FixedAssets from "./pages/FixedAssets";
 import CashBook from "./pages/CashBook";
+import BankAccounts from "./pages/BankAccounts";
+import SepaPayments from "./pages/SepaPayments";
+import CostCenters from "./pages/CostCenters";
+import Budgets from "./pages/Budgets";
+import Products from "./pages/Products";
+import TravelExpenses from "./pages/TravelExpenses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -120,8 +126,16 @@ const App = () => (
                   <Route path="/vat-returns" element={<VatReturns />} />
                   <Route path="/fixed-assets" element={<FixedAssets />} />
                   <Route path="/cash-book" element={<CashBook />} />
+                  <Route path="/bank-accounts" element={<BankAccounts />} />
+                  <Route path="/sepa-payments" element={<SepaPayments />} />
+                  <Route path="/cost-centers" element={<CostCenters />} />
+                  <Route path="/budgets" element={<Budgets />} />
                   <Route path="/contracts" element={<Contracts />} />
                   <Route path="/contracts/:id" element={<ContractDetail />} />
+                  
+                  {/* Stammdaten & Verwaltung */}
+                  <Route path="/products" element={<Products />} />
+                  <Route path="/travel-expenses" element={<TravelExpenses />} />
                   
                   {/* Berichte */}
                   <Route path="/reports" element={<Reports />} />
