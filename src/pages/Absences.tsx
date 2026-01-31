@@ -15,12 +15,13 @@ import {
   MoreHorizontal,
   CalendarDays,
   Users,
-  AlertCircle
+  AlertCircle,
+  Stethoscope
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -39,33 +40,32 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+// GAV Metallbau Ferienansprüche (altersabhängig)
 const absenceRequests = [
-  { id: 1, employee: "Thomas Müller", type: "Urlaub", from: "15.02.2024", to: "22.02.2024", days: 6, status: "Ausstehend", requestDate: "28.01.2024" },
-  { id: 2, employee: "Lisa Weber", type: "Urlaub", from: "01.03.2024", to: "08.03.2024", days: 6, status: "Genehmigt", requestDate: "25.01.2024" },
-  { id: 3, employee: "Sarah Koch", type: "Krank", from: "29.01.2024", to: "31.01.2024", days: 3, status: "Bestätigt", requestDate: "29.01.2024" },
-  { id: 4, employee: "Michael Braun", type: "Fortbildung", from: "10.02.2024", to: "11.02.2024", days: 2, status: "Genehmigt", requestDate: "20.01.2024" },
-  { id: 5, employee: "Anna Schmidt", type: "Urlaub", from: "18.03.2024", to: "29.03.2024", days: 10, status: "Ausstehend", requestDate: "30.01.2024" },
+  { id: 1, employee: "Thomas Müller", type: "Ferien", from: "12.02.2024", to: "16.02.2024", days: 5, status: "Genehmigt", requestDate: "28.01.2024" },
+  { id: 2, employee: "Michael Schneider", type: "Ferien", from: "04.03.2024", to: "15.03.2024", days: 8, status: "Ausstehend", requestDate: "25.01.2024" },
+  { id: 3, employee: "Pedro Santos", type: "Ferien", from: "26.02.2024", to: "08.03.2024", days: 10, status: "Ausstehend", requestDate: "30.01.2024" },
+  { id: 4, employee: "Lisa Weber", type: "Krankheit", from: "15.01.2024", to: "17.01.2024", days: 3, status: "Bestätigt", requestDate: "15.01.2024", note: "Arztzeugnis vorhanden" },
+  { id: 5, employee: "Michael Schneider", type: "Unfall", from: "08.01.2024", to: "12.01.2024", days: 5, status: "Bestätigt", requestDate: "08.01.2024", note: "BU - Arbeitsunfall SUVA" },
 ];
 
+// Ferienkonten nach GAV Metallbau (altersabhängig)
 const employeeVacation = [
-  { id: "1", name: "Max Keller", total: 30, taken: 5, planned: 0, remaining: 25, carryOver: 2 },
-  { id: "2", name: "Anna Schmidt", total: 30, taken: 8, planned: 10, remaining: 12, carryOver: 0 },
-  { id: "3", name: "Thomas Müller", total: 30, taken: 12, planned: 6, remaining: 12, carryOver: 3 },
-  { id: "4", name: "Lisa Weber", total: 28, taken: 4, planned: 6, remaining: 18, carryOver: 0 },
-  { id: "5", name: "Sarah Koch", total: 30, taken: 10, planned: 0, remaining: 20, carryOver: 5 },
-  { id: "6", name: "Michael Braun", total: 28, taken: 2, planned: 0, remaining: 26, carryOver: 0 },
-];
-
-const calendarAbsences = [
-  { employee: "Thomas Müller", type: "Urlaub", from: "15.02", to: "22.02", color: "bg-info" },
-  { employee: "Lisa Weber", type: "Urlaub", from: "01.03", to: "08.03", color: "bg-info" },
-  { employee: "Sarah Koch", type: "Krank", from: "29.01", to: "31.01", color: "bg-warning" },
+  { id: "1", name: "Thomas Müller", position: "Metallbauer EFZ", age: 32, total: 20, taken: 8, planned: 5, remaining: 7 },
+  { id: "2", name: "Lisa Weber", position: "Metallbaukonstrukteurin", age: 28, total: 20, taken: 12, planned: 0, remaining: 8 },
+  { id: "3", name: "Michael Schneider", position: "Vorarbeiter", age: 52, total: 25, taken: 10, planned: 8, remaining: 7 },
+  { id: "4", name: "Sandra Fischer", position: "Kaufm. Angestellte", age: 45, total: 20, taken: 15, planned: 0, remaining: 5 },
+  { id: "5", name: "Pedro Santos", position: "Metallbauer EFZ", age: 19, total: 25, taken: 5, planned: 10, remaining: 10 },
+  { id: "6", name: "Hans Keller", position: "Werkstattleiter", age: 61, total: 30, taken: 18, planned: 0, remaining: 12 },
 ];
 
 const typeConfig: Record<string, { color: string; icon: any }> = {
-  "Urlaub": { color: "bg-info/10 text-info", icon: Palmtree },
-  "Krank": { color: "bg-warning/10 text-warning", icon: ThermometerSun },
-  "Elternzeit": { color: "bg-primary/10 text-primary", icon: Baby },
+  "Ferien": { color: "bg-info/10 text-info", icon: Palmtree },
+  "Krankheit": { color: "bg-warning/10 text-warning", icon: ThermometerSun },
+  "Unfall": { color: "bg-destructive/10 text-destructive", icon: Stethoscope },
+  "Mutterschaft": { color: "bg-primary/10 text-primary", icon: Baby },
+  "Vaterschaft": { color: "bg-primary/10 text-primary", icon: Baby },
+  "Militär": { color: "bg-muted text-muted-foreground", icon: Calendar },
   "Fortbildung": { color: "bg-success/10 text-success", icon: GraduationCap },
   "Sonderurlaub": { color: "bg-muted text-muted-foreground", icon: Calendar },
 };
@@ -77,16 +77,12 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
   "Abgelehnt": { color: "bg-destructive/10 text-destructive", icon: XCircle },
 };
 
-const stats = [
-  { title: "Anträge offen", value: "2", icon: Clock, color: "text-warning" },
-  { title: "Heute abwesend", value: "1", icon: Users, color: "text-info" },
-  { title: "Diese Woche", value: "3", icon: CalendarDays, color: "text-muted-foreground" },
-  { title: "Resturlaub (Ø)", value: "18.8", icon: Palmtree, color: "text-success" },
-];
-
 const Absences = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const pendingRequests = absenceRequests.filter(r => r.status === "Ausstehend");
+
+  const totalFerien = employeeVacation.reduce((sum, e) => sum + e.total, 0);
+  const genommenFerien = employeeVacation.reduce((sum, e) => sum + e.taken, 0);
 
   return (
     <div className="space-y-6">
@@ -94,7 +90,7 @@ const Absences = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Abwesenheiten</h1>
-          <p className="text-muted-foreground">Verwalten Sie Urlaub, Krankheit und Sonderurlaub</p>
+          <p className="text-muted-foreground">Ferien, Krankheit & Absenzen nach GAV Metallbau</p>
         </div>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
@@ -104,21 +100,59 @@ const Absences = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                  <stat.icon className="h-5 w-5 text-muted-foreground" />
-                </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{totalFerien} Tage</div>
+                <p className="text-sm text-muted-foreground">Ferienanspruch Total</p>
+                <Progress value={(genommenFerien / totalFerien) * 100} className="mt-2" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <Palmtree className="h-5 w-5 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-warning">{pendingRequests.length}</div>
+                <p className="text-sm text-muted-foreground">Offene Anträge</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+                <Clock className="h-5 w-5 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">10 Tage</div>
+                <p className="text-sm text-muted-foreground">Krankheitstage (Jahr)</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
+                <Stethoscope className="h-5 w-5 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">1</div>
+                <p className="text-sm text-muted-foreground">Heute abwesend</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
+                <Users className="h-5 w-5 text-info" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Pending Requests Alert */}
@@ -140,8 +174,8 @@ const Absences = () => {
       <Tabs defaultValue="requests" className="space-y-6">
         <TabsList>
           <TabsTrigger value="requests">Anträge</TabsTrigger>
-          <TabsTrigger value="overview">Urlaubsübersicht</TabsTrigger>
-          <TabsTrigger value="calendar">Kalender</TabsTrigger>
+          <TabsTrigger value="overview">Ferienübersicht</TabsTrigger>
+          <TabsTrigger value="gav">GAV Regelungen</TabsTrigger>
         </TabsList>
 
         <TabsContent value="requests" className="space-y-4">
@@ -166,13 +200,13 @@ const Absences = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Mitarbeiter</TableHead>
+                    <TableHead>Mitarbeitende</TableHead>
                     <TableHead>Art</TableHead>
                     <TableHead>Von</TableHead>
                     <TableHead>Bis</TableHead>
                     <TableHead className="text-right">Tage</TableHead>
-                    <TableHead>Beantragt am</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Bemerkung</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -203,12 +237,14 @@ const Absences = () => {
                         <TableCell>{request.from}</TableCell>
                         <TableCell>{request.to}</TableCell>
                         <TableCell className="text-right font-medium">{request.days}</TableCell>
-                        <TableCell className="text-muted-foreground">{request.requestDate}</TableCell>
                         <TableCell>
                           <Badge className={status.color}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {request.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {(request as any).note || "-"}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -231,7 +267,6 @@ const Absences = () => {
                                 </>
                               )}
                               <DropdownMenuItem>Details anzeigen</DropdownMenuItem>
-                              <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -247,35 +282,42 @@ const Absences = () => {
         <TabsContent value="overview">
           <Card>
             <CardHeader>
-              <CardTitle>Urlaubskonten 2024</CardTitle>
+              <CardTitle>Ferienkonten 2024</CardTitle>
+              <CardDescription>Anspruch gemäss GAV Metallbau (altersabhängig)</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Mitarbeiter</TableHead>
+                    <TableHead>Mitarbeitende</TableHead>
+                    <TableHead>Alter</TableHead>
                     <TableHead className="text-right">Anspruch</TableHead>
-                    <TableHead className="text-right">Übertrag</TableHead>
                     <TableHead className="text-right">Genommen</TableHead>
                     <TableHead className="text-right">Geplant</TableHead>
-                    <TableHead className="text-right">Verfügbar</TableHead>
-                    <TableHead>Fortschritt</TableHead>
+                    <TableHead className="text-right">Restsaldo</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {employeeVacation.map((emp) => {
-                    const usedPercent = ((emp.taken + emp.planned) / (emp.total + emp.carryOver)) * 100;
+                    const usedPercent = ((emp.taken + emp.planned) / emp.total) * 100;
                     return (
                       <TableRow key={emp.id}>
                         <TableCell>
-                          <Link to={`/hr/${emp.id}`} className="font-medium hover:text-primary">
-                            {emp.name}
-                          </Link>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {emp.name.split(" ").map(n => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <Link to={`/hr/${emp.id}`} className="font-medium hover:text-primary">{emp.name}</Link>
+                              <p className="text-xs text-muted-foreground">{emp.position}</p>
+                            </div>
+                          </div>
                         </TableCell>
+                        <TableCell>{emp.age} J.</TableCell>
                         <TableCell className="text-right">{emp.total}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {emp.carryOver > 0 ? `+${emp.carryOver}` : "-"}
-                        </TableCell>
                         <TableCell className="text-right">{emp.taken}</TableCell>
                         <TableCell className="text-right text-info">{emp.planned || "-"}</TableCell>
                         <TableCell className="text-right font-semibold text-success">{emp.remaining}</TableCell>
@@ -294,56 +336,60 @@ const Absences = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="calendar">
-          <Card>
-            <CardHeader>
-              <CardTitle>Abwesenheitskalender</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex gap-4 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded bg-info" />
-                    <span className="text-sm">Urlaub</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded bg-warning" />
-                    <span className="text-sm">Krank</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded bg-success" />
-                    <span className="text-sm">Fortbildung</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded bg-primary" />
-                    <span className="text-sm">Elternzeit</span>
-                  </div>
-                </div>
+        <TabsContent value="gav" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Ferienanspruch GAV Metallbau</CardTitle>
+                <CardDescription>Gemäss Gesamtarbeitsvertrag SMU</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Bis 20 Jahre</span><span className="font-semibold">25 Arbeitstage (5 Wochen)</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>20-49 Jahre</span><span className="font-semibold">20 Arbeitstage (4 Wochen)</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Ab 50 Jahre</span><span className="font-semibold">25 Arbeitstage (5 Wochen)</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Ab 60 Jahre</span><span className="font-semibold">30 Arbeitstage (6 Wochen)</span></div>
+              </CardContent>
+            </Card>
 
-                <div className="space-y-3">
-                  {calendarAbsences.map((absence, index) => (
-                    <div key={index} className="flex items-center gap-4 p-3 rounded-lg border">
-                      <div className={`h-10 w-1 rounded ${absence.color}`} />
-                      <div className="flex-1">
-                        <p className="font-medium">{absence.employee}</p>
-                        <p className="text-sm text-muted-foreground">{absence.type}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{absence.from} - {absence.to}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Bezahlte Abwesenheiten</CardTitle>
+                <CardDescription>Gesetzlich & GAV</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Eigene Hochzeit</span><span className="font-semibold">3 Tage</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Vaterschaftsurlaub</span><span className="font-semibold">10 Tage (2 Wochen)</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Mutterschaftsurlaub</span><span className="font-semibold">14 Wochen (98 Tage)</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Todesfall (Familie)</span><span className="font-semibold">1-3 Tage</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Umzug</span><span className="font-semibold">1 Tag</span></div>
+              </CardContent>
+            </Card>
 
-                <div className="pt-4 text-center">
-                  <Button variant="outline">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Vollständigen Kalender öffnen
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Krankheit & Unfall</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Krankentaggeld (KTG)</span><span className="font-semibold">80% ab 3. Tag, max. 720 Tage</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Berufsunfall (BU/SUVA)</span><span className="font-semibold">80% ab 3. Tag</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Nichtberufsunfall (NBU)</span><span className="font-semibold">80% ab 3. Tag</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Arztzeugnis erforderlich</span><span className="font-semibold">Ab 3. Krankheitstag</span></div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Feiertage (Kanton ZH)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Neujahr</span><span className="font-semibold">1. Januar</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Karfreitag & Ostermontag</span><span className="font-semibold">variabel</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Tag der Arbeit</span><span className="font-semibold">1. Mai</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Bundesfeiertag</span><span className="font-semibold">1. August</span></div>
+                <div className="flex justify-between p-2 bg-muted/50 rounded"><span>Weihnachten</span><span className="font-semibold">25./26. Dezember</span></div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

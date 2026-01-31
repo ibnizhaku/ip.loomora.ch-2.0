@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,84 +34,123 @@ interface Account {
   isExpanded?: boolean;
 }
 
+// Schweizer Kontenrahmen KMU (nach OR 957a)
 const accounts: Account[] = [
   {
     id: "1",
-    number: "0",
-    name: "Anlagevermögen",
+    number: "1",
+    name: "Aktiven",
     type: "asset",
-    category: "Aktiva",
-    balance: 125000,
+    category: "Aktiven",
+    balance: 856000,
     children: [
-      { id: "1-1", number: "0100", name: "Grundstücke", type: "asset", category: "Aktiva", balance: 50000 },
-      { id: "1-2", number: "0200", name: "Gebäude", type: "asset", category: "Aktiva", balance: 45000 },
-      { id: "1-3", number: "0400", name: "Maschinen", type: "asset", category: "Aktiva", balance: 20000 },
-      { id: "1-4", number: "0600", name: "Betriebs- und Geschäftsausstattung", type: "asset", category: "Aktiva", balance: 10000 },
+      { id: "1-1", number: "1000", name: "Kasse", type: "asset", category: "Aktiven", balance: 2500 },
+      { id: "1-2", number: "1010", name: "Post", type: "asset", category: "Aktiven", balance: 15000 },
+      { id: "1-3", number: "1020", name: "Bank UBS", type: "asset", category: "Aktiven", balance: 125000 },
+      { id: "1-4", number: "1021", name: "Bank ZKB", type: "asset", category: "Aktiven", balance: 85000 },
+      { id: "1-5", number: "1100", name: "Debitoren (Forderungen aus L+L)", type: "asset", category: "Aktiven", balance: 178500 },
+      { id: "1-6", number: "1109", name: "Delkredere", type: "asset", category: "Aktiven", balance: -8925 },
+      { id: "1-7", number: "1170", name: "Vorsteuer MWST", type: "asset", category: "Aktiven", balance: 12400 },
+      { id: "1-8", number: "1200", name: "Warenvorräte", type: "asset", category: "Aktiven", balance: 45000 },
+      { id: "1-9", number: "1300", name: "Aktive Rechnungsabgrenzung", type: "asset", category: "Aktiven", balance: 1525 },
+      { id: "1-10", number: "1500", name: "Maschinen und Apparate", type: "asset", category: "Aktiven", balance: 180000 },
+      { id: "1-11", number: "1509", name: "WB Maschinen", type: "asset", category: "Aktiven", balance: -45000 },
+      { id: "1-12", number: "1520", name: "Fahrzeuge", type: "asset", category: "Aktiven", balance: 120000 },
+      { id: "1-13", number: "1529", name: "WB Fahrzeuge", type: "asset", category: "Aktiven", balance: -48000 },
+      { id: "1-14", number: "1600", name: "Immobilien", type: "asset", category: "Aktiven", balance: 350000 },
+      { id: "1-15", number: "1609", name: "WB Immobilien", type: "asset", category: "Aktiven", balance: -30000 },
     ],
   },
   {
     id: "2",
-    number: "1",
-    name: "Umlaufvermögen",
-    type: "asset",
-    category: "Aktiva",
-    balance: 89500,
+    number: "2",
+    name: "Passiven",
+    type: "liability",
+    category: "Passiven",
+    balance: 856000,
     children: [
-      { id: "2-1", number: "1200", name: "Bank", type: "asset", category: "Aktiva", balance: 45000 },
-      { id: "2-2", number: "1400", name: "Forderungen aus L+L", type: "asset", category: "Aktiva", balance: 32000 },
-      { id: "2-3", number: "1600", name: "Kasse", type: "asset", category: "Aktiva", balance: 2500 },
-      { id: "2-4", number: "1800", name: "Vorsteuer", type: "asset", category: "Aktiva", balance: 10000 },
+      { id: "2-1", number: "2000", name: "Kreditoren (Verbindlichkeiten aus L+L)", type: "liability", category: "Passiven", balance: 78000 },
+      { id: "2-2", number: "2030", name: "Kontokorrent AHV/IV/EO/ALV", type: "liability", category: "Passiven", balance: 12500 },
+      { id: "2-3", number: "2050", name: "Kontokorrent Quellensteuer", type: "liability", category: "Passiven", balance: 3400 },
+      { id: "2-4", number: "2100", name: "Bankverbindlichkeiten kurzfristig", type: "liability", category: "Passiven", balance: 25000 },
+      { id: "2-5", number: "2200", name: "MWST-Schuld", type: "liability", category: "Passiven", balance: 18600 },
+      { id: "2-6", number: "2300", name: "Passive Rechnungsabgrenzung", type: "liability", category: "Passiven", balance: 18500 },
+      { id: "2-7", number: "2400", name: "Bankdarlehen", type: "liability", category: "Passiven", balance: 150000 },
+      { id: "2-8", number: "2450", name: "Hypotheken", type: "liability", category: "Passiven", balance: 50000 },
     ],
   },
   {
     id: "3",
-    number: "2",
+    number: "28",
     name: "Eigenkapital",
     type: "equity",
-    category: "Passiva",
-    balance: 100000,
+    category: "Passiven",
+    balance: 500000,
     children: [
-      { id: "3-1", number: "2000", name: "Gezeichnetes Kapital", type: "equity", category: "Passiva", balance: 50000 },
-      { id: "3-2", number: "2900", name: "Gewinnvortrag", type: "equity", category: "Passiva", balance: 50000 },
+      { id: "3-1", number: "2800", name: "Aktienkapital / Stammkapital", type: "equity", category: "Passiven", balance: 100000 },
+      { id: "3-2", number: "2900", name: "Gesetzliche Kapitalreserven", type: "equity", category: "Passiven", balance: 50000 },
+      { id: "3-3", number: "2950", name: "Gewinnvortrag / Verlustvortrag", type: "equity", category: "Passiven", balance: 280000 },
+      { id: "3-4", number: "2979", name: "Jahresgewinn / Jahresverlust", type: "equity", category: "Passiven", balance: 70000 },
     ],
   },
   {
     id: "4",
     number: "3",
-    name: "Verbindlichkeiten",
-    type: "liability",
-    category: "Passiva",
-    balance: 75000,
+    name: "Betriebsertrag aus Lieferungen und Leistungen",
+    type: "revenue",
+    category: "Ertrag",
+    balance: 1250000,
     children: [
-      { id: "4-1", number: "3300", name: "Verbindlichkeiten aus L+L", type: "liability", category: "Passiva", balance: 25000 },
-      { id: "4-2", number: "3500", name: "Umsatzsteuer", type: "liability", category: "Passiva", balance: 15000 },
-      { id: "4-3", number: "3800", name: "Bankdarlehen", type: "liability", category: "Passiva", balance: 35000 },
+      { id: "4-1", number: "3000", name: "Produktionserlöse", type: "revenue", category: "Ertrag", balance: 850000 },
+      { id: "4-2", number: "3200", name: "Handelserlöse", type: "revenue", category: "Ertrag", balance: 320000 },
+      { id: "4-3", number: "3400", name: "Dienstleistungserlöse", type: "revenue", category: "Ertrag", balance: 95000 },
+      { id: "4-4", number: "3800", name: "Erlösminderungen", type: "revenue", category: "Ertrag", balance: -15000 },
     ],
   },
   {
     id: "5",
     number: "4",
-    name: "Erlöse",
-    type: "revenue",
-    category: "Erträge",
-    balance: 285000,
+    name: "Aufwand für Material, Handelswaren, Dienstleistungen",
+    type: "expense",
+    category: "Aufwand",
+    balance: 580000,
     children: [
-      { id: "5-1", number: "4000", name: "Umsatzerlöse 19%", type: "revenue", category: "Erträge", balance: 250000 },
-      { id: "5-2", number: "4100", name: "Umsatzerlöse 7%", type: "revenue", category: "Erträge", balance: 35000 },
+      { id: "5-1", number: "4000", name: "Materialaufwand", type: "expense", category: "Aufwand", balance: 380000 },
+      { id: "5-2", number: "4200", name: "Handelswarenaufwand", type: "expense", category: "Aufwand", balance: 165000 },
+      { id: "5-3", number: "4400", name: "Aufwand für bezogene Dienstleistungen", type: "expense", category: "Aufwand", balance: 35000 },
     ],
   },
   {
     id: "6",
-    number: "6-7",
-    name: "Aufwendungen",
+    number: "5",
+    name: "Personalaufwand",
     type: "expense",
     category: "Aufwand",
-    balance: 180000,
+    balance: 420000,
     children: [
-      { id: "6-1", number: "6000", name: "Personalaufwand", type: "expense", category: "Aufwand", balance: 120000 },
-      { id: "6-2", number: "6300", name: "Abschreibungen", type: "expense", category: "Aufwand", balance: 15000 },
-      { id: "6-3", number: "6800", name: "Betriebskosten", type: "expense", category: "Aufwand", balance: 25000 },
-      { id: "6-4", number: "7000", name: "Sonstige Aufwendungen", type: "expense", category: "Aufwand", balance: 20000 },
+      { id: "6-1", number: "5000", name: "Löhne und Gehälter", type: "expense", category: "Aufwand", balance: 320000 },
+      { id: "6-2", number: "5700", name: "Sozialversicherungsaufwand AHV/IV/EO/ALV", type: "expense", category: "Aufwand", balance: 42000 },
+      { id: "6-3", number: "5710", name: "Aufwand BVG (Pensionskasse)", type: "expense", category: "Aufwand", balance: 38000 },
+      { id: "6-4", number: "5720", name: "Aufwand UVG/NBU", type: "expense", category: "Aufwand", balance: 8500 },
+      { id: "6-5", number: "5730", name: "Aufwand KTG", type: "expense", category: "Aufwand", balance: 4500 },
+      { id: "6-6", number: "5800", name: "Übriger Personalaufwand", type: "expense", category: "Aufwand", balance: 7000 },
+    ],
+  },
+  {
+    id: "7",
+    number: "6",
+    name: "Übriger betrieblicher Aufwand",
+    type: "expense",
+    category: "Aufwand",
+    balance: 125000,
+    children: [
+      { id: "7-1", number: "6000", name: "Raumaufwand", type: "expense", category: "Aufwand", balance: 36000 },
+      { id: "7-2", number: "6100", name: "Unterhalt und Reparaturen", type: "expense", category: "Aufwand", balance: 18000 },
+      { id: "7-3", number: "6200", name: "Fahrzeugaufwand", type: "expense", category: "Aufwand", balance: 24000 },
+      { id: "7-4", number: "6300", name: "Sachversicherungen", type: "expense", category: "Aufwand", balance: 8500 },
+      { id: "7-5", number: "6500", name: "Verwaltungsaufwand", type: "expense", category: "Aufwand", balance: 22000 },
+      { id: "7-6", number: "6570", name: "Informatikaufwand", type: "expense", category: "Aufwand", balance: 12000 },
+      { id: "7-7", number: "6600", name: "Werbeaufwand", type: "expense", category: "Aufwand", balance: 4500 },
     ],
   },
 ];
@@ -124,21 +164,26 @@ const typeColors = {
 };
 
 const typeLabels = {
-  asset: "Aktiv",
-  liability: "Passiv",
+  asset: "Aktiven",
+  liability: "Fremdkapital",
   equity: "Eigenkapital",
   revenue: "Ertrag",
   expense: "Aufwand",
 };
 
 export default function ChartOfAccounts() {
-  const [expandedIds, setExpandedIds] = useState<string[]>(["1", "2", "5"]);
+  const [expandedIds, setExpandedIds] = useState<string[]>(["1", "4", "6"]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  const formatCHF = (amount: number) => {
+    const formatted = Math.abs(amount).toLocaleString("de-CH", { minimumFractionDigits: 2 });
+    return amount < 0 ? `-CHF ${formatted}` : `CHF ${formatted}`;
   };
 
   const renderAccount = (account: Account, level: number = 0) => {
@@ -186,11 +231,11 @@ export default function ChartOfAccounts() {
               {typeLabels[account.type]}
             </Badge>
             <span className={cn(
-              "font-mono font-medium min-w-[120px] text-right",
+              "font-mono font-medium min-w-[140px] text-right",
               account.type === "revenue" && "text-success",
               account.type === "expense" && "text-destructive"
             )}>
-              €{account.balance.toLocaleString()}
+              {formatCHF(account.balance)}
             </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -229,13 +274,19 @@ export default function ChartOfAccounts() {
             Kontenplan
           </h1>
           <p className="text-muted-foreground">
-            SKR03-basierter Kontenrahmen für Ihre Buchhaltung
+            Schweizer Kontenrahmen KMU (OR 957a)
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Konto anlegen
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Konto anlegen
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4">
@@ -261,10 +312,10 @@ export default function ChartOfAccounts() {
               {label}
             </Badge>
             <p className="text-2xl font-bold">
-              €{accounts
+              CHF {accounts
                 .filter((a) => a.type === type)
                 .reduce((acc, a) => acc + a.balance, 0)
-                .toLocaleString()}
+                .toLocaleString("de-CH")}
             </p>
           </div>
         ))}
