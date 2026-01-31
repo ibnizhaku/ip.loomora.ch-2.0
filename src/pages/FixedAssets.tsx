@@ -1,0 +1,366 @@
+import { useState } from "react";
+import {
+  Plus,
+  Search,
+  Filter,
+  Download,
+  Building2,
+  Car,
+  Monitor,
+  Wrench,
+  TrendingDown,
+  Calendar,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+
+interface FixedAsset {
+  id: string;
+  inventoryNumber: string;
+  name: string;
+  category: "buildings" | "machinery" | "vehicles" | "equipment" | "software";
+  acquisitionDate: string;
+  acquisitionCost: number;
+  usefulLife: number; // Jahre
+  depreciationMethod: "linear" | "degressive";
+  accumulatedDepreciation: number;
+  bookValue: number;
+  location: string;
+  status: "active" | "disposed" | "fully-depreciated";
+}
+
+const assets: FixedAsset[] = [
+  {
+    id: "1",
+    inventoryNumber: "AV-2020-001",
+    name: "Bürogebäude Hauptstraße",
+    category: "buildings",
+    acquisitionDate: "01.01.2020",
+    acquisitionCost: 500000,
+    usefulLife: 33,
+    depreciationMethod: "linear",
+    accumulatedDepreciation: 60000,
+    bookValue: 440000,
+    location: "Hauptstraße 1",
+    status: "active",
+  },
+  {
+    id: "2",
+    inventoryNumber: "AV-2021-005",
+    name: "CNC-Fräsmaschine",
+    category: "machinery",
+    acquisitionDate: "15.03.2021",
+    acquisitionCost: 85000,
+    usefulLife: 10,
+    depreciationMethod: "linear",
+    accumulatedDepreciation: 25500,
+    bookValue: 59500,
+    location: "Produktionshalle A",
+    status: "active",
+  },
+  {
+    id: "3",
+    inventoryNumber: "AV-2022-012",
+    name: "Firmenwagen BMW 520d",
+    category: "vehicles",
+    acquisitionDate: "01.06.2022",
+    acquisitionCost: 55000,
+    usefulLife: 6,
+    depreciationMethod: "linear",
+    accumulatedDepreciation: 15000,
+    bookValue: 40000,
+    location: "Fuhrpark",
+    status: "active",
+  },
+  {
+    id: "4",
+    inventoryNumber: "AV-2023-008",
+    name: "Server-Cluster",
+    category: "equipment",
+    acquisitionDate: "01.02.2023",
+    acquisitionCost: 25000,
+    usefulLife: 5,
+    depreciationMethod: "linear",
+    accumulatedDepreciation: 5000,
+    bookValue: 20000,
+    location: "Serverraum",
+    status: "active",
+  },
+  {
+    id: "5",
+    inventoryNumber: "AV-2019-003",
+    name: "Büromöbel Empfang",
+    category: "equipment",
+    acquisitionDate: "15.06.2019",
+    acquisitionCost: 8000,
+    usefulLife: 8,
+    depreciationMethod: "linear",
+    accumulatedDepreciation: 4500,
+    bookValue: 3500,
+    location: "Empfangsbereich",
+    status: "active",
+  },
+  {
+    id: "6",
+    inventoryNumber: "AV-2018-015",
+    name: "Drucker HP LaserJet",
+    category: "equipment",
+    acquisitionDate: "01.03.2018",
+    acquisitionCost: 2500,
+    usefulLife: 5,
+    depreciationMethod: "linear",
+    accumulatedDepreciation: 2500,
+    bookValue: 0,
+    location: "Büro EG",
+    status: "fully-depreciated",
+  },
+];
+
+const categoryIcons = {
+  buildings: Building2,
+  machinery: Wrench,
+  vehicles: Car,
+  equipment: Monitor,
+  software: Monitor,
+};
+
+const categoryLabels = {
+  buildings: "Gebäude",
+  machinery: "Maschinen",
+  vehicles: "Fahrzeuge",
+  equipment: "BGA",
+  software: "Software",
+};
+
+const categoryColors = {
+  buildings: "bg-blue-500/10 text-blue-600",
+  machinery: "bg-orange-500/10 text-orange-600",
+  vehicles: "bg-purple-500/10 text-purple-600",
+  equipment: "bg-success/10 text-success",
+  software: "bg-info/10 text-info",
+};
+
+const statusStyles = {
+  active: "bg-success/10 text-success",
+  disposed: "bg-destructive/10 text-destructive",
+  "fully-depreciated": "bg-muted text-muted-foreground",
+};
+
+const statusLabels = {
+  active: "Aktiv",
+  disposed: "Abgegangen",
+  "fully-depreciated": "Voll abgeschrieben",
+};
+
+export default function FixedAssets() {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const totalAcquisitionCost = assets.reduce((acc, a) => acc + a.acquisitionCost, 0);
+  const totalBookValue = assets.reduce((acc, a) => acc + a.bookValue, 0);
+  const totalDepreciation = assets.reduce((acc, a) => acc + a.accumulatedDepreciation, 0);
+  const activeAssets = assets.filter((a) => a.status === "active");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            Anlagenbuchhaltung
+          </h1>
+          <p className="text-muted-foreground">
+            Anlagevermögen und Abschreibungen verwalten
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            AfA-Plan Export
+          </Button>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Anlage erfassen
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+              <Building2 className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Anschaffungskosten</p>
+              <p className="text-2xl font-bold">€{totalAcquisitionCost.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+              <TrendingDown className="h-6 w-6 text-success" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Buchwert</p>
+              <p className="text-2xl font-bold text-success">€{totalBookValue.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
+              <Calendar className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Kum. Abschreibung</p>
+              <p className="text-2xl font-bold text-destructive">€{totalDepreciation.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
+              <Monitor className="h-6 w-6 text-info" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Aktive Anlagen</p>
+              <p className="text-2xl font-bold">{activeAssets.length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Anlagen suchen..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Button variant="outline" className="gap-2">
+          <Filter className="h-4 w-4" />
+          Filter
+        </Button>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Inventarnr.</TableHead>
+              <TableHead>Bezeichnung</TableHead>
+              <TableHead>Kategorie</TableHead>
+              <TableHead>Anschaffung</TableHead>
+              <TableHead className="text-right">AK</TableHead>
+              <TableHead>AfA-Fortschritt</TableHead>
+              <TableHead className="text-right">Buchwert</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {assets.map((asset, index) => {
+              const CategoryIcon = categoryIcons[asset.category];
+              const depreciationProgress = (asset.accumulatedDepreciation / asset.acquisitionCost) * 100;
+
+              return (
+                <TableRow
+                  key={asset.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <TableCell>
+                    <span className="font-mono font-medium">{asset.inventoryNumber}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{asset.name}</p>
+                      <p className="text-sm text-muted-foreground">{asset.location}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={cn("gap-1", categoryColors[asset.category])}>
+                      <CategoryIcon className="h-3 w-3" />
+                      {categoryLabels[asset.category]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{asset.acquisitionDate}</TableCell>
+                  <TableCell className="text-right font-mono">
+                    €{asset.acquisitionCost.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <Progress value={depreciationProgress} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        {depreciationProgress.toFixed(0)}% • {asset.usefulLife} Jahre ND
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-medium">
+                    €{asset.bookValue.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusStyles[asset.status]}>
+                      {statusLabels[asset.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <TrendingDown className="h-4 w-4 mr-2" />
+                          Sonder-AfA
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Abgang buchen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
