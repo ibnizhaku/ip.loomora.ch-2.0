@@ -13,7 +13,7 @@ import { CalendarWidget } from "@/components/dashboard/CalendarWidget";
 const stats = [
   {
     title: "Gesamtumsatz",
-    value: "€124.580",
+    value: "CHF 124'580",
     change: "+12.5%",
     changeType: "positive" as const,
     icon: Euro,
