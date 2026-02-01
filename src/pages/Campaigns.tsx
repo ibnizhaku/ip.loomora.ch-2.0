@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,14 +18,30 @@ import {
   TrendingUp,
   Users,
   MousePointer,
-  Eye,
   Calendar,
   Play,
   Pause,
   BarChart3,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-const campaigns = [
+interface Campaign {
+  id: string;
+  name: string;
+  type: "email" | "social" | "ppc" | "influencer";
+  status: "active" | "paused" | "draft" | "completed";
+  startDate: string;
+  endDate: string;
+  budget: number;
+  spent: number;
+  reach: number;
+  clicks: number;
+  conversions: number;
+  revenue: number;
+}
+
+const campaigns: Campaign[] = [
   {
     id: "1",
     name: "Herbst-Sale 2024",
@@ -97,19 +114,18 @@ const campaigns = [
   },
 ];
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "active":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    case "paused":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-    case "draft":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
-    case "completed":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
+const statusStyles = {
+  active: "bg-success/10 text-success",
+  paused: "bg-warning/10 text-warning",
+  draft: "bg-muted text-muted-foreground",
+  completed: "bg-info/10 text-info",
+};
+
+const statusLabels = {
+  active: "Aktiv",
+  paused: "Pausiert",
+  draft: "Entwurf",
+  completed: "Abgeschlossen",
 };
 
 const getTypeIcon = (type: string) => {
@@ -128,16 +144,39 @@ const getTypeIcon = (type: string) => {
 };
 
 export default function Campaigns() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "draft" | "completed">("all");
+  const [activeTab, setActiveTab] = useState("all");
 
   const totalBudget = campaigns.reduce((sum, c) => sum + c.budget, 0);
   const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
   const totalRevenue = campaigns.reduce((sum, c) => sum + c.revenue, 0);
   const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
+  const activeCount = campaigns.filter((c) => c.status === "active").length;
 
-  const filteredCampaigns = campaigns.filter((campaign) =>
-    campaign.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCampaigns = campaigns.filter((campaign) => {
+    const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTab = activeTab === "all" || campaign.status === activeTab;
+    const matchesStatus = statusFilter === "all" || campaign.status === statusFilter;
+    return matchesSearch && matchesTab && matchesStatus;
+  });
+
+  const handleStatCardClick = (filter: "all" | "active") => {
+    if (filter === "active") {
+      setStatusFilter(statusFilter === "active" ? "all" : "active");
+      setActiveTab(statusFilter === "active" ? "all" : "active");
+    }
+  };
+
+  const handleToggleStatus = (e: React.MouseEvent, campaign: Campaign) => {
+    e.stopPropagation();
+    if (campaign.status === "active") {
+      toast.success(`Kampagne "${campaign.name}" pausiert`);
+    } else {
+      toast.success(`Kampagne "${campaign.name}" aktiviert`);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -148,7 +187,7 @@ export default function Campaigns() {
             Marketing-Kampagnen verwalten und analysieren
           </p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/campaigns/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Neue Kampagne
         </Button>
@@ -163,11 +202,11 @@ export default function Campaigns() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalBudget.toLocaleString("de-DE")} €
+              CHF {totalBudget.toLocaleString("de-CH")}
             </div>
             <Progress value={(totalSpent / totalBudget) * 100} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-1">
-              {totalSpent.toLocaleString("de-DE")} € ausgegeben ({((totalSpent / totalBudget) * 100).toFixed(0)}%)
+              CHF {totalSpent.toLocaleString("de-CH")} ausgegeben ({((totalSpent / totalBudget) * 100).toFixed(0)}%)
             </p>
           </CardContent>
         </Card>
@@ -178,7 +217,7 @@ export default function Campaigns() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalRevenue.toLocaleString("de-DE")} €
+              CHF {totalRevenue.toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
               ROI: {((totalRevenue / totalSpent - 1) * 100).toFixed(0)}%
@@ -193,19 +232,23 @@ export default function Campaigns() {
           <CardContent>
             <div className="text-2xl font-bold">{totalConversions}</div>
             <p className="text-xs text-muted-foreground">
-              Ø {(totalSpent / totalConversions).toFixed(2)} € pro Conversion
+              Ø CHF {(totalSpent / totalConversions).toFixed(2)} pro Conversion
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "active" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatCardClick("active")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aktive Kampagnen</CardTitle>
             <Play className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {campaigns.filter((c) => c.status === "active").length}
-            </div>
+            <div className="text-2xl font-bold">{activeCount}</div>
             <p className="text-xs text-muted-foreground">
               von {campaigns.length} gesamt
             </p>
@@ -213,7 +256,7 @@ export default function Campaigns() {
         </Card>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="all">Alle</TabsTrigger>
@@ -232,13 +275,10 @@ export default function Campaigns() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
         </div>
 
-        <TabsContent value="all" className="space-y-4">
+        <TabsContent value={activeTab} className="space-y-4">
           <Card>
             <Table>
               <TableHeader>
@@ -256,7 +296,11 @@ export default function Campaigns() {
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
+                  <TableRow 
+                    key={campaign.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                  >
                     <TableCell className="font-medium">{campaign.name}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -265,23 +309,20 @@ export default function Campaigns() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(campaign.status)} variant="secondary">
-                        {campaign.status === "active" && "Aktiv"}
-                        {campaign.status === "paused" && "Pausiert"}
-                        {campaign.status === "draft" && "Entwurf"}
-                        {campaign.status === "completed" && "Abgeschlossen"}
+                      <Badge className={statusStyles[campaign.status]}>
+                        {statusLabels[campaign.status]}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar className="h-3 w-3" />
-                        {new Date(campaign.startDate).toLocaleDateString("de-DE")} -{" "}
-                        {new Date(campaign.endDate).toLocaleDateString("de-DE")}
+                        {new Date(campaign.startDate).toLocaleDateString("de-CH")} -{" "}
+                        {new Date(campaign.endDate).toLocaleDateString("de-CH")}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div>
-                        {campaign.spent.toLocaleString("de-DE")} € / {campaign.budget.toLocaleString("de-DE")} €
+                        CHF {campaign.spent.toLocaleString("de-CH")} / {campaign.budget.toLocaleString("de-CH")}
                       </div>
                       <Progress 
                         value={(campaign.spent / campaign.budget) * 100} 
@@ -289,24 +330,24 @@ export default function Campaigns() {
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      {campaign.reach.toLocaleString("de-DE")}
+                      {campaign.reach.toLocaleString("de-CH")}
                     </TableCell>
                     <TableCell className="text-right">{campaign.conversions}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {campaign.revenue.toLocaleString("de-DE")} €
+                      CHF {campaign.revenue.toLocaleString("de-CH")}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         {campaign.status === "active" ? (
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" onClick={(e) => handleToggleStatus(e, campaign)}>
                             <Pause className="h-4 w-4" />
                           </Button>
                         ) : campaign.status !== "completed" ? (
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" onClick={(e) => handleToggleStatus(e, campaign)}>
                             <Play className="h-4 w-4" />
                           </Button>
                         ) : null}
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
                           <BarChart3 className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon">

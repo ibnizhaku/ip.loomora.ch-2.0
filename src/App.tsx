@@ -81,6 +81,9 @@ import ContractCreate from "./pages/ContractCreate";
 import DocumentUpload from "./pages/DocumentUpload";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
+import CampaignCreate from "./pages/CampaignCreate";
+import LeadCreate from "./pages/LeadCreate";
+import EmailCreate from "./pages/EmailCreate";
 import JournalEntries from "./pages/JournalEntries";
 import JournalEntryDetail from "./pages/JournalEntryDetail";
 import Payments from "./pages/Payments";
@@ -278,10 +281,13 @@ const App = () => (
                   
                   {/* Marketing */}
                   <Route path="/campaigns" element={<Campaigns />} />
+                  <Route path="/campaigns/new" element={<CampaignCreate />} />
                   <Route path="/campaigns/:id" element={<CampaignDetail />} />
                   <Route path="/leads" element={<Leads />} />
+                  <Route path="/leads/new" element={<LeadCreate />} />
                   <Route path="/leads/:id" element={<LeadDetail />} />
                   <Route path="/email-marketing" element={<EmailMarketing />} />
+                  <Route path="/email-marketing/new" element={<EmailCreate />} />
                   
                   {/* E-Commerce */}
                   <Route path="/shop" element={<Shop />} />
