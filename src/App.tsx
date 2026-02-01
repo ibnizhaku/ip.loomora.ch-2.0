@@ -108,6 +108,8 @@ import Documents from "./pages/Documents";
 import DocumentDetail from "./pages/DocumentDetail";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
+import SupplierCreate from "./pages/SupplierCreate";
+import CustomerCreate from "./pages/CustomerCreate";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
@@ -174,8 +176,10 @@ const App = () => (
                   
                   {/* CRM */}
                   <Route path="/customers" element={<Customers />} />
+                  <Route path="/customers/new" element={<CustomerCreate />} />
                   <Route path="/customers/:id" element={<CustomerDetail />} />
                   <Route path="/suppliers" element={<Suppliers />} />
+                  <Route path="/suppliers/new" element={<SupplierCreate />} />
                   <Route path="/suppliers/:id" element={<SupplierDetail />} />
                   
                   {/* Zeit */}

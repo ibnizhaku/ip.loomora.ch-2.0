@@ -149,7 +149,7 @@ export default function Suppliers() {
             Verwalten Sie Ihre Lieferantenbeziehungen
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/suppliers/new")}>
           <Plus className="h-4 w-4" />
           Neuer Lieferant
         </Button>
