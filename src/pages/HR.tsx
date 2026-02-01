@@ -142,7 +142,7 @@ export default function HR() {
             Verwalten Sie Ihre Mitarbeiter und Teams
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/employees/new")}>
+        <Button className="gap-2" onClick={() => navigate("/hr/new")}>
           <Plus className="h-4 w-4" />
           Mitarbeiter hinzufügen
         </Button>
