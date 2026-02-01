@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { ProjectChat } from "@/components/project/ProjectChat";
 
 // Mock project data
 const project = {
@@ -187,6 +188,10 @@ export default function ProjectDetail() {
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
           <TabsTrigger value="tasks">Aufgaben</TabsTrigger>
+          <TabsTrigger value="chat" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Chat
+          </TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="files">Dateien</TabsTrigger>
           <TabsTrigger value="activity">Aktivität</TabsTrigger>
@@ -233,6 +238,17 @@ export default function ProjectDetail() {
               </div>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="chat" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Projekt-Chat</h3>
+            <Badge variant="outline" className="gap-1">
+              <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+              {project.team.length} online
+            </Badge>
+          </div>
+          <ProjectChat team={project.team} />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
