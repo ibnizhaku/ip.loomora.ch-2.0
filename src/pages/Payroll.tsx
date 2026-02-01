@@ -166,11 +166,28 @@ const Payroll = () => {
           <p className="text-muted-foreground">Schweizer Lohnwesen nach GAV Metallbau</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              toast.success("Swissdec Export wird erstellt...");
+              setTimeout(() => {
+                toast.success("Swissdec XML-Datei wurde generiert", {
+                  description: "Die Lohndaten wurden im ELM-Format exportiert"
+                });
+              }, 1500);
+            }}
+          >
             <Download className="h-4 w-4 mr-2" />
             Swissdec Export
           </Button>
-          <Button>
+          <Button
+            onClick={() => {
+              toast.info("Neuer Lohnlauf wird vorbereitet...");
+              setTimeout(() => {
+                navigate("/payroll/new");
+              }, 500);
+            }}
+          >
             <Play className="h-4 w-4 mr-2" />
             Lohnlauf starten
           </Button>

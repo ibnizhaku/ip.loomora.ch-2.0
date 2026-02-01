@@ -276,7 +276,7 @@ const hrItems: NavItem[] = [
     icon: FileSignature,
   },
   {
-    title: "Lohnabrechnung",
+    title: "Lohnabrechnung CHF",
     url: "/payroll",
     icon: Euro,
   },
