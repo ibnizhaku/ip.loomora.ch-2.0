@@ -128,6 +128,7 @@ import GeneralLedgerDetail from "./pages/GeneralLedgerDetail";
 import OpenItems from "./pages/OpenItems";
 import BalanceSheet from "./pages/BalanceSheet";
 import CashBook from "./pages/CashBook";
+import CashBookCreate from "./pages/CashBookCreate";
 import SepaPayments from "./pages/SepaPayments";
 import SepaPaymentDetail from "./pages/SepaPaymentDetail";
 import CostCenters from "./pages/CostCenters";
@@ -249,6 +250,7 @@ const App = () => (
                   <Route path="/fixed-assets/new" element={<FixedAssetCreate />} />
                   <Route path="/fixed-assets/:id" element={<FixedAssetDetail />} />
                   <Route path="/cash-book" element={<CashBook />} />
+                  <Route path="/cash-book/new" element={<CashBookCreate />} />
                   <Route path="/bank-accounts" element={<BankAccounts />} />
                   <Route path="/bank-accounts/new" element={<BankAccountCreate />} />
                   <Route path="/bank-accounts/:id" element={<BankAccountDetail />} />
