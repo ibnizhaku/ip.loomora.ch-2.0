@@ -224,7 +224,7 @@ export default function FixedAssets() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Anschaffungskosten</p>
-              <p className="text-2xl font-bold">€{totalAcquisitionCost.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalAcquisitionCost.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -235,7 +235,7 @@ export default function FixedAssets() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Buchwert</p>
-              <p className="text-2xl font-bold text-success">€{totalBookValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-success">CHF {totalBookValue.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -246,7 +246,7 @@ export default function FixedAssets() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Kum. Abschreibung</p>
-              <p className="text-2xl font-bold text-destructive">€{totalDepreciation.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-destructive">CHF {totalDepreciation.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function FixedAssets() {
                   </TableCell>
                   <TableCell>{asset.acquisitionDate}</TableCell>
                   <TableCell className="text-right font-mono">
-                    €{asset.acquisitionCost.toLocaleString()}
+                    CHF {asset.acquisitionCost.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
@@ -334,7 +334,7 @@ export default function FixedAssets() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-mono font-medium">
-                    €{asset.bookValue.toLocaleString()}
+                    CHF {asset.bookValue.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell>
                     <Badge className={statusStyles[asset.status]}>
