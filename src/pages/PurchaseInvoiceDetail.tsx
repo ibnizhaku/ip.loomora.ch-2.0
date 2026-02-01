@@ -158,8 +158,8 @@ const PurchaseInvoiceDetail = () => {
                       <TableCell className="font-medium">{pos.description}</TableCell>
                       <TableCell className="text-right">{pos.quantity}</TableCell>
                       <TableCell>{pos.unit}</TableCell>
-                      <TableCell className="text-right">€{pos.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">€{pos.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">CHF {pos.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">CHF {pos.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -170,27 +170,27 @@ const PurchaseInvoiceDetail = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Zwischensumme (netto)</span>
-                  <span>€{purchaseInvoiceData.subtotal.toFixed(2)}</span>
+                  <span>CHF {purchaseInvoiceData.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">MwSt. (19%)</span>
-                  <span>€{purchaseInvoiceData.tax.toFixed(2)}</span>
+                  <span className="text-muted-foreground">MwSt. (8.1%)</span>
+                  <span>CHF {purchaseInvoiceData.tax.toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Gesamtbetrag</span>
-                  <span>€{purchaseInvoiceData.total.toFixed(2)}</span>
+                  <span>CHF {purchaseInvoiceData.total.toFixed(2)}</span>
                 </div>
                 {purchaseInvoiceData.paid > 0 && (
                   <>
                     <div className="flex justify-between text-sm text-success">
                       <span>Bezahlt</span>
-                      <span>-€{purchaseInvoiceData.paid.toFixed(2)}</span>
+                      <span>-CHF {purchaseInvoiceData.paid.toFixed(2)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg text-warning">
                       <span>Offener Betrag</span>
-                      <span>€{outstanding.toFixed(2)}</span>
+                      <span>CHF {outstanding.toFixed(2)}</span>
                     </div>
                   </>
                 )}
@@ -317,7 +317,7 @@ const PurchaseInvoiceDetail = () => {
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Offener Betrag</span>
-                <span className="font-semibold text-warning">€{outstanding.toFixed(2)}</span>
+                <span className="font-semibold text-warning">CHF {outstanding.toFixed(2)}</span>
               </div>
             </CardContent>
           </Card>

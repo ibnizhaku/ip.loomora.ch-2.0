@@ -187,7 +187,7 @@ export default function Budgets() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Geplant {year}</p>
-              <p className="text-2xl font-bold">€{(totalPlanned / 1000).toFixed(0)}k</p>
+              <p className="text-2xl font-bold">CHF {(totalPlanned / 1000).toFixed(0)}k</p>
             </div>
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function Budgets() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Ist (YTD)</p>
-              <p className="text-2xl font-bold">€{(totalActual / 1000).toFixed(0)}k</p>
+              <p className="text-2xl font-bold">CHF {(totalActual / 1000).toFixed(0)}k</p>
             </div>
           </div>
         </div>
@@ -215,7 +215,7 @@ export default function Budgets() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Prognose</p>
-              <p className="text-2xl font-bold">€{(totalForecast / 1000).toFixed(0)}k</p>
+              <p className="text-2xl font-bold">CHF {(totalForecast / 1000).toFixed(0)}k</p>
             </div>
           </div>
         </div>
@@ -244,7 +244,7 @@ export default function Budgets() {
                 <div
                   className="w-4 bg-muted rounded-t transition-all"
                   style={{ height: `${(data.planned / 150000) * 100}%` }}
-                  title={`Geplant: €${data.planned.toLocaleString()}`}
+                  title={`Geplant: CHF ${data.planned.toLocaleString("de-CH")}`}
                 />
                 {data.actual > 0 && (
                   <div
@@ -253,7 +253,7 @@ export default function Budgets() {
                       data.actual <= data.planned ? "bg-success" : "bg-destructive"
                     )}
                     style={{ height: `${(data.actual / 150000) * 100}%` }}
-                    title={`Ist: €${data.actual.toLocaleString()}`}
+                    title={`Ist: CHF ${data.actual.toLocaleString("de-CH")}`}
                   />
                 )}
               </div>
@@ -346,15 +346,15 @@ export default function Budgets() {
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Geplant</p>
-                  <p className="font-mono font-medium">€{budget.planned.toLocaleString()}</p>
+                  <p className="font-mono font-medium">CHF {budget.planned.toLocaleString("de-CH")}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Ist</p>
-                  <p className="font-mono font-medium">€{budget.actual.toLocaleString()}</p>
+                  <p className="font-mono font-medium">CHF {budget.actual.toLocaleString("de-CH")}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Prognose</p>
-                  <p className="font-mono font-medium">€{budget.forecast.toLocaleString()}</p>
+                  <p className="font-mono font-medium">CHF {budget.forecast.toLocaleString("de-CH")}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Abweichung (Prog.)</p>
@@ -362,7 +362,7 @@ export default function Budgets() {
                     "font-mono font-medium",
                     forecastVariance <= 0 ? "text-success" : "text-destructive"
                   )}>
-                    {forecastVariance <= 0 ? "" : "+"}€{forecastVariance.toLocaleString()}
+                    {forecastVariance <= 0 ? "" : "+"}CHF {forecastVariance.toLocaleString("de-CH")}
                   </p>
                 </div>
               </div>
