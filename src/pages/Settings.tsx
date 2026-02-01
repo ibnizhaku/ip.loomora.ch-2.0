@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
   { id: "integrations", label: "Integrationen", icon: Link2 },
+  { id: "email", label: "E-Mail", icon: Mail },
   { id: "shop", label: "Shop", icon: Store },
   { id: "notifications", label: "Benachrichtigungen", icon: Bell },
   { id: "security", label: "Sicherheit", icon: Shield },
@@ -1225,6 +1226,250 @@ export default function Settings() {
                     <Button variant="outline">Ändern</Button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "email" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">E-Mail Konfiguration</h2>
+                <p className="text-sm text-muted-foreground">
+                  SMTP-Server und E-Mail-Einstellungen konfigurieren
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* SMTP Server */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  SMTP-Server Einstellungen
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="smtpHost">SMTP-Host</Label>
+                    <Input id="smtpHost" placeholder="smtp.example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="smtpPort">SMTP-Port</Label>
+                    <Select defaultValue="587">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="25">25 (Unverschlüsselt)</SelectItem>
+                        <SelectItem value="465">465 (SSL/TLS)</SelectItem>
+                        <SelectItem value="587">587 (STARTTLS)</SelectItem>
+                        <SelectItem value="2525">2525 (Alternativ)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="smtpUser">Benutzername</Label>
+                    <Input id="smtpUser" placeholder="benutzer@example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="smtpPassword">Passwort</Label>
+                    <Input id="smtpPassword" type="password" placeholder="••••••••" />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">SSL/TLS verwenden</p>
+                      <p className="text-sm text-muted-foreground">
+                        Verschlüsselte Verbindung zum SMTP-Server
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">SMTP-Authentifizierung</p>
+                      <p className="text-sm text-muted-foreground">
+                        Anmeldung beim SMTP-Server erforderlich
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* IMAP Server */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  IMAP-Server Einstellungen (Posteingang)
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="imapHost">IMAP-Host</Label>
+                    <Input id="imapHost" placeholder="imap.example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="imapPort">IMAP-Port</Label>
+                    <Select defaultValue="993">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="143">143 (Unverschlüsselt)</SelectItem>
+                        <SelectItem value="993">993 (SSL/TLS)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="imapUser">Benutzername</Label>
+                    <Input id="imapUser" placeholder="benutzer@example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="imapPassword">Passwort</Label>
+                    <Input id="imapPassword" type="password" placeholder="••••••••" />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Absender-Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Absender-Einstellungen</h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="emailSenderName">Absender-Name</Label>
+                    <Input id="emailSenderName" defaultValue="Loomora Metallbau AG" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emailSenderAddress">Absender-Adresse</Label>
+                    <Input id="emailSenderAddress" type="email" defaultValue="info@loomora.ch" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emailReplyTo">Antwort-Adresse (Reply-To)</Label>
+                    <Input id="emailReplyTo" type="email" defaultValue="support@loomora.ch" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emailBcc">BCC-Adresse (optional)</Label>
+                    <Input id="emailBcc" type="email" placeholder="archiv@loomora.ch" />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* E-Mail Vorlagen */}
+              <div className="space-y-4">
+                <h3 className="font-medium">E-Mail Vorlagen & Signatur</h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">HTML-E-Mails aktivieren</p>
+                      <p className="text-sm text-muted-foreground">
+                        E-Mails mit HTML-Formatierung versenden
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Firmen-Signatur anhängen</p>
+                      <p className="text-sm text-muted-foreground">
+                        Automatische Signatur an alle E-Mails
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Firmenlogo in E-Mails</p>
+                      <p className="text-sm text-muted-foreground">
+                        Logo in der E-Mail-Kopfzeile anzeigen
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Erweiterte Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Erweiterte Einstellungen</h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Timeout (Sekunden)</Label>
+                    <Select defaultValue="30">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 Sekunden</SelectItem>
+                        <SelectItem value="30">30 Sekunden</SelectItem>
+                        <SelectItem value="60">60 Sekunden</SelectItem>
+                        <SelectItem value="120">120 Sekunden</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max. Anhangsgrösse</Label>
+                    <Select defaultValue="25">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 MB</SelectItem>
+                        <SelectItem value="25">25 MB</SelectItem>
+                        <SelectItem value="50">50 MB</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Debug-Modus</p>
+                      <p className="text-sm text-muted-foreground">
+                        Detaillierte E-Mail-Logs für Fehleranalyse
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button className="gap-2">
+                  <Save className="h-4 w-4" />
+                  Konfiguration speichern
+                </Button>
+                <Button variant="outline" className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Verbindung testen
+                </Button>
+                <Button variant="outline" className="gap-2">
+                  <Mail className="h-4 w-4" />
+                  Test-E-Mail senden
+                </Button>
               </div>
             </div>
           )}
