@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -126,8 +127,8 @@ const statusConfig = {
 };
 
 export default function Customers() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -200,7 +201,7 @@ export default function Customers() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                €{(customers.reduce((acc, c) => acc + c.totalRevenue, 0) / 1000).toFixed(0)}k
+                CHF {(customers.reduce((acc, c) => acc + c.totalRevenue, 0) / 1000).toFixed(0)}k
               </p>
               <p className="text-sm text-muted-foreground">Gesamtumsatz</p>
             </div>
@@ -242,9 +243,9 @@ export default function Customers() {
             {filteredCustomers.map((customer, index) => (
               <TableRow
                 key={customer.id}
-                className="cursor-pointer animate-fade-in"
+                className="cursor-pointer animate-fade-in hover:bg-muted/50"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => setSelectedCustomer(customer)}
+                onClick={() => navigate(`/customers/${customer.id}`)}
               >
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -289,7 +290,7 @@ export default function Customers() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  €{customer.totalRevenue.toLocaleString()}
+                  CHF {customer.totalRevenue.toLocaleString("de-CH")}
                 </TableCell>
                 <TableCell className="text-right">{customer.projects}</TableCell>
                 <TableCell>

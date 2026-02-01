@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -9,7 +10,7 @@ import {
   Clock,
   XCircle,
   Truck,
-  Euro,
+  Banknote,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,7 @@ const priorityConfig = {
 };
 
 export default function Orders() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredOrders = orders.filter(
@@ -195,10 +197,10 @@ export default function Orders() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-              <Euro className="h-5 w-5 text-success" />
+              <Banknote className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">€{totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalValue.toLocaleString("de-CH")}</p>
               <p className="text-sm text-muted-foreground">Auftragswert</p>
             </div>
           </div>
@@ -254,8 +256,9 @@ export default function Orders() {
               return (
                 <TableRow
                   key={order.id}
-                  className="cursor-pointer animate-fade-in"
+                  className="cursor-pointer animate-fade-in hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/orders/${order.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -291,7 +294,7 @@ export default function Orders() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    €{order.amount.toLocaleString()}
+                    CHF {order.amount.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
