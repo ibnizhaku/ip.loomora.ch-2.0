@@ -99,6 +99,7 @@ import BankAccountDetail from "./pages/BankAccountDetail";
 import BankAccountCreate from "./pages/BankAccountCreate";
 import Budgets from "./pages/Budgets";
 import BudgetDetail from "./pages/BudgetDetail";
+import BudgetCreate from "./pages/BudgetCreate";
 import FixedAssets from "./pages/FixedAssets";
 import FixedAssetDetail from "./pages/FixedAssetDetail";
 import FixedAssetCreate from "./pages/FixedAssetCreate";
@@ -261,6 +262,7 @@ const App = () => (
                   <Route path="/cost-centers/new" element={<CostCenterCreate />} />
                   <Route path="/cost-centers/:id" element={<CostCenterDetail />} />
                   <Route path="/budgets" element={<Budgets />} />
+                  <Route path="/budgets/new" element={<BudgetCreate />} />
                   <Route path="/budgets/:id" element={<BudgetDetail />} />
                   <Route path="/contracts" element={<Contracts />} />
                   <Route path="/contracts/new" element={<ContractCreate />} />

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
-  Filter,
   Download,
   Calendar,
   Target,
@@ -144,11 +143,28 @@ export default function Budgets() {
   const navigate = useNavigate();
   const [year, setYear] = useState("2024");
   const [budgetList] = useState(budgets);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "at-risk" | "over-budget" | "under-utilized">("all");
+
+  const filteredBudgets = budgetList.filter((budget) => {
+    const matchesSearch = budget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      budget.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || budget.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalPlanned = budgetList.reduce((acc, b) => acc + b.planned, 0);
   const totalActual = budgetList.reduce((acc, b) => acc + b.actual, 0);
   const totalForecast = budgetList.reduce((acc, b) => acc + b.forecast, 0);
   const utilizationPercent = (totalActual / totalPlanned) * 100;
+
+  const onTrackCount = budgetList.filter(b => b.status === "on-track").length;
+  const atRiskCount = budgetList.filter(b => b.status === "at-risk").length;
+  const overBudgetCount = budgetList.filter(b => b.status === "over-budget").length;
+
+  const handleStatCardClick = (filter: "all" | "on-track" | "at-risk" | "over-budget" | "under-utilized") => {
+    setStatusFilter(statusFilter === filter ? "all" : filter);
+  };
 
   return (
     <div className="space-y-6">
@@ -183,7 +199,69 @@ export default function Budgets() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Budget suchen..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-4">
+        <div
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "on-track" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatCardClick("on-track")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+              <CheckCircle className="h-6 w-6 text-success" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Im Plan</p>
+              <p className="text-2xl font-bold">{onTrackCount}</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "at-risk" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatCardClick("at-risk")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
+              <AlertTriangle className="h-6 w-6 text-warning" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Gefährdet</p>
+              <p className="text-2xl font-bold">{atRiskCount}</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "over-budget" && "border-destructive ring-2 ring-destructive/20"
+          )}
+          onClick={() => handleStatCardClick("over-budget")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
+              <TrendingUp className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Überschritten</p>
+              <p className="text-2xl font-bold">{overBudgetCount}</p>
+            </div>
+          </div>
+        </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -192,45 +270,6 @@ export default function Budgets() {
             <div>
               <p className="text-sm text-muted-foreground">Geplant {year}</p>
               <p className="text-2xl font-bold">CHF {(totalPlanned / 1000).toFixed(0)}k</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
-              <PiggyBank className="h-6 w-6 text-info" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Ist (YTD)</p>
-              <p className="text-2xl font-bold">CHF {(totalActual / 1000).toFixed(0)}k</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-xl",
-              totalForecast <= totalPlanned ? "bg-success/10" : "bg-warning/10"
-            )}>
-              <TrendingUp className={cn(
-                "h-6 w-6",
-                totalForecast <= totalPlanned ? "text-success" : "text-warning"
-              )} />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Prognose</p>
-              <p className="text-2xl font-bold">CHF {(totalForecast / 1000).toFixed(0)}k</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
-              <CheckCircle className="h-6 w-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Auslastung</p>
-              <p className="text-2xl font-bold">{utilizationPercent.toFixed(1)}%</p>
             </div>
           </div>
         </div>
@@ -283,7 +322,7 @@ export default function Budgets() {
 
       {/* Budget List */}
       <div className="space-y-3">
-        {budgetList.map((budget, index) => {
+        {filteredBudgets.map((budget, index) => {
           const StatusIcon = statusIcons[budget.status];
           const utilization = (budget.actual / budget.planned) * 100;
           const forecastVariance = budget.forecast - budget.planned;
