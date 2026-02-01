@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -38,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface CashEntry {
   id: string;
@@ -141,16 +143,24 @@ const entries: CashEntry[] = [
 ];
 
 export default function CashBook() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [month, setMonth] = useState("2024-01");
+  const [entryList, setEntryList] = useState(entries);
 
-  const totalIncome = entries
+  const totalIncome = entryList
     .filter((e) => e.type === "income" && e.amount > 0)
     .reduce((acc, e) => acc + e.amount, 0);
-  const totalExpense = entries
+  const totalExpense = entryList
     .filter((e) => e.type === "expense")
     .reduce((acc, e) => acc + e.amount, 0);
-  const currentBalance = entries[0]?.runningBalance || 0;
+  const currentBalance = entryList[0]?.runningBalance || 0;
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setEntryList(entryList.filter(entry => entry.id !== id));
+    toast.success("Buchung storniert");
+  };
 
   return (
     <div className="space-y-6">
@@ -164,15 +174,15 @@ export default function CashBook() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("Wird gedruckt...")}>
             <Printer className="h-4 w-4" />
             Drucken
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("PDF wird exportiert...")}>
             <Download className="h-4 w-4" />
             PDF Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/cash-book/new")}>
             <Plus className="h-4 w-4" />
             Kassenbuchung
           </Button>
@@ -268,10 +278,10 @@ export default function CashBook() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry, index) => (
+            {entryList.map((entry, index) => (
               <TableRow
                 key={entry.id}
-                className="animate-fade-in"
+                className="animate-fade-in cursor-pointer hover:bg-muted/50"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <TableCell>{entry.date}</TableCell>
@@ -310,7 +320,7 @@ export default function CashBook() {
                 <TableCell className="text-right font-mono font-bold">
                   €{entry.runningBalance.toLocaleString()}
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -322,7 +332,7 @@ export default function CashBook() {
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, entry.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Stornieren
                       </DropdownMenuItem>

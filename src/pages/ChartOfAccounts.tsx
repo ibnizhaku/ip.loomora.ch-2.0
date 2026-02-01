@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Account {
   id: string;
@@ -172,6 +174,7 @@ const typeLabels = {
 };
 
 export default function ChartOfAccounts() {
+  const navigate = useNavigate();
   const [expandedIds, setExpandedIds] = useState<string[]>(["1", "4", "6"]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -244,11 +247,11 @@ export default function ChartOfAccounts() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/chart-of-accounts/${account.id}`)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Bearbeiten
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem className="text-destructive" onClick={() => toast.success("Konto gelöscht")}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Löschen
                 </DropdownMenuItem>
@@ -278,11 +281,11 @@ export default function ChartOfAccounts() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("Export wird erstellt...")}>
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/chart-of-accounts/new")}>
             <Plus className="h-4 w-4" />
             Konto anlegen
           </Button>

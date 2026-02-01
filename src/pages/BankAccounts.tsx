@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -33,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface BankAccount {
   id: string;
@@ -166,6 +168,7 @@ const statusLabels = {
 };
 
 export default function BankAccounts() {
+  const navigate = useNavigate();
   const [selectedAccount, setSelectedAccount] = useState(bankAccounts[0]);
 
   const totalBalance = bankAccounts.reduce((acc, a) => acc + a.balance, 0);
@@ -183,11 +186,11 @@ export default function BankAccounts() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("Konten werden synchronisiert...")}>
             <RefreshCw className="h-4 w-4" />
             Konten synchronisieren
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/bank-accounts/new")}>
             <Plus className="h-4 w-4" />
             Konto hinzufügen
           </Button>
