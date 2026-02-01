@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -37,6 +38,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface BOMItem {
   id: string;
@@ -62,7 +64,7 @@ interface BOM {
   createdAt: string;
 }
 
-const boms: BOM[] = [
+const initialBoms: BOM[] = [
   {
     id: "1",
     number: "STL-2024-001",
@@ -154,6 +156,17 @@ const boms: BOM[] = [
     createdAt: "28.01.2024",
     items: [],
   },
+  {
+    id: "4",
+    number: "STL-2023-045",
+    name: "Vordach Stahl verzinkt",
+    status: "archived",
+    totalMaterial: 4500,
+    totalWork: 2100,
+    totalExternal: 600,
+    createdAt: "10.12.2023",
+    items: [],
+  },
 ];
 
 const typeStyles = {
@@ -230,16 +243,61 @@ function BOMItemRow({ item, level = 0 }: { item: BOMItem; level?: number }) {
 }
 
 export default function BillOfMaterials() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedBOM, setExpandedBOM] = useState<string | null>("1");
+  const [bomList, setBomList] = useState<BOM[]>(initialBoms);
 
-  const totalBOMs = boms.length;
-  const activeBOMs = boms.filter((b) => b.status === "active").length;
-  const totalValue = boms.reduce(
+  const totalBOMs = bomList.length;
+  const activeBOMs = bomList.filter((b) => b.status === "active").length;
+  const draftBOMs = bomList.filter((b) => b.status === "draft").length;
+  const totalValue = bomList.reduce(
     (sum, b) => sum + b.totalMaterial + b.totalWork + b.totalExternal,
     0
   );
+
+  const filteredBoms = bomList.filter((bom) => {
+    const matchesSearch = bom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bom.number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || bom.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDelete = (e: React.MouseEvent, bomId: string) => {
+    e.stopPropagation();
+    setBomList(bomList.filter(b => b.id !== bomId));
+    toast.success("Stückliste gelöscht");
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, bom: BOM) => {
+    e.stopPropagation();
+    const newBom: BOM = {
+      ...bom,
+      id: Date.now().toString(),
+      number: `STL-2024-${String(bomList.length + 1).padStart(3, '0')}`,
+      name: `${bom.name} (Kopie)`,
+      status: "draft",
+    };
+    setBomList([...bomList, newBom]);
+    toast.success("Stückliste dupliziert");
+  };
+
+  const handleViewDetails = (e: React.MouseEvent, bomId: string) => {
+    e.stopPropagation();
+    navigate(`/bom/${bomId}`);
+  };
+
+  const handleEdit = (e: React.MouseEvent, bomId: string) => {
+    e.stopPropagation();
+    navigate(`/bom/${bomId}`);
+  };
+
+  const handleCalculation = (e: React.MouseEvent, bomId: string) => {
+    e.stopPropagation();
+    navigate(`/calculation`);
+    toast.info("Zur Kalkulation weitergeleitet");
+  };
 
   return (
     <div className="space-y-6">
@@ -257,7 +315,7 @@ export default function BillOfMaterials() {
             <FileText className="h-4 w-4" />
             Vorlage
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/bom/new")}>
             <Plus className="h-4 w-4" />
             Stückliste erstellen
           </Button>
@@ -266,7 +324,13 @@ export default function BillOfMaterials() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Layers className="h-6 w-6 text-primary" />
@@ -277,29 +341,37 @@ export default function BillOfMaterials() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "active" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("active")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <Package className="h-6 w-6 text-success" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Materialwert</p>
-              <p className="text-2xl font-bold">
-                CHF {boms.reduce((s, b) => s + b.totalMaterial, 0).toLocaleString()}
-              </p>
+              <p className="text-sm text-muted-foreground">Aktiv</p>
+              <p className="text-2xl font-bold">{activeBOMs}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-muted-foreground/50",
+            statusFilter === "draft" ? "border-muted-foreground ring-2 ring-muted-foreground/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("draft")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10">
               <Clock className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Arbeitswert</p>
-              <p className="text-2xl font-bold">
-                CHF {boms.reduce((s, b) => s + b.totalWork, 0).toLocaleString()}
-              </p>
+              <p className="text-sm text-muted-foreground">Entwürfe</p>
+              <p className="text-2xl font-bold">{draftBOMs}</p>
             </div>
           </div>
         </div>
@@ -342,7 +414,7 @@ export default function BillOfMaterials() {
 
       {/* BOM List */}
       <div className="space-y-4">
-        {boms.map((bom, index) => (
+        {filteredBoms.map((bom, index) => (
           <Collapsible
             key={bom.id}
             open={expandedBOM === bom.id}
@@ -402,23 +474,23 @@ export default function BillOfMaterials() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleViewDetails(e, bom.id)}>
                           <Eye className="h-4 w-4 mr-2" />
                           Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleEdit(e, bom.id)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleDuplicate(e, bom)}>
                           <Copy className="h-4 w-4 mr-2" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleCalculation(e, bom.id)}>
                           <Wrench className="h-4 w-4 mr-2" />
                           Kalkulation
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, bom.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Löschen
                         </DropdownMenuItem>
@@ -458,6 +530,14 @@ export default function BillOfMaterials() {
             </div>
           </Collapsible>
         ))}
+
+        {filteredBoms.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
+            <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Keine Stücklisten gefunden</p>
+            <p className="text-sm">Passen Sie die Filter an oder erstellen Sie eine neue Stückliste</p>
+          </div>
+        )}
       </div>
     </div>
   );
