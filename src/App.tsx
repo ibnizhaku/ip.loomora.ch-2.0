@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import ProjectEdit from "./pages/ProjectEdit";
+import ProjectCreate from "./pages/ProjectCreate";
 import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import TimeTracking from "./pages/TimeTracking";
@@ -162,6 +163,7 @@ const App = () => (
                   
                   {/* Projekte */}
                   <Route path="/projects" element={<Projects />} />
+                  <Route path="/projects/new" element={<ProjectCreate />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/projects/:id/edit" element={<ProjectEdit />} />
                   
