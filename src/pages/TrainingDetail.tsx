@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Calendar,
@@ -20,9 +27,11 @@ import {
   XCircle,
   User,
   Building2,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
 
-const trainingData = {
+const initialTrainingData = {
   id: "WB-2024-0008",
   title: "Schweissen nach SN EN ISO 9606-1",
   type: "Zertifizierung",
@@ -73,6 +82,16 @@ const trainingData = {
   createdBy: "HR Team",
 };
 
+// Available employees for adding
+const availableEmployees = [
+  { id: "MA-004", name: "Hans Weber", department: "Produktion" },
+  { id: "MA-005", name: "Stefan Schmid", department: "Montage" },
+  { id: "MA-006", name: "Michael Huber", department: "Produktion" },
+  { id: "MA-007", name: "Andreas Müller", department: "Werkstatt" },
+  { id: "MA-008", name: "Daniel Fischer", department: "Montage" },
+  { id: "MA-009", name: "Reto Steiner", department: "Produktion" },
+];
+
 const getStatusConfig = (status: string) => {
   switch (status) {
     case "scheduled":
@@ -111,9 +130,109 @@ const formatCurrency = (amount: number) => {
 export default function TrainingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  const [trainingData, setTrainingData] = useState(initialTrainingData);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showAddParticipantsDialog, setShowAddParticipantsDialog] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  
+  const [editForm, setEditForm] = useState({
+    title: trainingData.title,
+    description: trainingData.description,
+    status: trainingData.status as string,
+    startDate: trainingData.schedule.startDate,
+    endDate: trainingData.schedule.endDate,
+    times: trainingData.schedule.times,
+    room: trainingData.location.room,
+    address: trainingData.location.address,
+    coursesFee: trainingData.costs.coursesFee.toString(),
+    maxParticipants: trainingData.maxParticipants.toString(),
+  });
 
   const statusConfig = getStatusConfig(trainingData.status);
   const confirmedCount = trainingData.participants.filter(p => p.status === "confirmed").length;
+
+  const handleEditSave = () => {
+    const coursesFee = parseFloat(editForm.coursesFee) || 0;
+    const newTotal = coursesFee + trainingData.costs.materials + trainingData.costs.travel + trainingData.costs.accommodation;
+    
+    setTrainingData(prev => ({
+      ...prev,
+      title: editForm.title,
+      description: editForm.description,
+      status: editForm.status as typeof prev.status,
+      schedule: {
+        ...prev.schedule,
+        startDate: editForm.startDate,
+        endDate: editForm.endDate,
+        times: editForm.times,
+      },
+      location: {
+        ...prev.location,
+        room: editForm.room,
+        address: editForm.address,
+      },
+      costs: {
+        ...prev.costs,
+        coursesFee,
+        total: newTotal,
+      },
+      maxParticipants: parseInt(editForm.maxParticipants) || prev.maxParticipants,
+    }));
+    
+    setShowEditDialog(false);
+    toast.success("Schulung aktualisiert");
+  };
+
+  const handleAddParticipants = () => {
+    if (selectedEmployees.length === 0) {
+      toast.error("Bitte wählen Sie mindestens einen Mitarbeiter aus");
+      return;
+    }
+    
+    const newParticipants = selectedEmployees.map(empId => {
+      const emp = availableEmployees.find(e => e.id === empId)!;
+      const confirmedCount = trainingData.participants.filter(p => p.status === "confirmed").length;
+      const willBeOnWaitlist = confirmedCount >= trainingData.maxParticipants;
+      
+      return {
+        id: emp.id,
+        name: emp.name,
+        department: emp.department,
+        status: willBeOnWaitlist ? "waitlist" : "confirmed",
+        result: null,
+      };
+    });
+    
+    setTrainingData(prev => ({
+      ...prev,
+      participants: [...prev.participants, ...newParticipants],
+    }));
+    
+    setShowAddParticipantsDialog(false);
+    setSelectedEmployees([]);
+    toast.success(`${newParticipants.length} Teilnehmer hinzugefügt`);
+  };
+
+  const handleRemoveParticipant = (participantId: string) => {
+    setTrainingData(prev => ({
+      ...prev,
+      participants: prev.participants.filter(p => p.id !== participantId),
+    }));
+    toast.info("Teilnehmer entfernt");
+  };
+
+  const handleToggleEmployee = (empId: string) => {
+    setSelectedEmployees(prev => 
+      prev.includes(empId) 
+        ? prev.filter(id => id !== empId)
+        : [...prev, empId]
+    );
+  };
+
+  const availableToAdd = availableEmployees.filter(
+    emp => !trainingData.participants.some(p => p.id === emp.id)
+  );
 
   return (
     <div className="space-y-6">
@@ -136,12 +255,12 @@ export default function TrainingDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setShowEditDialog(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
-          <Button>
-            <Users className="h-4 w-4 mr-2" />
+          <Button onClick={() => setShowAddParticipantsDialog(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
             Teilnehmer hinzufügen
           </Button>
         </div>
@@ -259,8 +378,13 @@ export default function TrainingDetail() {
                           {!participant.result && <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => navigate(`/hr/${participant.id}`)}>
-                            <User className="h-4 w-4" />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveParticipant(participant.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -400,6 +524,185 @@ export default function TrainingDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Schulung bearbeiten</DialogTitle>
+            <DialogDescription>Ändern Sie die Details der Schulung</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Titel</Label>
+              <Input
+                id="title"
+                value={editForm.title}
+                onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Beschreibung</Label>
+              <Textarea
+                id="description"
+                value={editForm.description}
+                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editForm.status}
+                  onValueChange={(value) => setEditForm(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Geplant</SelectItem>
+                    <SelectItem value="ongoing">Laufend</SelectItem>
+                    <SelectItem value="completed">Abgeschlossen</SelectItem>
+                    <SelectItem value="cancelled">Abgesagt</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="maxParticipants">Max. Teilnehmer</Label>
+                <Input
+                  id="maxParticipants"
+                  type="number"
+                  value={editForm.maxParticipants}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, maxParticipants: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="startDate">Beginn</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={editForm.startDate}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, startDate: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="endDate">Ende</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={editForm.endDate}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, endDate: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="times">Zeiten</Label>
+              <Input
+                id="times"
+                placeholder="z.B. 08:00 - 17:00"
+                value={editForm.times}
+                onChange={(e) => setEditForm(prev => ({ ...prev, times: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="room">Raum/Ort</Label>
+              <Input
+                id="room"
+                value={editForm.room}
+                onChange={(e) => setEditForm(prev => ({ ...prev, room: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="address">Adresse</Label>
+              <Input
+                id="address"
+                value={editForm.address}
+                onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="coursesFee">Kursgebühren (CHF)</Label>
+              <Input
+                id="coursesFee"
+                type="number"
+                step="0.01"
+                value={editForm.coursesFee}
+                onChange={(e) => setEditForm(prev => ({ ...prev, coursesFee: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleEditSave}>
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Participants Dialog */}
+      <Dialog open={showAddParticipantsDialog} onOpenChange={setShowAddParticipantsDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Teilnehmer hinzufügen</DialogTitle>
+            <DialogDescription>
+              Wählen Sie Mitarbeiter aus, die an der Schulung teilnehmen sollen.
+              {confirmedCount >= trainingData.maxParticipants && (
+                <span className="block text-amber-600 mt-1">
+                  Maximale Teilnehmerzahl erreicht. Weitere Anmeldungen werden auf die Warteliste gesetzt.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {availableToAdd.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Keine weiteren Mitarbeiter verfügbar
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {availableToAdd.map((emp) => (
+                  <div
+                    key={emp.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                    onClick={() => handleToggleEmployee(emp.id)}
+                  >
+                    <Checkbox
+                      checked={selectedEmployees.includes(emp.id)}
+                      onCheckedChange={() => handleToggleEmployee(emp.id)}
+                    />
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>
+                        {emp.name.split(" ").map(n => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{emp.name}</p>
+                      <p className="text-xs text-muted-foreground">{emp.department}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddParticipantsDialog(false);
+              setSelectedEmployees([]);
+            }}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleAddParticipants} disabled={selectedEmployees.length === 0}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              {selectedEmployees.length} hinzufügen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
