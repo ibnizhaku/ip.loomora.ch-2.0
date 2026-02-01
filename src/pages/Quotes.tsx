@@ -11,7 +11,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Euro,
+  Banknote,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -167,11 +167,11 @@ export default function Quotes() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Euro className="h-5 w-5 text-primary" />
+              <Banknote className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamtwert</p>
-              <p className="text-2xl font-bold">€{stats.total.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {stats.total.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function Quotes() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Angenommen</p>
-              <p className="text-2xl font-bold">€{stats.accepted.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {stats.accepted.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function Quotes() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offen</p>
-              <p className="text-2xl font-bold">€{stats.pending.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {stats.pending.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -274,7 +274,7 @@ export default function Quotes() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    €{quote.amount.toLocaleString()}
+                    CHF {quote.amount.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {quote.validUntil}

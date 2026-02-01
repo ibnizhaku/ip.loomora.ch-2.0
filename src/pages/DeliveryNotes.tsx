@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -118,6 +119,7 @@ const statusConfig = {
 };
 
 export default function DeliveryNotes() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredNotes = deliveryNotes.filter(
@@ -235,8 +237,9 @@ export default function DeliveryNotes() {
               return (
                 <TableRow
                   key={note.id}
-                  className="cursor-pointer animate-fade-in"
+                  className="cursor-pointer animate-fade-in hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/delivery-notes/${note.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -9,7 +10,7 @@ import {
   Phone,
   MapPin,
   Star,
-  Euro,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,6 +127,7 @@ const statusConfig = {
 };
 
 export default function Suppliers() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredSuppliers = suppliers.filter(
@@ -182,11 +184,11 @@ export default function Suppliers() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-              <Euro className="h-5 w-5 text-warning" />
+              <Banknote className="h-5 w-5 text-warning" />
             </div>
             <div>
               <p className="text-2xl font-bold">
-                €{(suppliers.reduce((acc, s) => acc + s.totalValue, 0) / 1000).toFixed(0)}k
+                CHF {(suppliers.reduce((acc, s) => acc + s.totalValue, 0) / 1000).toFixed(0)}k
               </p>
               <p className="text-sm text-muted-foreground">Bestellwert</p>
             </div>
@@ -241,8 +243,9 @@ export default function Suppliers() {
             {filteredSuppliers.map((supplier, index) => (
               <TableRow
                 key={supplier.id}
-                className="cursor-pointer animate-fade-in"
+                className="cursor-pointer animate-fade-in hover:bg-muted/50"
                 style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/suppliers/${supplier.id}`)}
               >
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -301,7 +304,7 @@ export default function Suppliers() {
                 <TableCell className="text-right">
                   <div>
                     <p className="font-medium">
-                      €{supplier.totalValue.toLocaleString()}
+                      CHF {supplier.totalValue.toLocaleString("de-CH")}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {supplier.totalOrders} Bestellungen
