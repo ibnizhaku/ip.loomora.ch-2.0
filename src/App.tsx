@@ -67,6 +67,7 @@ import CalculationDetail from "./pages/CalculationDetail";
 import CalculationCreate from "./pages/CalculationCreate";
 import Production from "./pages/Production";
 import ProductionDetail from "./pages/ProductionDetail";
+import ProductionCreate from "./pages/ProductionCreate";
 import LeadDetail from "./pages/LeadDetail";
 import EmployeeContracts from "./pages/EmployeeContracts";
 import EmployeeContractDetail from "./pages/EmployeeContractDetail";
@@ -318,6 +319,7 @@ const App = () => (
                   <Route path="/calculation/new" element={<CalculationCreate />} />
                   <Route path="/calculation/:id" element={<CalculationDetail />} />
                   <Route path="/production" element={<Production />} />
+                  <Route path="/production/new" element={<ProductionCreate />} />
                   <Route path="/production/:id" element={<ProductionDetail />} />
                   <Route path="/qr-invoice" element={<QRInvoice />} />
                   <Route path="/bank-import" element={<BankImport />} />
