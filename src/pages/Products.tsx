@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
-  Filter,
   Package,
   Tag,
   BarChart3,
@@ -15,6 +15,8 @@ import {
   List,
   TrendingUp,
   Box,
+  FileText,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +34,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Product {
   id: string;
@@ -189,13 +206,46 @@ const statusLabels = {
 };
 
 export default function Products() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [productList, setProductList] = useState<Product[]>(products);
+  const [priceListOpen, setPriceListOpen] = useState(false);
 
-  const categories = [...new Set(products.map((p) => p.category))];
-  const activeProducts = products.filter((p) => p.status === "active");
-  const avgMargin = products.reduce((acc, p) => acc + p.margin, 0) / products.length;
+  const categories = [...new Set(productList.map((p) => p.category))];
+  const activeProducts = productList.filter((p) => p.status === "active");
+  const avgMargin = productList.reduce((acc, p) => acc + p.margin, 0) / productList.length;
+
+  const filteredProducts = productList.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleDelete = (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    const product = productList.find(p => p.id === productId);
+    setProductList(productList.filter(p => p.id !== productId));
+    toast.success(`${product?.name} wurde gelöscht`);
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const newProduct = {
+      ...product,
+      id: String(Date.now()),
+      sku: `${product.sku}-COPY`,
+      name: `${product.name} (Kopie)`,
+    };
+    setProductList([...productList, newProduct]);
+    toast.success(`${product.name} wurde dupliziert`);
+  };
+
+  const handleExportPriceList = () => {
+    toast.success("Preisliste wird als PDF exportiert...");
+  };
 
   return (
     <div className="space-y-6">
@@ -209,11 +259,11 @@ export default function Products() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setPriceListOpen(true)}>
             <BarChart3 className="h-4 w-4" />
             Preisliste
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/products/new")}>
             <Plus className="h-4 w-4" />
             Produkt anlegen
           </Button>
@@ -228,7 +278,7 @@ export default function Products() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Produkte gesamt</p>
-              <p className="text-2xl font-bold">{products.length}</p>
+              <p className="text-2xl font-bold">{productList.length}</p>
             </div>
           </div>
         </div>
@@ -310,11 +360,12 @@ export default function Products() {
 
       {viewMode === "list" ? (
         <div className="space-y-3">
-          {products.map((product, index) => (
+          {filteredProducts.map((product, index) => (
             <div
               key={product.id}
-              className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-all animate-fade-in"
+              className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/products/${product.id}`)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -368,24 +419,24 @@ export default function Products() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
                         <Eye className="h-4 w-4 mr-2" />
                         Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleDuplicate(e, product)}>
                         <Copy className="h-4 w-4 mr-2" />
                         Duplizieren
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, product.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Löschen
                       </DropdownMenuItem>
@@ -398,11 +449,12 @@ export default function Products() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product, index) => (
+          {filteredProducts.map((product, index) => (
             <div
               key={product.id}
-              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/products/${product.id}`)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
@@ -428,6 +480,54 @@ export default function Products() {
           ))}
         </div>
       )}
+
+      {/* Price List Dialog */}
+      <Dialog open={priceListOpen} onOpenChange={setPriceListOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Preisliste
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button variant="outline" className="gap-2" onClick={handleExportPriceList}>
+                <Download className="h-4 w-4" />
+                Als PDF exportieren
+              </Button>
+            </div>
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Art.-Nr.</TableHead>
+                    <TableHead>Bezeichnung</TableHead>
+                    <TableHead>Kategorie</TableHead>
+                    <TableHead>Einheit</TableHead>
+                    <TableHead className="text-right">EK-Preis</TableHead>
+                    <TableHead className="text-right">VK-Preis</TableHead>
+                    <TableHead className="text-right">MwSt.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {productList.filter(p => p.status === "active").map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.category}</TableCell>
+                      <TableCell>{product.unit}</TableCell>
+                      <TableCell className="text-right font-mono">CHF {product.costPrice.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono font-bold">CHF {product.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{product.taxRate}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
