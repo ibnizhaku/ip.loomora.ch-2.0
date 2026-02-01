@@ -442,8 +442,8 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 space-y-4">
-        <div className="flex items-center justify-center">
-          <img src={loomoraLogo} alt="Loomora" className="h-10 w-auto max-w-full object-contain" />
+        <div className="flex items-center justify-center py-2">
+          <img src={loomoraLogo} alt="Loomora" className="h-14 w-auto max-w-[180px] object-contain" />
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
