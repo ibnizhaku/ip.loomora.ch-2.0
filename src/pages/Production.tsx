@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -15,6 +16,8 @@ import {
   Users,
   Wrench,
   Package,
+  Trash2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ProductionOrder {
   id: string;
@@ -54,7 +58,7 @@ interface ProductionOrder {
   workstation: string;
 }
 
-const productionOrders: ProductionOrder[] = [
+const initialOrders: ProductionOrder[] = [
   {
     id: "1",
     number: "WA-2024-001",
@@ -153,14 +157,77 @@ const priorityLabels = {
 };
 
 export default function Production() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [orderList, setOrderList] = useState<ProductionOrder[]>(initialOrders);
 
-  const totalOrders = productionOrders.length;
-  const inProgressOrders = productionOrders.filter((o) => o.status === "in_progress").length;
-  const completedOrders = productionOrders.filter((o) => o.status === "completed").length;
-  const totalPlannedHours = productionOrders.reduce((sum, o) => sum + o.plannedHours, 0);
-  const totalActualHours = productionOrders.reduce((sum, o) => sum + o.actualHours, 0);
+  const totalOrders = orderList.length;
+  const inProgressOrders = orderList.filter((o) => o.status === "in_progress").length;
+  const plannedOrders = orderList.filter((o) => o.status === "planned").length;
+  const completedOrders = orderList.filter((o) => o.status === "completed").length;
+  const totalPlannedHours = orderList.reduce((sum, o) => sum + o.plannedHours, 0);
+  const totalActualHours = orderList.reduce((sum, o) => sum + o.actualHours, 0);
+
+  const filteredOrders = orderList.filter((order) => {
+    const matchesSearch = order.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleStart = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    setOrderList(orderList.map(o => 
+      o.id === orderId ? { ...o, status: "in_progress" as const, actualStart: new Date().toLocaleDateString("de-CH") } : o
+    ));
+    toast.success("Auftrag gestartet");
+  };
+
+  const handlePause = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    setOrderList(orderList.map(o => 
+      o.id === orderId ? { ...o, status: "paused" as const } : o
+    ));
+    toast.info("Auftrag pausiert");
+  };
+
+  const handleResume = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    setOrderList(orderList.map(o => 
+      o.id === orderId ? { ...o, status: "in_progress" as const } : o
+    ));
+    toast.success("Auftrag fortgesetzt");
+  };
+
+  const handleDelete = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    setOrderList(orderList.filter(o => o.id !== orderId));
+    toast.success("Auftrag gelöscht");
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, order: ProductionOrder) => {
+    e.stopPropagation();
+    const newOrder: ProductionOrder = {
+      ...order,
+      id: Date.now().toString(),
+      number: `WA-2024-${String(orderList.length + 1).padStart(3, '0')}`,
+      name: `${order.name} (Kopie)`,
+      status: "planned",
+      progress: 0,
+      actualHours: 0,
+      actualStart: undefined,
+      actualEnd: undefined,
+    };
+    setOrderList([...orderList, newOrder]);
+    toast.success("Auftrag dupliziert");
+  };
+
+  const handleTimeTracking = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    navigate("/time-tracking");
+    toast.info("Zur Zeiterfassung");
+  };
 
   return (
     <div className="space-y-6">
@@ -174,11 +241,11 @@ export default function Production() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/calendar")}>
             <Calendar className="h-4 w-4" />
             Kapazität
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/production/new")}>
             <Plus className="h-4 w-4" />
             Werkstattauftrag
           </Button>
@@ -187,7 +254,13 @@ export default function Production() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Factory className="h-6 w-6 text-primary" />
@@ -198,7 +271,13 @@ export default function Production() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-info/50",
+            statusFilter === "in_progress" ? "border-info ring-2 ring-info/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("in_progress")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
               <Play className="h-6 w-6 text-info" />
@@ -209,7 +288,13 @@ export default function Production() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "completed" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("completed")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <CheckCircle2 className="h-6 w-6 text-success" />
@@ -220,16 +305,20 @@ export default function Production() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-muted-foreground/50",
+            statusFilter === "planned" ? "border-muted-foreground ring-2 ring-muted-foreground/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("planned")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
               <Clock className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Auslastung</p>
-              <p className="text-2xl font-bold">
-                {Math.round((totalActualHours / totalPlannedHours) * 100)}%
-              </p>
+              <p className="text-sm text-muted-foreground">Geplant</p>
+              <p className="text-2xl font-bold">{plannedOrders}</p>
             </div>
           </div>
         </div>
@@ -262,11 +351,12 @@ export default function Production() {
 
       {/* Production Orders */}
       <div className="space-y-4">
-        {productionOrders.map((order, index) => (
+        {filteredOrders.map((order, index) => (
           <div
             key={order.id}
-            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => navigate(`/production/${order.id}`)}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-4">
@@ -297,21 +387,21 @@ export default function Production() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 {order.status === "planned" && (
-                  <Button size="sm" className="gap-2">
+                  <Button size="sm" className="gap-2" onClick={(e) => handleStart(e, order.id)}>
                     <Play className="h-4 w-4" />
                     Starten
                   </Button>
                 )}
                 {order.status === "in_progress" && (
-                  <Button size="sm" variant="outline" className="gap-2">
+                  <Button size="sm" variant="outline" className="gap-2" onClick={(e) => handlePause(e, order.id)}>
                     <Pause className="h-4 w-4" />
                     Pausieren
                   </Button>
                 )}
                 {order.status === "paused" && (
-                  <Button size="sm" className="gap-2">
+                  <Button size="sm" className="gap-2" onClick={(e) => handleResume(e, order.id)}>
                     <Play className="h-4 w-4" />
                     Fortsetzen
                   </Button>
@@ -324,17 +414,25 @@ export default function Production() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/production/${order.id}`); }}>
                       <Eye className="h-4 w-4 mr-2" />
                       Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/production/${order.id}`); }}>
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleDuplicate(e, order)}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplizieren
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleTimeTracking(e, order.id)}>
                       <Clock className="h-4 w-4 mr-2" />
                       Zeit erfassen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, order.id)}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Löschen
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -383,6 +481,14 @@ export default function Production() {
             </div>
           </div>
         ))}
+
+        {filteredOrders.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
+            <Factory className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Keine Aufträge gefunden</p>
+            <p className="text-sm">Passen Sie die Filter an oder erstellen Sie einen neuen Auftrag</p>
+          </div>
+        )}
       </div>
     </div>
   );
