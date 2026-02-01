@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
   TrendingUp,
@@ -9,6 +11,7 @@ import {
   FileText,
   PieChart,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,11 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const kpiData = [
   {
     title: "Umsatz YTD",
-    value: "€584.250",
+    value: "CHF 584'250",
     change: "+18.5%",
     trend: "up",
     icon: Euro,
@@ -54,6 +58,7 @@ const kpiData = [
 
 const reportTypes = [
   {
+    id: "1",
     title: "Umsatzbericht",
     description: "Monatliche Einnahmen und Ausgaben",
     icon: Euro,
@@ -61,6 +66,7 @@ const reportTypes = [
     type: "financial",
   },
   {
+    id: "2",
     title: "Projektübersicht",
     description: "Status aller aktiven Projekte",
     icon: FolderKanban,
@@ -68,6 +74,7 @@ const reportTypes = [
     type: "project",
   },
   {
+    id: "3",
     title: "Zeiterfassungsbericht",
     description: "Arbeitszeiten nach Mitarbeiter",
     icon: Calendar,
@@ -75,6 +82,7 @@ const reportTypes = [
     type: "time",
   },
   {
+    id: "4",
     title: "Kundenbericht",
     description: "Kundenaktivität und Umsatz",
     icon: Users,
@@ -82,6 +90,7 @@ const reportTypes = [
     type: "customer",
   },
   {
+    id: "5",
     title: "Leistungsanalyse",
     description: "Team-Performance und KPIs",
     icon: TrendingUp,
@@ -89,6 +98,7 @@ const reportTypes = [
     type: "performance",
   },
   {
+    id: "6",
     title: "Lagerbericht",
     description: "Bestandsübersicht und Bewegungen",
     icon: BarChart3,
@@ -98,14 +108,34 @@ const reportTypes = [
 ];
 
 const revenueByProject = [
-  { name: "E-Commerce", value: 145000, percentage: 35 },
-  { name: "Mobile Apps", value: 98000, percentage: 24 },
-  { name: "Web Development", value: 78000, percentage: 19 },
-  { name: "Consulting", value: 56000, percentage: 14 },
-  { name: "Support", value: 32000, percentage: 8 },
+  { name: "Stahlbau", value: 245000, percentage: 42 },
+  { name: "Treppen", value: 128000, percentage: 22 },
+  { name: "Geländer", value: 98000, percentage: 17 },
+  { name: "Brandschutz", value: 68000, percentage: 12 },
+  { name: "Service", value: 45250, percentage: 7 },
 ];
 
 export default function Reports() {
+  const navigate = useNavigate();
+  const [selectedYear, setSelectedYear] = useState("2024");
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+
+  const handleDownloadReport = (reportId: string, reportTitle: string) => {
+    setIsGenerating(reportId);
+    setTimeout(() => {
+      setIsGenerating(null);
+      toast.success(`${reportTitle} wird heruntergeladen...`);
+    }, 1500);
+  };
+
+  const handleExportAll = () => {
+    toast.success("Alle Berichte werden exportiert...");
+  };
+
+  const handleRefreshReport = (reportTitle: string) => {
+    toast.success(`${reportTitle} wird aktualisiert...`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,7 +149,7 @@ export default function Reports() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select defaultValue="2024">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="w-[120px]">
               <SelectValue />
             </SelectTrigger>
@@ -129,7 +159,7 @@ export default function Reports() {
               <SelectItem value="2022">2022</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleExportAll}>
             <Download className="h-4 w-4" />
             Exportieren
           </Button>
@@ -142,9 +172,10 @@ export default function Reports() {
           <div
             key={kpi.title}
             className={cn(
-              "rounded-xl border border-border bg-card p-5 animate-fade-in"
+              "rounded-xl border border-border bg-card p-5 animate-fade-in cursor-pointer hover:border-primary/30 transition-all"
             )}
             style={{ animationDelay: `${index * 100}ms` }}
+            onClick={() => navigate("/finance")}
           >
             <div className="flex items-center justify-between">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -184,7 +215,7 @@ export default function Reports() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{item.name}</span>
                   <span className="text-sm text-muted-foreground">
-                    €{item.value.toLocaleString()} ({item.percentage}%)
+                    CHF {item.value.toLocaleString()} ({item.percentage}%)
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
@@ -211,7 +242,7 @@ export default function Reports() {
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Gesamt</span>
               <span className="font-bold">
-                €{revenueByProject.reduce((a, b) => a + b.value, 0).toLocaleString()}
+                CHF {revenueByProject.reduce((a, b) => a + b.value, 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -229,11 +260,12 @@ export default function Reports() {
           <div className="space-y-3">
             {reportTypes.map((report, index) => (
               <div
-                key={report.title}
+                key={report.id}
                 className={cn(
                   "group flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 transition-all cursor-pointer animate-fade-in"
                 )}
                 style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => handleDownloadReport(report.id, report.title)}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary group-hover:bg-primary/10 transition-colors">
@@ -254,8 +286,27 @@ export default function Reports() {
                     variant="ghost"
                     size="icon"
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRefreshReport(report.title);
+                    }}
                   >
-                    <Download className="h-4 w-4" />
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadReport(report.id, report.title);
+                    }}
+                  >
+                    {isGenerating === report.id ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -273,11 +324,11 @@ export default function Reports() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-primary" />
-              <span className="text-sm text-muted-foreground">2024</span>
+              <span className="text-sm text-muted-foreground">{selectedYear}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded bg-muted-foreground/30" />
-              <span className="text-sm text-muted-foreground">2023</span>
+              <span className="text-sm text-muted-foreground">{parseInt(selectedYear) - 1}</span>
             </div>
           </div>
         </div>
@@ -288,14 +339,14 @@ export default function Reports() {
               const current = 40 + Math.random() * 60;
               const previous = 30 + Math.random() * 50;
               return (
-                <div key={month} className="flex-1 flex flex-col items-center gap-1">
+                <div key={month} className="flex-1 flex flex-col items-center gap-1 group cursor-pointer">
                   <div className="w-full flex gap-0.5 items-end justify-center h-36">
                     <div
-                      className="flex-1 max-w-3 bg-muted-foreground/30 rounded-t transition-all"
+                      className="flex-1 max-w-3 bg-muted-foreground/30 rounded-t transition-all group-hover:bg-muted-foreground/50"
                       style={{ height: `${previous}%` }}
                     />
                     <div
-                      className="flex-1 max-w-3 bg-primary rounded-t transition-all"
+                      className="flex-1 max-w-3 bg-primary rounded-t transition-all group-hover:bg-primary/80"
                       style={{ height: `${current}%` }}
                     />
                   </div>
