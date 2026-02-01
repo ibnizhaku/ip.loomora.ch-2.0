@@ -221,6 +221,7 @@ model Supplier {
   iban            String?
   
   paymentTermDays Int      @default(30)
+  rating          Int?     @default(0)  // 0-5 stars
   notes           String?
   isActive        Boolean  @default(true)
   

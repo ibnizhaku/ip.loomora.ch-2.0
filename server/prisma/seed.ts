@@ -274,6 +274,76 @@ async function main() {
 
   console.log('✅ Chart of accounts created');
 
+  // Create suppliers
+  const suppliers = [
+    {
+      number: 'LF-0001',
+      name: 'Hans Keller',
+      companyName: 'Stahl AG Zürich',
+      street: 'Industrieweg 5',
+      zipCode: '8045',
+      city: 'Zürich',
+      email: 'einkauf@stahl-ag.ch',
+      phone: '+41 44 555 11 22',
+      paymentTermDays: 30,
+      rating: 5,
+    },
+    {
+      number: 'LF-0002',
+      name: 'Maria Steiner',
+      companyName: 'Aluminium Express GmbH',
+      street: 'Metallstrasse 12',
+      zipCode: '8500',
+      city: 'Frauenfeld',
+      email: 'info@alu-express.ch',
+      phone: '+41 52 111 22 33',
+      paymentTermDays: 14,
+      rating: 4,
+    },
+    {
+      number: 'LF-0003',
+      name: 'Peter Brunner',
+      companyName: 'Beschläge Müller & Söhne',
+      street: 'Handwerkerweg 8',
+      zipCode: '8400',
+      city: 'Winterthur',
+      email: 'bestellung@beschlaege-mueller.ch',
+      phone: '+41 52 222 33 44',
+      paymentTermDays: 30,
+      rating: 5,
+    },
+    {
+      number: 'LF-0004',
+      name: 'Sandra Roth',
+      companyName: 'Schweizer Glas AG',
+      street: 'Glasweg 3',
+      zipCode: '4000',
+      city: 'Basel',
+      email: 'verkauf@schweizer-glas.ch',
+      phone: '+41 61 333 44 55',
+      paymentTermDays: 45,
+      rating: 4,
+    },
+  ];
+
+  for (const supplierData of suppliers) {
+    await prisma.supplier.upsert({
+      where: { 
+        companyId_number: { 
+          companyId: company.id, 
+          number: supplierData.number 
+        } 
+      },
+      update: {},
+      create: {
+        ...supplierData,
+        companyId: company.id,
+      },
+    });
+  }
+
+  console.log('✅ Sample suppliers created');
+
   // Create bank account
   await prisma.bankAccount.upsert({
     where: { id: 'bank-postfinance' },

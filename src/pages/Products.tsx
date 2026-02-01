@@ -17,6 +17,7 @@ import {
   Box,
   FileText,
   Download,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,136 +51,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-interface Product {
-  id: string;
-  sku: string;
-  name: string;
-  category: string;
-  type: "physical" | "service" | "digital";
-  price: number;
-  costPrice: number;
-  margin: number;
-  stock: number;
-  unit: string;
-  status: "active" | "inactive" | "discontinued";
-  taxRate: number;
-}
-
-const products: Product[] = [
-  {
-    id: "1",
-    sku: "ART-001",
-    name: "Edelstahl Blech 2mm",
-    category: "Rohmaterial",
-    type: "physical",
-    price: 89.50,
-    costPrice: 52,
-    margin: 41.9,
-    stock: 145,
-    unit: "m²",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "2",
-    sku: "ART-002",
-    name: "Alu-Profil 40x40mm",
-    category: "Profile",
-    type: "physical",
-    price: 24.80,
-    costPrice: 14.50,
-    margin: 41.5,
-    stock: 320,
-    unit: "lfm",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "3",
-    sku: "ART-003",
-    name: "Montagestunde Metallbau",
-    category: "Dienstleistung",
-    type: "service",
-    price: 125,
-    costPrice: 65,
-    margin: 48,
-    stock: -1,
-    unit: "Stunde",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "4",
-    sku: "ART-004",
-    name: "Schweissnaht V-Naht",
-    category: "Dienstleistung",
-    type: "service",
-    price: 8.50,
-    costPrice: 3.20,
-    margin: 62.4,
-    stock: -1,
-    unit: "cm",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "5",
-    sku: "ART-005",
-    name: "Pulverbeschichtung RAL",
-    category: "Oberflächenbehandlung",
-    type: "service",
-    price: 45,
-    costPrice: 22,
-    margin: 51.1,
-    stock: -1,
-    unit: "m²",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "6",
-    sku: "ART-006",
-    name: "Türschliesser DORMA",
-    category: "Beschläge",
-    type: "physical",
-    price: 189,
-    costPrice: 98,
-    margin: 48.1,
-    stock: 28,
-    unit: "Stück",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "7",
-    sku: "ART-007",
-    name: "Sicherheitsglas VSG 8mm",
-    category: "Glas",
-    type: "physical",
-    price: 156,
-    costPrice: 89,
-    margin: 42.9,
-    stock: 45,
-    unit: "m²",
-    status: "active",
-    taxRate: 8.1,
-  },
-  {
-    id: "8",
-    sku: "ART-008",
-    name: "Schrauben-Set M8 verzinkt",
-    category: "Kleinmaterial",
-    type: "physical",
-    price: 12.50,
-    costPrice: 4.80,
-    margin: 61.6,
-    stock: 580,
-    unit: "Set",
-    status: "active",
-    taxRate: 8.1,
-  },
-];
+import { useProducts, useProductStats, useProductCategories, useDeleteProduct } from "@/hooks/use-products";
+import type { Product } from "@/types/api";
 
 const typeStyles = {
   physical: "bg-blue-500/10 text-blue-600",
@@ -210,38 +83,45 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [productList, setProductList] = useState<Product[]>(products);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priceListOpen, setPriceListOpen] = useState(false);
 
-  const categories = [...new Set(productList.map((p) => p.category))];
-  const activeProducts = productList.filter((p) => p.status === "active");
-
-  const filteredProducts = productList.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
-    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchesSearch && matchesCategory && matchesStatus;
+  const { data, isLoading, error } = useProducts({ 
+    search: searchQuery, 
+    pageSize: 100,
+    category: categoryFilter !== "all" ? categoryFilter : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
   });
+  const { data: categories } = useProductCategories();
+  const stats = useProductStats();
+  const deleteProduct = useDeleteProduct();
 
-  const handleDelete = (e: React.MouseEvent, productId: string) => {
+  const products = data?.data || [];
+
+  const handleDelete = async (e: React.MouseEvent, productId: string) => {
     e.stopPropagation();
-    const product = productList.find(p => p.id === productId);
-    setProductList(productList.filter(p => p.id !== productId));
-    toast.success(`${product?.name} wurde gelöscht`);
+    const product = products.find(p => p.id === productId);
+    if (confirm(`Möchten Sie "${product?.name}" wirklich löschen?`)) {
+      try {
+        await deleteProduct.mutateAsync(productId);
+        toast.success(`${product?.name} wurde gelöscht`);
+      } catch (error) {
+        toast.error("Fehler beim Löschen");
+      }
+    }
   };
 
-  const handleDuplicate = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-    const newProduct = {
-      ...product,
-      id: String(Date.now()),
-      sku: `${product.sku}-COPY`,
-      name: `${product.name} (Kopie)`,
-    };
-    setProductList([...productList, newProduct]);
-    toast.success(`${product.name} wurde dupliziert`);
+  const getProductType = (product: Product): "physical" | "service" | "digital" => {
+    return product.isService ? "service" : "physical";
+  };
+
+  const getProductStatus = (product: Product): "active" | "inactive" | "discontinued" => {
+    return product.isActive ? "active" : "inactive";
+  };
+
+  const getMargin = (product: Product): number => {
+    if (product.purchasePrice === 0) return 100;
+    return ((Number(product.salePrice) - Number(product.purchasePrice)) / Number(product.salePrice)) * 100;
   };
 
   const handleExportPriceList = () => {
@@ -285,7 +165,7 @@ export default function Products() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Produkte gesamt</p>
-              <p className="text-2xl font-bold">{productList.length}</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
             </div>
           </div>
         </div>
@@ -302,7 +182,7 @@ export default function Products() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Aktive Artikel</p>
-              <p className="text-2xl font-bold text-success">{activeProducts.length}</p>
+              <p className="text-2xl font-bold text-success">{stats.active}</p>
             </div>
           </div>
         </div>
@@ -319,24 +199,18 @@ export default function Products() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Inaktive Artikel</p>
-              <p className="text-2xl font-bold">{productList.filter(p => p.status === "inactive").length}</p>
+              <p className="text-2xl font-bold">{stats.inactive}</p>
             </div>
           </div>
         </div>
-        <div 
-          className={cn(
-            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-destructive/50",
-            statusFilter === "discontinued" ? "border-destructive ring-2 ring-destructive/20" : "border-border"
-          )}
-          onClick={() => setStatusFilter("discontinued")}
-        >
+        <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
               <TrendingUp className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Eingestellt</p>
-              <p className="text-2xl font-bold">{productList.filter(p => p.status === "discontinued").length}</p>
+              <p className="text-sm text-muted-foreground">Niedriger Bestand</p>
+              <p className="text-2xl font-bold text-warning">{stats.lowStock}</p>
             </div>
           </div>
         </div>
@@ -358,8 +232,8 @@ export default function Products() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Kategorien</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            {categories?.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -383,126 +257,168 @@ export default function Products() {
         </div>
       </div>
 
-      {viewMode === "list" ? (
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">Fehler beim Laden der Produkte</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Stellen Sie sicher, dass der Backend-Server läuft (VITE_API_URL)
+          </p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !error && products.length === 0 && (
+        <div className="rounded-xl border border-border bg-card p-12 text-center">
+          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">
+            {searchQuery ? "Keine Produkte gefunden" : "Noch keine Produkte vorhanden"}
+          </p>
+          <Button className="mt-4" onClick={() => navigate("/products/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Erstes Produkt anlegen
+          </Button>
+        </div>
+      )}
+
+      {/* Products List */}
+      {!isLoading && !error && products.length > 0 && viewMode === "list" && (
         <div className="space-y-3">
-          {filteredProducts.map((product, index) => (
-            <div
-              key={product.id}
-              className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => navigate(`/products/${product.id}`)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+          {products.map((product, index) => {
+            const margin = getMargin(product);
+            const productType = getProductType(product);
+            const productStatus = getProductStatus(product);
+            
+            return (
+              <div
+                key={product.id}
+                className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/products/${product.id}`)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+                      <Package className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{product.name}</h3>
+                        <Badge className={statusStyles[productStatus]}>
+                          {statusLabels[productStatus]}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-mono">{product.sku}</span> • {product.category?.name || "Ohne Kategorie"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <Badge className={typeStyles[productType]}>
+                      {typeLabels[productType]}
+                    </Badge>
+                    
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">VK-Preis</p>
+                      <p className="font-mono font-bold">CHF {Number(product.salePrice).toLocaleString()}</p>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Marge</p>
+                      <p className={cn(
+                        "font-mono font-medium",
+                        margin >= 50 ? "text-success" : margin >= 30 ? "text-warning" : "text-destructive"
+                      )}>
+                        {margin.toFixed(1)}%
+                      </p>
+                    </div>
+                    
+                    {!product.isService && (
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Bestand</p>
+                        <p className={cn(
+                          "font-mono font-medium",
+                          Number(product.stockQuantity) > 20 ? "text-success" : Number(product.stockQuantity) > 5 ? "text-warning" : "text-destructive"
+                        )}>
+                          {Number(product.stockQuantity)} {product.unit}
+                        </p>
+                      </div>
+                    )}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, product.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Products Grid */}
+      {!isLoading && !error && products.length > 0 && viewMode === "grid" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {products.map((product, index) => {
+            const productType = getProductType(product);
+            const productStatus = getProductStatus(product);
+            
+            return (
+              <div
+                key={product.id}
+                className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/products/${product.id}`)}
+              >
+                <div className="flex items-start justify-between mb-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
                     <Package className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{product.name}</h3>
-                      <Badge className={statusStyles[product.status]}>
-                        {statusLabels[product.status]}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-mono">{product.sku}</span> • {product.category}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <Badge className={typeStyles[product.type]}>
-                    {typeLabels[product.type]}
+                  <Badge className={statusStyles[productStatus]}>
+                    {statusLabels[productStatus]}
                   </Badge>
-                  
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">VK-Preis</p>
-                    <p className="font-mono font-bold">CHF {product.price.toLocaleString()}</p>
-                  </div>
-                  
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Marge</p>
-                    <p className={cn(
-                      "font-mono font-medium",
-                      product.margin >= 50 ? "text-success" : product.margin >= 30 ? "text-warning" : "text-destructive"
-                    )}>
-                      {product.margin.toFixed(1)}%
-                    </p>
-                  </div>
-                  
-                  {product.stock >= 0 && (
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Bestand</p>
-                      <p className={cn(
-                        "font-mono font-medium",
-                        product.stock > 20 ? "text-success" : product.stock > 5 ? "text-warning" : "text-destructive"
-                      )}>
-                        {product.stock} {product.unit}
-                      </p>
-                    </div>
-                  )}
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleDuplicate(e, product)}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Duplizieren
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, product.id)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                </div>
+                
+                <h3 className="font-semibold mb-1">{product.name}</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  <span className="font-mono">{product.sku}</span>
+                </p>
+                
+                <div className="flex items-center justify-between">
+                  <Badge className={typeStyles[productType]}>
+                    {typeLabels[productType]}
+                  </Badge>
+                  <span className="font-mono font-bold">CHF {Number(product.salePrice).toLocaleString()}</span>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredProducts.map((product, index) => (
-            <div
-              key={product.id}
-              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => navigate(`/products/${product.id}`)}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-                  <Package className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <Badge className={statusStyles[product.status]}>
-                  {statusLabels[product.status]}
-                </Badge>
-              </div>
-              
-              <h3 className="font-semibold mb-1">{product.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                <span className="font-mono">{product.sku}</span>
-              </p>
-              
-              <div className="flex items-center justify-between">
-                <Badge className={typeStyles[product.type]}>
-                  {typeLabels[product.type]}
-                </Badge>
-                <p className="font-mono font-bold text-lg">CHF {product.price}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -510,47 +426,36 @@ export default function Products() {
       <Dialog open={priceListOpen} onOpenChange={setPriceListOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Preisliste
+            <DialogTitle className="flex items-center justify-between">
+              <span>Preisliste</span>
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPriceList}>
+                <Download className="h-4 w-4" />
+                PDF Export
+              </Button>
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <Button variant="outline" className="gap-2" onClick={handleExportPriceList}>
-                <Download className="h-4 w-4" />
-                Als PDF exportieren
-              </Button>
-            </div>
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Art.-Nr.</TableHead>
-                    <TableHead>Bezeichnung</TableHead>
-                    <TableHead>Kategorie</TableHead>
-                    <TableHead>Einheit</TableHead>
-                    <TableHead className="text-right">EK-Preis</TableHead>
-                    <TableHead className="text-right">VK-Preis</TableHead>
-                    <TableHead className="text-right">MwSt.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productList.filter(p => p.status === "active").map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.category}</TableCell>
-                      <TableCell>{product.unit}</TableCell>
-                      <TableCell className="text-right font-mono">CHF {product.costPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-mono font-bold">CHF {product.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{product.taxRate}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Artikelnummer</TableHead>
+                <TableHead>Bezeichnung</TableHead>
+                <TableHead>Einheit</TableHead>
+                <TableHead className="text-right">Preis (CHF)</TableHead>
+                <TableHead className="text-right">MwSt.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.filter(p => p.isActive).map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="font-mono">{product.sku}</TableCell>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.unit}</TableCell>
+                  <TableCell className="text-right font-mono">{Number(product.salePrice).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{product.vatRate === 'STANDARD' ? '8.1%' : product.vatRate === 'REDUCED' ? '2.6%' : '0%'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </DialogContent>
       </Dialog>
     </div>

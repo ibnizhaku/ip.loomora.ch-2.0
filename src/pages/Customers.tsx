@@ -10,6 +10,7 @@ import {
   MapPin,
   Building2,
   User,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,95 +31,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-interface Customer {
-  id: string;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  location: string;
-  status: "active" | "inactive" | "prospect";
-  totalRevenue: number;
-  projects: number;
-  lastContact: string;
-  avatar?: string;
-}
-
-const customers: Customer[] = [
-  {
-    id: "1",
-    name: "Michael Weber",
-    company: "Fashion Store GmbH",
-    email: "m.weber@fashionstore.de",
-    phone: "+49 170 1234567",
-    location: "München",
-    status: "active",
-    totalRevenue: 125000,
-    projects: 5,
-    lastContact: "vor 2 Tagen",
-  },
-  {
-    id: "2",
-    name: "Sandra Klein",
-    company: "FinTech Solutions",
-    email: "s.klein@fintech.de",
-    phone: "+49 171 2345678",
-    location: "Berlin",
-    status: "active",
-    totalRevenue: 280000,
-    projects: 3,
-    lastContact: "vor 5 Tagen",
-  },
-  {
-    id: "3",
-    name: "Thomas Bauer",
-    company: "Sales Pro AG",
-    email: "t.bauer@salespro.de",
-    phone: "+49 172 3456789",
-    location: "Hamburg",
-    status: "active",
-    totalRevenue: 95000,
-    projects: 4,
-    lastContact: "vor 1 Woche",
-  },
-  {
-    id: "4",
-    name: "Julia Hoffmann",
-    company: "Data Analytics Inc.",
-    email: "j.hoffmann@dataanalytics.de",
-    phone: "+49 173 4567890",
-    location: "Frankfurt",
-    status: "prospect",
-    totalRevenue: 0,
-    projects: 0,
-    lastContact: "vor 3 Tagen",
-  },
-  {
-    id: "5",
-    name: "Christian Müller",
-    company: "Tech Innovations",
-    email: "c.mueller@techinnovations.de",
-    phone: "+49 174 5678901",
-    location: "Köln",
-    status: "inactive",
-    totalRevenue: 45000,
-    projects: 2,
-    lastContact: "vor 1 Monat",
-  },
-  {
-    id: "6",
-    name: "Anna Schmidt",
-    company: "Logistics Plus",
-    email: "a.schmidt@logisticsplus.de",
-    phone: "+49 175 6789012",
-    location: "Stuttgart",
-    status: "active",
-    totalRevenue: 180000,
-    projects: 6,
-    lastContact: "gestern",
-  },
-];
+import { useCustomers, useCustomerStats, useDeleteCustomer } from "@/hooks/use-customers";
+import { toast } from "sonner";
 
 const statusConfig = {
   active: { label: "Aktiv", color: "bg-success/10 text-success" },
@@ -129,13 +43,29 @@ const statusConfig = {
 export default function Customers() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  const { data, isLoading, error } = useCustomers({ search: searchQuery, pageSize: 100 });
+  const stats = useCustomerStats();
+  const deleteCustomer = useDeleteCustomer();
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const customers = data?.data || [];
+
+  const handleDelete = async (id: string, name: string) => {
+    if (confirm(`Möchten Sie "${name}" wirklich löschen?`)) {
+      try {
+        await deleteCustomer.mutateAsync(id);
+        toast.success(`${name} wurde gelöscht`);
+      } catch (error) {
+        toast.error("Fehler beim Löschen");
+      }
+    }
+  };
+
+  const getCustomerStatus = (customer: any): "active" | "inactive" | "prospect" => {
+    if (!customer.isActive) return "inactive";
+    if (!customer.totalRevenue || customer.totalRevenue === 0) return "prospect";
+    return "active";
+  };
 
   return (
     <div className="space-y-6">
@@ -149,7 +79,7 @@ export default function Customers() {
             Verwalten Sie Ihre Kundenbeziehungen
           </p>
         </div>
-      <Button className="gap-2" onClick={() => navigate("/customers/new")}>
+        <Button className="gap-2" onClick={() => navigate("/customers/new")}>
           <Plus className="h-4 w-4" />
           Neuer Kunde
         </Button>
@@ -163,7 +93,7 @@ export default function Customers() {
               <User className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{customers.length}</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
               <p className="text-sm text-muted-foreground">Gesamt</p>
             </div>
           </div>
@@ -174,9 +104,7 @@ export default function Customers() {
               <Building2 className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {customers.filter((c) => c.status === "active").length}
-              </p>
+              <p className="text-2xl font-bold">{stats.active}</p>
               <p className="text-sm text-muted-foreground">Aktive Kunden</p>
             </div>
           </div>
@@ -187,9 +115,7 @@ export default function Customers() {
               <User className="h-5 w-5 text-info" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {customers.filter((c) => c.status === "prospect").length}
-              </p>
+              <p className="text-2xl font-bold">{stats.prospects}</p>
               <p className="text-sm text-muted-foreground">Interessenten</p>
             </div>
           </div>
@@ -201,7 +127,7 @@ export default function Customers() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                CHF {(customers.reduce((acc, c) => acc + c.totalRevenue, 0) / 1000).toFixed(0)}k
+                CHF {(stats.totalRevenue / 1000).toFixed(0)}k
               </p>
               <p className="text-sm text-muted-foreground">Gesamtumsatz</p>
             </div>
@@ -225,101 +151,153 @@ export default function Customers() {
         </Button>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">Fehler beim Laden der Kunden</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Stellen Sie sicher, dass der Backend-Server läuft (VITE_API_URL)
+          </p>
+        </div>
+      )}
+
       {/* Table */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Kunde</TableHead>
-              <TableHead>Kontakt</TableHead>
-              <TableHead>Standort</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Umsatz</TableHead>
-              <TableHead className="text-right">Projekte</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCustomers.map((customer, index) => (
-              <TableRow
-                key={customer.id}
-                className="cursor-pointer animate-fade-in hover:bg-muted/50"
-                style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => navigate(`/customers/${customer.id}`)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={customer.avatar} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {customer.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{customer.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {customer.company}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                      {customer.email}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5" />
-                      {customer.phone}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    {customer.location}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusConfig[customer.status].color}>
-                    {statusConfig[customer.status].label}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  CHF {customer.totalRevenue.toLocaleString("de-CH")}
-                </TableCell>
-                <TableCell className="text-right">{customer.projects}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                      <DropdownMenuItem>E-Mail senden</DropdownMenuItem>
-                      <DropdownMenuItem>Anrufen</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Löschen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      {!isLoading && !error && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Kunde</TableHead>
+                <TableHead>Kontakt</TableHead>
+                <TableHead>Standort</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Umsatz</TableHead>
+                <TableHead className="text-right">Projekte</TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {customers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {searchQuery ? "Keine Kunden gefunden" : "Noch keine Kunden vorhanden"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                customers.map((customer, index) => {
+                  const status = getCustomerStatus(customer);
+                  return (
+                    <TableRow
+                      key={customer.id}
+                      className="cursor-pointer animate-fade-in hover:bg-muted/50"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => navigate(`/customers/${customer.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                              {(customer.companyName || customer.name)
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{customer.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {customer.companyName || customer.number}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {customer.email && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                              {customer.email}
+                            </div>
+                          )}
+                          {customer.phone && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Phone className="h-3.5 w-3.5" />
+                              {customer.phone}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {customer.city && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            {customer.city}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusConfig[status].color}>
+                          {statusConfig[status].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        CHF {(customer.totalRevenue || 0).toLocaleString("de-CH")}
+                      </TableCell>
+                      <TableCell className="text-right">{customer.projectCount || 0}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}`)}>
+                              Bearbeiten
+                            </DropdownMenuItem>
+                            {customer.email && (
+                              <DropdownMenuItem onClick={() => window.location.href = `mailto:${customer.email}`}>
+                                E-Mail senden
+                              </DropdownMenuItem>
+                            )}
+                            {customer.phone && (
+                              <DropdownMenuItem onClick={() => window.location.href = `tel:${customer.phone}`}>
+                                Anrufen
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(customer.id, customer.name);
+                              }}
+                            >
+                              Löschen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import customerRoutes from './routes/customers.js';
 import productRoutes from './routes/products.js';
+import { supplierRoutes } from './routes/suppliers.js';
 import quoteRoutes from './routes/quotes.js';
 import orderRoutes from './routes/orders.js';
 import invoiceRoutes from './routes/invoices.js';
@@ -47,6 +48,7 @@ fastify.decorate('authenticate', async function (request: any, reply: any) {
 fastify.register(authRoutes, { prefix: '/api/auth' });
 fastify.register(customerRoutes, { prefix: '/api/customers' });
 fastify.register(productRoutes, { prefix: '/api/products' });
+fastify.register(supplierRoutes, { prefix: '/api/suppliers' });
 fastify.register(quoteRoutes, { prefix: '/api/quotes' });
 fastify.register(orderRoutes, { prefix: '/api/orders' });
 fastify.register(invoiceRoutes, { prefix: '/api/invoices' });
