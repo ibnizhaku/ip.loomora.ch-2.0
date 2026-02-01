@@ -2,7 +2,7 @@ import {
   TrendingUp,
   Users,
   FolderKanban,
-  Euro,
+  Banknote,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -16,7 +16,7 @@ const stats = [
     value: "CHF 124'580",
     change: "+12.5%",
     changeType: "positive" as const,
-    icon: Euro,
+    icon: Banknote,
   },
   {
     title: "Aktive Projekte",
