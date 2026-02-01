@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -120,6 +121,7 @@ const priorityConfig = {
 };
 
 export default function Tasks() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
@@ -207,13 +209,15 @@ export default function Tasks() {
             <div
               key={task.id}
               className={cn(
-                "group flex items-start gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-all animate-fade-in"
+                "group flex items-start gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
               )}
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/tasks/${task.id}`)}
             >
               <Checkbox
                 checked={task.status === "done"}
                 className="mt-1"
+                onClick={(e) => e.stopPropagation()}
               />
 
               <div className="flex-1 min-w-0">
@@ -221,7 +225,7 @@ export default function Tasks() {
                   <div>
                     <h3
                       className={cn(
-                        "font-medium",
+                        "font-medium hover:text-primary transition-colors",
                         task.status === "done" && "line-through text-muted-foreground"
                       )}
                     >
@@ -237,11 +241,13 @@ export default function Tasks() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/tasks/${task.id}`)}>Details anzeigen</DropdownMenuItem>
                       <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
                       <DropdownMenuItem>Status ändern</DropdownMenuItem>
                       <DropdownMenuItem>Zuweisen</DropdownMenuItem>
