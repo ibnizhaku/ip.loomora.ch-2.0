@@ -211,17 +211,18 @@ export default function Products() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [productList, setProductList] = useState<Product[]>(products);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priceListOpen, setPriceListOpen] = useState(false);
 
   const categories = [...new Set(productList.map((p) => p.category))];
   const activeProducts = productList.filter((p) => p.status === "active");
-  const avgMargin = productList.reduce((acc, p) => acc + p.margin, 0) / productList.length;
 
   const filteredProducts = productList.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const handleDelete = (e: React.MouseEvent, productId: string) => {
@@ -271,7 +272,13 @@ export default function Products() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Package className="h-6 w-6 text-primary" />
@@ -282,7 +289,13 @@ export default function Products() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "active" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("active")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <Box className="h-6 w-6 text-success" />
@@ -293,25 +306,37 @@ export default function Products() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-muted-foreground/50",
+            statusFilter === "inactive" ? "border-muted-foreground ring-2 ring-muted-foreground/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("inactive")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
               <Tag className="h-6 w-6 text-info" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Kategorien</p>
-              <p className="text-2xl font-bold">{categories.length}</p>
+              <p className="text-sm text-muted-foreground">Inaktive Artikel</p>
+              <p className="text-2xl font-bold">{productList.filter(p => p.status === "inactive").length}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-destructive/50",
+            statusFilter === "discontinued" ? "border-destructive ring-2 ring-destructive/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("discontinued")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
               <TrendingUp className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Ø Marge</p>
-              <p className="text-2xl font-bold">{avgMargin.toFixed(1)}%</p>
+              <p className="text-sm text-muted-foreground">Eingestellt</p>
+              <p className="text-2xl font-bold">{productList.filter(p => p.status === "discontinued").length}</p>
             </div>
           </div>
         </div>
