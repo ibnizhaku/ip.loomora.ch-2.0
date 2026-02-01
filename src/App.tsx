@@ -71,6 +71,7 @@ import ProductionCreate from "./pages/ProductionCreate";
 import LeadDetail from "./pages/LeadDetail";
 import EmployeeContracts from "./pages/EmployeeContracts";
 import EmployeeContractDetail from "./pages/EmployeeContractDetail";
+import EmployeeContractCreate from "./pages/EmployeeContractCreate";
 import Service from "./pages/Service";
 import ServiceDetail from "./pages/ServiceDetail";
 import QualityControl from "./pages/QualityControl";
@@ -311,9 +312,10 @@ const App = () => (
                   <Route path="/hr/new" element={<EmployeeCreate />} />
                   <Route path="/hr/:id" element={<EmployeeDetail />} />
                   <Route path="/employee-contracts" element={<EmployeeContracts />} />
+                  <Route path="/employee-contracts/new" element={<EmployeeContractCreate />} />
                   <Route path="/employee-contracts/:id" element={<EmployeeContractDetail />} />
                   <Route path="/payroll" element={<Payroll />} />
-                  <Route path="/payroll/:id" element={<PayslipDetail />} />
+                  <Route path="/payslips/:id" element={<PayslipDetail />} />
                   <Route path="/absences" element={<Absences />} />
                   <Route path="/absences/new" element={<AbsenceCreate />} />
                   <Route path="/absences/:id" element={<AbsenceDetail />} />
