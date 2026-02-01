@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -11,13 +12,14 @@ import {
   Edit,
   Trash2,
   MoreHorizontal,
-  Building2,
-  Calendar,
   Receipt,
+  X,
+  File,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,7 +33,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface PurchaseInvoice {
   id: string;
@@ -47,9 +56,10 @@ interface PurchaseInvoice {
   status: "draft" | "pending" | "approved" | "paid" | "rejected";
   purchaseOrder?: string;
   costCenter?: string;
+  pdfFile?: string;
 }
 
-const purchaseInvoices: PurchaseInvoice[] = [
+const initialInvoices: PurchaseInvoice[] = [
   {
     id: "1",
     number: "ERI-2024-001",
@@ -126,18 +136,133 @@ const statusLabels = {
   rejected: "Abgelehnt",
 };
 
+const suppliers = [
+  "Stahl AG Zürich",
+  "Verzinkerei Schweiz GmbH",
+  "Schrauben Express AG",
+  "Werkzeug Müller",
+  "TechParts International",
+];
+
 export default function PurchaseInvoices() {
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [invoices, setInvoices] = useState<PurchaseInvoice[]>(initialInvoices);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [importData, setImportData] = useState({
+    supplier: "",
+    supplierNumber: "",
+    netAmount: "",
+    invoiceDate: "",
+    dueDate: "",
+  });
 
-  const totalInvoices = purchaseInvoices.length;
-  const pendingInvoices = purchaseInvoices.filter((i) => i.status === "pending").length;
-  const openAmount = purchaseInvoices
+  // Filter invoices
+  const filteredInvoices = invoices.filter((invoice) => {
+    const matchesSearch =
+      invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      invoice.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      invoice.supplierNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // Stats
+  const totalInvoices = invoices.length;
+  const pendingInvoices = invoices.filter((i) => i.status === "pending").length;
+  const openAmount = invoices
     .filter((i) => i.status === "pending" || i.status === "approved")
     .reduce((sum, i) => sum + i.grossAmount, 0);
-  const paidAmount = purchaseInvoices
+  const paidAmount = invoices
     .filter((i) => i.status === "paid")
     .reduce((sum, i) => sum + i.grossAmount, 0);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== "application/pdf") {
+        toast.error("Nur PDF-Dateien erlaubt");
+        return;
+      }
+      setUploadedFile(file);
+      setImportDialogOpen(true);
+      // Simulate OCR extraction (in real app, this would call an API)
+      toast.info("PDF wird analysiert...");
+      setTimeout(() => {
+        toast.success("Daten aus PDF extrahiert");
+      }, 1500);
+    }
+  };
+
+  const handleImportInvoice = () => {
+    if (!importData.supplier || !importData.netAmount) {
+      toast.error("Bitte Pflichtfelder ausfüllen");
+      return;
+    }
+
+    const netAmount = parseFloat(importData.netAmount);
+    const vatAmount = netAmount * 0.081; // 8.1% MwSt
+    const grossAmount = netAmount + vatAmount;
+
+    const newInvoice: PurchaseInvoice = {
+      id: Date.now().toString(),
+      number: `ERI-2024-${String(invoices.length + 1).padStart(3, "0")}`,
+      supplierNumber: importData.supplierNumber || "N/A",
+      supplier: importData.supplier,
+      invoiceDate: importData.invoiceDate || new Date().toLocaleDateString("de-CH"),
+      dueDate: importData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("de-CH"),
+      netAmount,
+      vatAmount,
+      grossAmount,
+      currency: "CHF",
+      status: "draft",
+      pdfFile: uploadedFile?.name,
+    };
+
+    setInvoices((prev) => [newInvoice, ...prev]);
+    setImportDialogOpen(false);
+    setUploadedFile(null);
+    setImportData({
+      supplier: "",
+      supplierNumber: "",
+      netAmount: "",
+      invoiceDate: "",
+      dueDate: "",
+    });
+    toast.success("Rechnung importiert", {
+      description: `${newInvoice.number} - CHF ${grossAmount.toLocaleString("de-CH")}`,
+    });
+  };
+
+  const handleApprove = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === id ? { ...inv, status: "approved" as const } : inv
+      )
+    );
+    toast.success("Rechnung freigegeben");
+  };
+
+  const handleReject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === id ? { ...inv, status: "rejected" as const } : inv
+      )
+    );
+    toast.info("Rechnung abgelehnt");
+  };
+
+  const handleDelete = (id: string) => {
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+    toast.success("Rechnung gelöscht");
+  };
 
   return (
     <div className="space-y-6">
@@ -151,11 +276,22 @@ export default function PurchaseInvoices() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".pdf"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Upload className="h-4 w-4" />
             PDF importieren
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/purchase-invoices/new")}>
             <Plus className="h-4 w-4" />
             Rechnung erfassen
           </Button>
@@ -193,7 +329,7 @@ export default function PurchaseInvoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offen</p>
-              <p className="text-2xl font-bold">CHF {openAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {openAmount.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -204,7 +340,7 @@ export default function PurchaseInvoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bezahlt (MTD)</p>
-              <p className="text-2xl font-bold">CHF {paidAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {paidAmount.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -231,118 +367,234 @@ export default function PurchaseInvoices() {
             <SelectItem value="pending">Zur Prüfung</SelectItem>
             <SelectItem value="approved">Freigegeben</SelectItem>
             <SelectItem value="paid">Bezahlt</SelectItem>
+            <SelectItem value="rejected">Abgelehnt</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Invoice List */}
       <div className="space-y-3">
-        {purchaseInvoices.map((invoice, index) => (
-          <div
-            key={invoice.id}
-            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-                  <Receipt className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{invoice.supplier}</h3>
-                    <Badge className={statusStyles[invoice.status]}>
-                      {statusLabels[invoice.status]}
-                    </Badge>
+        {filteredInvoices.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Receipt className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>Keine Rechnungen gefunden</p>
+          </div>
+        ) : (
+          filteredInvoices.map((invoice, index) => (
+            <div
+              key={invoice.id}
+              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
+              style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/purchase-invoices/${invoice.id}`)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+                    <Receipt className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-mono">{invoice.number}</span>
-                    {" • Lieferanten-Nr.: "}
-                    <span className="font-mono">{invoice.supplierNumber}</span>
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{invoice.supplier}</h3>
+                      <Badge className={statusStyles[invoice.status]}>
+                        {statusLabels[invoice.status]}
+                      </Badge>
+                      {invoice.pdfFile && (
+                        <Badge variant="outline" className="gap-1">
+                          <File className="h-3 w-3" />
+                          PDF
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-mono">{invoice.number}</span>
+                      {" • Lieferanten-Nr.: "}
+                      <span className="font-mono">{invoice.supplierNumber}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6">
+                  <div className="text-right hidden lg:block">
+                    <p className="text-sm text-muted-foreground">Rechnungsdatum</p>
+                    <p className="font-mono text-sm">{invoice.invoiceDate}</p>
+                  </div>
+
+                  <div className="text-right hidden md:block">
+                    <p className="text-sm text-muted-foreground">Fällig</p>
+                    <p className="font-mono text-sm">{invoice.dueDate}</p>
+                  </div>
+
+                  <div className="text-right hidden xl:block">
+                    <p className="text-sm text-muted-foreground">Netto</p>
+                    <p className="font-mono">{invoice.currency} {invoice.netAmount.toLocaleString("de-CH")}</p>
+                  </div>
+
+                  <div className="text-right min-w-[120px]">
+                    <p className="text-sm text-muted-foreground">Brutto</p>
+                    <p className="font-mono font-bold">
+                      {invoice.currency} {invoice.grossAmount.toLocaleString("de-CH")}
+                    </p>
+                  </div>
+
+                  {invoice.status === "pending" && (
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" onClick={(e) => handleReject(invoice.id, e)}>
+                        Ablehnen
+                      </Button>
+                      <Button size="sm" onClick={(e) => handleApprove(invoice.id, e)}>
+                        Freigeben
+                      </Button>
+                    </div>
+                  )}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/purchase-invoices/${invoice.id}`)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ansehen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Bearbeiten
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDelete(invoice.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Rechnungsdatum</p>
-                  <p className="font-mono text-sm">{invoice.invoiceDate}</p>
+              {(invoice.purchaseOrder || invoice.costCenter) && (
+                <div className="mt-3 pt-3 border-t border-border flex gap-6 text-sm">
+                  {invoice.purchaseOrder && (
+                    <span className="text-muted-foreground">
+                      Bestellung: <span className="font-mono text-foreground">{invoice.purchaseOrder}</span>
+                    </span>
+                  )}
+                  {invoice.costCenter && (
+                    <span className="text-muted-foreground">
+                      Kostenstelle: <span className="text-foreground">{invoice.costCenter}</span>
+                    </span>
+                  )}
                 </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
 
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Fällig</p>
-                  <p className="font-mono text-sm">{invoice.dueDate}</p>
-                </div>
+      {/* PDF Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>PDF-Rechnung importieren</DialogTitle>
+          </DialogHeader>
+          
+          {uploadedFile && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
+              <File className="h-8 w-8 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{uploadedFile.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(uploadedFile.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setUploadedFile(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
 
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Netto</p>
-                  <p className="font-mono">{invoice.currency} {invoice.netAmount.toLocaleString()}</p>
-                </div>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Lieferant *</Label>
+              <Select
+                value={importData.supplier}
+                onValueChange={(value) => setImportData({ ...importData, supplier: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Lieferant auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier} value={supplier}>
+                      {supplier}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">MwSt.</p>
-                  <p className="font-mono text-sm">{invoice.currency} {invoice.vatAmount.toFixed(2)}</p>
-                </div>
-
-                <div className="text-right min-w-[120px]">
-                  <p className="text-sm text-muted-foreground">Brutto</p>
-                  <p className="font-mono font-bold">
-                    {invoice.currency} {invoice.grossAmount.toLocaleString()}
-                  </p>
-                </div>
-
-                {invoice.status === "pending" && (
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="outline">
-                      Ablehnen
-                    </Button>
-                    <Button size="sm">
-                      Freigeben
-                    </Button>
-                  </div>
-                )}
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ansehen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Bearbeiten
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Löschen
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Lieferanten-Rechnungsnr.</Label>
+                <Input
+                  value={importData.supplierNumber}
+                  onChange={(e) => setImportData({ ...importData, supplierNumber: e.target.value })}
+                  placeholder="R-12345"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Netto-Betrag (CHF) *</Label>
+                <Input
+                  type="number"
+                  value={importData.netAmount}
+                  onChange={(e) => setImportData({ ...importData, netAmount: e.target.value })}
+                  placeholder="0.00"
+                />
               </div>
             </div>
 
-            {(invoice.purchaseOrder || invoice.costCenter) && (
-              <div className="mt-3 pt-3 border-t border-border flex gap-6 text-sm">
-                {invoice.purchaseOrder && (
-                  <span className="text-muted-foreground">
-                    Bestellung: <span className="font-mono text-foreground">{invoice.purchaseOrder}</span>
-                  </span>
-                )}
-                {invoice.costCenter && (
-                  <span className="text-muted-foreground">
-                    Kostenstelle: <span className="text-foreground">{invoice.costCenter}</span>
-                  </span>
-                )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Rechnungsdatum</Label>
+                <Input
+                  type="date"
+                  value={importData.invoiceDate}
+                  onChange={(e) => setImportData({ ...importData, invoiceDate: e.target.value })}
+                />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label>Fälligkeitsdatum</Label>
+                <Input
+                  type="date"
+                  value={importData.dueDate}
+                  onChange={(e) => setImportData({ ...importData, dueDate: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleImportInvoice} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Importieren
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

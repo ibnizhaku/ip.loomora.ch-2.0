@@ -1,14 +1,36 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Upload, Building2, Calendar, Receipt } from "lucide-react";
+import { ArrowLeft, Save, Upload, Building2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 export default function PurchaseInvoiceCreate() {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    supplier: "",
+    supplierNumber: "",
+    amount: "",
+    invoiceDate: "",
+    dueDate: "",
+    description: "",
+    account: "",
+    costCenter: "",
+    vatCode: "",
+  });
+
+  const handleSubmit = () => {
+    if (!formData.supplier || !formData.amount) {
+      toast.error("Bitte Pflichtfelder ausfüllen");
+      return;
+    }
+    toast.success("Rechnung erfolgreich erfasst");
+    navigate("/purchase-invoices");
+  };
 
   return (
     <div className="space-y-6">
@@ -152,7 +174,7 @@ export default function PurchaseInvoiceCreate() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleSubmit}>
           <Save className="h-4 w-4" />
           Rechnung erfassen
         </Button>
