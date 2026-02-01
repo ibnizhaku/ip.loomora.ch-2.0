@@ -23,6 +23,23 @@ import {
   Percent,
   Tag,
   Image,
+  Webhook,
+  FileText,
+  Download,
+  Zap,
+  ClipboardList,
+  Copy,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+  Database,
+  History,
+  Lock,
+  WifiOff,
+  Upload,
+  FolderSync,
+  Contact,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,13 +56,22 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
   { id: "integrations", label: "Integrationen", icon: Link2 },
+  { id: "calendar", label: "Kalender & Kontakte", icon: Calendar },
   { id: "email", label: "E-Mail", icon: Mail },
+  { id: "api", label: "API & Webhooks", icon: Webhook },
+  { id: "documents", label: "Dokumente", icon: FileText },
   { id: "shop", label: "Shop", icon: Store },
+  { id: "automation", label: "Automatisierung", icon: Zap },
+  { id: "backup", label: "Backup & Export", icon: Download },
+  { id: "audit", label: "Audit & Compliance", icon: ClipboardList },
+  { id: "mobile", label: "Mobile & Offline", icon: Smartphone },
   { id: "notifications", label: "Benachrichtigungen", icon: Bell },
   { id: "security", label: "Sicherheit", icon: Shield },
   { id: "appearance", label: "Darstellung", icon: Palette },
@@ -1471,6 +1497,1296 @@ export default function Settings() {
                   Test-E-Mail senden
                 </Button>
               </div>
+            </div>
+          )}
+
+          {activeSection === "calendar" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Kalender & Kontakte</h2>
+                <p className="text-sm text-muted-foreground">
+                  CalDAV/CardDAV-Synchronisation mit externen Diensten
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* CalDAV */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  CalDAV-Server (Kalender)
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>CalDAV-URL</Label>
+                    <Input placeholder="https://calendar.example.com/caldav" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Benutzername</Label>
+                    <Input placeholder="benutzer@example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Passwort</Label>
+                    <Input type="password" placeholder="••••••••" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Kalender-Name</Label>
+                    <Input defaultValue="Loomora Kalender" />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">CalDAV-Sync aktivieren</p>
+                      <p className="text-sm text-muted-foreground">
+                        Termine mit externem CalDAV-Server synchronisieren
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Bidirektionale Sync</p>
+                        <p className="text-sm text-muted-foreground">Änderungen in beide Richtungen</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Erinnerungen sync</p>
+                        <p className="text-sm text-muted-foreground">Alarm-Einstellungen übernehmen</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* CardDAV */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Contact className="h-5 w-5" />
+                  CardDAV-Server (Kontakte)
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>CardDAV-URL</Label>
+                    <Input placeholder="https://contacts.example.com/carddav" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Benutzername</Label>
+                    <Input placeholder="benutzer@example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Passwort</Label>
+                    <Input type="password" placeholder="••••••••" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Adressbuch-Name</Label>
+                    <Input defaultValue="Loomora Kontakte" />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">CardDAV-Sync aktivieren</p>
+                      <p className="text-sm text-muted-foreground">
+                        Kontakte mit externem CardDAV-Server synchronisieren
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Sync-Richtung</p>
+                      <p className="text-sm text-muted-foreground">Welche Kontakte synchronisieren?</p>
+                    </div>
+                    <Select defaultValue="both">
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="both">Kunden & Lieferanten</SelectItem>
+                        <SelectItem value="customers">Nur Kunden</SelectItem>
+                        <SelectItem value="suppliers">Nur Lieferanten</SelectItem>
+                        <SelectItem value="all">Alle Kontakte</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Sync-Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Synchronisations-Einstellungen</h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Sync-Intervall</p>
+                      <p className="text-sm text-muted-foreground">Wie oft synchronisieren?</p>
+                    </div>
+                    <Select defaultValue="15">
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">Alle 5 Min.</SelectItem>
+                        <SelectItem value="15">Alle 15 Min.</SelectItem>
+                        <SelectItem value="30">Alle 30 Min.</SelectItem>
+                        <SelectItem value="60">Stündlich</SelectItem>
+                        <SelectItem value="manual">Manuell</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Konflikt-Behandlung</p>
+                      <p className="text-sm text-muted-foreground">Bei Sync-Konflikten</p>
+                    </div>
+                    <Select defaultValue="server">
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="server">Server gewinnt</SelectItem>
+                        <SelectItem value="local">Lokal gewinnt</SelectItem>
+                        <SelectItem value="newest">Neuere gewinnt</SelectItem>
+                        <SelectItem value="ask">Immer fragen</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button className="gap-2">
+                  <Save className="h-4 w-4" />
+                  Konfiguration speichern
+                </Button>
+                <Button variant="outline" className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Jetzt synchronisieren
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "api" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">API & Webhooks</h2>
+                <p className="text-sm text-muted-foreground">
+                  API-Schlüssel und Webhook-Endpunkte verwalten
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* API Keys */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    API-Schlüssel
+                  </h3>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Neuer Schlüssel
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">Produktiv-API</p>
+                          <Badge>Aktiv</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Erstellt am 15.01.2024</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded">lmra_prod_****************************</code>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">Test-API</p>
+                          <Badge variant="secondary">Test</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Erstellt am 10.01.2024</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded">lmra_test_****************************</code>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Webhooks */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium flex items-center gap-2">
+                    <Webhook className="h-5 w-5" />
+                    Webhooks
+                  </h3>
+                  <Button size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Neuer Webhook
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">Rechnung erstellt</p>
+                          <Badge variant="outline" className="text-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Aktiv
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          POST https://api.example.com/webhooks/invoice
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Badge variant="secondary">invoice.created</Badge>
+                          <Badge variant="secondary">invoice.paid</Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">Bestellung eingegangen</p>
+                          <Badge variant="outline" className="text-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Aktiv
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          POST https://api.example.com/webhooks/order
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Badge variant="secondary">order.created</Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
+                  <h4 className="font-medium mb-2">Verfügbare Events</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">customer.created</Badge>
+                    <Badge variant="outline">customer.updated</Badge>
+                    <Badge variant="outline">invoice.created</Badge>
+                    <Badge variant="outline">invoice.paid</Badge>
+                    <Badge variant="outline">order.created</Badge>
+                    <Badge variant="outline">order.shipped</Badge>
+                    <Badge variant="outline">product.updated</Badge>
+                    <Badge variant="outline">payment.received</Badge>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* API-Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium">API-Einstellungen</h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Rate Limiting</p>
+                      <p className="text-sm text-muted-foreground">Max. Anfragen pro Minute</p>
+                    </div>
+                    <Select defaultValue="100">
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="60">60 / Min.</SelectItem>
+                        <SelectItem value="100">100 / Min.</SelectItem>
+                        <SelectItem value="500">500 / Min.</SelectItem>
+                        <SelectItem value="unlimited">Unbegrenzt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">API-Logging aktivieren</p>
+                      <p className="text-sm text-muted-foreground">Alle API-Aufrufe protokollieren</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Einstellungen speichern
+              </Button>
+            </div>
+          )}
+
+          {activeSection === "documents" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Dokumente & Vorlagen</h2>
+                <p className="text-sm text-muted-foreground">
+                  PDF-Vorlagen, Nummernkreise und Briefpapier konfigurieren
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Nummernkreise */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Nummernkreise
+                </h3>
+
+                <div className="grid gap-4">
+                  <div className="grid gap-4 sm:grid-cols-3 p-4 rounded-xl border border-border">
+                    <div className="space-y-2">
+                      <Label>Rechnungen</Label>
+                      <div className="flex gap-2">
+                        <Input defaultValue="RE-" className="w-20" />
+                        <Input defaultValue="2024" className="w-20" />
+                        <Input defaultValue="0001" className="flex-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Vorschau: RE-2024-0001</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Angebote</Label>
+                      <div className="flex gap-2">
+                        <Input defaultValue="AN-" className="w-20" />
+                        <Input defaultValue="2024" className="w-20" />
+                        <Input defaultValue="0001" className="flex-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Vorschau: AN-2024-0001</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Aufträge</Label>
+                      <div className="flex gap-2">
+                        <Input defaultValue="AU-" className="w-20" />
+                        <Input defaultValue="2024" className="w-20" />
+                        <Input defaultValue="0001" className="flex-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Vorschau: AU-2024-0001</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3 p-4 rounded-xl border border-border">
+                    <div className="space-y-2">
+                      <Label>Lieferscheine</Label>
+                      <div className="flex gap-2">
+                        <Input defaultValue="LS-" className="w-20" />
+                        <Input defaultValue="2024" className="w-20" />
+                        <Input defaultValue="0001" className="flex-1" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Gutschriften</Label>
+                      <div className="flex gap-2">
+                        <Input defaultValue="GS-" className="w-20" />
+                        <Input defaultValue="2024" className="w-20" />
+                        <Input defaultValue="0001" className="flex-1" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Bestellungen</Label>
+                      <div className="flex gap-2">
+                        <Input defaultValue="BE-" className="w-20" />
+                        <Input defaultValue="2024" className="w-20" />
+                        <Input defaultValue="0001" className="flex-1" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Automatischer Jahreswechsel</p>
+                      <p className="text-sm text-muted-foreground">
+                        Nummernkreise am 01.01. zurücksetzen
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Briefpapier */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  Briefpapier & Design
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="p-4 rounded-xl border border-border space-y-3">
+                    <Label>Logo-Position</Label>
+                    <Select defaultValue="top-left">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="top-left">Oben links</SelectItem>
+                        <SelectItem value="top-center">Oben mittig</SelectItem>
+                        <SelectItem value="top-right">Oben rechts</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border space-y-3">
+                    <Label>Kopfzeilen-Hintergrund</Label>
+                    <Input type="color" defaultValue="#1a1a2e" className="h-10 w-full" />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Fusszeile (links)</Label>
+                    <Textarea defaultValue="Loomora Metallbau AG | Industriestrasse 15 | 8005 Zürich" rows={2} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fusszeile (rechts)</Label>
+                    <Textarea defaultValue="IBAN: CH93 0076 2011 6238 5295 7 | MWST: CHE-123.456.789" rows={2} />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">QR-Rechnung aktivieren</p>
+                      <p className="text-sm text-muted-foreground">Swiss QR-Code auf Rechnungen</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* PDF-Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium">PDF-Einstellungen</h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">PDF/A-Format</p>
+                        <p className="text-sm text-muted-foreground">Archivierungsformat</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Digitale Signatur</p>
+                        <p className="text-sm text-muted-foreground">PDFs signieren</p>
+                      </div>
+                      <Switch />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Einstellungen speichern
+              </Button>
+            </div>
+          )}
+
+          {activeSection === "automation" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Automatisierung & Workflows</h2>
+                <p className="text-sm text-muted-foreground">
+                  Automatische Aktionen und Workflow-Regeln konfigurieren
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* E-Mail-Automatisierung */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  E-Mail-Automatisierung
+                </h3>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Zahlungserinnerungen</p>
+                        <p className="text-sm text-muted-foreground">Automatische Mahnungen senden</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">1. Mahnung nach</Label>
+                        <Select defaultValue="14">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="7">7 Tagen</SelectItem>
+                            <SelectItem value="14">14 Tagen</SelectItem>
+                            <SelectItem value="30">30 Tagen</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">2. Mahnung nach</Label>
+                        <Select defaultValue="30">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="21">21 Tagen</SelectItem>
+                            <SelectItem value="30">30 Tagen</SelectItem>
+                            <SelectItem value="45">45 Tagen</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">3. Mahnung nach</Label>
+                        <Select defaultValue="45">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="45">45 Tagen</SelectItem>
+                            <SelectItem value="60">60 Tagen</SelectItem>
+                            <SelectItem value="90">90 Tagen</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Auftragsbestätigung</p>
+                        <p className="text-sm text-muted-foreground">Bei neuer Bestellung automatisch senden</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Lieferbenachrichtigung</p>
+                        <p className="text-sm text-muted-foreground">Kunden bei Versand informieren</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Aufgaben-Automatisierung */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Aufgaben & Eskalation
+                </h3>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Auto-Zuweisung</p>
+                        <p className="text-sm text-muted-foreground">Neue Leads automatisch zuweisen</p>
+                      </div>
+                      <Switch />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Überfällige Aufgaben eskalieren</p>
+                        <p className="text-sm text-muted-foreground">Vorgesetzten nach X Tagen informieren</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select defaultValue="3">
+                          <SelectTrigger className="w-[100px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 Tag</SelectItem>
+                            <SelectItem value="3">3 Tage</SelectItem>
+                            <SelectItem value="7">7 Tage</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Follow-up Erinnerungen</p>
+                        <p className="text-sm text-muted-foreground">Automatische Nachfass-Aufgaben</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Lager-Automatisierung */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Lager & Bestand
+                </h3>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Mindestbestand-Warnung</p>
+                        <p className="text-sm text-muted-foreground">Bei Unterschreitung benachrichtigen</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Auto-Nachbestellung</p>
+                        <p className="text-sm text-muted-foreground">Bestellung automatisch erstellen</p>
+                      </div>
+                      <Switch />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Einstellungen speichern
+              </Button>
+            </div>
+          )}
+
+          {activeSection === "backup" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Backup & Export</h2>
+                <p className="text-sm text-muted-foreground">
+                  Datensicherung und Export-Optionen konfigurieren
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Automatische Backups */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Automatische Backups
+                </h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Automatische Backups aktivieren</p>
+                      <p className="text-sm text-muted-foreground">Regelmässige Datensicherung</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Backup-Intervall</p>
+                        <p className="text-sm text-muted-foreground">Wie oft sichern?</p>
+                      </div>
+                      <Select defaultValue="daily">
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hourly">Stündlich</SelectItem>
+                          <SelectItem value="daily">Täglich</SelectItem>
+                          <SelectItem value="weekly">Wöchentlich</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Aufbewahrung</p>
+                        <p className="text-sm text-muted-foreground">Wie lange behalten?</p>
+                      </div>
+                      <Select defaultValue="90">
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 Tage</SelectItem>
+                          <SelectItem value="90">90 Tage</SelectItem>
+                          <SelectItem value="365">1 Jahr</SelectItem>
+                          <SelectItem value="forever">Unbegrenzt</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Letztes Backup</p>
+                      <p className="text-sm text-muted-foreground">01.02.2024 um 03:00 Uhr</p>
+                    </div>
+                    <Badge variant="outline" className="text-green-600">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Erfolgreich
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Manueller Export */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  Daten-Export
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="p-4 rounded-xl border border-border space-y-3">
+                    <p className="font-medium">Export-Format</p>
+                    <Select defaultValue="csv">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="csv">CSV (Excel-kompatibel)</SelectItem>
+                        <SelectItem value="json">JSON</SelectItem>
+                        <SelectItem value="xml">XML</SelectItem>
+                        <SelectItem value="xlsx">Excel (XLSX)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border space-y-3">
+                    <p className="font-medium">Daten auswählen</p>
+                    <Select defaultValue="all">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alle Daten</SelectItem>
+                        <SelectItem value="customers">Nur Kunden</SelectItem>
+                        <SelectItem value="invoices">Nur Rechnungen</SelectItem>
+                        <SelectItem value="products">Nur Produkte</SelectItem>
+                        <SelectItem value="orders">Nur Aufträge</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export starten
+                  </Button>
+                  <Button variant="outline" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Daten importieren
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Cloud-Speicher */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <FolderSync className="h-5 w-5" />
+                  Cloud-Speicher (Backup-Ziel)
+                </h3>
+
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                          <Database className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Lokaler Server</p>
+                          <p className="text-sm text-muted-foreground">Auf eigenem Server speichern</p>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0061ff]/10">
+                          <span className="text-sm font-bold text-[#0061ff]">S3</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Amazon S3 / Wasabi</p>
+                          <p className="text-sm text-muted-foreground">Cloud-Objektspeicher</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm">Verbinden</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Einstellungen speichern
+              </Button>
+            </div>
+          )}
+
+          {activeSection === "audit" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Audit & Compliance</h2>
+                <p className="text-sm text-muted-foreground">
+                  Protokollierung, Aufbewahrung und Datenschutz
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Audit-Logging */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Audit-Protokollierung
+                </h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Vollständiges Audit-Logging</p>
+                      <p className="text-sm text-muted-foreground">Alle Änderungen protokollieren</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Benutzer-Aktivitäten</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Datenänderungen</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Login-Versuche</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">API-Zugriffe</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Log-Aufbewahrung</p>
+                      <p className="text-sm text-muted-foreground">Revisionssicher (Schweizer Recht: 10 Jahre)</p>
+                    </div>
+                    <Select defaultValue="10y">
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1y">1 Jahr</SelectItem>
+                        <SelectItem value="5y">5 Jahre</SelectItem>
+                        <SelectItem value="10y">10 Jahre</SelectItem>
+                        <SelectItem value="forever">Unbegrenzt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Datenschutz */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Datenschutz (DSGVO / DSG)
+                </h3>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Cookie-Banner aktivieren</p>
+                        <p className="text-sm text-muted-foreground">Für Shop und Kundenportal</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Datenlöschung auf Anfrage</p>
+                        <p className="text-sm text-muted-foreground">"Recht auf Vergessenwerden"</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Datenexport für Kunden</p>
+                        <p className="text-sm text-muted-foreground">Portabilität ermöglichen</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Auto-Anonymisierung</p>
+                        <p className="text-sm text-muted-foreground">Inaktive Kundendaten nach X Jahren</p>
+                      </div>
+                      <Select defaultValue="5">
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3 Jahre</SelectItem>
+                          <SelectItem value="5">5 Jahre</SelectItem>
+                          <SelectItem value="7">7 Jahre</SelectItem>
+                          <SelectItem value="never">Nie</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Compliance-Berichte */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Compliance-Berichte</h3>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Audit-Bericht generieren
+                  </Button>
+                  <Button variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    DSGVO-Dokumentation
+                  </Button>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Einstellungen speichern
+              </Button>
+            </div>
+          )}
+
+          {activeSection === "mobile" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Mobile & Offline</h2>
+                <p className="text-sm text-muted-foreground">
+                  Mobile App und Offline-Funktionen konfigurieren
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Push-Benachrichtigungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Push-Benachrichtigungen
+                </h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Push-Benachrichtigungen aktivieren</p>
+                      <p className="text-sm text-muted-foreground">Auf mobilen Geräten</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Neue Aufträge</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Zahlungseingänge</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Aufgaben-Erinnerungen</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">Chat-Nachrichten</p>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Ruhezeiten</p>
+                      <p className="text-sm text-muted-foreground">Keine Push zwischen</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input type="time" defaultValue="22:00" className="w-[100px]" />
+                      <span>-</span>
+                      <Input type="time" defaultValue="07:00" className="w-[100px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Offline-Modus */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <WifiOff className="h-5 w-5" />
+                  Offline-Modus
+                </h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Offline-Modus aktivieren</p>
+                      <p className="text-sm text-muted-foreground">Arbeiten ohne Internetverbindung</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Offline verfügbare Daten:</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="p-4 rounded-xl border border-border">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">Kundendaten</p>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-border">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">Produktkatalog</p>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-border">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">Aufträge</p>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-border">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">Dokumente</p>
+                        <Switch />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Max. Offline-Speicher</p>
+                      <p className="text-sm text-muted-foreground">Lokaler Speicherplatz begrenzen</p>
+                    </div>
+                    <Select defaultValue="500">
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="100">100 MB</SelectItem>
+                        <SelectItem value="500">500 MB</SelectItem>
+                        <SelectItem value="1000">1 GB</SelectItem>
+                        <SelectItem value="unlimited">Unbegrenzt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/50 border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Aktueller Offline-Speicher</p>
+                      <p className="text-sm text-muted-foreground">Belegter lokaler Speicher</p>
+                    </div>
+                    <p className="font-medium">127 MB / 500 MB</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Sync-Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Synchronisation
+                </h3>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Auto-Sync bei Verbindung</p>
+                      <p className="text-sm text-muted-foreground">Automatisch synchronisieren</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Nur bei WLAN synchronisieren</p>
+                      <p className="text-sm text-muted-foreground">Mobile Daten schonen</p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Einstellungen speichern
+              </Button>
             </div>
           )}
         </div>
