@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -31,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface JournalEntry {
   id: string;
@@ -158,10 +160,32 @@ const statusLabels = {
 };
 
 export default function JournalEntries() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [entryList, setEntryList] = useState(entries);
 
-  const totalDebit = entries.filter(e => e.status === "posted").reduce((acc, e) => acc + e.amount, 0);
-  const totalCredit = totalDebit; // In double-entry, always balanced
+  const totalDebit = entryList.filter(e => e.status === "posted").reduce((acc, e) => acc + e.amount, 0);
+  const totalCredit = totalDebit;
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setEntryList(entryList.map(entry => 
+      entry.id === id ? { ...entry, status: "reversed" as const } : entry
+    ));
+    toast.success("Buchung storniert");
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, entry: typeof entries[0]) => {
+    e.stopPropagation();
+    const newEntry = {
+      ...entry,
+      id: Date.now().toString(),
+      number: `BU-2024-${String(entryList.length + 157).padStart(4, '0')}`,
+      status: "draft" as const,
+    };
+    setEntryList([newEntry, ...entryList]);
+    toast.success("Buchung dupliziert");
+  };
 
   return (
     <div className="space-y-6">
@@ -175,11 +199,11 @@ export default function JournalEntries() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("DATEV Export wird erstellt...")}>
             <Download className="h-4 w-4" />
             DATEV Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/journal-entries/new")}>
             <Plus className="h-4 w-4" />
             Neue Buchung
           </Button>
@@ -227,7 +251,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offene Entwürfe</p>
-              <p className="text-2xl font-bold">{entries.filter(e => e.status === "draft").length}</p>
+              <p className="text-2xl font-bold">{entryList.filter(e => e.status === "draft").length}</p>
             </div>
           </div>
         </div>
@@ -265,11 +289,12 @@ export default function JournalEntries() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry, index) => (
+            {entryList.map((entry, index) => (
               <TableRow
                 key={entry.id}
                 className="animate-fade-in cursor-pointer hover:bg-muted/50"
                 style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/journal-entries/${entry.id}`)}
               >
                 <TableCell>
                   <span className="font-mono font-medium">{entry.number}</span>
@@ -310,7 +335,7 @@ export default function JournalEntries() {
                     {statusLabels[entry.status]}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -318,19 +343,19 @@ export default function JournalEntries() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/journal-entries/${entry.id}`)}>
                         <Eye className="h-4 w-4 mr-2" />
                         Anzeigen
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/journal-entries/${entry.id}`)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleDuplicate(e, entry)}>
                         <Copy className="h-4 w-4 mr-2" />
                         Duplizieren
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, entry.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Stornieren
                       </DropdownMenuItem>

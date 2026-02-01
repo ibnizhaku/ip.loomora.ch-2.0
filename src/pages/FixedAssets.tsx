@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -34,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface FixedAsset {
   id: string;
@@ -174,12 +176,22 @@ const statusLabels = {
 };
 
 export default function FixedAssets() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [assetList, setAssetList] = useState(assets);
 
-  const totalAcquisitionCost = assets.reduce((acc, a) => acc + a.acquisitionCost, 0);
-  const totalBookValue = assets.reduce((acc, a) => acc + a.bookValue, 0);
-  const totalDepreciation = assets.reduce((acc, a) => acc + a.accumulatedDepreciation, 0);
-  const activeAssets = assets.filter((a) => a.status === "active");
+  const totalAcquisitionCost = assetList.reduce((acc, a) => acc + a.acquisitionCost, 0);
+  const totalBookValue = assetList.reduce((acc, a) => acc + a.bookValue, 0);
+  const totalDepreciation = assetList.reduce((acc, a) => acc + a.accumulatedDepreciation, 0);
+  const activeAssets = assetList.filter((a) => a.status === "active");
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setAssetList(assetList.map(a => 
+      a.id === id ? { ...a, status: "disposed" as const } : a
+    ));
+    toast.success("Abgang gebucht");
+  };
 
   return (
     <div className="space-y-6">
@@ -193,11 +205,11 @@ export default function FixedAssets() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("AfA-Plan wird exportiert...")}>
             <Download className="h-4 w-4" />
             AfA-Plan Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/fixed-assets/new")}>
             <Plus className="h-4 w-4" />
             Anlage erfassen
           </Button>
@@ -283,15 +295,16 @@ export default function FixedAssets() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assets.map((asset, index) => {
+            {assetList.map((asset, index) => {
               const CategoryIcon = categoryIcons[asset.category];
               const depreciationProgress = (asset.accumulatedDepreciation / asset.acquisitionCost) * 100;
 
               return (
                 <TableRow
                   key={asset.id}
-                  className="animate-fade-in"
+                  className="animate-fade-in cursor-pointer hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/fixed-assets/${asset.id}`)}
                 >
                   <TableCell>
                     <span className="font-mono font-medium">{asset.inventoryNumber}</span>
@@ -328,7 +341,7 @@ export default function FixedAssets() {
                       {statusLabels[asset.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -336,19 +349,19 @@ export default function FixedAssets() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/fixed-assets/${asset.id}`)}>
                           <Eye className="h-4 w-4 mr-2" />
                           Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/fixed-assets/${asset.id}`)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast.success("Sonder-AfA gebucht")}>
                           <TrendingDown className="h-4 w-4 mr-2" />
                           Sonder-AfA
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, asset.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Abgang buchen
                         </DropdownMenuItem>

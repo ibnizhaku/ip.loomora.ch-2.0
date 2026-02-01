@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
   TrendingDown,
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Transaction {
   id: string;
@@ -93,10 +95,13 @@ const monthlyData = [
 ];
 
 export default function Finance() {
-  const totalIncome = transactions
+  const navigate = useNavigate();
+  const [transactionList] = useState(transactions);
+  
+  const totalIncome = transactionList
     .filter((t) => t.type === "income")
     .reduce((acc, t) => acc + t.amount, 0);
-  const totalExpense = transactions
+  const totalExpense = transactionList
     .filter((t) => t.type === "expense")
     .reduce((acc, t) => acc + t.amount, 0);
   const balance = totalIncome - totalExpense;
@@ -113,7 +118,7 @@ export default function Finance() {
             Übersicht über Ihre Einnahmen und Ausgaben
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/journal-entries/new")}>
           <Plus className="h-4 w-4" />
           Transaktion hinzufügen
         </Button>
@@ -223,19 +228,20 @@ export default function Finance() {
           <h3 className="font-display font-semibold text-lg">
             Letzte Transaktionen
           </h3>
-          <Button variant="link" className="text-primary">
+          <Button variant="link" className="text-primary" onClick={() => navigate("/journal-entries")}>
             Alle anzeigen
           </Button>
         </div>
 
         <div className="space-y-3">
-          {transactions.map((transaction, index) => (
+          {transactionList.map((transaction, index) => (
             <div
               key={transaction.id}
               className={cn(
-                "flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in"
+                "flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
               )}
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/journal-entries/${transaction.id}`)}
             >
               <div className="flex items-center gap-4">
                 <div

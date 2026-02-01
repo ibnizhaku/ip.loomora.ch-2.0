@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -32,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface CostCenter {
   id: string;
@@ -138,11 +140,19 @@ const statusLabels = {
 };
 
 export default function CostCenters() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [centerList, setCenterList] = useState(costCenters);
 
-  const totalBudget = costCenters.reduce((acc, c) => acc + c.budget, 0);
-  const totalActual = costCenters.reduce((acc, c) => acc + c.actual, 0);
+  const totalBudget = centerList.reduce((acc, c) => acc + c.budget, 0);
+  const totalActual = centerList.reduce((acc, c) => acc + c.actual, 0);
   const totalVariance = totalBudget - totalActual;
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setCenterList(centerList.filter(c => c.id !== id));
+    toast.success("Kostenstelle gelöscht");
+  };
 
   return (
     <div className="space-y-6">
@@ -156,11 +166,11 @@ export default function CostCenters() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("Bericht wird erstellt...")}>
             <BarChart3 className="h-4 w-4" />
             Bericht erstellen
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/cost-centers/new")}>
             <Plus className="h-4 w-4" />
             Kostenstelle anlegen
           </Button>
@@ -260,14 +270,15 @@ export default function CostCenters() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {costCenters.map((center, index) => {
+            {centerList.map((center, index) => {
               const utilizationPercent = (center.actual / center.budget) * 100;
 
               return (
                 <TableRow
                   key={center.id}
-                  className="animate-fade-in"
+                  className="animate-fade-in cursor-pointer hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/cost-centers/${center.id}`)}
                 >
                   <TableCell>
                     <div>
@@ -317,7 +328,7 @@ export default function CostCenters() {
                       {statusLabels[center.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -325,15 +336,15 @@ export default function CostCenters() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/cost-centers/${center.id}`)}>
                           <Eye className="h-4 w-4 mr-2" />
                           Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/cost-centers/${center.id}`)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, center.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Löschen
                         </DropdownMenuItem>

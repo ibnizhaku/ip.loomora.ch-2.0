@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -33,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Budget {
   id: string;
@@ -139,11 +141,13 @@ const statusIcons = {
 };
 
 export default function Budgets() {
+  const navigate = useNavigate();
   const [year, setYear] = useState("2024");
+  const [budgetList] = useState(budgets);
 
-  const totalPlanned = budgets.reduce((acc, b) => acc + b.planned, 0);
-  const totalActual = budgets.reduce((acc, b) => acc + b.actual, 0);
-  const totalForecast = budgets.reduce((acc, b) => acc + b.forecast, 0);
+  const totalPlanned = budgetList.reduce((acc, b) => acc + b.planned, 0);
+  const totalActual = budgetList.reduce((acc, b) => acc + b.actual, 0);
+  const totalForecast = budgetList.reduce((acc, b) => acc + b.forecast, 0);
   const utilizationPercent = (totalActual / totalPlanned) * 100;
 
   return (
@@ -168,11 +172,11 @@ export default function Budgets() {
               <SelectItem value="2023">2023</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("Export wird erstellt...")}>
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/budgets/new")}>
             <Plus className="h-4 w-4" />
             Budget anlegen
           </Button>
@@ -279,7 +283,7 @@ export default function Budgets() {
 
       {/* Budget List */}
       <div className="space-y-3">
-        {budgets.map((budget, index) => {
+        {budgetList.map((budget, index) => {
           const StatusIcon = statusIcons[budget.status];
           const utilization = (budget.actual / budget.planned) * 100;
           const forecastVariance = budget.forecast - budget.planned;
@@ -287,8 +291,9 @@ export default function Budgets() {
           return (
             <div
               key={budget.id}
-              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/budgets/${budget.id}`)}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -305,7 +310,7 @@ export default function Budgets() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                   <Badge className={statusStyles[budget.status]}>
                     {statusLabels[budget.status]}
                   </Badge>
@@ -316,11 +321,11 @@ export default function Budgets() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
                         <Eye className="h-4 w-4 mr-2" />
                         Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 import {
   Plus,
   Search,
@@ -20,7 +22,14 @@ import {
   Mail,
   Phone,
   Building2,
+  Eye,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Debtor {
   id: string;
@@ -145,6 +154,7 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function Debtors() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
   const totalReceivables = debtors.reduce((sum, d) => sum + d.openAmount, 0);
@@ -167,7 +177,7 @@ export default function Debtors() {
             Forderungen und Kundenkonten verwalten
           </p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/customers/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Neuer Debitor
         </Button>

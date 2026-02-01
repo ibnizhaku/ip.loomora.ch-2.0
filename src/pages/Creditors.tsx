@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 import {
   Plus,
   Search,
@@ -20,7 +22,14 @@ import {
   CreditCard,
   Building2,
   Calendar,
+  Eye,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Creditor {
   id: string;
@@ -152,6 +161,7 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function Creditors() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
   const totalPayables = creditors.reduce((sum, c) => sum + c.openAmount, 0);
@@ -175,11 +185,11 @@ export default function Creditors() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate("/sepa-payments")}>
             <CreditCard className="mr-2 h-4 w-4" />
             SEPA-Zahlung
           </Button>
-          <Button>
+          <Button onClick={() => navigate("/suppliers/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Neuer Kreditor
           </Button>

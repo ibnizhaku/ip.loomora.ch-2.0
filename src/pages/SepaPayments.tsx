@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -36,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface SepaPayment {
   id: string;
@@ -146,15 +148,33 @@ const statusIcons = {
 };
 
 export default function SepaPayments() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("outgoing");
   const [searchQuery, setSearchQuery] = useState("");
+  const [paymentList, setPaymentList] = useState(payments);
 
-  const outgoingPayments = payments.filter((p) => p.type === "credit-transfer");
-  const incomingPayments = payments.filter((p) => p.type === "direct-debit");
+  const outgoingPayments = paymentList.filter((p) => p.type === "credit-transfer");
+  const incomingPayments = paymentList.filter((p) => p.type === "direct-debit");
   
-  const pendingTotal = payments
+  const pendingTotal = paymentList
     .filter((p) => p.status === "pending")
     .reduce((acc, p) => acc + p.amount, 0);
+
+  const handleCancel = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setPaymentList(paymentList.map(p => 
+      p.id === id ? { ...p, status: "cancelled" as const } : p
+    ));
+    toast.success("Zahlung storniert");
+  };
+
+  const handleApprove = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setPaymentList(paymentList.map(p => 
+      p.id === id ? { ...p, status: "pending" as const } : p
+    ));
+    toast.success("Zahlung freigegeben");
+  };
 
   return (
     <div className="space-y-6">
@@ -168,15 +188,15 @@ export default function SepaPayments() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("SEPA-XML Import...")}>
             <Upload className="h-4 w-4" />
             SEPA-XML Import
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("SEPA-XML Export...")}>
             <Download className="h-4 w-4" />
             SEPA-XML Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/sepa-payments/new")}>
             <Plus className="h-4 w-4" />
             Neue Zahlung
           </Button>
