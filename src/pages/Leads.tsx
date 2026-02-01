@@ -194,6 +194,8 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
   const totalValue = leads.reduce((sum, l) => sum + l.value, 0);
   const avgScore = leads.reduce((sum, l) => sum + l.score, 0) / leads.length;
@@ -275,6 +277,41 @@ export default function Leads() {
       setSortField(field);
       setSortOrder("desc");
     }
+  };
+
+  // Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent, lead: Lead) => {
+    setDraggedLead(lead);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", lead.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedLead(null);
+    setDragOverStage(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverStage(stageId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStage(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStageId: string) => {
+    e.preventDefault();
+    if (draggedLead && draggedLead.status !== targetStageId) {
+      setLeads(prev => prev.map(l => 
+        l.id === draggedLead.id ? { ...l, status: targetStageId as Lead["status"] } : l
+      ));
+      const targetLabel = pipelineStages.find(s => s.id === targetStageId)?.label;
+      toast.success(`${draggedLead.name} nach "${targetLabel}" verschoben`);
+    }
+    setDraggedLead(null);
+    setDragOverStage(null);
   };
 
   const handleMarkAsWon = (e: React.MouseEvent, lead: Lead) => {
@@ -577,9 +614,16 @@ export default function Leads() {
           {pipelineStages.map((stage) => {
             const stageLeads = getLeadsByStage(stage.id);
             const stageValue = getStageValue(stage.id);
+            const isDropTarget = dragOverStage === stage.id && draggedLead?.status !== stage.id;
             
             return (
-              <div key={stage.id} className="min-w-[300px] flex-shrink-0">
+              <div 
+                key={stage.id} 
+                className="min-w-[300px] flex-shrink-0"
+                onDragOver={(e) => handleDragOver(e, stage.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, stage.id)}
+              >
                 <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-muted/30">
                   <div className={cn("w-3 h-3 rounded-full", stage.color)} />
                   <h3 className="font-semibold">{stage.label}</h3>
@@ -590,22 +634,38 @@ export default function Leads() {
                 <div className="text-sm text-muted-foreground mb-3 px-2">
                   CHF {stageValue.toLocaleString("de-CH")}
                 </div>
-                <div className="space-y-3 min-h-[200px] p-2 rounded-lg bg-muted/10 border border-dashed border-border">
+                <div 
+                  className={cn(
+                    "space-y-3 min-h-[200px] p-2 rounded-lg border border-dashed transition-all duration-200",
+                    isDropTarget 
+                      ? "bg-primary/10 border-primary ring-2 ring-primary/20" 
+                      : "bg-muted/10 border-border"
+                  )}
+                >
                   {stageLeads.length === 0 ? (
-                    <div className="text-center text-sm text-muted-foreground py-8">
-                      Keine Leads
+                    <div className={cn(
+                      "text-center text-sm py-8 transition-colors",
+                      isDropTarget ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {isDropTarget ? "Hier ablegen" : "Keine Leads"}
                     </div>
                   ) : (
                     stageLeads.map((lead) => (
                       <Card 
                         key={lead.id} 
-                        className="cursor-pointer hover:shadow-md transition-all group"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, lead)}
+                        onDragEnd={handleDragEnd}
+                        className={cn(
+                          "cursor-grab hover:shadow-md transition-all group active:cursor-grabbing",
+                          draggedLead?.id === lead.id && "opacity-50 ring-2 ring-primary"
+                        )}
                         onClick={() => navigate(`/leads/${lead.id}`)}
                       >
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
+                              <GripVertical className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                               <div>
                                 <h4 className="font-medium text-sm">{lead.name}</h4>
                                 <p className="text-xs text-muted-foreground">{lead.company}</p>
