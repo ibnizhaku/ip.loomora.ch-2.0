@@ -237,9 +237,10 @@ const accountingItems: NavItem[] = [
     icon: Scale,
   },
   {
-    title: "USt-Voranmeldung",
+    title: "MWST-Abrechnung",
     url: "/vat-returns",
     icon: Calculator,
+    keywords: ["mwst", "mehrwertsteuer", "vat", "steuer", "estv"],
   },
   {
     title: "Anlagenbuchhaltung",
