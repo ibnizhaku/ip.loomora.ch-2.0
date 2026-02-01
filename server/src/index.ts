@@ -22,13 +22,13 @@ const fastify = Fastify({
   logger: true,
 });
 
-// Plugins
-await fastify.register(cors, {
+// Plugins (registered in start function to avoid top-level await)
+fastify.register(cors, {
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
 });
 
-await fastify.register(jwt, {
+fastify.register(jwt, {
   secret: process.env.JWT_SECRET || 'your-super-secret-key-change-in-production',
 });
 
