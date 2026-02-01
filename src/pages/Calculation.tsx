@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -15,6 +16,7 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Calculation {
   id: string;
@@ -55,7 +58,7 @@ interface Calculation {
   createdAt: string;
 }
 
-const calculations: Calculation[] = [
+const initialCalculations: Calculation[] = [
   {
     id: "1",
     number: "KALK-2024-001",
@@ -147,16 +150,57 @@ const statusLabels = {
 };
 
 export default function Calculation() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [calcList, setCalcList] = useState<Calculation[]>(initialCalculations);
 
-  const totalCalcs = calculations.length;
-  const approvedCalcs = calculations.filter((c) => c.status === "approved").length;
-  const totalVolume = calculations
+  const totalCalcs = calcList.length;
+  const approvedCalcs = calcList.filter((c) => c.status === "approved").length;
+  const draftCalcs = calcList.filter((c) => c.status === "draft").length;
+  const totalVolume = calcList
     .filter((c) => c.status === "approved")
     .reduce((sum, c) => sum + c.sellingPrice, 0);
   const avgMargin =
-    calculations.reduce((sum, c) => sum + c.profitMargin, 0) / calculations.length;
+    calcList.length > 0 ? calcList.reduce((sum, c) => sum + c.profitMargin, 0) / calcList.length : 0;
+
+  const filteredCalcs = calcList.filter((calc) => {
+    const matchesSearch = calc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      calc.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      calc.customer.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || calc.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDelete = (e: React.MouseEvent, calcId: string) => {
+    e.stopPropagation();
+    setCalcList(calcList.filter(c => c.id !== calcId));
+    toast.success("Kalkulation gelöscht");
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, calc: Calculation) => {
+    e.stopPropagation();
+    const newCalc: Calculation = {
+      ...calc,
+      id: Date.now().toString(),
+      number: `KALK-2024-${String(calcList.length + 1).padStart(3, '0')}`,
+      name: `${calc.name} (Kopie)`,
+      status: "draft",
+    };
+    setCalcList([...calcList, newCalc]);
+    toast.success("Kalkulation dupliziert");
+  };
+
+  const handleCreateQuote = (e: React.MouseEvent, calc: Calculation) => {
+    e.stopPropagation();
+    navigate("/quotes/new");
+    toast.info("Angebot wird erstellt...");
+  };
+
+  const handleFromBOM = () => {
+    navigate("/bom");
+    toast.info("Stückliste auswählen...");
+  };
 
   return (
     <div className="space-y-6">
@@ -170,11 +214,11 @@ export default function Calculation() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleFromBOM}>
             <FileText className="h-4 w-4" />
             Aus Stückliste
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/calculation/new")}>
             <Plus className="h-4 w-4" />
             Neue Kalkulation
           </Button>
@@ -183,7 +227,13 @@ export default function Calculation() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Calculator className="h-6 w-6 text-primary" />
@@ -194,7 +244,13 @@ export default function Calculation() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "approved" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("approved")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <CheckCircle2 className="h-6 w-6 text-success" />
@@ -205,14 +261,20 @@ export default function Calculation() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-muted-foreground/50",
+            statusFilter === "draft" ? "border-muted-foreground ring-2 ring-muted-foreground/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("draft")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
               <TrendingUp className="h-6 w-6 text-info" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Auftragsvolumen</p>
-              <p className="text-2xl font-bold">CHF {totalVolume.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Entwürfe</p>
+              <p className="text-2xl font-bold">{draftCalcs}</p>
             </div>
           </div>
         </div>
@@ -256,11 +318,12 @@ export default function Calculation() {
 
       {/* Calculations List */}
       <div className="space-y-4">
-        {calculations.map((calc, index) => (
+        {filteredCalcs.map((calc, index) => (
           <div
             key={calc.id}
-            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => navigate(`/calculation/${calc.id}`)}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-4">
@@ -282,27 +345,31 @@ export default function Calculation() {
               </div>
 
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/calculation/${calc.id}`); }}>
                     <Eye className="h-4 w-4 mr-2" />
                     Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/calculation/${calc.id}`); }}>
                     <Edit className="h-4 w-4 mr-2" />
                     Bearbeiten
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => handleDuplicate(e, calc)}>
                     <Copy className="h-4 w-4 mr-2" />
                     Duplizieren
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => handleCreateQuote(e, calc)}>
                     <FileText className="h-4 w-4 mr-2" />
                     Angebot erstellen
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, calc.id)}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Löschen
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -416,6 +483,14 @@ export default function Calculation() {
             </div>
           </div>
         ))}
+
+        {filteredCalcs.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
+            <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Keine Kalkulationen gefunden</p>
+            <p className="text-sm">Passen Sie die Filter an oder erstellen Sie eine neue Kalkulation</p>
+          </div>
+        )}
       </div>
     </div>
   );
