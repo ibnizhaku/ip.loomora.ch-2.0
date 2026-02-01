@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Building2,
   MapPin,
@@ -7,8 +8,9 @@ import {
   Users,
   Calendar,
   FileText,
-  Edit,
   Upload,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const companyStats = [
@@ -25,14 +30,53 @@ const companyStats = [
   { label: "Kunden", value: "89", icon: Building2 },
 ];
 
-const teamMembers = [
-  { name: "Max Keller", role: "CEO", initials: "MK" },
-  { name: "Anna Schmidt", role: "CTO", initials: "AS" },
-  { name: "Thomas Müller", role: "CFO", initials: "TM" },
-  { name: "Lisa Weber", role: "Head of Design", initials: "LW" },
+const initialTeamMembers = [
+  { id: "1", name: "Max Keller", role: "CEO", initials: "MK" },
+  { id: "2", name: "Anna Schmidt", role: "CTO", initials: "AS" },
+  { id: "3", name: "Thomas Müller", role: "CFO", initials: "TM" },
+  { id: "4", name: "Lisa Weber", role: "Head of Design", initials: "LW" },
+];
+
+const roleOptions = [
+  "CEO", "CTO", "CFO", "COO", 
+  "Head of Design", "Head of Engineering", "Head of Sales", "Head of Marketing",
+  "Teamleiter", "Projektmanager", "Abteilungsleiter"
 ];
 
 export default function Company() {
+  const [teamMembers, setTeamMembers] = useState(initialTeamMembers);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newMember, setNewMember] = useState({ name: "", role: "" });
+
+  const handleAddMember = () => {
+    if (!newMember.name || !newMember.role) {
+      toast.error("Bitte füllen Sie alle Felder aus");
+      return;
+    }
+
+    const initials = newMember.name.split(" ").map(n => n[0]).join("").toUpperCase();
+    const newId = Date.now().toString();
+    
+    setTeamMembers(prev => [...prev, {
+      id: newId,
+      name: newMember.name,
+      role: newMember.role,
+      initials
+    }]);
+
+    toast.success("Mitglied hinzugefügt", {
+      description: `${newMember.name} wurde dem Führungsteam hinzugefügt`
+    });
+    
+    setShowAddDialog(false);
+    setNewMember({ name: "", role: "" });
+  };
+
+  const handleRemoveMember = (id: string, name: string) => {
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+    toast.info(`${name} wurde entfernt`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -45,10 +89,6 @@ export default function Company() {
             Verwalten Sie Ihre Unternehmensinformationen
           </p>
         </div>
-        <Button className="gap-2">
-          <Edit className="h-4 w-4" />
-          Bearbeiten
-        </Button>
       </div>
 
       {/* Company Header Card */}
@@ -212,7 +252,8 @@ export default function Company() {
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-display font-semibold text-lg">Führungsteam</h3>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
             Mitglied hinzufügen
           </Button>
         </div>
@@ -220,9 +261,9 @@ export default function Company() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {teamMembers.map((member, index) => (
             <div
-              key={member.name}
+              key={member.id}
               className={cn(
-                "flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in"
+                "flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in group relative"
               )}
               style={{ animationDelay: `${index * 100}ms` }}
             >
@@ -231,14 +272,70 @@ export default function Company() {
                   {member.initials}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-1">
                 <p className="font-medium">{member.name}</p>
                 <p className="text-sm text-muted-foreground">{member.role}</p>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 h-7 w-7 text-destructive"
+                onClick={() => handleRemoveMember(member.id, member.name)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Add Member Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mitglied hinzufügen</DialogTitle>
+            <DialogDescription>
+              Fügen Sie ein neues Mitglied zum Führungsteam hinzu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="memberName">Name *</Label>
+              <Input
+                id="memberName"
+                placeholder="Max Mustermann"
+                value={newMember.name}
+                onChange={(e) => setNewMember(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="memberRole">Rolle / Position *</Label>
+              <Select
+                value={newMember.role}
+                onValueChange={(value) => setNewMember(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Position auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map(role => (
+                    <SelectItem key={role} value={role}>{role}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleAddMember}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Hinzufügen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
