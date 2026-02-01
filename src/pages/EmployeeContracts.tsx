@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
   FileSignature,
-  Calendar,
   Clock,
   MoreHorizontal,
   Eye,
@@ -12,10 +12,9 @@ import {
   Trash2,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
   Download,
-  Filter,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -194,9 +193,14 @@ const statusLabels = {
 };
 
 export default function EmployeeContracts() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [gavFilter, setGavFilter] = useState("all");
+
+  const handleStatClick = (status: string) => {
+    setStatusFilter(statusFilter === status ? "all" : status);
+  };
 
   const filteredContracts = contracts.filter((c) => {
     const matchesSearch =
@@ -225,11 +229,11 @@ export default function EmployeeContracts() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.success("Export wird erstellt...")}>
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/employee-contracts/new")}>
             <Plus className="h-4 w-4" />
             Vertrag erstellen
           </Button>
@@ -238,7 +242,13 @@ export default function EmployeeContracts() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatClick("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <FileSignature className="h-6 w-6 text-primary" />
@@ -249,7 +259,13 @@ export default function EmployeeContracts() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "active" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatClick("active")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <CheckCircle2 className="h-6 w-6 text-success" />
@@ -260,7 +276,13 @@ export default function EmployeeContracts() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "expiring" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatClick("expiring")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
               <AlertTriangle className="h-6 w-6 text-warning" />
@@ -271,14 +293,20 @@ export default function EmployeeContracts() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-destructive/50",
+            statusFilter === "expired" && "border-destructive ring-2 ring-destructive/20"
+          )}
+          onClick={() => handleStatClick("expired")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
               <Clock className="h-6 w-6 text-info" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Lohnsumme/Mt.</p>
-              <p className="text-2xl font-bold">CHF {totalSalary.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalSalary.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -343,8 +371,9 @@ export default function EmployeeContracts() {
         {filteredContracts.map((contract, index) => (
           <div
             key={contract.id}
-            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => navigate(`/employee-contracts/${contract.id}`)}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -403,28 +432,28 @@ export default function EmployeeContracts() {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/employee-contracts/${contract.id}`); }}>
                       <Eye className="h-4 w-4 mr-2" />
                       Vertrag anzeigen
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/employee-contracts/${contract.id}/edit`); }}>
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("Vertrag wird verlängert..."); }}>
                       <Copy className="h-4 w-4 mr-2" />
                       Verlängern
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("PDF wird erstellt..."); }}>
                       <Download className="h-4 w-4 mr-2" />
                       PDF exportieren
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); toast.success("Kündigungsprozess gestartet"); }}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Kündigen
                     </DropdownMenuItem>

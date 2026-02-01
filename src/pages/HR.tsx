@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
-  Filter,
   MoreHorizontal,
   Users,
   UserCheck,
@@ -12,6 +12,7 @@ import {
   Phone,
   Calendar,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -109,8 +110,14 @@ const statusConfig = {
 const departments = ["Alle", "Geschäftsleitung", "Produktion", "Montage", "Projektmanagement", "Administration"];
 
 export default function HR() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("Alle");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const handleStatClick = (status: string | null) => {
+    setStatusFilter(statusFilter === status ? null : status);
+  };
 
   const filteredEmployees = employees.filter((e) => {
     const matchesSearch =
@@ -119,7 +126,8 @@ export default function HR() {
       e.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDepartment =
       selectedDepartment === "Alle" || e.department === selectedDepartment;
-    return matchesSearch && matchesDepartment;
+    const matchesStatus = !statusFilter || e.status === statusFilter;
+    return matchesSearch && matchesDepartment && matchesStatus;
   });
 
   return (
@@ -134,7 +142,7 @@ export default function HR() {
             Verwalten Sie Ihre Mitarbeiter und Teams
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/employees/new")}>
           <Plus className="h-4 w-4" />
           Mitarbeiter hinzufügen
         </Button>
@@ -142,7 +150,13 @@ export default function HR() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            !statusFilter && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatClick(null)}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Users className="h-5 w-5 text-primary" />
@@ -153,7 +167,13 @@ export default function HR() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "active" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatClick("active")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
               <UserCheck className="h-5 w-5 text-success" />
@@ -166,7 +186,13 @@ export default function HR() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-info/50",
+            statusFilter === "vacation" && "border-info ring-2 ring-info/20"
+          )}
+          onClick={() => handleStatClick("vacation")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
               <Calendar className="h-5 w-5 text-info" />
@@ -179,7 +205,13 @@ export default function HR() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "sick" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatClick("sick")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
               <UserX className="h-5 w-5 text-warning" />
@@ -226,9 +258,10 @@ export default function HR() {
           <div
             key={employee.id}
             className={cn(
-              "group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-soft animate-fade-in"
+              "group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-soft animate-fade-in cursor-pointer"
             )}
             style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => navigate(`/hr/${employee.id}`)}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-4">
@@ -254,15 +287,25 @@ export default function HR() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Profil anzeigen</DropdownMenuItem>
-                  <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                  <DropdownMenuItem>Urlaub eintragen</DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/hr/${employee.id}`); }}>
+                    Profil anzeigen
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/hr/${employee.id}/edit`); }}>
+                    Bearbeiten
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/absences/new?employee=${employee.id}`); }}>
+                    Urlaub eintragen
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="text-destructive"
+                    onClick={(e) => { e.stopPropagation(); toast.success(`${employee.name} wurde deaktiviert`); }}
+                  >
                     Deaktivieren
                   </DropdownMenuItem>
                 </DropdownMenuContent>

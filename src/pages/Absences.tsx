@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   Plus, 
   Search, 
@@ -13,7 +13,6 @@ import {
   Baby,
   GraduationCap,
   MoreHorizontal,
-  CalendarDays,
   Users,
   AlertCircle,
   Stethoscope
@@ -39,6 +38,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // GAV Metallbau Ferienansprüche (altersabhängig)
 const absenceRequests = [
@@ -78,11 +79,34 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 };
 
 const Absences = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const pendingRequests = absenceRequests.filter(r => r.status === "Ausstehend");
+  const [requests, setRequests] = useState(absenceRequests);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const pendingRequests = requests.filter(r => r.status === "Ausstehend");
 
   const totalFerien = employeeVacation.reduce((sum, e) => sum + e.total, 0);
   const genommenFerien = employeeVacation.reduce((sum, e) => sum + e.taken, 0);
+
+  const handleStatClick = (filter: string | null) => {
+    setStatusFilter(statusFilter === filter ? null : filter);
+  };
+
+  const filteredRequests = requests.filter(r => {
+    const matchesSearch = r.employee.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || r.status === statusFilter || r.type === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleApprove = (id: number, name: string) => {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "Genehmigt" } : r));
+    toast.success(`Antrag von ${name} genehmigt`);
+  };
+
+  const handleReject = (id: number, name: string) => {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "Abgelehnt" } : r));
+    toast.error(`Antrag von ${name} abgelehnt`);
+  };
 
   return (
     <div className="space-y-6">
@@ -92,7 +116,7 @@ const Absences = () => {
           <h1 className="font-display text-3xl font-bold tracking-tight">Abwesenheiten</h1>
           <p className="text-muted-foreground">Ferien, Krankheit & Absenzen nach GAV Metallbau</p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/absences/new")}>
           <Plus className="h-4 w-4 mr-2" />
           Abwesenheit eintragen
         </Button>
@@ -100,7 +124,13 @@ const Absences = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "Ferien" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatClick("Ferien")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -114,7 +144,13 @@ const Absences = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-info/50",
+            !statusFilter && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatClick(null)}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -127,7 +163,13 @@ const Absences = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-orange-500/50",
+            statusFilter === "Krankheit" && "border-orange-500 ring-2 ring-orange-500/20"
+          )}
+          onClick={() => handleStatClick("Krankheit")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -140,7 +182,13 @@ const Absences = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "Ausstehend" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatClick("Ausstehend")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -166,7 +214,7 @@ const Absences = () => {
                 {pendingRequests.map(r => r.employee).join(", ")} warten auf Genehmigung
               </p>
             </div>
-            <Button size="sm">Anträge prüfen</Button>
+            <Button size="sm" onClick={() => handleStatClick("Ausstehend")}>Anträge prüfen</Button>
           </CardContent>
         </Card>
       )}
@@ -211,13 +259,17 @@ const Absences = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {absenceRequests.map((request) => {
+                  {filteredRequests.map((request) => {
                     const type = typeConfig[request.type] || typeConfig["Sonderurlaub"];
                     const status = statusConfig[request.status];
                     const TypeIcon = type.icon;
                     const StatusIcon = status.icon;
                     return (
-                      <TableRow key={request.id}>
+                      <TableRow 
+                        key={request.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/absences/${request.id}`)}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
@@ -249,24 +301,32 @@ const Absences = () => {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {request.status === "Ausstehend" && (
                                 <>
-                                  <DropdownMenuItem className="text-success">
+                                  <DropdownMenuItem 
+                                    className="text-success"
+                                    onClick={(e) => { e.stopPropagation(); handleApprove(request.id, request.employee); }}
+                                  >
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     Genehmigen
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive">
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={(e) => { e.stopPropagation(); handleReject(request.id, request.employee); }}
+                                  >
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Ablehnen
                                   </DropdownMenuItem>
                                 </>
                               )}
-                              <DropdownMenuItem>Details anzeigen</DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/absences/${request.id}`); }}>
+                                Details anzeigen
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
