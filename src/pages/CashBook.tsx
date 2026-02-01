@@ -147,6 +147,14 @@ export default function CashBook() {
   const [searchQuery, setSearchQuery] = useState("");
   const [month, setMonth] = useState("2024-01");
   const [entryList, setEntryList] = useState(entries);
+  const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
+
+  const filteredEntries = entryList.filter((entry) => {
+    const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.documentNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilter === "all" || entry.type === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   const totalIncome = entryList
     .filter((e) => e.type === "income" && e.amount > 0)
@@ -160,6 +168,10 @@ export default function CashBook() {
     e.stopPropagation();
     setEntryList(entryList.filter(entry => entry.id !== id));
     toast.success("Buchung storniert");
+  };
+
+  const handleStatCardClick = (filter: "all" | "income" | "expense") => {
+    setTypeFilter(typeFilter === filter ? "all" : filter);
   };
 
   return (
@@ -190,36 +202,54 @@ export default function CashBook() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            typeFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Wallet className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Kassenbestand</p>
-              <p className="text-2xl font-bold">€{currentBalance.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {currentBalance.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            typeFilter === "income" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("income")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <ArrowDownRight className="h-6 w-6 text-success" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Einnahmen (Monat)</p>
-              <p className="text-2xl font-bold text-success">€{totalIncome.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-success">CHF {totalIncome.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            typeFilter === "expense" ? "border-destructive ring-2 ring-destructive/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("expense")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
               <ArrowUpRight className="h-6 w-6 text-destructive" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Ausgaben (Monat)</p>
-              <p className="text-2xl font-bold text-destructive">€{totalExpense.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-destructive">CHF {totalExpense.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -230,7 +260,7 @@ export default function CashBook() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Buchungen</p>
-              <p className="text-2xl font-bold">{entries.length}</p>
+              <p className="text-2xl font-bold">{filteredEntries.length}</p>
             </div>
           </div>
         </div>
@@ -278,7 +308,7 @@ export default function CashBook() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entryList.map((entry, index) => (
+            {filteredEntries.map((entry, index) => (
               <TableRow
                 key={entry.id}
                 className="animate-fade-in cursor-pointer hover:bg-muted/50"
@@ -306,19 +336,19 @@ export default function CashBook() {
                 <TableCell className="text-right">
                   {entry.type === "income" && entry.amount > 0 && (
                     <span className="font-mono text-success font-medium">
-                      €{entry.amount.toLocaleString()}
+                      CHF {entry.amount.toLocaleString("de-CH")}
                     </span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
                   {entry.type === "expense" && (
                     <span className="font-mono text-destructive font-medium">
-                      €{entry.amount.toLocaleString()}
+                      CHF {entry.amount.toLocaleString("de-CH")}
                     </span>
                   )}
                 </TableCell>
                 <TableCell className="text-right font-mono font-bold">
-                  €{entry.runningBalance.toLocaleString()}
+                  CHF {entry.runningBalance.toLocaleString("de-CH")}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
@@ -351,15 +381,15 @@ export default function CashBook() {
             <div className="flex items-center gap-8">
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Einnahmen</p>
-                <p className="font-mono font-bold text-success">€{totalIncome.toLocaleString()}</p>
+                <p className="font-mono font-bold text-success">CHF {totalIncome.toLocaleString("de-CH")}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Ausgaben</p>
-                <p className="font-mono font-bold text-destructive">€{totalExpense.toLocaleString()}</p>
+                <p className="font-mono font-bold text-destructive">CHF {totalExpense.toLocaleString("de-CH")}</p>
               </div>
               <div className="text-right min-w-[120px]">
                 <p className="text-sm text-muted-foreground">Endbestand</p>
-                <p className="font-mono font-bold text-lg">€{currentBalance.toLocaleString()}</p>
+                <p className="font-mono font-bold text-lg">CHF {currentBalance.toLocaleString("de-CH")}</p>
               </div>
             </div>
           </div>
