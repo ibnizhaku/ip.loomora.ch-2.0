@@ -78,7 +78,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import loomoraLogo from "@/assets/loomora-logo.png";
+import loomoraLogo from "@/assets/loomora-logo.svg";
 
 interface NavItem {
   title: string;
