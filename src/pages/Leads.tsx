@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import {
   Plus,
@@ -18,9 +19,10 @@ import {
   TrendingUp,
   Users,
   Target,
-  ArrowRight,
   Star,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Lead {
   id: string;
@@ -43,9 +45,9 @@ const leads: Lead[] = [
     id: "1",
     name: "Thomas Müller",
     company: "TechStart GmbH",
-    email: "t.mueller@techstart.de",
-    phone: "+49 89 123456",
-    location: "München",
+    email: "t.mueller@techstart.ch",
+    phone: "+41 44 123 45 67",
+    location: "Zürich",
     source: "Website",
     status: "qualified",
     score: 85,
@@ -58,9 +60,9 @@ const leads: Lead[] = [
     id: "2",
     name: "Lisa Weber",
     company: "Digital Solutions AG",
-    email: "l.weber@digitalsolutions.de",
-    phone: "+49 30 987654",
-    location: "Berlin",
+    email: "l.weber@digitalsolutions.ch",
+    phone: "+41 31 987 65 43",
+    location: "Bern",
     source: "Messe",
     status: "proposal",
     score: 92,
@@ -73,9 +75,9 @@ const leads: Lead[] = [
     id: "3",
     name: "Michael Schneider",
     company: "Innovation Labs",
-    email: "m.schneider@innovationlabs.de",
-    phone: "+49 40 456789",
-    location: "Hamburg",
+    email: "m.schneider@innovationlabs.ch",
+    phone: "+41 61 456 78 90",
+    location: "Basel",
     source: "Empfehlung",
     status: "new",
     score: 65,
@@ -88,9 +90,9 @@ const leads: Lead[] = [
     id: "4",
     name: "Sandra Fischer",
     company: "Cloud Systems KG",
-    email: "s.fischer@cloudsystems.de",
-    phone: "+49 69 234567",
-    location: "Frankfurt",
+    email: "s.fischer@cloudsystems.ch",
+    phone: "+41 22 234 56 78",
+    location: "Genf",
     source: "Google Ads",
     status: "negotiation",
     score: 88,
@@ -103,9 +105,9 @@ const leads: Lead[] = [
     id: "5",
     name: "Peter Wagner",
     company: "Smart Factory GmbH",
-    email: "p.wagner@smartfactory.de",
-    phone: "+49 711 345678",
-    location: "Stuttgart",
+    email: "p.wagner@smartfactory.ch",
+    phone: "+41 71 345 67 89",
+    location: "St. Gallen",
     source: "LinkedIn",
     status: "contacted",
     score: 72,
@@ -117,33 +119,22 @@ const leads: Lead[] = [
 ];
 
 const pipelineStages = [
-  { id: "new", label: "Neu", color: "bg-gray-500" },
-  { id: "contacted", label: "Kontaktiert", color: "bg-blue-500" },
-  { id: "qualified", label: "Qualifiziert", color: "bg-cyan-500" },
-  { id: "proposal", label: "Angebot", color: "bg-yellow-500" },
+  { id: "new", label: "Neu", color: "bg-muted" },
+  { id: "contacted", label: "Kontaktiert", color: "bg-info" },
+  { id: "qualified", label: "Qualifiziert", color: "bg-primary" },
+  { id: "proposal", label: "Angebot", color: "bg-warning" },
   { id: "negotiation", label: "Verhandlung", color: "bg-orange-500" },
-  { id: "won", label: "Gewonnen", color: "bg-green-500" },
+  { id: "won", label: "Gewonnen", color: "bg-success" },
 ];
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "new":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
-    case "contacted":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-    case "qualified":
-      return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300";
-    case "proposal":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-    case "negotiation":
-      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
-    case "won":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    case "lost":
-      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
+const statusStyles: Record<string, string> = {
+  new: "bg-muted text-muted-foreground",
+  contacted: "bg-info/10 text-info",
+  qualified: "bg-primary/10 text-primary",
+  proposal: "bg-warning/10 text-warning",
+  negotiation: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+  won: "bg-success/10 text-success",
+  lost: "bg-destructive/10 text-destructive",
 };
 
 const getStatusLabel = (status: string) => {
@@ -152,19 +143,37 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function Leads() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [view, setView] = useState<"list" | "pipeline">("list");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const totalValue = leads.reduce((sum, l) => sum + l.value, 0);
   const avgScore = leads.reduce((sum, l) => sum + l.score, 0) / leads.length;
+  const newLeadsCount = leads.filter(l => l.status === "new").length;
 
-  const filteredLeads = leads.filter(
-    (lead) =>
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.company.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLeads = leads.filter((lead) => {
+    const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.company.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  const getLeadsByStage = (stage: string) => leads.filter((l) => l.status === stage);
+  const getLeadsByStage = (stage: string) => filteredLeads.filter((l) => l.status === stage);
+
+  const handleStatCardClick = (filter: string) => {
+    setStatusFilter(statusFilter === filter ? "all" : filter);
+  };
+
+  const handleCall = (e: React.MouseEvent, lead: Lead) => {
+    e.stopPropagation();
+    toast.success(`Rufe ${lead.name} an: ${lead.phone}`);
+  };
+
+  const handleEmail = (e: React.MouseEvent, lead: Lead) => {
+    e.stopPropagation();
+    window.location.href = `mailto:${lead.email}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -192,7 +201,7 @@ export default function Leads() {
               Pipeline
             </Button>
           </div>
-          <Button>
+          <Button onClick={() => navigate("/leads/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Neuer Lead
           </Button>
@@ -201,15 +210,21 @@ export default function Leads() {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "new" && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatCardClick("new")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leads gesamt</CardTitle>
+            <CardTitle className="text-sm font-medium">Neue Leads</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leads.length}</div>
+            <div className="text-2xl font-bold">{newLeadsCount}</div>
             <p className="text-xs text-muted-foreground">
-              +3 diese Woche
+              von {leads.length} gesamt
             </p>
           </CardContent>
         </Card>
@@ -220,7 +235,7 @@ export default function Leads() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalValue.toLocaleString("de-DE")} €
+              CHF {totalValue.toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
               Potenzieller Umsatz
@@ -237,15 +252,23 @@ export default function Leads() {
             <Progress value={avgScore} className="mt-2" />
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "qualified" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatCardClick("qualified")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">Qualifiziert</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24%</div>
+            <div className="text-2xl font-bold">
+              {leads.filter(l => l.status === "qualified").length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Lead zu Kunde
+              Bereit für Angebot
             </p>
           </CardContent>
         </Card>
@@ -262,15 +285,21 @@ export default function Leads() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        {statusFilter !== "all" && (
+          <Button variant="outline" size="sm" onClick={() => setStatusFilter("all")}>
+            Filter zurücksetzen
+          </Button>
+        )}
       </div>
 
       {view === "list" ? (
         <div className="grid gap-4">
           {filteredLeads.map((lead) => (
-            <Card key={lead.id} className="hover:shadow-md transition-shadow">
+            <Card 
+              key={lead.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => navigate(`/leads/${lead.id}`)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -285,7 +314,7 @@ export default function Leads() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{lead.name}</h3>
-                        <Badge className={getStatusColor(lead.status)} variant="secondary">
+                        <Badge className={statusStyles[lead.status]}>
                           {getStatusLabel(lead.status)}
                         </Badge>
                       </div>
@@ -300,7 +329,7 @@ export default function Leads() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(lead.createdAt).toLocaleDateString("de-DE")}
+                          {new Date(lead.createdAt).toLocaleDateString("de-CH")}
                         </span>
                       </div>
                     </div>
@@ -309,19 +338,19 @@ export default function Leads() {
                     <div className="text-center">
                       <div className="text-sm text-muted-foreground">Score</div>
                       <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        <Star className="h-4 w-4 text-warning fill-warning" />
                         <span className="font-semibold">{lead.score}</span>
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-sm text-muted-foreground">Wert</div>
-                      <div className="font-semibold">{lead.value.toLocaleString("de-DE")} €</div>
+                      <div className="font-semibold">CHF {lead.value.toLocaleString("de-CH")}</div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" onClick={(e) => handleCall(e, lead)}>
                         <Phone className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={(e) => handleEmail(e, lead)}>
                         <Mail className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon">
@@ -347,7 +376,11 @@ export default function Leads() {
               </div>
               <div className="space-y-3">
                 {getLeadsByStage(stage.id).map((lead) => (
-                  <Card key={lead.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <Card 
+                    key={lead.id} 
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate(`/leads/${lead.id}`)}
+                  >
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between mb-2">
                         <div>
@@ -355,13 +388,13 @@ export default function Leads() {
                           <p className="text-xs text-muted-foreground">{lead.company}</p>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                          <Star className="h-3 w-3 text-warning fill-warning" />
                           <span className="text-xs font-medium">{lead.score}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold">
-                          {lead.value.toLocaleString("de-DE")} €
+                          CHF {lead.value.toLocaleString("de-CH")}
                         </span>
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs">

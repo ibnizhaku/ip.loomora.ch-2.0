@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Plus,
   Search,
-  Filter,
   MoreHorizontal,
   Mail,
   Send,
@@ -20,11 +20,24 @@ import {
   Clock,
   FileText,
   Copy,
-  Trash2,
   BarChart3,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-const newsletters = [
+interface Newsletter {
+  id: string;
+  subject: string;
+  status: "sent" | "scheduled" | "draft";
+  sentAt: string;
+  recipients: number;
+  opens: number;
+  clicks: number;
+  unsubscribes: number;
+  bounces: number;
+}
+
+const newsletters: Newsletter[] = [
   {
     id: "1",
     subject: "Herbst-Angebote 2024 - Bis zu 40% sparen!",
@@ -86,27 +99,51 @@ const lists = [
   { id: "4", name: "Inaktive Kunden", subscribers: 2800, active: 1200, growth: "-45" },
 ];
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "sent":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    case "scheduled":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-    case "draft":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
+const statusStyles = {
+  sent: "bg-success/10 text-success",
+  scheduled: "bg-info/10 text-info",
+  draft: "bg-muted text-muted-foreground",
+};
+
+const statusLabels = {
+  sent: "Gesendet",
+  scheduled: "Geplant",
+  draft: "Entwurf",
 };
 
 export default function EmailMarketing() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "scheduled" | "draft">("all");
 
   const totalSent = newsletters.filter((n) => n.status === "sent").reduce((sum, n) => sum + n.recipients, 0);
   const totalOpens = newsletters.reduce((sum, n) => sum + n.opens, 0);
   const totalClicks = newsletters.reduce((sum, n) => sum + n.clicks, 0);
   const avgOpenRate = totalSent > 0 ? (totalOpens / totalSent) * 100 : 0;
   const avgClickRate = totalOpens > 0 ? (totalClicks / totalOpens) * 100 : 0;
+  const sentCount = newsletters.filter((n) => n.status === "sent").length;
+
+  const filteredNewsletters = newsletters.filter((newsletter) => {
+    const matchesSearch = newsletter.subject.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || newsletter.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleStatCardClick = (filter: "all" | "sent") => {
+    if (filter === "sent") {
+      setStatusFilter(statusFilter === "sent" ? "all" : "sent");
+    }
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, newsletter: Newsletter) => {
+    e.stopPropagation();
+    toast.success(`E-Mail "${newsletter.subject}" dupliziert`);
+  };
+
+  const handleUseTemplate = (template: { name: string }) => {
+    toast.success(`Vorlage "${template.name}" wird verwendet`);
+    navigate("/email-marketing/new");
+  };
 
   return (
     <div className="space-y-6">
@@ -117,7 +154,7 @@ export default function EmailMarketing() {
             Newsletter und E-Mail-Kampagnen verwalten
           </p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/email-marketing/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Neue E-Mail
         </Button>
@@ -131,7 +168,7 @@ export default function EmailMarketing() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12.500</div>
+            <div className="text-2xl font-bold">12'500</div>
             <p className="text-xs text-muted-foreground">
               +245 diesen Monat
             </p>
@@ -157,15 +194,21 @@ export default function EmailMarketing() {
             <Progress value={avgClickRate} className="mt-2" />
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "sent" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatCardClick("sent")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Gesendet (Monat)</CardTitle>
             <Send className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalSent.toLocaleString("de-DE")}</div>
+            <div className="text-2xl font-bold">{totalSent.toLocaleString("de-CH")}</div>
             <p className="text-xs text-muted-foreground">
-              {newsletters.filter((n) => n.status === "sent").length} Kampagnen
+              {sentCount} Kampagnen
             </p>
           </CardContent>
         </Card>
@@ -190,9 +233,11 @@ export default function EmailMarketing() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+            {statusFilter !== "all" && (
+              <Button variant="outline" size="sm" onClick={() => setStatusFilter("all")}>
+                Filter zurücksetzen
+              </Button>
+            )}
           </div>
 
           <Card>
@@ -210,16 +255,18 @@ export default function EmailMarketing() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {newsletters.map((newsletter) => (
-                  <TableRow key={newsletter.id}>
+                {filteredNewsletters.map((newsletter) => (
+                  <TableRow 
+                    key={newsletter.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => toast.info(`Details für "${newsletter.subject}"`)}
+                  >
                     <TableCell className="font-medium max-w-[300px] truncate">
                       {newsletter.subject}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(newsletter.status)} variant="secondary">
-                        {newsletter.status === "sent" && "Gesendet"}
-                        {newsletter.status === "scheduled" && "Geplant"}
-                        {newsletter.status === "draft" && "Entwurf"}
+                      <Badge className={statusStyles[newsletter.status]}>
+                        {statusLabels[newsletter.status]}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -230,7 +277,7 @@ export default function EmailMarketing() {
                         </div>
                       )}
                       {newsletter.status === "scheduled" && (
-                        <div className="flex items-center gap-1 text-sm text-blue-600">
+                        <div className="flex items-center gap-1 text-sm text-info">
                           <Clock className="h-3 w-3" />
                           {newsletter.sentAt}
                         </div>
@@ -238,25 +285,25 @@ export default function EmailMarketing() {
                       {newsletter.status === "draft" && "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {newsletter.recipients.toLocaleString("de-DE")}
+                      {newsletter.recipients.toLocaleString("de-CH")}
                     </TableCell>
                     <TableCell className="text-right">
-                      {newsletter.opens > 0 ? newsletter.opens.toLocaleString("de-DE") : "-"}
+                      {newsletter.opens > 0 ? newsletter.opens.toLocaleString("de-CH") : "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {newsletter.clicks > 0 ? newsletter.clicks.toLocaleString("de-DE") : "-"}
+                      {newsletter.clicks > 0 ? newsletter.clicks.toLocaleString("de-CH") : "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       {newsletter.opens > 0
                         ? `${((newsletter.opens / newsletter.recipients) * 100).toFixed(1)}%`
                         : "-"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon">
                           <BarChart3 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={(e) => handleDuplicate(e, newsletter)}>
                           <Copy className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon">
@@ -294,12 +341,17 @@ export default function EmailMarketing() {
                     <span className="text-sm text-muted-foreground">
                       {template.uses}x verwendet
                     </span>
-                    <Button size="sm">Verwenden</Button>
+                    <Button size="sm" onClick={() => handleUseTemplate(template)}>
+                      Verwenden
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
-            <Card className="border-dashed hover:shadow-md transition-shadow cursor-pointer">
+            <Card 
+              className="border-dashed hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => navigate("/email-marketing/new")}
+            >
               <CardContent className="h-full flex flex-col items-center justify-center py-8">
                 <Plus className="h-12 w-12 text-muted-foreground mb-2" />
                 <p className="text-muted-foreground">Neue Vorlage erstellen</p>
@@ -311,7 +363,7 @@ export default function EmailMarketing() {
         <TabsContent value="lists" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {lists.map((list) => (
-              <Card key={list.id}>
+              <Card key={list.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>{list.name}</CardTitle>
@@ -324,15 +376,15 @@ export default function EmailMarketing() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Gesamt</p>
-                      <p className="text-2xl font-bold">{list.subscribers.toLocaleString("de-DE")}</p>
+                      <p className="text-2xl font-bold">{list.subscribers.toLocaleString("de-CH")}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Aktiv</p>
-                      <p className="text-2xl font-bold">{list.active.toLocaleString("de-DE")}</p>
+                      <p className="text-2xl font-bold">{list.active.toLocaleString("de-CH")}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Wachstum</p>
-                      <p className={`text-2xl font-bold ${list.growth.startsWith("+") ? "text-green-600" : "text-red-600"}`}>
+                      <p className={`text-2xl font-bold ${list.growth.startsWith("+") ? "text-success" : "text-destructive"}`}>
                         {list.growth}
                       </p>
                     </div>
@@ -366,9 +418,13 @@ export default function EmailMarketing() {
                   { name: "Reaktivierung", status: "paused", sent: 234, trigger: "60 Tage inaktiv" },
                   { name: "Geburtstags-Mail", status: "active", sent: 89, trigger: "Geburtstag" },
                 ].map((automation, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => toast.info(`Automation "${automation.name}" bearbeiten`)}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`w-2 h-2 rounded-full ${automation.status === "active" ? "bg-green-500" : "bg-gray-400"}`} />
+                      <div className={`w-2 h-2 rounded-full ${automation.status === "active" ? "bg-success" : "bg-muted-foreground"}`} />
                       <div>
                         <h4 className="font-medium">{automation.name}</h4>
                         <p className="text-sm text-muted-foreground">Trigger: {automation.trigger}</p>
@@ -379,7 +435,7 @@ export default function EmailMarketing() {
                         <p className="font-medium">{automation.sent}</p>
                         <p className="text-xs text-muted-foreground">E-Mails gesendet</p>
                       </div>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toast.info(`Bearbeite ${automation.name}`); }}>
                         Bearbeiten
                       </Button>
                     </div>
