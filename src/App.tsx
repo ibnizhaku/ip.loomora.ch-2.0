@@ -101,6 +101,7 @@ import Budgets from "./pages/Budgets";
 import BudgetDetail from "./pages/BudgetDetail";
 import FixedAssets from "./pages/FixedAssets";
 import FixedAssetDetail from "./pages/FixedAssetDetail";
+import FixedAssetCreate from "./pages/FixedAssetCreate";
 import VatReturns from "./pages/VatReturns";
 import VatReturnDetail from "./pages/VatReturnDetail";
 import Discounts from "./pages/Discounts";
@@ -245,6 +246,7 @@ const App = () => (
                   <Route path="/vat-returns" element={<VatReturns />} />
                   <Route path="/vat-returns/:id" element={<VatReturnDetail />} />
                   <Route path="/fixed-assets" element={<FixedAssets />} />
+                  <Route path="/fixed-assets/new" element={<FixedAssetCreate />} />
                   <Route path="/fixed-assets/:id" element={<FixedAssetDetail />} />
                   <Route path="/cash-book" element={<CashBook />} />
                   <Route path="/bank-accounts" element={<BankAccounts />} />
