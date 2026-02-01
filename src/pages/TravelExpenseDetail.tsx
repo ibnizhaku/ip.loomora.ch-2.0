@@ -1,15 +1,17 @@
 import { useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Receipt, Car, Train, Hotel, Utensils, FileText, CheckCircle2, Clock, AlertCircle, Upload, X, File, Image } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Receipt, Car, Train, Hotel, Utensils, FileText, CheckCircle2, Clock, AlertCircle, Upload, X, File, Image, Download, XCircle, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
-const spesenData = {
+const initialSpesenData = {
   id: "SP-2024-0067",
   mitarbeiter: "Peter Schneider",
   personalNr: "MA-0012",
@@ -63,10 +65,20 @@ interface UploadedFile {
 
 export default function TravelExpenseDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [spesenData, setSpesenData] = useState(initialSpesenData);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([
     { id: "1", name: "Hotel_Rechnung_Bern.pdf", size: 245000, type: "application/pdf" },
     { id: "2", name: "Zugticket_Bern_Basel.pdf", size: 128000, type: "application/pdf" },
+  ]);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [approvalNote, setApprovalNote] = useState("");
+  const [approvalHistory, setApprovalHistory] = useState<{action: string; date: string; user: string; note?: string}[]>([
+    { action: "Eingereicht", date: "25.01.2024 14:32", user: "Peter Schneider" }
   ]);
 
   const formatCurrency = (value: number) => {
@@ -108,6 +120,87 @@ export default function TravelExpenseDetail() {
     return File;
   };
 
+  const handleExportPDF = () => {
+    toast.loading("PDF wird generiert...", { id: "pdf-export" });
+    
+    // Simulate PDF generation
+    setTimeout(() => {
+      toast.dismiss("pdf-export");
+      toast.success("PDF erfolgreich erstellt", {
+        description: `${spesenData.id}_Spesenabrechnung.pdf`,
+        action: {
+          label: "Download",
+          onClick: () => {
+            // Simulate download
+            const link = document.createElement("a");
+            link.href = "#";
+            link.download = `${spesenData.id}_Spesenabrechnung.pdf`;
+            toast.info("Download gestartet");
+          }
+        }
+      });
+    }, 1500);
+  };
+
+  const handleApprove = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("de-CH") + " " + now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+    
+    setSpesenData(prev => ({ ...prev, status: "genehmigt" }));
+    setApprovalHistory(prev => [...prev, {
+      action: "Genehmigt",
+      date: dateStr,
+      user: "Max Müller (Vorgesetzter)",
+      note: approvalNote || undefined
+    }]);
+    setShowApproveDialog(false);
+    setApprovalNote("");
+    
+    toast.success("Spesenabrechnung genehmigt", {
+      description: `${formatCurrency(totalBetrag)} wird zur Auszahlung freigegeben`
+    });
+  };
+
+  const handleReject = () => {
+    if (!rejectReason.trim()) {
+      toast.error("Bitte geben Sie einen Ablehnungsgrund an");
+      return;
+    }
+    
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("de-CH") + " " + now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+    
+    setSpesenData(prev => ({ ...prev, status: "abgelehnt" }));
+    setApprovalHistory(prev => [...prev, {
+      action: "Abgelehnt",
+      date: dateStr,
+      user: "Max Müller (Vorgesetzter)",
+      note: rejectReason
+    }]);
+    setShowRejectDialog(false);
+    setRejectReason("");
+    
+    toast.error("Spesenabrechnung abgelehnt", {
+      description: "Mitarbeiter wird benachrichtigt"
+    });
+  };
+
+  const handleMarkAsPaid = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("de-CH") + " " + now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+    
+    setSpesenData(prev => ({ ...prev, status: "ausbezahlt" }));
+    setApprovalHistory(prev => [...prev, {
+      action: "Ausbezahlt",
+      date: dateStr,
+      user: "Buchhaltung"
+    }]);
+    
+    toast.success("Als ausbezahlt markiert", {
+      description: `${formatCurrency(totalBetrag)} wurde überwiesen`
+    });
+  };
+
   const StatusIcon = statusConfig[spesenData.status].icon;
   const totalBetrag = positionen.reduce((sum, p) => sum + p.betrag, 0);
 
@@ -136,14 +229,26 @@ export default function TravelExpenseDetail() {
           <p className="text-muted-foreground">{spesenData.projekt}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <FileText className="mr-2 h-4 w-4" />
-            PDF
+          <Button variant="outline" onClick={handleExportPDF}>
+            <Download className="mr-2 h-4 w-4" />
+            PDF Export
           </Button>
           {spesenData.status === "eingereicht" && (
-            <Button>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Genehmigen
+            <>
+              <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowRejectDialog(true)}>
+                <XCircle className="mr-2 h-4 w-4" />
+                Ablehnen
+              </Button>
+              <Button onClick={() => setShowApproveDialog(true)}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Genehmigen
+              </Button>
+            </>
+          )}
+          {spesenData.status === "genehmigt" && (
+            <Button onClick={handleMarkAsPaid}>
+              <Banknote className="mr-2 h-4 w-4" />
+              Als ausbezahlt markieren
             </Button>
           )}
         </div>
@@ -344,6 +449,47 @@ export default function TravelExpenseDetail() {
         </CardContent>
       </Card>
 
+      {/* Genehmigungsverlauf */}
+      {approvalHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              Genehmigungsverlauf
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {approvalHistory.map((entry, idx) => (
+                <div key={idx} className="flex gap-4 items-start">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
+                    entry.action === "Genehmigt" ? "bg-success/10 text-success" :
+                    entry.action === "Abgelehnt" ? "bg-destructive/10 text-destructive" :
+                    entry.action === "Ausbezahlt" ? "bg-success/10 text-success" :
+                    "bg-info/10 text-info"
+                  }`}>
+                    {entry.action === "Genehmigt" && <CheckCircle2 className="h-4 w-4" />}
+                    {entry.action === "Abgelehnt" && <XCircle className="h-4 w-4" />}
+                    {entry.action === "Ausbezahlt" && <Banknote className="h-4 w-4" />}
+                    {entry.action === "Eingereicht" && <Clock className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{entry.action}</span>
+                      <span className="text-sm text-muted-foreground">• {entry.date}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{entry.user}</p>
+                    {entry.note && (
+                      <p className="text-sm mt-1 p-2 bg-muted rounded">{entry.note}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* GAV Info */}
       <Card>
         <CardHeader>
@@ -369,6 +515,85 @@ export default function TravelExpenseDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Approve Dialog */}
+      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Spesenabrechnung genehmigen</DialogTitle>
+            <DialogDescription>
+              Genehmigen Sie die Spesenabrechnung {spesenData.id} über {formatCurrency(totalBetrag)}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg bg-muted p-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Mitarbeiter</span>
+                <span className="font-medium">{spesenData.mitarbeiter}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-2">
+                <span className="text-muted-foreground">Zeitraum</span>
+                <span className="font-medium">{spesenData.zeitraum}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-2">
+                <span className="text-muted-foreground">Gesamtbetrag</span>
+                <span className="font-bold text-primary">{formatCurrency(totalBetrag)}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="approvalNote">Bemerkung (optional)</Label>
+              <Textarea
+                id="approvalNote"
+                placeholder="Optionale Bemerkung zur Genehmigung..."
+                value={approvalNote}
+                onChange={(e) => setApprovalNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleApprove}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Genehmigen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Spesenabrechnung ablehnen</DialogTitle>
+            <DialogDescription>
+              Bitte geben Sie einen Grund für die Ablehnung an.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejectReason">Ablehnungsgrund *</Label>
+              <Textarea
+                id="rejectReason"
+                placeholder="Grund für die Ablehnung..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={handleReject}>
+              <XCircle className="mr-2 h-4 w-4" />
+              Ablehnen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
