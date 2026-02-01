@@ -57,6 +57,7 @@ import TrainingDetail from "./pages/TrainingDetail";
 import Orgchart from "./pages/Orgchart";
 import Tasks from "./pages/Tasks";
 import TaskDetail from "./pages/TaskDetail";
+import TaskCreate from "./pages/TaskCreate";
 import BillOfMaterials from "./pages/BillOfMaterials";
 import BOMDetail from "./pages/BOMDetail";
 import BOMCreate from "./pages/BOMCreate";
@@ -166,6 +167,7 @@ const App = () => (
                   
                   {/* Aufgaben */}
                   <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/tasks/new" element={<TaskCreate />} />
                   <Route path="/tasks/:id" element={<TaskDetail />} />
                   
                   {/* CRM */}

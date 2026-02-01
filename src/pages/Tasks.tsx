@@ -152,7 +152,7 @@ export default function Tasks() {
             Verwalten Sie Ihre Aufgaben und Projekte
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/tasks/new")}>
           <Plus className="h-4 w-4" />
           Neue Aufgabe
         </Button>
