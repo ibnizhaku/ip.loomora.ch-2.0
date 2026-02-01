@@ -47,9 +47,9 @@ const statusConfig: Record<string, { color: string }> = {
 };
 
 const stats = [
-  { title: "Gutschriften (Monat)", value: "€7.891", icon: ArrowDownLeft },
+  { title: "Gutschriften (Monat)", value: "CHF 7'891", icon: ArrowDownLeft },
   { title: "Anzahl", value: "15", icon: FileText },
-  { title: "Ø Betrag", value: "€526", icon: Euro },
+  { title: "Ø Betrag", value: "CHF 526", icon: Euro },
   { title: "Offen", value: "2", icon: Clock },
 ];
 
@@ -153,7 +153,7 @@ const CreditNotes = () => {
                       <Badge variant="outline">{note.reason}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium text-destructive">
-                      -€{note.total.toFixed(2)}
+                      -CHF {note.total.toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge className={status.color}>{note.status}</Badge>

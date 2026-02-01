@@ -200,7 +200,7 @@ export default function CustomerDetail() {
                   Gesamtumsatz
                 </div>
                 <span className="font-medium text-success">
-                  €{customer.totalRevenue.toLocaleString()}
+                  CHF {customer.totalRevenue.toLocaleString("de-CH")}
                 </span>
               </div>
 
@@ -210,7 +210,7 @@ export default function CustomerDetail() {
                   Offene Rechnungen
                 </div>
                 <span className="font-medium text-warning">
-                  €{customer.openInvoices.toLocaleString()}
+                  CHF {customer.openInvoices.toLocaleString("de-CH")}
                 </span>
               </div>
 
@@ -257,7 +257,7 @@ export default function CustomerDetail() {
                       <div>
                         <p className="font-medium">{project.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          €{project.value.toLocaleString()}
+                          CHF {project.value.toLocaleString("de-CH")}
                         </p>
                       </div>
                     </div>
@@ -294,7 +294,7 @@ export default function CustomerDetail() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="font-medium">€{invoice.amount.toLocaleString()}</span>
+                      <span className="font-medium">CHF {invoice.amount.toLocaleString("de-CH")}</span>
                       <Badge className={invoiceStatusConfig[invoice.status as keyof typeof invoiceStatusConfig].color}>
                         {invoiceStatusConfig[invoice.status as keyof typeof invoiceStatusConfig].label}
                       </Badge>

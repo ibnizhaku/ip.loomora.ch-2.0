@@ -148,8 +148,8 @@ const CreditNoteDetail = () => {
                       <TableCell className="font-medium">{pos.description}</TableCell>
                       <TableCell className="text-right">{pos.quantity}</TableCell>
                       <TableCell>{pos.unit}</TableCell>
-                      <TableCell className="text-right">€{pos.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">€{pos.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">CHF {pos.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">CHF {pos.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -160,16 +160,16 @@ const CreditNoteDetail = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Zwischensumme (netto)</span>
-                  <span>€{creditNoteData.subtotal.toFixed(2)}</span>
+                  <span>CHF {creditNoteData.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">MwSt. (19%)</span>
-                  <span>€{creditNoteData.tax.toFixed(2)}</span>
+                  <span className="text-muted-foreground">MwSt. (8.1%)</span>
+                  <span>CHF {creditNoteData.tax.toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Gutschriftsbetrag</span>
-                  <span className="text-success">-€{creditNoteData.total.toFixed(2)}</span>
+                  <span className="text-success">-CHF {creditNoteData.total.toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
@@ -256,7 +256,7 @@ const CreditNoteDetail = () => {
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Gutschriftsbetrag</span>
-                <span className="font-semibold text-success">-€{creditNoteData.total.toFixed(2)}</span>
+                <span className="font-semibold text-success">-CHF {creditNoteData.total.toFixed(2)}</span>
               </div>
             </CardContent>
           </Card>

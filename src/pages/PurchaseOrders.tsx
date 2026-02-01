@@ -51,9 +51,9 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const stats = [
   { title: "Offene Bestellungen", value: "12", change: "+3 diese Woche" },
-  { title: "Diesen Monat", value: "€48.900", change: "+15% vs. Vormonat" },
+  { title: "Diesen Monat", value: "CHF 48'900", change: "+15% vs. Vormonat" },
   { title: "Ausstehende Lieferungen", value: "5", change: "2 überfällig" },
-  { title: "Top Lieferant", value: "TechParts", change: "€28.500 Volumen" },
+  { title: "Top Lieferant", value: "TechParts", change: "CHF 28'500 Volumen" },
 ];
 
 const PurchaseOrders = () => {
@@ -143,7 +143,7 @@ const PurchaseOrders = () => {
                     </TableCell>
                     <TableCell>{order.date}</TableCell>
                     <TableCell className="text-right">{order.items}</TableCell>
-                    <TableCell className="text-right font-medium">€{order.total.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">CHF {order.total.toLocaleString("de-CH")}</TableCell>
                     <TableCell>{order.expectedDelivery}</TableCell>
                     <TableCell>
                       <Badge className={status.color}>
