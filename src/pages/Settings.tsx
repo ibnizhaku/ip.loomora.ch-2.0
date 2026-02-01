@@ -81,6 +81,45 @@ const settingsSections = [
 export default function Settings() {
   const [activeSection, setActiveSection] = useState("profile");
 
+  // Document Settings State
+  const [nummernkreise, setNummernkreise] = useState({
+    rechnungen: { prefix: "RE-", jahr: "2024", nummer: "0001" },
+    angebote: { prefix: "AN-", jahr: "2024", nummer: "0001" },
+    auftraege: { prefix: "AU-", jahr: "2024", nummer: "0001" },
+    lieferscheine: { prefix: "LS-", jahr: "2024", nummer: "0001" },
+    gutschriften: { prefix: "GS-", jahr: "2024", nummer: "0001" },
+    bestellungen: { prefix: "BE-", jahr: "2024", nummer: "0001" },
+  });
+  const [autoJahreswechsel, setAutoJahreswechsel] = useState(true);
+  const [logoPosition, setLogoPosition] = useState("top-left");
+  const [headerColor, setHeaderColor] = useState("#1a1a2e");
+  const [footerLeft, setFooterLeft] = useState("Loomora Metallbau AG | Industriestrasse 15 | 8005 Zürich");
+  const [footerRight, setFooterRight] = useState("IBAN: CH93 0076 2011 6238 5295 7 | MWST: CHE-123.456.789");
+  const [qrRechnung, setQrRechnung] = useState(true);
+  const [pdfA, setPdfA] = useState(true);
+  const [digitalSignature, setDigitalSignature] = useState(false);
+  const [docSettingsChanged, setDocSettingsChanged] = useState(false);
+
+  const updateNummernkreis = (type: keyof typeof nummernkreise, field: "prefix" | "jahr" | "nummer", value: string) => {
+    setNummernkreise(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [field]: value }
+    }));
+    setDocSettingsChanged(true);
+  };
+
+  const getPreview = (type: keyof typeof nummernkreise) => {
+    const n = nummernkreise[type];
+    return `${n.prefix}${n.jahr}-${n.nummer}`;
+  };
+
+  const handleSaveDocSettings = () => {
+    toast.success("Dokument-Einstellungen gespeichert", {
+      description: "Nummernkreise und Vorlagen wurden aktualisiert."
+    });
+    setDocSettingsChanged(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1918,29 +1957,65 @@ export default function Settings() {
                     <div className="space-y-2">
                       <Label>Rechnungen</Label>
                       <div className="flex gap-2">
-                        <Input defaultValue="RE-" className="w-20" />
-                        <Input defaultValue="2024" className="w-20" />
-                        <Input defaultValue="0001" className="flex-1" />
+                        <Input 
+                          value={nummernkreise.rechnungen.prefix} 
+                          onChange={(e) => updateNummernkreis("rechnungen", "prefix", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.rechnungen.jahr} 
+                          onChange={(e) => updateNummernkreis("rechnungen", "jahr", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.rechnungen.nummer} 
+                          onChange={(e) => updateNummernkreis("rechnungen", "nummer", e.target.value)}
+                          className="flex-1" 
+                        />
                       </div>
-                      <p className="text-xs text-muted-foreground">Vorschau: RE-2024-0001</p>
+                      <p className="text-xs text-muted-foreground">Vorschau: <span className="font-medium text-foreground">{getPreview("rechnungen")}</span></p>
                     </div>
                     <div className="space-y-2">
                       <Label>Angebote</Label>
                       <div className="flex gap-2">
-                        <Input defaultValue="AN-" className="w-20" />
-                        <Input defaultValue="2024" className="w-20" />
-                        <Input defaultValue="0001" className="flex-1" />
+                        <Input 
+                          value={nummernkreise.angebote.prefix} 
+                          onChange={(e) => updateNummernkreis("angebote", "prefix", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.angebote.jahr} 
+                          onChange={(e) => updateNummernkreis("angebote", "jahr", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.angebote.nummer} 
+                          onChange={(e) => updateNummernkreis("angebote", "nummer", e.target.value)}
+                          className="flex-1" 
+                        />
                       </div>
-                      <p className="text-xs text-muted-foreground">Vorschau: AN-2024-0001</p>
+                      <p className="text-xs text-muted-foreground">Vorschau: <span className="font-medium text-foreground">{getPreview("angebote")}</span></p>
                     </div>
                     <div className="space-y-2">
                       <Label>Aufträge</Label>
                       <div className="flex gap-2">
-                        <Input defaultValue="AU-" className="w-20" />
-                        <Input defaultValue="2024" className="w-20" />
-                        <Input defaultValue="0001" className="flex-1" />
+                        <Input 
+                          value={nummernkreise.auftraege.prefix} 
+                          onChange={(e) => updateNummernkreis("auftraege", "prefix", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.auftraege.jahr} 
+                          onChange={(e) => updateNummernkreis("auftraege", "jahr", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.auftraege.nummer} 
+                          onChange={(e) => updateNummernkreis("auftraege", "nummer", e.target.value)}
+                          className="flex-1" 
+                        />
                       </div>
-                      <p className="text-xs text-muted-foreground">Vorschau: AU-2024-0001</p>
+                      <p className="text-xs text-muted-foreground">Vorschau: <span className="font-medium text-foreground">{getPreview("auftraege")}</span></p>
                     </div>
                   </div>
 
@@ -1948,26 +2023,65 @@ export default function Settings() {
                     <div className="space-y-2">
                       <Label>Lieferscheine</Label>
                       <div className="flex gap-2">
-                        <Input defaultValue="LS-" className="w-20" />
-                        <Input defaultValue="2024" className="w-20" />
-                        <Input defaultValue="0001" className="flex-1" />
+                        <Input 
+                          value={nummernkreise.lieferscheine.prefix} 
+                          onChange={(e) => updateNummernkreis("lieferscheine", "prefix", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.lieferscheine.jahr} 
+                          onChange={(e) => updateNummernkreis("lieferscheine", "jahr", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.lieferscheine.nummer} 
+                          onChange={(e) => updateNummernkreis("lieferscheine", "nummer", e.target.value)}
+                          className="flex-1" 
+                        />
                       </div>
+                      <p className="text-xs text-muted-foreground">Vorschau: <span className="font-medium text-foreground">{getPreview("lieferscheine")}</span></p>
                     </div>
                     <div className="space-y-2">
                       <Label>Gutschriften</Label>
                       <div className="flex gap-2">
-                        <Input defaultValue="GS-" className="w-20" />
-                        <Input defaultValue="2024" className="w-20" />
-                        <Input defaultValue="0001" className="flex-1" />
+                        <Input 
+                          value={nummernkreise.gutschriften.prefix} 
+                          onChange={(e) => updateNummernkreis("gutschriften", "prefix", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.gutschriften.jahr} 
+                          onChange={(e) => updateNummernkreis("gutschriften", "jahr", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.gutschriften.nummer} 
+                          onChange={(e) => updateNummernkreis("gutschriften", "nummer", e.target.value)}
+                          className="flex-1" 
+                        />
                       </div>
+                      <p className="text-xs text-muted-foreground">Vorschau: <span className="font-medium text-foreground">{getPreview("gutschriften")}</span></p>
                     </div>
                     <div className="space-y-2">
                       <Label>Bestellungen</Label>
                       <div className="flex gap-2">
-                        <Input defaultValue="BE-" className="w-20" />
-                        <Input defaultValue="2024" className="w-20" />
-                        <Input defaultValue="0001" className="flex-1" />
+                        <Input 
+                          value={nummernkreise.bestellungen.prefix} 
+                          onChange={(e) => updateNummernkreis("bestellungen", "prefix", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.bestellungen.jahr} 
+                          onChange={(e) => updateNummernkreis("bestellungen", "jahr", e.target.value)}
+                          className="w-20" 
+                        />
+                        <Input 
+                          value={nummernkreise.bestellungen.nummer} 
+                          onChange={(e) => updateNummernkreis("bestellungen", "nummer", e.target.value)}
+                          className="flex-1" 
+                        />
                       </div>
+                      <p className="text-xs text-muted-foreground">Vorschau: <span className="font-medium text-foreground">{getPreview("bestellungen")}</span></p>
                     </div>
                   </div>
                 </div>
@@ -1980,7 +2094,10 @@ export default function Settings() {
                         Nummernkreise am 01.01. zurücksetzen
                       </p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch 
+                      checked={autoJahreswechsel} 
+                      onCheckedChange={(checked) => { setAutoJahreswechsel(checked); setDocSettingsChanged(true); }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -1997,7 +2114,7 @@ export default function Settings() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="p-4 rounded-xl border border-border space-y-3">
                     <Label>Logo-Position</Label>
-                    <Select defaultValue="top-left">
+                    <Select value={logoPosition} onValueChange={(v) => { setLogoPosition(v); setDocSettingsChanged(true); }}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -2010,18 +2127,38 @@ export default function Settings() {
                   </div>
                   <div className="p-4 rounded-xl border border-border space-y-3">
                     <Label>Kopfzeilen-Hintergrund</Label>
-                    <Input type="color" defaultValue="#1a1a2e" className="h-10 w-full" />
+                    <div className="flex gap-2 items-center">
+                      <Input 
+                        type="color" 
+                        value={headerColor} 
+                        onChange={(e) => { setHeaderColor(e.target.value); setDocSettingsChanged(true); }}
+                        className="h-10 w-16" 
+                      />
+                      <Input 
+                        value={headerColor} 
+                        onChange={(e) => { setHeaderColor(e.target.value); setDocSettingsChanged(true); }}
+                        className="flex-1 font-mono text-sm" 
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Fusszeile (links)</Label>
-                    <Textarea defaultValue="Loomora Metallbau AG | Industriestrasse 15 | 8005 Zürich" rows={2} />
+                    <Textarea 
+                      value={footerLeft} 
+                      onChange={(e) => { setFooterLeft(e.target.value); setDocSettingsChanged(true); }}
+                      rows={2} 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Fusszeile (rechts)</Label>
-                    <Textarea defaultValue="IBAN: CH93 0076 2011 6238 5295 7 | MWST: CHE-123.456.789" rows={2} />
+                    <Textarea 
+                      value={footerRight} 
+                      onChange={(e) => { setFooterRight(e.target.value); setDocSettingsChanged(true); }}
+                      rows={2} 
+                    />
                   </div>
                 </div>
 
@@ -2031,7 +2168,49 @@ export default function Settings() {
                       <p className="font-medium">QR-Rechnung aktivieren</p>
                       <p className="text-sm text-muted-foreground">Swiss QR-Code auf Rechnungen</p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch 
+                      checked={qrRechnung} 
+                      onCheckedChange={(checked) => { setQrRechnung(checked); setDocSettingsChanged(true); }} 
+                    />
+                  </div>
+                </div>
+
+                {/* Live Preview */}
+                <div className="p-4 rounded-xl border border-border bg-muted/30">
+                  <Label className="text-xs text-muted-foreground mb-3 block">Dokumenten-Vorschau</Label>
+                  <div className="bg-background rounded-lg border border-border p-4 aspect-[210/297] max-w-[200px] mx-auto shadow-sm">
+                    <div 
+                      className="h-8 rounded-t flex items-center px-2 mb-3"
+                      style={{ backgroundColor: headerColor }}
+                    >
+                      <div 
+                        className={cn(
+                          "w-6 h-4 bg-background/80 rounded text-[6px] font-bold flex items-center justify-center",
+                          logoPosition === "top-left" && "mr-auto",
+                          logoPosition === "top-center" && "mx-auto",
+                          logoPosition === "top-right" && "ml-auto"
+                        )}
+                      >
+                        L
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="h-1.5 bg-muted rounded w-1/3"></div>
+                      <div className="h-1 bg-muted rounded w-2/3"></div>
+                      <div className="h-1 bg-muted rounded w-1/2"></div>
+                    </div>
+                    <div className="mt-4 space-y-1">
+                      <div className="h-1 bg-muted rounded"></div>
+                      <div className="h-1 bg-muted rounded"></div>
+                      <div className="h-1 bg-muted rounded w-3/4"></div>
+                    </div>
+                    {qrRechnung && (
+                      <div className="mt-auto pt-4">
+                        <div className="w-8 h-8 border border-border bg-muted/50 mx-auto flex items-center justify-center">
+                          <span className="text-[4px] text-muted-foreground">QR</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2049,7 +2228,10 @@ export default function Settings() {
                         <p className="font-medium">PDF/A-Format</p>
                         <p className="text-sm text-muted-foreground">Archivierungsformat</p>
                       </div>
-                      <Switch defaultChecked />
+                      <Switch 
+                        checked={pdfA} 
+                        onCheckedChange={(checked) => { setPdfA(checked); setDocSettingsChanged(true); }} 
+                      />
                     </div>
                   </div>
                   <div className="p-4 rounded-xl border border-border">
@@ -2058,16 +2240,24 @@ export default function Settings() {
                         <p className="font-medium">Digitale Signatur</p>
                         <p className="text-sm text-muted-foreground">PDFs signieren</p>
                       </div>
-                      <Switch />
+                      <Switch 
+                        checked={digitalSignature} 
+                        onCheckedChange={(checked) => { setDigitalSignature(checked); setDocSettingsChanged(true); }} 
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <Button className="gap-2">
-                <Save className="h-4 w-4" />
-                Einstellungen speichern
-              </Button>
+              <div className="flex gap-2">
+                <Button className="gap-2" onClick={handleSaveDocSettings} disabled={!docSettingsChanged}>
+                  <Save className="h-4 w-4" />
+                  Einstellungen speichern
+                </Button>
+                {docSettingsChanged && (
+                  <Badge variant="secondary" className="self-center">Ungespeicherte Änderungen</Badge>
+                )}
+              </div>
             </div>
           )}
 
