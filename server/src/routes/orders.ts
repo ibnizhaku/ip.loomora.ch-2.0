@@ -118,7 +118,7 @@ const orderRoutes: FastifyPluginAsync = async (fastify) => {
           customerId: order.customerId,
           orderId: order.id,
           date: new Date(),
-          shippingAddress: order.shippingAddress,
+          shippingAddress: order.shippingAddress ?? undefined,
           companyId: request.user.companyId,
           items: {
             create: order.items.map((item) => ({
