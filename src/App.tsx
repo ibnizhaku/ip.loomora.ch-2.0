@@ -121,6 +121,7 @@ import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import ChartOfAccountDetail from "./pages/ChartOfAccountDetail";
+import ChartOfAccountCreate from "./pages/ChartOfAccountCreate";
 import GeneralLedger from "./pages/GeneralLedger";
 import GeneralLedgerDetail from "./pages/GeneralLedgerDetail";
 import OpenItems from "./pages/OpenItems";
@@ -231,6 +232,7 @@ const App = () => (
                   {/* Finanzen & Buchhaltung */}
                   <Route path="/finance" element={<Finance />} />
                   <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
+                  <Route path="/chart-of-accounts/new" element={<ChartOfAccountCreate />} />
                   <Route path="/chart-of-accounts/:id" element={<ChartOfAccountDetail />} />
                   <Route path="/journal-entries" element={<JournalEntries />} />
                   <Route path="/journal-entries/:id" element={<JournalEntryDetail />} />
