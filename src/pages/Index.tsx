@@ -3,13 +3,12 @@ import {
   Users,
   FolderKanban,
   Euro,
-  ArrowUpRight,
-  ArrowDownRight,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ProjectsOverview } from "@/components/dashboard/ProjectsOverview";
+import { CalendarWidget } from "@/components/dashboard/CalendarWidget";
 
 const stats = [
   {
@@ -78,6 +77,7 @@ const Index = () => {
         {/* Right Column */}
         <div className="space-y-6">
           <QuickActions />
+          <CalendarWidget />
         </div>
       </div>
 
