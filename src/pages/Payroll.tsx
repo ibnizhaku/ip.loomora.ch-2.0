@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
-  Plus, 
   Search, 
   Filter,
-  Calendar,
   CheckCircle2,
   Clock,
   Download,
@@ -14,14 +12,12 @@ import {
   AlertCircle,
   Play,
   MoreHorizontal,
-  Send,
   Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -37,6 +33,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // Schweizer Lohnabrechnung nach GAV Metallbau
 const payrollRuns = [
@@ -138,13 +136,26 @@ const formatCHF = (amount: number) => {
 };
 
 const Payroll = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const currentRun = payrollRuns.find(r => r.status === "In Bearbeitung");
 
   const totalBrutto = employeePayroll.reduce((sum, e) => sum + e.bruttoLohn, 0);
   const totalNetto = employeePayroll.reduce((sum, e) => sum + e.nettoLohn, 0);
   const totalAHV = employeePayroll.reduce((sum, e) => sum + e.ahvIvEo, 0);
   const totalBVG = employeePayroll.reduce((sum, e) => sum + e.bvg, 0);
+
+  const handleStatClick = (filter: string | null) => {
+    setStatusFilter(statusFilter === filter ? null : filter);
+  };
+
+  const filteredEmployees = employeePayroll.filter(e => {
+    const matchesSearch = e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.position.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || e.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -168,7 +179,13 @@ const Payroll = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            !statusFilter && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatClick(null)}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -181,7 +198,13 @@ const Payroll = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "Berechnet" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatClick("Berechnet")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -194,7 +217,13 @@ const Payroll = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "Prüfung" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatClick("Prüfung")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -242,7 +271,7 @@ const Payroll = () => {
                 <Badge className={statusConfig[currentRun.status].color}>
                   {currentRun.status}
                 </Badge>
-                <Button>
+                <Button onClick={() => toast.success("Lohnlauf wird abgeschlossen...")}>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Abschliessen
                 </Button>
@@ -295,15 +324,19 @@ const Payroll = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employeePayroll.map((emp) => {
+                  {filteredEmployees.map((emp) => {
                     const status = statusConfig[emp.status];
                     return (
-                      <TableRow key={emp.id}>
+                      <TableRow 
+                        key={emp.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/payslips/${emp.id}`)}
+                      >
                         <TableCell>
                           <div>
-                            <Link to={`/hr/${emp.id}`} className="font-medium hover:text-primary">
+                            <span className="font-medium hover:text-primary">
                               {emp.name}
-                            </Link>
+                            </span>
                             <p className="text-sm text-muted-foreground">{emp.position}</p>
                           </div>
                         </TableCell>
@@ -324,14 +357,20 @@ const Payroll = () => {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>Lohnabrechnung anzeigen</DropdownMenuItem>
-                              <DropdownMenuItem>PDF herunterladen</DropdownMenuItem>
-                              <DropdownMenuItem>Per E-Mail senden</DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/payslips/${emp.id}`); }}>
+                                Lohnabrechnung anzeigen
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("PDF wird erstellt..."); }}>
+                                PDF herunterladen
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success(`Lohnabrechnung an ${emp.name} gesendet`); }}>
+                                Per E-Mail senden
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
