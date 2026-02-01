@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Search, Filter, Grid3X3, List, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,14 +117,18 @@ const priorityConfig = {
 };
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-  const filteredProjects = projects.filter(
-    (p) =>
+  const filteredProjects = projects.filter((p) => {
+    const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.client.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      p.client.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = !statusFilter || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -137,7 +142,7 @@ export default function Projects() {
             Verwalten Sie alle Ihre Projekte an einem Ort
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/projects/new")}>
           <Plus className="h-4 w-4" />
           Neues Projekt
         </Button>
@@ -182,30 +187,37 @@ export default function Projects() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
         {[
-          { label: "Gesamt", value: projects.length, color: "text-foreground" },
+          { label: "Gesamt", value: projects.length, color: "text-foreground", filter: null },
           {
             label: "Aktiv",
             value: projects.filter((p) => p.status === "active").length,
             color: "text-success",
+            filter: "active",
           },
           {
             label: "Abgeschlossen",
             value: projects.filter((p) => p.status === "completed").length,
             color: "text-info",
+            filter: "completed",
           },
           {
             label: "Pausiert",
             value: projects.filter((p) => p.status === "paused").length,
             color: "text-warning",
+            filter: "paused",
           },
         ].map((stat) => (
-          <div
+          <button
             key={stat.label}
-            className="rounded-xl border border-border bg-card p-4"
+            onClick={() => setStatusFilter(statusFilter === stat.filter ? null : stat.filter)}
+            className={cn(
+              "rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/30",
+              statusFilter === stat.filter && "border-primary ring-1 ring-primary"
+            )}
           >
             <p className="text-sm text-muted-foreground">{stat.label}</p>
             <p className={cn("text-2xl font-bold", stat.color)}>{stat.value}</p>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -219,8 +231,9 @@ export default function Projects() {
         {filteredProjects.map((project, index) => (
           <div
             key={project.id}
+            onClick={() => navigate(`/projects/${project.id}`)}
             className={cn(
-              "group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-soft animate-fade-in",
+              "group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-soft animate-fade-in cursor-pointer",
               view === "list" && "flex items-center gap-6"
             )}
             style={{ animationDelay: `${index * 50}ms` }}
