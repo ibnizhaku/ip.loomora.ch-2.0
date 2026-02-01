@@ -17,6 +17,12 @@ import {
   XCircle,
   ExternalLink,
   RefreshCw,
+  Store,
+  Truck,
+  Package,
+  Percent,
+  Tag,
+  Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +44,7 @@ import { cn } from "@/lib/utils";
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
   { id: "integrations", label: "Integrationen", icon: Link2 },
+  { id: "shop", label: "Shop", icon: Store },
   { id: "notifications", label: "Benachrichtigungen", icon: Bell },
   { id: "security", label: "Sicherheit", icon: Shield },
   { id: "appearance", label: "Darstellung", icon: Palette },
@@ -567,6 +574,425 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeSection === "shop" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Shop-Einstellungen</h2>
+                <p className="text-sm text-muted-foreground">
+                  Konfigurieren Sie Ihren Online-Shop
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Shop Status */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Store className="h-5 w-5" />
+                  Shop-Status
+                </h3>
+                
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Shop aktivieren</p>
+                        <p className="text-sm text-muted-foreground">
+                          Online-Shop für Kunden sichtbar machen
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Wartungsmodus</p>
+                        <p className="text-sm text-muted-foreground">
+                          Shop vorübergehend deaktivieren für Updates
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Gastbestellungen erlauben</p>
+                        <p className="text-sm text-muted-foreground">
+                          Kunden können ohne Konto bestellen
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Shop-Informationen */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Shop-Informationen
+                </h3>
+                
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="shopName">Shop-Name</Label>
+                    <Input id="shopName" defaultValue="Loomora Shop" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shopUrl">Shop-URL</Label>
+                    <Input id="shopUrl" defaultValue="shop.loomora.ch" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shopEmail">Kontakt-E-Mail</Label>
+                    <Input id="shopEmail" type="email" defaultValue="shop@loomora.ch" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shopPhone">Support-Telefon</Label>
+                    <Input id="shopPhone" defaultValue="+41 44 123 45 67" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="shopDescription">Shop-Beschreibung</Label>
+                  <Input id="shopDescription" defaultValue="Ihr Partner für hochwertige Metallbau-Produkte" />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Versand */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Versandoptionen
+                </h3>
+                
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="font-medium">Standardversand</p>
+                        <p className="text-sm text-muted-foreground">
+                          3-5 Werktage Lieferzeit
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Versandkosten (CHF)</Label>
+                        <Input type="number" defaultValue="9.90" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Kostenlos ab (CHF)</Label>
+                        <Input type="number" defaultValue="100" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="font-medium">Expressversand</p>
+                        <p className="text-sm text-muted-foreground">
+                          1-2 Werktage Lieferzeit
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Versandkosten (CHF)</Label>
+                        <Input type="number" defaultValue="19.90" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Kostenlos ab (CHF)</Label>
+                        <Input type="number" defaultValue="250" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Selbstabholung</p>
+                        <p className="text-sm text-muted-foreground">
+                          Abholung vor Ort im Lager
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Zahlungsmethoden */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Zahlungsmethoden
+                </h3>
+                
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6772e5]/10">
+                          <CreditCard className="h-5 w-5 text-[#6772e5]" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Kreditkarte</p>
+                          <p className="text-sm text-muted-foreground">
+                            Visa, Mastercard, American Express
+                          </p>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#ff5f00]/10">
+                          <span className="text-lg font-bold text-[#ff5f00]">T</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">TWINT</p>
+                          <p className="text-sm text-muted-foreground">
+                            Schweizer Mobile Payment
+                          </p>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#003087]/10">
+                          <span className="text-sm font-bold text-[#003087]">PP</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">PayPal</p>
+                          <p className="text-sm text-muted-foreground">
+                            Online-Zahlungsdienst
+                          </p>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                          <Mail className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Rechnung</p>
+                          <p className="text-sm text-muted-foreground">
+                            Zahlung per Rechnung (30 Tage)
+                          </p>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Produkt-Einstellungen */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Produkt-Einstellungen
+                </h3>
+                
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Lagerbestand anzeigen</p>
+                        <p className="text-sm text-muted-foreground">
+                          Verfügbarkeit im Shop anzeigen
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Bei Ausverkauf bestellen</p>
+                        <p className="text-sm text-muted-foreground">
+                          Bestellung auch bei 0 Lagerbestand
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Bewertungen aktivieren</p>
+                        <p className="text-sm text-muted-foreground">
+                          Kunden können Produkte bewerten
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Produkte pro Seite</p>
+                        <p className="text-sm text-muted-foreground">
+                          Anzahl der Produkte in der Übersicht
+                        </p>
+                      </div>
+                      <Select defaultValue="24">
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="12">12</SelectItem>
+                          <SelectItem value="24">24</SelectItem>
+                          <SelectItem value="48">48</SelectItem>
+                          <SelectItem value="96">96</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Rabatte & Gutscheine */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Percent className="h-5 w-5" />
+                  Rabatte & Gutscheine
+                </h3>
+                
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Gutschein-System</p>
+                        <p className="text-sm text-muted-foreground">
+                          Rabattcodes im Shop aktivieren
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Mengenrabatte</p>
+                        <p className="text-sm text-muted-foreground">
+                          Automatische Rabatte bei Grossbestellungen
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Neukunden-Rabatt (%)</p>
+                        <p className="text-sm text-muted-foreground">
+                          Rabatt für Erstbestellungen
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" className="w-20" defaultValue="10" />
+                        <span className="text-sm text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* SEO & Marketing */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  SEO & Marketing
+                </h3>
+                
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="metaTitle">Meta-Titel</Label>
+                    <Input id="metaTitle" defaultValue="Loomora Shop - Metallbau Produkte" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="metaKeywords">Meta-Keywords</Label>
+                    <Input id="metaKeywords" defaultValue="Metallbau, Stahl, Geländer, Treppen" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="metaDescription">Meta-Beschreibung</Label>
+                  <Input id="metaDescription" defaultValue="Hochwertige Metallbau-Produkte online kaufen. Geländer, Treppen, Stahlkonstruktionen und mehr." />
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Google Analytics</p>
+                        <p className="text-sm text-muted-foreground">
+                          Shop-Statistiken tracken
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Facebook Pixel</p>
+                        <p className="text-sm text-muted-foreground">
+                          Conversions für Werbung tracken
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button className="gap-2">
+                <Save className="h-4 w-4" />
+                Shop-Einstellungen speichern
+              </Button>
             </div>
           )}
 
