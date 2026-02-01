@@ -11,6 +11,7 @@ import {
   MapPin,
   Star,
   Banknote,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,94 +32,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-interface Supplier {
-  id: string;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  location: string;
-  category: string;
-  rating: number;
-  status: "active" | "inactive" | "new";
-  totalOrders: number;
-  totalValue: number;
-  lastOrder: string;
-}
-
-const suppliers: Supplier[] = [
-  {
-    id: "1",
-    name: "Klaus Meier",
-    company: "TechParts GmbH",
-    email: "k.meier@techparts.de",
-    phone: "+49 170 1234567",
-    location: "München",
-    category: "Elektronik",
-    rating: 5,
-    status: "active",
-    totalOrders: 45,
-    totalValue: 125000,
-    lastOrder: "vor 3 Tagen",
-  },
-  {
-    id: "2",
-    name: "Sandra Fischer",
-    company: "Office Supplies AG",
-    email: "s.fischer@officesupplies.de",
-    phone: "+49 171 2345678",
-    location: "Hamburg",
-    category: "Bürobedarf",
-    rating: 4,
-    status: "active",
-    totalOrders: 28,
-    totalValue: 45000,
-    lastOrder: "vor 1 Woche",
-  },
-  {
-    id: "3",
-    name: "Peter Wagner",
-    company: "Software Solutions",
-    email: "p.wagner@softsol.de",
-    phone: "+49 172 3456789",
-    location: "Berlin",
-    category: "Software",
-    rating: 5,
-    status: "active",
-    totalOrders: 12,
-    totalValue: 89000,
-    lastOrder: "vor 2 Wochen",
-  },
-  {
-    id: "4",
-    name: "Maria Hoffmann",
-    company: "Packaging Pro",
-    email: "m.hoffmann@packagingpro.de",
-    phone: "+49 173 4567890",
-    location: "Köln",
-    category: "Verpackung",
-    rating: 3,
-    status: "inactive",
-    totalOrders: 8,
-    totalValue: 12000,
-    lastOrder: "vor 2 Monaten",
-  },
-  {
-    id: "5",
-    name: "Thomas Schulz",
-    company: "Hardware Depot",
-    email: "t.schulz@hwdepot.de",
-    phone: "+49 174 5678901",
-    location: "Frankfurt",
-    category: "Hardware",
-    rating: 4,
-    status: "new",
-    totalOrders: 2,
-    totalValue: 8500,
-    lastOrder: "vor 1 Tag",
-  },
-];
+import { useSuppliers, useSupplierStats, useDeleteSupplier } from "@/hooks/use-suppliers";
+import { toast } from "sonner";
 
 const statusConfig = {
   active: { label: "Aktiv", color: "bg-success/10 text-success" },
@@ -129,13 +44,32 @@ const statusConfig = {
 export default function Suppliers() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  const { data, isLoading, error } = useSuppliers({ search: searchQuery, pageSize: 100 });
+  const stats = useSupplierStats();
+  const deleteSupplier = useDeleteSupplier();
 
-  const filteredSuppliers = suppliers.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const suppliers = data?.data || [];
+
+  const handleDelete = async (id: string, name: string) => {
+    if (confirm(`Möchten Sie "${name}" wirklich löschen?`)) {
+      try {
+        await deleteSupplier.mutateAsync(id);
+        toast.success(`${name} wurde gelöscht`);
+      } catch (error) {
+        toast.error("Fehler beim Löschen");
+      }
+    }
+  };
+
+  const getSupplierStatus = (supplier: any): "active" | "inactive" | "new" => {
+    if (!supplier.isActive) return "inactive";
+    const created = new Date(supplier.createdAt);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (created > thirtyDaysAgo) return "new";
+    return "active";
+  };
 
   return (
     <div className="space-y-6">
@@ -163,7 +97,7 @@ export default function Suppliers() {
               <Building2 className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{suppliers.length}</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
               <p className="text-sm text-muted-foreground">Lieferanten</p>
             </div>
           </div>
@@ -174,9 +108,7 @@ export default function Suppliers() {
               <Building2 className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {suppliers.filter((s) => s.status === "active").length}
-              </p>
+              <p className="text-2xl font-bold">{stats.active}</p>
               <p className="text-sm text-muted-foreground">Aktiv</p>
             </div>
           </div>
@@ -188,7 +120,7 @@ export default function Suppliers() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                CHF {(suppliers.reduce((acc, s) => acc + s.totalValue, 0) / 1000).toFixed(0)}k
+                CHF {(stats.totalValue / 1000).toFixed(0)}k
               </p>
               <p className="text-sm text-muted-foreground">Bestellwert</p>
             </div>
@@ -200,9 +132,7 @@ export default function Suppliers() {
               <Star className="h-5 w-5 text-info" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {(suppliers.reduce((acc, s) => acc + s.rating, 0) / suppliers.length).toFixed(1)}
-              </p>
+              <p className="text-2xl font-bold">{stats.avgRating.toFixed(1)}</p>
               <p className="text-sm text-muted-foreground">Ø Bewertung</p>
             </div>
           </div>
@@ -225,114 +155,170 @@ export default function Suppliers() {
         </Button>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">Fehler beim Laden der Lieferanten</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Stellen Sie sicher, dass der Backend-Server läuft (VITE_API_URL)
+          </p>
+        </div>
+      )}
+
       {/* Table */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Lieferant</TableHead>
-              <TableHead>Kategorie</TableHead>
-              <TableHead>Kontakt</TableHead>
-              <TableHead>Bewertung</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Bestellwert</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredSuppliers.map((supplier, index) => (
-              <TableRow
-                key={supplier.id}
-                className="cursor-pointer animate-fade-in hover:bg-muted/50"
-                style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => navigate(`/suppliers/${supplier.id}`)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {supplier.company
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{supplier.company}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {supplier.name}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{supplier.category}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                      {supplier.email}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {supplier.location}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={cn(
-                          "h-4 w-4",
-                          i < supplier.rating
-                            ? "text-warning fill-warning"
-                            : "text-muted"
-                        )}
-                      />
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusConfig[supplier.status].color}>
-                    {statusConfig[supplier.status].label}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div>
-                    <p className="font-medium">
-                      CHF {supplier.totalValue.toLocaleString("de-CH")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {supplier.totalOrders} Bestellungen
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Anzeigen</DropdownMenuItem>
-                      <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                      <DropdownMenuItem>Bestellung aufgeben</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Deaktivieren
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      {!isLoading && !error && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Lieferant</TableHead>
+                <TableHead>Kontakt</TableHead>
+                <TableHead>Standort</TableHead>
+                <TableHead>Bewertung</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Bestellwert</TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {suppliers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {searchQuery ? "Keine Lieferanten gefunden" : "Noch keine Lieferanten vorhanden"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                suppliers.map((supplier, index) => {
+                  const status = getSupplierStatus(supplier);
+                  return (
+                    <TableRow
+                      key={supplier.id}
+                      className="cursor-pointer animate-fade-in hover:bg-muted/50"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                              {(supplier.companyName || supplier.name)
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{supplier.companyName || supplier.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {supplier.companyName ? supplier.name : supplier.number}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {supplier.email && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                              {supplier.email}
+                            </div>
+                          )}
+                          {supplier.phone && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Phone className="h-3.5 w-3.5" />
+                              {supplier.phone}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {supplier.city && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            {supplier.city}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={cn(
+                                "h-4 w-4",
+                                i < (supplier.rating || 0)
+                                  ? "text-warning fill-warning"
+                                  : "text-muted"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusConfig[status].color}>
+                          {statusConfig[status].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>
+                          <p className="font-medium">
+                            CHF {(supplier.totalValue || 0).toLocaleString("de-CH")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {supplier.totalOrders || 0} Bestellungen
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                              Anzeigen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                              Bearbeiten
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate("/purchase-orders/new")}>
+                              Bestellung aufgeben
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(supplier.id, supplier.name);
+                              }}
+                            >
+                              Deaktivieren
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
