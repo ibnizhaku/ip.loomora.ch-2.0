@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -12,6 +13,8 @@ import {
   Eye,
   Edit,
   Download,
+  Trash2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface QualityCheck {
   id: string;
@@ -48,7 +52,7 @@ interface QualityCheck {
   notes?: string;
 }
 
-const checks: QualityCheck[] = [
+const initialChecks: QualityCheck[] = [
   {
     id: "1",
     number: "QS-2024-001",
@@ -154,13 +158,49 @@ const statusLabels = {
 };
 
 export default function QualityControl() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [checkList, setCheckList] = useState<QualityCheck[]>(initialChecks);
 
-  const totalChecks = checks.length;
-  const passedChecks = checks.filter((c) => c.status === "passed").length;
-  const failedChecks = checks.filter((c) => c.status === "failed").length;
-  const passRate = totalChecks > 0 ? (passedChecks / (passedChecks + failedChecks)) * 100 : 0;
+  const totalChecks = checkList.length;
+  const passedChecks = checkList.filter((c) => c.status === "passed").length;
+  const failedChecks = checkList.filter((c) => c.status === "failed").length;
+  const conditionalChecks = checkList.filter((c) => c.status === "conditional").length;
+  const passRate = (passedChecks + failedChecks) > 0 ? (passedChecks / (passedChecks + failedChecks)) * 100 : 0;
+
+  const filteredChecks = checkList.filter((check) => {
+    const matchesSearch = check.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      check.number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || check.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDelete = (e: React.MouseEvent, checkId: string) => {
+    e.stopPropagation();
+    setCheckList(checkList.filter(c => c.id !== checkId));
+    toast.success("Prüfung gelöscht");
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, check: QualityCheck) => {
+    e.stopPropagation();
+    const newCheck: QualityCheck = {
+      ...check,
+      id: Date.now().toString(),
+      number: `QS-2024-${String(checkList.length + 1).padStart(3, '0')}`,
+      status: "pending",
+      passedChecks: 0,
+      failedChecks: 0,
+      photos: 0,
+    };
+    setCheckList([...checkList, newCheck]);
+    toast.success("Prüfung dupliziert");
+  };
+
+  const handleExportPDF = (e: React.MouseEvent, check: QualityCheck) => {
+    e.stopPropagation();
+    toast.success(`PDF für ${check.number} wird erstellt...`);
+  };
 
   return (
     <div className="space-y-6">
@@ -178,7 +218,7 @@ export default function QualityControl() {
             <FileText className="h-4 w-4" />
             Checkliste
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/quality-control/new")}>
             <Plus className="h-4 w-4" />
             Neue Prüfung
           </Button>
@@ -187,7 +227,13 @@ export default function QualityControl() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <ClipboardCheck className="h-6 w-6 text-primary" />
@@ -198,7 +244,13 @@ export default function QualityControl() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "passed" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("passed")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <CheckCircle2 className="h-6 w-6 text-success" />
@@ -209,7 +261,13 @@ export default function QualityControl() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-destructive/50",
+            statusFilter === "failed" ? "border-destructive ring-2 ring-destructive/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("failed")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
               <XCircle className="h-6 w-6 text-destructive" />
@@ -220,14 +278,20 @@ export default function QualityControl() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "conditional" ? "border-warning ring-2 ring-warning/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("conditional")}
+        >
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
-              <AlertTriangle className="h-6 w-6 text-info" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
+              <AlertTriangle className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Erfolgsquote</p>
-              <p className="text-2xl font-bold">{passRate.toFixed(0)}%</p>
+              <p className="text-sm text-muted-foreground">Bedingt</p>
+              <p className="text-2xl font-bold text-warning">{conditionalChecks}</p>
             </div>
           </div>
         </div>
@@ -244,27 +308,29 @@ export default function QualityControl() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Typ" />
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Typen</SelectItem>
-            <SelectItem value="incoming">Wareneingang</SelectItem>
-            <SelectItem value="production">Produktion</SelectItem>
-            <SelectItem value="final">Endabnahme</SelectItem>
-            <SelectItem value="audit">Audit</SelectItem>
+            <SelectItem value="all">Alle Status</SelectItem>
+            <SelectItem value="pending">Ausstehend</SelectItem>
+            <SelectItem value="in_progress">In Prüfung</SelectItem>
+            <SelectItem value="passed">Bestanden</SelectItem>
+            <SelectItem value="failed">Nicht bestanden</SelectItem>
+            <SelectItem value="conditional">Bedingt</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Check List */}
       <div className="space-y-4">
-        {checks.map((check, index) => (
+        {filteredChecks.map((check, index) => (
           <div
             key={check.id}
-            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 50}ms` }}
+            onClick={() => navigate(`/quality-control/${check.id}`)}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start gap-4">
@@ -300,7 +366,7 @@ export default function QualityControl() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 {check.photos > 0 && (
                   <Badge variant="outline" className="gap-1">
                     <Camera className="h-3 w-3" />
@@ -314,17 +380,25 @@ export default function QualityControl() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/quality-control/${check.id}`)}>
                       <Eye className="h-4 w-4 mr-2" />
                       Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/quality-control/${check.id}`)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleDuplicate(e, check)}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplizieren
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleExportPDF(e, check)}>
                       <Download className="h-4 w-4 mr-2" />
                       PDF exportieren
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, check.id)}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Löschen
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -363,6 +437,14 @@ export default function QualityControl() {
             )}
           </div>
         ))}
+
+        {filteredChecks.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
+            <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Keine Prüfungen gefunden</p>
+            <p className="text-sm">Passen Sie die Filter an oder erstellen Sie eine neue Prüfung</p>
+          </div>
+        )}
       </div>
     </div>
   );

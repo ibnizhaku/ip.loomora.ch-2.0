@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -15,6 +16,8 @@ import {
   List,
   Upload,
   FolderOpen,
+  Eye,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Document {
   id: string;
@@ -38,7 +42,7 @@ interface Document {
   items?: number;
 }
 
-const documents: Document[] = [
+const initialDocuments: Document[] = [
   {
     id: "1",
     name: "Projektverträge",
@@ -122,15 +126,54 @@ const typeConfig = {
 };
 
 export default function Documents() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [documentList, setDocumentList] = useState<Document[]>(initialDocuments);
 
-  const filteredDocuments = documents.filter((d) =>
+  const filteredDocuments = documentList.filter((d) =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const folders = filteredDocuments.filter((d) => d.type === "folder");
   const files = filteredDocuments.filter((d) => d.type !== "folder");
+
+  const handleDelete = (e: React.MouseEvent, docId: string) => {
+    e.stopPropagation();
+    setDocumentList(documentList.filter(d => d.id !== docId));
+    toast.success("Dokument gelöscht");
+  };
+
+  const handleDownload = (e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    toast.success(`${doc.name} wird heruntergeladen...`);
+  };
+
+  const handleShare = (e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    setDocumentList(documentList.map(d => 
+      d.id === doc.id ? { ...d, shared: !d.shared } : d
+    ));
+    toast.success(doc.shared ? "Freigabe aufgehoben" : "Dokument freigegeben");
+  };
+
+  const handleUpload = () => {
+    toast.success("Upload-Dialog würde sich öffnen...");
+  };
+
+  const handleNewFolder = () => {
+    const newFolder: Document = {
+      id: Date.now().toString(),
+      name: "Neuer Ordner",
+      type: "folder",
+      modifiedDate: "gerade eben",
+      modifiedBy: "Max Keller",
+      shared: false,
+      items: 0,
+    };
+    setDocumentList([newFolder, ...documentList]);
+    toast.success("Ordner erstellt");
+  };
 
   return (
     <div className="space-y-6">
@@ -145,11 +188,11 @@ export default function Documents() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleNewFolder}>
             <FolderOpen className="h-4 w-4" />
             Neuer Ordner
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={handleUpload}>
             <Upload className="h-4 w-4" />
             Hochladen
           </Button>
@@ -164,7 +207,7 @@ export default function Documents() {
               <File className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{documents.length}</p>
+              <p className="text-2xl font-bold">{documentList.length}</p>
               <p className="text-sm text-muted-foreground">Dokumente</p>
             </div>
           </div>
@@ -176,7 +219,7 @@ export default function Documents() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {documents.filter((d) => d.type === "folder").length}
+                {documentList.filter((d) => d.type === "folder").length}
               </p>
               <p className="text-sm text-muted-foreground">Ordner</p>
             </div>
@@ -189,7 +232,7 @@ export default function Documents() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {documents.filter((d) => d.shared).length}
+                {documentList.filter((d) => d.shared).length}
               </p>
               <p className="text-sm text-muted-foreground">Geteilt</p>
             </div>
@@ -263,6 +306,7 @@ export default function Documents() {
                   "group flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
                 )}
                 style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/documents/${folder.id}`)}
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <Folder className="h-6 w-6 text-primary" />
@@ -274,7 +318,7 @@ export default function Documents() {
                   </p>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -284,10 +328,20 @@ export default function Documents() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Öffnen</DropdownMenuItem>
-                    <DropdownMenuItem>Umbenennen</DropdownMenuItem>
-                    <DropdownMenuItem>Teilen</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem onClick={() => navigate(`/documents/${folder.id}`)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Öffnen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Umbenennen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleShare(e, folder)}>
+                      <Share className="h-4 w-4 mr-2" />
+                      {folder.shared ? "Freigabe aufheben" : "Teilen"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, folder.id)}>
+                      <Trash className="h-4 w-4 mr-2" />
                       Löschen
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -320,6 +374,7 @@ export default function Documents() {
                     view === "list" && "flex items-center gap-4"
                   )}
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/documents/${file.id}`)}
                 >
                   <div
                     className={cn(
@@ -338,7 +393,7 @@ export default function Documents() {
                       </p>
                     </div>
                     {view === "list" && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         {file.shared && (
                           <Badge variant="outline" className="text-xs">
                             Geteilt
@@ -355,16 +410,16 @@ export default function Documents() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2">
-                              <Download className="h-4 w-4" />
+                            <DropdownMenuItem onClick={(e) => handleDownload(e, file)}>
+                              <Download className="h-4 w-4 mr-2" />
                               Herunterladen
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              <Share className="h-4 w-4" />
-                              Teilen
+                            <DropdownMenuItem onClick={(e) => handleShare(e, file)}>
+                              <Share className="h-4 w-4 mr-2" />
+                              {file.shared ? "Freigabe aufheben" : "Teilen"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive">
-                              <Trash className="h-4 w-4" />
+                            <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
+                              <Trash className="h-4 w-4 mr-2" />
                               Löschen
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -373,7 +428,7 @@ export default function Documents() {
                     )}
                   </div>
                   {view === "grid" && (
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-2" onClick={(e) => e.stopPropagation()}>
                       {file.shared && (
                         <Badge variant="outline" className="text-xs">
                           Geteilt
@@ -390,16 +445,16 @@ export default function Documents() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2">
-                            <Download className="h-4 w-4" />
+                          <DropdownMenuItem onClick={(e) => handleDownload(e, file)}>
+                            <Download className="h-4 w-4 mr-2" />
                             Herunterladen
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <Share className="h-4 w-4" />
-                            Teilen
+                          <DropdownMenuItem onClick={(e) => handleShare(e, file)}>
+                            <Share className="h-4 w-4 mr-2" />
+                            {file.shared ? "Freigabe aufheben" : "Teilen"}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-destructive">
-                            <Trash className="h-4 w-4" />
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
+                            <Trash className="h-4 w-4 mr-2" />
                             Löschen
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -410,6 +465,14 @@ export default function Documents() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {filteredDocuments.length === 0 && (
+        <div className="py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
+          <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg">Keine Dokumente gefunden</p>
+          <p className="text-sm">Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner</p>
         </div>
       )}
     </div>

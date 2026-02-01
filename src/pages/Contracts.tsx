@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -13,6 +14,9 @@ import {
   Download,
   Edit,
   Euro,
+  Trash2,
+  Copy,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Contract {
   id: string;
@@ -48,7 +53,7 @@ interface Contract {
   daysLeft?: number;
 }
 
-const contracts: Contract[] = [
+const initialContracts: Contract[] = [
   {
     id: "1",
     number: "VTR-2024-001",
@@ -142,19 +147,57 @@ const typeConfig = {
 };
 
 export default function Contracts() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [contractList, setContractList] = useState<Contract[]>(initialContracts);
 
-  const filteredContracts = contracts.filter(
-    (c) =>
-      c.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredContracts = contractList.filter((c) => {
+    const matchesSearch = c.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.client.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      c.client.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  const totalValue = contracts
-    .filter((c) => c.status === "active")
-    .reduce((acc, c) => acc + c.value, 0);
-  const expiringCount = contracts.filter((c) => c.status === "expiring").length;
+  const totalValue = contractList.filter((c) => c.status === "active").reduce((acc, c) => acc + c.value, 0);
+  const expiringCount = contractList.filter((c) => c.status === "expiring").length;
+  const activeCount = contractList.filter((c) => c.status === "active").length;
+
+  const handleDelete = (e: React.MouseEvent, contractId: string) => {
+    e.stopPropagation();
+    setContractList(contractList.filter(c => c.id !== contractId));
+    toast.success("Vertrag gelöscht");
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, contract: Contract) => {
+    e.stopPropagation();
+    const newContract: Contract = {
+      ...contract,
+      id: Date.now().toString(),
+      number: `VTR-2024-${String(contractList.length + 1).padStart(3, '0')}`,
+      title: `${contract.title} (Kopie)`,
+      status: "draft",
+    };
+    setContractList([...contractList, newContract]);
+    toast.success("Vertrag dupliziert");
+  };
+
+  const handleRenew = (e: React.MouseEvent, contract: Contract) => {
+    e.stopPropagation();
+    setContractList(contractList.map(c => 
+      c.id === contract.id ? { ...c, status: "active" as const, daysLeft: 365 } : c
+    ));
+    toast.success("Vertrag verlängert");
+  };
+
+  const handleTerminate = (e: React.MouseEvent, contractId: string) => {
+    e.stopPropagation();
+    setContractList(contractList.map(c => 
+      c.id === contractId ? { ...c, status: "terminated" as const } : c
+    ));
+    toast.success("Vertrag gekündigt");
+  };
 
   return (
     <div className="space-y-6">
@@ -168,7 +211,7 @@ export default function Contracts() {
             Verwalten Sie Ihre Kundenverträge
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/contracts/new")}>
           <Plus className="h-4 w-4" />
           Neuer Vertrag
         </Button>
@@ -176,31 +219,47 @@ export default function Contracts() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <FileText className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{contracts.length}</p>
+              <p className="text-2xl font-bold">{contractList.length}</p>
               <p className="text-sm text-muted-foreground">Verträge gesamt</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "active" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("active")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
               <CheckCircle className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {contracts.filter((c) => c.status === "active").length}
-              </p>
+              <p className="text-2xl font-bold">{activeCount}</p>
               <p className="text-sm text-muted-foreground">Aktive Verträge</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "expiring" ? "border-warning ring-2 ring-warning/20" : "border-border"
+          )}
+          onClick={() => setStatusFilter("expiring")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
               <AlertTriangle className="h-5 w-5 text-warning" />
@@ -217,7 +276,7 @@ export default function Contracts() {
               <Euro className="h-5 w-5 text-info" />
             </div>
             <div>
-              <p className="text-2xl font-bold">€{totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalValue.toLocaleString()}</p>
               <p className="text-sm text-muted-foreground">Aktiver Wert</p>
             </div>
           </div>
@@ -236,7 +295,7 @@ export default function Contracts() {
               Überprüfen Sie die Verträge und verlängern Sie sie bei Bedarf.
             </p>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setStatusFilter("expiring")}>
             Anzeigen
           </Button>
         </div>
@@ -280,6 +339,7 @@ export default function Contracts() {
                   key={contract.id}
                   className="cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/contracts/${contract.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -324,9 +384,9 @@ export default function Contracts() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    €{contract.value.toLocaleString()}
+                    CHF {contract.value.toLocaleString()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -334,18 +394,35 @@ export default function Contracts() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
-                          <Edit className="h-4 w-4" />
+                        <DropdownMenuItem onClick={() => navigate(`/contracts/${contract.id}`)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/contracts/${contract.id}`)}>
+                          <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
-                          <Download className="h-4 w-4" />
+                        <DropdownMenuItem onClick={(e) => handleDuplicate(e, contract)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplizieren
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast.success("PDF wird heruntergeladen...")}>
+                          <Download className="h-4 w-4 mr-2" />
                           Herunterladen
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Verlängern</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Kündigen
+                        {(contract.status === "expiring" || contract.status === "expired") && (
+                          <DropdownMenuItem onClick={(e) => handleRenew(e, contract)}>
+                            Verlängern
+                          </DropdownMenuItem>
+                        )}
+                        {contract.status === "active" && (
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => handleTerminate(e, contract.id)}>
+                            Kündigen
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, contract.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -355,6 +432,14 @@ export default function Contracts() {
             })}
           </TableBody>
         </Table>
+
+        {filteredContracts.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground">
+            <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg">Keine Verträge gefunden</p>
+            <p className="text-sm">Passen Sie die Filter an oder erstellen Sie einen neuen Vertrag</p>
+          </div>
+        )}
       </div>
     </div>
   );
