@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { 
   Plus, 
   Search, 
@@ -15,7 +15,6 @@ import {
   Video,
   MapPin,
   MoreHorizontal,
-  Euro,
   TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,21 +38,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const trainings = [
-  { id: 1, title: "Agile Projektmanagement", type: "Workshop", trainer: "Extern", date: "15.02.2024", duration: "2 Tage", participants: 8, maxParticipants: 12, status: "Geplant", cost: 2400 },
-  { id: 2, title: "React Advanced Patterns", type: "Online-Kurs", trainer: "Intern", date: "01.02.2024", duration: "4 Wochen", participants: 5, maxParticipants: 10, status: "Laufend", cost: 0 },
-  { id: 3, title: "Führungskräfte-Coaching", type: "Coaching", trainer: "Extern", date: "20.02.2024", duration: "1 Tag", participants: 4, maxParticipants: 6, status: "Geplant", cost: 1800 },
-  { id: 4, title: "DSGVO Compliance", type: "E-Learning", trainer: "Extern", date: "10.01.2024", duration: "2 Stunden", participants: 24, maxParticipants: 30, status: "Abgeschlossen", cost: 500 },
-  { id: 5, title: "AWS Cloud Practitioner", type: "Zertifizierung", trainer: "Extern", date: "01.03.2024", duration: "3 Tage", participants: 3, maxParticipants: 5, status: "Geplant", cost: 3500 },
+  { id: "1", title: "Schweissen Grundkurs MIG/MAG", type: "Workshop", trainer: "Extern", date: "15.02.2024", duration: "2 Tage", participants: 6, maxParticipants: 8, status: "Geplant", cost: 1800 },
+  { id: "2", title: "Arbeitssicherheit SUVA", type: "E-Learning", trainer: "SUVA", date: "01.02.2024", duration: "4 Stunden", participants: 12, maxParticipants: 15, status: "Laufend", cost: 0 },
+  { id: "3", title: "Vorarbeiter-Führung", type: "Coaching", trainer: "Extern", date: "20.02.2024", duration: "1 Tag", participants: 3, maxParticipants: 4, status: "Geplant", cost: 2400 },
+  { id: "4", title: "Erste Hilfe Auffrischung", type: "Workshop", trainer: "Samariter", date: "10.01.2024", duration: "1 Tag", participants: 8, maxParticipants: 10, status: "Abgeschlossen", cost: 800 },
+  { id: "5", title: "Metallbaukonstrukteur Weiterbildung", type: "Zertifizierung", trainer: "SMU", date: "01.03.2024", duration: "5 Tage", participants: 2, maxParticipants: 3, status: "Geplant", cost: 4500 },
 ];
 
 const employeeTrainings = [
-  { id: "1", name: "Anna Schmidt", completedTrainings: 5, plannedTrainings: 2, certificates: 3, hoursThisYear: 48 },
-  { id: "2", name: "Thomas Müller", completedTrainings: 3, plannedTrainings: 1, certificates: 2, hoursThisYear: 32 },
-  { id: "3", name: "Lisa Weber", completedTrainings: 4, plannedTrainings: 2, certificates: 1, hoursThisYear: 40 },
-  { id: "4", name: "Michael Braun", completedTrainings: 6, plannedTrainings: 1, certificates: 4, hoursThisYear: 56 },
-  { id: "5", name: "Sarah Koch", completedTrainings: 2, plannedTrainings: 3, certificates: 1, hoursThisYear: 24 },
+  { id: "1", name: "Thomas Müller", completedTrainings: 5, plannedTrainings: 2, certificates: 3, hoursThisYear: 48 },
+  { id: "2", name: "Lisa Weber", completedTrainings: 4, plannedTrainings: 2, certificates: 2, hoursThisYear: 40 },
+  { id: "3", name: "Michael Schneider", completedTrainings: 6, plannedTrainings: 1, certificates: 4, hoursThisYear: 56 },
+  { id: "4", name: "Sandra Fischer", completedTrainings: 3, plannedTrainings: 1, certificates: 1, hoursThisYear: 32 },
+  { id: "5", name: "Hans Keller", completedTrainings: 8, plannedTrainings: 2, certificates: 5, hoursThisYear: 64 },
 ];
 
 const typeConfig: Record<string, { color: string; icon: any }> = {
@@ -71,19 +72,34 @@ const statusConfig: Record<string, { color: string }> = {
   "Abgesagt": { color: "bg-destructive/10 text-destructive" },
 };
 
-const stats = [
-  { title: "Schulungen 2024", value: "12", icon: GraduationCap },
-  { title: "Teilnehmer", value: "44", icon: Users },
-  { title: "Ø Stunden/MA", value: "40h", icon: Clock },
-  { title: "Budget genutzt", value: "68%", icon: Euro },
-];
+const formatCHF = (amount: number) => {
+  return amount.toLocaleString("de-CH", { minimumFractionDigits: 0 });
+};
 
 const Training = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-  const filteredTrainings = trainings.filter(t =>
-    t.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const totalTrainings = trainings.length;
+  const totalParticipants = trainings.reduce((sum, t) => sum + t.participants, 0);
+  const avgHours = Math.round(employeeTrainings.reduce((sum, e) => sum + e.hoursThisYear, 0) / employeeTrainings.length);
+  const totalBudget = 15000;
+  const usedBudget = trainings.reduce((sum, t) => sum + t.cost, 0);
+  const budgetPercent = Math.round((usedBudget / totalBudget) * 100);
+
+  const handleStatClick = (filter: string | null) => {
+    setStatusFilter(statusFilter === filter ? null : filter);
+  };
+
+  const filteredTrainings = trainings.filter(t => {
+    const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || 
+      (statusFilter === "planned" && t.status === "Geplant") ||
+      (statusFilter === "running" && t.status === "Laufend") ||
+      (statusFilter === "completed" && t.status === "Abgeschlossen");
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -91,9 +107,9 @@ const Training = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Schulungen</h1>
-          <p className="text-muted-foreground">Verwalten Sie Weiterbildungen und Zertifizierungen</p>
+          <p className="text-muted-foreground">Weiterbildungen und Zertifizierungen verwalten</p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/training/new")}>
           <Plus className="h-4 w-4 mr-2" />
           Schulung planen
         </Button>
@@ -101,21 +117,76 @@ const Training = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <stat.icon className="h-5 w-5 text-primary" />
-                </div>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            !statusFilter && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatClick(null)}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{totalTrainings}</div>
+                <p className="text-sm text-muted-foreground">Schulungen 2024</p>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <GraduationCap className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{totalParticipants}</div>
+                <p className="text-sm text-muted-foreground">Teilnehmer</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
+                <Users className="h-5 w-5 text-info" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-warning/50",
+            statusFilter === "running" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatClick("running")}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{avgHours}h</div>
+                <p className="text-sm text-muted-foreground">Ø Stunden/MA</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+                <Clock className="h-5 w-5 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-success/50",
+            statusFilter === "completed" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatClick("completed")}
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold">{budgetPercent}%</div>
+                <p className="text-sm text-muted-foreground">Budget genutzt</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <TrendingUp className="h-5 w-5 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Budget Progress */}
@@ -125,13 +196,13 @@ const Training = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">€8.200 von €12.000 verwendet</span>
-            <span className="text-sm font-medium">68%</span>
+            <span className="text-sm text-muted-foreground">CHF {formatCHF(usedBudget)} von CHF {formatCHF(totalBudget)} verwendet</span>
+            <span className="text-sm font-medium">{budgetPercent}%</span>
           </div>
-          <Progress value={68} className="h-3" />
+          <Progress value={budgetPercent} className="h-3" />
           <div className="flex justify-between text-xs text-muted-foreground mt-2">
-            <span>Verbleibend: €3.800</span>
-            <span>5 geplante Schulungen: €7.700</span>
+            <span>Verbleibend: CHF {formatCHF(totalBudget - usedBudget)}</span>
+            <span>{trainings.filter(t => t.status === "Geplant").length} geplante Schulungen</span>
           </div>
         </CardContent>
       </Card>
@@ -179,17 +250,21 @@ const Training = () => {
                   {filteredTrainings.map((training) => {
                     const type = typeConfig[training.type];
                     const status = statusConfig[training.status];
-                    const TypeIcon = type.icon;
+                    const TypeIcon = type?.icon || BookOpen;
                     return (
-                      <TableRow key={training.id}>
+                      <TableRow 
+                        key={training.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/training/${training.id}`)}
+                      >
                         <TableCell>
                           <div>
-                            <p className="font-medium">{training.title}</p>
+                            <p className="font-medium hover:text-primary">{training.title}</p>
                             <p className="text-sm text-muted-foreground">{training.trainer}</p>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={type.color}>
+                          <Badge className={type?.color || "bg-muted"}>
                             <TypeIcon className="h-3 w-3 mr-1" />
                             {training.type}
                           </Badge>
@@ -206,23 +281,36 @@ const Training = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {training.cost > 0 ? `€${training.cost.toLocaleString()}` : "Kostenlos"}
+                          {training.cost > 0 ? `CHF ${formatCHF(training.cost)}` : "Kostenlos"}
                         </TableCell>
                         <TableCell>
-                          <Badge className={status.color}>{training.status}</Badge>
+                          <Badge className={status?.color}>{training.status}</Badge>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>Details anzeigen</DropdownMenuItem>
-                              <DropdownMenuItem>Teilnehmer verwalten</DropdownMenuItem>
-                              <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Absagen</DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}>
+                                Details anzeigen
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Teilnehmerverwaltung geöffnet"); }}>
+                                Teilnehmer verwalten
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Bearbeitungsmodus"); }}>
+                                Bearbeiten
+                              </DropdownMenuItem>
+                              {training.status === "Geplant" && (
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); toast.error("Schulung abgesagt"); }}
+                                >
+                                  Absagen
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -257,11 +345,15 @@ const Training = () => {
                     const targetHours = 48;
                     const progressPercent = (emp.hoursThisYear / targetHours) * 100;
                     return (
-                      <TableRow key={emp.id}>
+                      <TableRow 
+                        key={emp.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/hr/${emp.id}`)}
+                      >
                         <TableCell>
-                          <Link to={`/hr/${emp.id}`} className="font-medium hover:text-primary">
+                          <span className="font-medium hover:text-primary">
                             {emp.name}
-                          </Link>
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">{emp.completedTrainings}</TableCell>
                         <TableCell className="text-right text-info">{emp.plannedTrainings}</TableCell>
@@ -290,14 +382,18 @@ const Training = () => {
         <TabsContent value="catalog">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { title: "Projektmanagement Basics", category: "Management", duration: "1 Tag", provider: "Haufe Akademie" },
-              { title: "TypeScript für Fortgeschrittene", category: "Entwicklung", duration: "2 Tage", provider: "Codecademy" },
-              { title: "Kommunikationstraining", category: "Soft Skills", duration: "1 Tag", provider: "Intern" },
-              { title: "AWS Solutions Architect", category: "Cloud", duration: "5 Tage", provider: "AWS" },
-              { title: "Scrum Master Zertifizierung", category: "Agile", duration: "2 Tage", provider: "Scrum.org" },
-              { title: "Design Thinking Workshop", category: "Innovation", duration: "1 Tag", provider: "IDEO" },
+              { title: "Schweissen MIG/MAG Fortgeschritten", category: "Technik", duration: "3 Tage", provider: "SVBL" },
+              { title: "CAD/CAM Metallbau", category: "Software", duration: "2 Tage", provider: "Autodesk" },
+              { title: "Arbeitssicherheit Metallbau", category: "Sicherheit", duration: "1 Tag", provider: "SUVA" },
+              { title: "Projektleitung im Metallbau", category: "Management", duration: "5 Tage", provider: "SMU" },
+              { title: "Montage-Koordination", category: "Technik", duration: "2 Tage", provider: "Intern" },
+              { title: "Qualitätsmanagement ISO 9001", category: "Qualität", duration: "2 Tage", provider: "SQS" },
             ].map((course, index) => (
-              <Card key={index} className="hover:border-primary/30 transition-colors cursor-pointer">
+              <Card 
+                key={index} 
+                className="hover:border-primary/30 transition-colors cursor-pointer"
+                onClick={() => toast.info(`Kurs: ${course.title}`)}
+              >
                 <CardContent className="pt-6">
                   <Badge variant="outline" className="mb-3">{course.category}</Badge>
                   <h3 className="font-semibold mb-2">{course.title}</h3>

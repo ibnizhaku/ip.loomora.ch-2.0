@@ -54,8 +54,10 @@ import AbsenceDetail from "./pages/AbsenceDetail";
 import AbsenceCreate from "./pages/AbsenceCreate";
 import Recruiting from "./pages/Recruiting";
 import CandidateDetail from "./pages/CandidateDetail";
+import JobPostingCreate from "./pages/JobPostingCreate";
 import Training from "./pages/Training";
 import TrainingDetail from "./pages/TrainingDetail";
+import TrainingCreate from "./pages/TrainingCreate";
 import Orgchart from "./pages/Orgchart";
 import Tasks from "./pages/Tasks";
 import TaskDetail from "./pages/TaskDetail";
@@ -94,6 +96,7 @@ import Reminders from "./pages/Reminders";
 import ReminderDetail from "./pages/ReminderDetail";
 import TravelExpenses from "./pages/TravelExpenses";
 import TravelExpenseDetail from "./pages/TravelExpenseDetail";
+import TravelExpenseCreate from "./pages/TravelExpenseCreate";
 import Users from "./pages/Users";
 import UserDetail from "./pages/UserDetail";
 import Reviews from "./pages/Reviews";
@@ -280,6 +283,7 @@ const App = () => (
                   <Route path="/products" element={<Products />} />
                   <Route path="/products/:id" element={<ProductDetail />} />
                   <Route path="/travel-expenses" element={<TravelExpenses />} />
+                  <Route path="/travel-expenses/new" element={<TravelExpenseCreate />} />
                   <Route path="/travel-expenses/:id" element={<TravelExpenseDetail />} />
                   
                   {/* Marketing */}
@@ -322,8 +326,10 @@ const App = () => (
                   <Route path="/absences/new" element={<AbsenceCreate />} />
                   <Route path="/absences/:id" element={<AbsenceDetail />} />
                   <Route path="/recruiting" element={<Recruiting />} />
+                  <Route path="/recruiting/new" element={<JobPostingCreate />} />
                   <Route path="/recruiting/:id" element={<CandidateDetail />} />
                   <Route path="/training" element={<Training />} />
+                  <Route path="/training/new" element={<TrainingCreate />} />
                   <Route path="/training/:id" element={<TrainingDetail />} />
                   <Route path="/orgchart" element={<Orgchart />} />
                   
