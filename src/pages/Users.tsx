@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -10,12 +11,15 @@ import {
   Mail,
   Key,
   UserCog,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -30,6 +34,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface User {
@@ -114,13 +133,60 @@ const statusConfig = {
 };
 
 export default function Users() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [twoFactorFilter, setTwoFactorFilter] = useState<boolean | null>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    email: "",
+    name: "",
+    role: "user" as User["role"],
+  });
 
-  const filteredUsers = users.filter(
-    (u) =>
+  const handleStatClick = (filter: string, type: "status" | "role" | "2fa") => {
+    if (type === "status") {
+      setStatusFilter(statusFilter === filter ? null : filter);
+      setRoleFilter(null);
+      setTwoFactorFilter(null);
+    } else if (type === "role") {
+      setRoleFilter(roleFilter === filter ? null : filter);
+      setStatusFilter(null);
+      setTwoFactorFilter(null);
+    } else if (type === "2fa") {
+      setTwoFactorFilter(twoFactorFilter === true ? null : true);
+      setStatusFilter(null);
+      setRoleFilter(null);
+    }
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      u.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter ? u.status === statusFilter : true;
+    const matchesRole = roleFilter ? u.role === roleFilter : true;
+    const matches2FA = twoFactorFilter !== null ? u.twoFactor === twoFactorFilter : true;
+    return matchesSearch && matchesStatus && matchesRole && matches2FA;
+  });
+
+  const handleInvite = () => {
+    if (!inviteForm.email || !inviteForm.name) {
+      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
+      return;
+    }
+    
+    toast.success("Einladung gesendet", {
+      description: `${inviteForm.name} (${inviteForm.email}) wurde eingeladen`
+    });
+    setShowInviteDialog(false);
+    setInviteForm({ email: "", name: "", role: "user" });
+  };
+
+  const handleRowClick = (userId: string) => {
+    navigate(`/users/${userId}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -134,7 +200,7 @@ export default function Users() {
             Verwalten Sie Benutzer und Zugriffsrechte
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setShowInviteDialog(true)}>
           <Plus className="h-4 w-4" />
           Benutzer einladen
         </Button>
@@ -142,7 +208,17 @@ export default function Users() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border border-border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            statusFilter === null && roleFilter === null && twoFactorFilter === null && "ring-2 ring-primary"
+          )}
+          onClick={() => {
+            setStatusFilter(null);
+            setRoleFilter(null);
+            setTwoFactorFilter(null);
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <UserCog className="h-5 w-5 text-primary" />
@@ -153,7 +229,13 @@ export default function Users() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border border-border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            statusFilter === "active" && "ring-2 ring-success"
+          )}
+          onClick={() => handleStatClick("active", "status")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
               <ShieldCheck className="h-5 w-5 text-success" />
@@ -166,7 +248,13 @@ export default function Users() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border border-border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            roleFilter === "admin" && "ring-2 ring-destructive"
+          )}
+          onClick={() => handleStatClick("admin", "role")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
               <ShieldAlert className="h-5 w-5 text-destructive" />
@@ -179,7 +267,13 @@ export default function Users() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border border-border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            twoFactorFilter === true && "ring-2 ring-info"
+          )}
+          onClick={() => handleStatClick("2fa", "2fa")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
               <Key className="h-5 w-5 text-info" />
@@ -229,8 +323,9 @@ export default function Users() {
               return (
                 <TableRow
                   key={user.id}
-                  className="animate-fade-in"
+                  className="animate-fade-in cursor-pointer hover:bg-muted/50"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => handleRowClick(user.id)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -275,15 +370,29 @@ export default function Users() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Profil anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem>Rolle ändern</DropdownMenuItem>
-                        <DropdownMenuItem>Passwort zurücksetzen</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem onClick={() => navigate(`/users/${user.id}`)}>
+                          Profil anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast.info("Rolle ändern - Dialog öffnen")}>
+                          Rolle ändern
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast.success("Passwort-Reset E-Mail gesendet")}>
+                          Passwort zurücksetzen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => toast.warning(`${user.name} deaktiviert`)}
+                        >
                           Deaktivieren
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -295,6 +404,65 @@ export default function Users() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Invite Dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Benutzer einladen</DialogTitle>
+            <DialogDescription>
+              Senden Sie eine Einladung per E-Mail an einen neuen Benutzer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="inviteName">Name *</Label>
+              <Input
+                id="inviteName"
+                placeholder="Max Mustermann"
+                value={inviteForm.name}
+                onChange={(e) => setInviteForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inviteEmail">E-Mail *</Label>
+              <Input
+                id="inviteEmail"
+                type="email"
+                placeholder="max@firma.ch"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inviteRole">Rolle</Label>
+              <Select
+                value={inviteForm.role}
+                onValueChange={(value: User["role"]) => setInviteForm(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="user">Benutzer</SelectItem>
+                  <SelectItem value="viewer">Betrachter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleInvite}>
+              <Send className="mr-2 h-4 w-4" />
+              Einladung senden
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
