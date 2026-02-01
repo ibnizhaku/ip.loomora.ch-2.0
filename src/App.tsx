@@ -75,6 +75,10 @@ import Service from "./pages/Service";
 import ServiceDetail from "./pages/ServiceDetail";
 import QualityControl from "./pages/QualityControl";
 import QualityCheckDetail from "./pages/QualityCheckDetail";
+import QualityCheckCreate from "./pages/QualityCheckCreate";
+import ServiceCreate from "./pages/ServiceCreate";
+import ContractCreate from "./pages/ContractCreate";
+import DocumentUpload from "./pages/DocumentUpload";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import JournalEntries from "./pages/JournalEntries";
@@ -249,6 +253,7 @@ const App = () => (
                   <Route path="/budgets" element={<Budgets />} />
                   <Route path="/budgets/:id" element={<BudgetDetail />} />
                   <Route path="/contracts" element={<Contracts />} />
+                  <Route path="/contracts/new" element={<ContractCreate />} />
                   <Route path="/contracts/:id" element={<ContractDetail />} />
                   <Route path="/payments" element={<Payments />} />
                   <Route path="/payments/:id" element={<PaymentDetail />} />
@@ -278,6 +283,7 @@ const App = () => (
                   
                   {/* Dokumente */}
                   <Route path="/documents" element={<Documents />} />
+                  <Route path="/documents/new" element={<DocumentUpload />} />
                   <Route path="/documents/:id" element={<DocumentDetail />} />
                   
                   {/* HR / Personal */}
@@ -326,8 +332,10 @@ const App = () => (
                   <Route path="/swissdec" element={<Swissdec />} />
                   <Route path="/withholding-tax" element={<WithholdingTax />} />
                   <Route path="/service" element={<Service />} />
+                  <Route path="/service/new" element={<ServiceCreate />} />
                   <Route path="/service/:id" element={<ServiceDetail />} />
                   <Route path="/quality" element={<QualityControl />} />
+                  <Route path="/quality/new" element={<QualityCheckCreate />} />
                   <Route path="/quality/:id" element={<QualityCheckDetail />} />
                   <Route path="/login" element={<Login />} />
                   
