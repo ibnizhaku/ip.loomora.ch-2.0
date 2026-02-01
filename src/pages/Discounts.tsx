@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,23 @@ import {
   Trash2,
   TrendingUp,
 } from "lucide-react";
+import { toast } from "sonner";
 
-const discounts = [
+interface Discount {
+  id: string;
+  code: string;
+  type: "percentage" | "fixed" | "shipping";
+  value: number;
+  minOrder: number;
+  maxUses: number | null;
+  usedCount: number;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  revenue: number;
+}
+
+const initialDiscounts: Discount[] = [
   {
     id: "1",
     code: "WINTER2024",
@@ -115,15 +131,56 @@ const getTypeIcon = (type: string) => {
 };
 
 export default function Discounts() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [discounts, setDiscounts] = useState<Discount[]>(initialDiscounts);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "percentage" | "fixed" | "shipping">("all");
 
   const totalRevenue = discounts.reduce((sum, d) => sum + d.revenue, 0);
   const totalUsed = discounts.reduce((sum, d) => sum + d.usedCount, 0);
   const activeCount = discounts.filter((d) => d.active).length;
 
-  const filteredDiscounts = discounts.filter((discount) =>
-    discount.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDiscounts = discounts.filter((discount) => {
+    const matchesSearch = discount.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" && discount.active) || 
+      (statusFilter === "inactive" && !discount.active);
+    const matchesType = typeFilter === "all" || discount.type === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const handleToggleActive = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDiscounts(prev => prev.map(d => {
+      if (d.id === id) {
+        const newActive = !d.active;
+        toast.success(newActive ? `${d.code} aktiviert` : `${d.code} deaktiviert`);
+        return { ...d, active: newActive };
+      }
+      return d;
+    }));
+  };
+
+  const handleCopyCode = (code: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    toast.success(`Code "${code}" kopiert`);
+  };
+
+  const handleStatCardClick = (filter: "all" | "active" | "inactive") => {
+    setStatusFilter(statusFilter === filter ? "all" : filter);
+    setTypeFilter("all");
+  };
+
+  const handleTypeCardClick = (type: "percentage" | "fixed" | "shipping") => {
+    setTypeFilter(typeFilter === type ? "all" : type);
+    setStatusFilter("all");
+  };
+
+  const handleRowClick = (id: string) => {
+    navigate(`/discounts/${id}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -134,7 +191,7 @@ export default function Discounts() {
             Rabattcodes und Aktionen verwalten
           </p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/discounts/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Neuer Rabattcode
         </Button>
@@ -142,7 +199,10 @@ export default function Discounts() {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === "active" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleStatCardClick("active")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aktive Codes</CardTitle>
             <Tag className="h-4 w-4 text-muted-foreground" />
@@ -154,33 +214,36 @@ export default function Discounts() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md"
+          onClick={() => handleStatCardClick("all")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Einlösungen</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalUsed}</div>
+            <div className="text-2xl font-bold">{totalUsed.toLocaleString("de-CH")}</div>
             <p className="text-xs text-muted-foreground">
               Diesen Monat
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Umsatz mit Rabatt</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalRevenue.toLocaleString("de-DE")} €
+              {totalRevenue.toLocaleString("de-CH")} CHF
             </div>
             <p className="text-xs text-muted-foreground">
               Durch Rabattcodes
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ø Rabatt</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
@@ -208,6 +271,11 @@ export default function Discounts() {
         <Button variant="outline" size="icon">
           <Filter className="h-4 w-4" />
         </Button>
+        {(statusFilter !== "all" || typeFilter !== "all") && (
+          <Button variant="ghost" onClick={() => { setStatusFilter("all"); setTypeFilter("all"); }}>
+            Filter zurücksetzen
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -227,13 +295,22 @@ export default function Discounts() {
           </TableHeader>
           <TableBody>
             {filteredDiscounts.map((discount) => (
-              <TableRow key={discount.id}>
+              <TableRow 
+                key={discount.id} 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleRowClick(discount.id)}
+              >
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <code className="px-2 py-1 bg-muted rounded text-sm font-mono">
                       {discount.code}
                     </code>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      onClick={(e) => handleCopyCode(discount.code, e)}
+                    >
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
@@ -246,17 +323,17 @@ export default function Discounts() {
                 </TableCell>
                 <TableCell className="font-medium">
                   {discount.type === "percentage" && `${discount.value}%`}
-                  {discount.type === "fixed" && `${discount.value} €`}
+                  {discount.type === "fixed" && `${discount.value} CHF`}
                   {discount.type === "shipping" && "Kostenlos"}
                 </TableCell>
                 <TableCell>
-                  {discount.minOrder > 0 ? `${discount.minOrder} €` : "-"}
+                  {discount.minOrder > 0 ? `${discount.minOrder} CHF` : "-"}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm">
                     <Calendar className="h-3 w-3" />
-                    {new Date(discount.startDate).toLocaleDateString("de-DE")} -{" "}
-                    {new Date(discount.endDate).toLocaleDateString("de-DE")}
+                    {new Date(discount.startDate).toLocaleDateString("de-CH")} -{" "}
+                    {new Date(discount.endDate).toLocaleDateString("de-CH")}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
@@ -266,14 +343,17 @@ export default function Discounts() {
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  {discount.revenue.toLocaleString("de-DE")} €
+                  {discount.revenue.toLocaleString("de-CH")} CHF
                 </TableCell>
                 <TableCell>
-                  <Switch checked={discount.active} />
+                  <Switch 
+                    checked={discount.active} 
+                    onClick={(e) => handleToggleActive(discount.id, e)}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </div>
@@ -286,21 +366,30 @@ export default function Discounts() {
 
       {/* Quick Create Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-dashed cursor-pointer hover:shadow-md transition-shadow">
+        <Card 
+          className={`border-dashed cursor-pointer hover:shadow-md transition-shadow ${typeFilter === "percentage" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleTypeCardClick("percentage")}
+        >
           <CardContent className="flex flex-col items-center justify-center py-6">
             <Percent className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="font-medium">Prozent-Rabatt</p>
             <p className="text-sm text-muted-foreground">z.B. 20% auf alles</p>
           </CardContent>
         </Card>
-        <Card className="border-dashed cursor-pointer hover:shadow-md transition-shadow">
+        <Card 
+          className={`border-dashed cursor-pointer hover:shadow-md transition-shadow ${typeFilter === "fixed" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleTypeCardClick("fixed")}
+        >
           <CardContent className="flex flex-col items-center justify-center py-6">
             <Tag className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="font-medium">Festbetrag</p>
-            <p className="text-sm text-muted-foreground">z.B. 10€ Rabatt</p>
+            <p className="text-sm text-muted-foreground">z.B. 10 CHF Rabatt</p>
           </CardContent>
         </Card>
-        <Card className="border-dashed cursor-pointer hover:shadow-md transition-shadow">
+        <Card 
+          className={`border-dashed cursor-pointer hover:shadow-md transition-shadow ${typeFilter === "shipping" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleTypeCardClick("shipping")}
+        >
           <CardContent className="flex flex-col items-center justify-center py-6">
             <ShoppingCart className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="font-medium">Kostenloser Versand</p>

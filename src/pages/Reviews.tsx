@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
   X,
   TrendingUp,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Review {
   id: string;
@@ -36,7 +38,7 @@ interface Review {
   hasResponse: boolean;
 }
 
-const reviews: Review[] = [
+const initialReviews: Review[] = [
   {
     id: "1",
     product: "Premium Widget Pro",
@@ -149,17 +151,79 @@ const StarRating = ({ rating }: { rating: number }) => (
 );
 
 export default function Reviews() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [reviews, setReviews] = useState<Review[]>(initialReviews);
+  const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "positive">("all");
 
   const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   const pendingCount = reviews.filter((r) => r.status === "pending").length;
+  const approvedCount = reviews.filter((r) => r.status === "approved").length;
+  const positiveCount = reviews.filter((r) => r.rating >= 4).length;
+  const positivePercentage = Math.round((positiveCount / reviews.length) * 100);
+  const answeredCount = reviews.filter((r) => r.hasResponse).length;
+  const answeredPercentage = Math.round((answeredCount / reviews.length) * 100);
 
-  const filteredReviews = reviews.filter(
-    (review) =>
+  const filteredReviews = reviews.filter((review) => {
+    const matchesSearch = 
       review.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
       review.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      review.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRating = ratingFilter === "all" || review.rating === ratingFilter;
+    const matchesStatus = 
+      statusFilter === "all" || 
+      review.status === statusFilter ||
+      (statusFilter === "positive" && review.rating >= 4);
+    return matchesSearch && matchesRating && matchesStatus;
+  });
+
+  const handleApprove = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setReviews(prev => prev.map(r => {
+      if (r.id === id) {
+        toast.success(`Bewertung von ${r.customer} freigegeben`);
+        return { ...r, status: "approved" as const };
+      }
+      return r;
+    }));
+  };
+
+  const handleReject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setReviews(prev => prev.map(r => {
+      if (r.id === id) {
+        toast.success(`Bewertung von ${r.customer} abgelehnt`);
+        return { ...r, status: "rejected" as const };
+      }
+      return r;
+    }));
+  };
+
+  const handleReply = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const review = reviews.find(r => r.id === id);
+    toast.info(`Antwort an ${review?.customer} wird vorbereitet`);
+  };
+
+  const handleFlag = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.warning("Bewertung als problematisch markiert");
+  };
+
+  const handleReviewClick = (id: string) => {
+    navigate(`/reviews/${id}`);
+  };
+
+  const handleStatCardClick = (filter: "all" | "pending" | "approved" | "positive") => {
+    setStatusFilter(statusFilter === filter ? "all" : filter);
+    setRatingFilter("all");
+  };
+
+  const handleRatingFilterClick = (stars: number) => {
+    setRatingFilter(ratingFilter === stars ? "all" : stars);
+    setStatusFilter("all");
+  };
 
   return (
     <div className="space-y-6">
@@ -171,7 +235,11 @@ export default function Reviews() {
           </p>
         </div>
         {pendingCount > 0 && (
-          <Badge variant="destructive" className="text-sm">
+          <Badge 
+            variant="destructive" 
+            className="text-sm cursor-pointer"
+            onClick={() => handleStatCardClick("pending")}
+          >
             {pendingCount} ausstehend
           </Badge>
         )}
@@ -179,7 +247,10 @@ export default function Reviews() {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md"
+          onClick={() => handleStatCardClick("all")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ø Bewertung</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
@@ -194,35 +265,44 @@ export default function Reviews() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === "pending" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleStatCardClick("pending")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gesamt</CardTitle>
+            <CardTitle className="text-sm font-medium">Ausstehend</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">300</div>
+            <div className="text-2xl font-bold">{pendingCount}</div>
             <p className="text-xs text-muted-foreground">
-              +24 diesen Monat
+              Zur Freigabe
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === "approved" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleStatCardClick("approved")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Beantwortet</CardTitle>
             <Check className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">78%</div>
-            <Progress value={78} className="mt-2" />
+            <div className="text-2xl font-bold">{answeredPercentage}%</div>
+            <Progress value={answeredPercentage} className="mt-2" />
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === "positive" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleStatCardClick("positive")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Positiv</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">90%</div>
+            <div className="text-2xl font-bold">{positivePercentage}%</div>
             <p className="text-xs text-muted-foreground">
               4-5 Sterne
             </p>
@@ -234,11 +314,16 @@ export default function Reviews() {
       <Card>
         <CardHeader>
           <CardTitle>Bewertungsverteilung</CardTitle>
+          <CardDescription>Klicken Sie auf eine Bewertung, um zu filtern</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             {ratingDistribution.map((item) => (
-              <div key={item.stars} className="flex items-center gap-3">
+              <div 
+                key={item.stars} 
+                className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-all hover:bg-muted ${ratingFilter === item.stars ? "bg-primary/10 ring-1 ring-primary" : ""}`}
+                onClick={() => handleRatingFilterClick(item.stars)}
+              >
                 <div className="flex items-center gap-1 w-16">
                   <span>{item.stars}</span>
                   <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
@@ -256,8 +341,8 @@ export default function Reviews() {
       <Tabs defaultValue="all" className="space-y-4">
         <div className="flex items-center justify-between">
           <TabsList>
-            <TabsTrigger value="all">Alle</TabsTrigger>
-            <TabsTrigger value="pending">
+            <TabsTrigger value="all" onClick={() => setStatusFilter("all")}>Alle</TabsTrigger>
+            <TabsTrigger value="pending" onClick={() => setStatusFilter("pending")}>
               Ausstehend
               {pendingCount > 0 && (
                 <Badge variant="secondary" className="ml-2">
@@ -265,8 +350,7 @@ export default function Reviews() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approved">Freigegeben</TabsTrigger>
-            <TabsTrigger value="rejected">Abgelehnt</TabsTrigger>
+            <TabsTrigger value="approved" onClick={() => setStatusFilter("approved")}>Freigegeben</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -281,12 +365,21 @@ export default function Reviews() {
             <Button variant="outline" size="icon">
               <Filter className="h-4 w-4" />
             </Button>
+            {(statusFilter !== "all" || ratingFilter !== "all") && (
+              <Button variant="ghost" onClick={() => { setStatusFilter("all"); setRatingFilter("all"); }}>
+                Filter zurücksetzen
+              </Button>
+            )}
           </div>
         </div>
 
         <TabsContent value="all" className="space-y-4">
           {filteredReviews.map((review) => (
-            <Card key={review.id}>
+            <Card 
+              key={review.id} 
+              className="cursor-pointer hover:shadow-md transition-all"
+              onClick={() => handleReviewClick(review.id)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
@@ -319,7 +412,7 @@ export default function Reviews() {
                           für {review.product}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          • {new Date(review.date).toLocaleDateString("de-DE")}
+                          • {new Date(review.date).toLocaleDateString("de-CH")}
                         </span>
                       </div>
                       <h4 className="font-medium mb-1">{review.title}</h4>
@@ -339,22 +432,124 @@ export default function Reviews() {
                   <div className="flex items-center gap-1">
                     {review.status === "pending" && (
                       <>
-                        <Button variant="ghost" size="icon" className="text-green-600">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-green-600"
+                          onClick={(e) => handleApprove(review.id, e)}
+                        >
                           <Check className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-red-600">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-red-600"
+                          onClick={(e) => handleReject(review.id, e)}
+                        >
                           <X className="h-4 w-4" />
                         </Button>
                       </>
                     )}
-                    <Button variant="ghost" size="icon">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={(e) => handleReply(review.id, e)}
+                    >
                       <MessageSquare className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={(e) => handleFlag(review.id, e)}
+                    >
                       <Flag className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                       <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-4">
+          {filteredReviews.filter(r => r.status === "pending").map((review) => (
+            <Card 
+              key={review.id} 
+              className="cursor-pointer hover:shadow-md transition-all"
+              onClick={() => handleReviewClick(review.id)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>
+                        {review.customer.split(" ").map((n) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{review.customer}</span>
+                        <Badge className={getStatusColor(review.status)} variant="secondary">Ausstehend</Badge>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <StarRating rating={review.rating} />
+                        <span className="text-sm text-muted-foreground">für {review.product}</span>
+                      </div>
+                      <h4 className="font-medium mb-1">{review.title}</h4>
+                      <p className="text-sm text-muted-foreground">{review.content}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="text-green-600" onClick={(e) => handleApprove(review.id, e)}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-red-600" onClick={(e) => handleReject(review.id, e)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="approved" className="space-y-4">
+          {filteredReviews.filter(r => r.status === "approved").map((review) => (
+            <Card 
+              key={review.id} 
+              className="cursor-pointer hover:shadow-md transition-all"
+              onClick={() => handleReviewClick(review.id)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>
+                        {review.customer.split(" ").map((n) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{review.customer}</span>
+                        <Badge className={getStatusColor(review.status)} variant="secondary">Freigegeben</Badge>
+                        {review.hasResponse && (
+                          <Badge variant="outline"><MessageSquare className="h-3 w-3 mr-1" />Beantwortet</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <StarRating rating={review.rating} />
+                        <span className="text-sm text-muted-foreground">für {review.product}</span>
+                      </div>
+                      <h4 className="font-medium mb-1">{review.title}</h4>
+                      <p className="text-sm text-muted-foreground">{review.content}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={(e) => handleReply(review.id, e)}>
+                      <MessageSquare className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

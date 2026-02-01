@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +24,24 @@ import {
   Settings,
   Globe,
 } from "lucide-react";
+import { toast } from "sonner";
 
-const shopOrders = [
+type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+type PaymentStatus = "paid" | "pending" | "refunded";
+
+interface ShopOrder {
+  id: string;
+  customer: string;
+  email: string;
+  items: number;
+  total: number;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  date: string;
+  shippingMethod: string;
+}
+
+const initialShopOrders: ShopOrder[] = [
   {
     id: "ORD-10234",
     customer: "Maria Schmidt",
@@ -121,11 +138,47 @@ const getPaymentColor = (status: string) => {
 };
 
 export default function Shop() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [shopOrders, setShopOrders] = useState<ShopOrder[]>(initialShopOrders);
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
 
-  const totalRevenue = shopOrders
-    .filter((o) => o.paymentStatus === "paid")
-    .reduce((sum, o) => sum + o.total, 0);
+  const paidOrders = shopOrders.filter((o) => o.paymentStatus === "paid");
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total, 0);
+  const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
+
+  const filteredOrders = shopOrders.filter((order) => {
+    const matchesSearch = 
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleStatCardClick = (filter: OrderStatus | "all") => {
+    setStatusFilter(statusFilter === filter ? "all" : filter);
+  };
+
+  const handleOrderClick = (orderId: string) => {
+    navigate(`/orders/${orderId}`);
+  };
+
+  const handleProductClick = (productId: string) => {
+    navigate(`/products/${productId}`);
+  };
+
+  const handleOpenShop = () => {
+    toast.success("Shop wird in neuem Tab geöffnet");
+    window.open("https://shop.example.com", "_blank");
+  };
+
+  const handleSettings = () => {
+    navigate("/settings");
+  };
+
+  const newOrdersCount = shopOrders.filter(o => o.status === "pending").length;
+  const processingCount = shopOrders.filter(o => o.status === "processing").length;
+  const shippedCount = shopOrders.filter(o => o.status === "shipped").length;
 
   return (
     <div className="space-y-6">
@@ -137,11 +190,11 @@ export default function Shop() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleOpenShop}>
             <Globe className="mr-2 h-4 w-4" />
             Shop öffnen
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleSettings}>
             <Settings className="mr-2 h-4 w-4" />
             Einstellungen
           </Button>
@@ -150,21 +203,24 @@ export default function Shop() {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="cursor-pointer transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Umsatz (Monat)</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €
+              {totalRevenue.toLocaleString("de-CH", { minimumFractionDigits: 2 })} CHF
             </div>
             <p className="text-xs text-muted-foreground">
               +12.5% vs. Vormonat
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === "pending" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => handleStatCardClick("pending")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Bestellungen</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -172,11 +228,11 @@ export default function Shop() {
           <CardContent>
             <div className="text-2xl font-bold">{shopOrders.length}</div>
             <p className="text-xs text-muted-foreground">
-              Heute: 12 neue
+              Heute: {newOrdersCount} neue
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
             <Eye className="h-4 w-4 text-muted-foreground" />
@@ -186,14 +242,14 @@ export default function Shop() {
             <Progress value={32} className="mt-2" />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ø Warenkorbwert</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(totalRevenue / shopOrders.filter((o) => o.paymentStatus === "paid").length).toFixed(2)} €
+              {avgOrderValue.toFixed(2)} CHF
             </div>
             <p className="text-xs text-muted-foreground">
               +8.3% vs. Vormonat
@@ -225,11 +281,34 @@ export default function Shop() {
               <Button variant="outline" size="icon">
                 <Filter className="h-4 w-4" />
               </Button>
+              {statusFilter !== "all" && (
+                <Button variant="ghost" onClick={() => setStatusFilter("all")}>
+                  Filter zurücksetzen
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">Neu: 2</Badge>
-              <Badge variant="outline">In Bearbeitung: 1</Badge>
-              <Badge variant="outline">Versendet: 1</Badge>
+              <Badge 
+                variant="outline" 
+                className={`cursor-pointer ${statusFilter === "pending" ? "bg-primary text-primary-foreground" : ""}`}
+                onClick={() => handleStatCardClick("pending")}
+              >
+                Neu: {newOrdersCount}
+              </Badge>
+              <Badge 
+                variant="outline"
+                className={`cursor-pointer ${statusFilter === "processing" ? "bg-primary text-primary-foreground" : ""}`}
+                onClick={() => handleStatCardClick("processing")}
+              >
+                In Bearbeitung: {processingCount}
+              </Badge>
+              <Badge 
+                variant="outline"
+                className={`cursor-pointer ${statusFilter === "shipped" ? "bg-primary text-primary-foreground" : ""}`}
+                onClick={() => handleStatCardClick("shipped")}
+              >
+                Versendet: {shippedCount}
+              </Badge>
             </div>
           </div>
 
@@ -248,8 +327,12 @@ export default function Shop() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shopOrders.map((order) => (
-                  <TableRow key={order.id}>
+                {filteredOrders.map((order) => (
+                  <TableRow 
+                    key={order.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleOrderClick(order.id)}
+                  >
                     <TableCell>
                       <div>
                         <p className="font-medium">{order.id}</p>
@@ -286,10 +369,10 @@ export default function Shop() {
                     </TableCell>
                     <TableCell className="text-right">{order.items}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {order.total.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €
+                      {order.total.toLocaleString("de-CH", { minimumFractionDigits: 2 })} CHF
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -320,7 +403,11 @@ export default function Shop() {
                 </TableHeader>
                 <TableBody>
                   {topProducts.map((product, index) => (
-                    <TableRow key={product.id}>
+                    <TableRow 
+                      key={product.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleProductClick(product.id)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted font-bold">
@@ -331,7 +418,7 @@ export default function Shop() {
                       </TableCell>
                       <TableCell className="text-right">{product.sales}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {product.revenue.toLocaleString("de-DE")} €
+                        {product.revenue.toLocaleString("de-CH")} CHF
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -345,7 +432,7 @@ export default function Shop() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -359,7 +446,7 @@ export default function Shop() {
 
         <TabsContent value="customers" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-all" onClick={() => navigate("/customers")}>
               <CardHeader>
                 <CardTitle className="text-lg">Neue Kunden</CardTitle>
               </CardHeader>
@@ -369,7 +456,7 @@ export default function Shop() {
                 <Progress value={75} className="mt-2" />
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-all">
               <CardHeader>
                 <CardTitle className="text-lg">Wiederkehrende Kunden</CardTitle>
               </CardHeader>
@@ -379,12 +466,12 @@ export default function Shop() {
                 <Progress value={34} className="mt-2" />
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-all">
               <CardHeader>
                 <CardTitle className="text-lg">Customer Lifetime Value</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">245 €</div>
+                <div className="text-3xl font-bold">245 CHF</div>
                 <p className="text-sm text-muted-foreground">Ø CLV</p>
                 <Progress value={60} className="mt-2" />
               </CardContent>
@@ -410,7 +497,7 @@ export default function Shop() {
                     <div className="flex items-center justify-between text-sm">
                       <span>{item.source}</span>
                       <span className="text-muted-foreground">
-                        {item.visits.toLocaleString("de-DE")} ({item.percentage}%)
+                        {item.visits.toLocaleString("de-CH")} ({item.percentage}%)
                       </span>
                     </div>
                     <Progress value={item.percentage} />
@@ -434,7 +521,7 @@ export default function Shop() {
                     <div className="flex items-center justify-between text-sm">
                       <span>{item.stage}</span>
                       <span className="text-muted-foreground">
-                        {item.count.toLocaleString("de-DE")} ({item.percentage}%)
+                        {item.count.toLocaleString("de-CH")} ({item.percentage}%)
                       </span>
                     </div>
                     <Progress value={item.percentage} />
