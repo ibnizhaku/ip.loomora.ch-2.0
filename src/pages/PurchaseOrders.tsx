@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { 
   Plus, 
   Search, 
@@ -11,7 +11,6 @@ import {
   Truck,
   Package,
   MoreHorizontal,
-  Euro
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +56,7 @@ const stats = [
 ];
 
 const PurchaseOrders = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredOrders = purchaseOrders.filter(order =>
@@ -72,7 +72,7 @@ const PurchaseOrders = () => {
           <h1 className="font-display text-3xl font-bold tracking-tight">Einkauf</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einkaufsbestellungen</p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/purchase-orders/new")}>
           <Plus className="h-4 w-4 mr-2" />
           Neue Bestellung
         </Button>
@@ -129,11 +129,13 @@ const PurchaseOrders = () => {
                 const status = statusConfig[order.status] || statusConfig["Entwurf"];
                 const StatusIcon = status.icon;
                 return (
-                  <TableRow key={order.id}>
+                  <TableRow 
+                    key={order.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/purchase-orders/${order.id}`)}
+                  >
                     <TableCell>
-                      <Link to={`/purchase-orders/${order.id}`} className="font-medium hover:text-primary">
-                        {order.id}
-                      </Link>
+                      <span className="font-medium">{order.id}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -154,13 +156,21 @@ const PurchaseOrders = () => {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Anzeigen</DropdownMenuItem>
-                          <DropdownMenuItem>Wareneingang buchen</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${order.id}`)}>
+                            Anzeigen
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate("/goods-receipts/new")}>
+                            Wareneingang buchen
+                          </DropdownMenuItem>
                           <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
                         </DropdownMenuContent>
