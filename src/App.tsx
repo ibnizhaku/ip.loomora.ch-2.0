@@ -96,6 +96,7 @@ import ReviewDetail from "./pages/ReviewDetail";
 import PayslipDetail from "./pages/PayslipDetail";
 import BankAccounts from "./pages/BankAccounts";
 import BankAccountDetail from "./pages/BankAccountDetail";
+import BankAccountCreate from "./pages/BankAccountCreate";
 import Budgets from "./pages/Budgets";
 import BudgetDetail from "./pages/BudgetDetail";
 import FixedAssets from "./pages/FixedAssets";
@@ -245,6 +246,7 @@ const App = () => (
                   <Route path="/fixed-assets/:id" element={<FixedAssetDetail />} />
                   <Route path="/cash-book" element={<CashBook />} />
                   <Route path="/bank-accounts" element={<BankAccounts />} />
+                  <Route path="/bank-accounts/new" element={<BankAccountCreate />} />
                   <Route path="/bank-accounts/:id" element={<BankAccountDetail />} />
                   <Route path="/sepa-payments" element={<SepaPayments />} />
                   <Route path="/sepa-payments/:id" element={<SepaPaymentDetail />} />
