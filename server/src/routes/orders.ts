@@ -180,7 +180,7 @@ const orderRoutes: FastifyPluginAsync = async (fastify) => {
           date: new Date(),
           dueDate,
           status: 'DRAFT',
-          billingAddress: order.billingAddress,
+          billingAddress: order.billingAddress ?? undefined,
           subtotal: order.subtotal,
           discountPercent: order.discountPercent,
           discountAmount: order.discountAmount,
