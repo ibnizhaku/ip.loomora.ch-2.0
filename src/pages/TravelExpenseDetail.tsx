@@ -1,5 +1,7 @@
+import { useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Receipt, Car, Train, Hotel, Utensils, FileText, CheckCircle2, Clock, AlertCircle, Upload } from "lucide-react";
+import { ArrowLeft, Receipt, Car, Train, Hotel, Utensils, FileText, CheckCircle2, Clock, AlertCircle, Upload, X, File, Image } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,14 +54,58 @@ const gavSätze = {
   übernachtungMax: 150.00,
 };
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
 export default function TravelExpenseDetail() {
   const { id } = useParams();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([
+    { id: "1", name: "Hotel_Rechnung_Bern.pdf", size: 245000, type: "application/pdf" },
+    { id: "2", name: "Zugticket_Bern_Basel.pdf", size: 128000, type: "application/pdf" },
+  ]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
       style: "currency",
       currency: "CHF",
     }).format(value);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    const newFiles: UploadedFile[] = Array.from(files).map(file => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    }));
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    toast.success(`${newFiles.length} Datei(en) hochgeladen`);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFile = (fileId: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+    toast.info("Datei entfernt");
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return Image;
+    return File;
   };
 
   const StatusIcon = statusConfig[spesenData.status].icon;
@@ -183,10 +229,6 @@ export default function TravelExpenseDetail() {
             <Receipt className="h-5 w-5 text-muted-foreground" />
             <CardTitle>Spesenpositionen</CardTitle>
           </div>
-          <Button size="sm" variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Beleg hochladen
-          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -238,6 +280,67 @@ export default function TravelExpenseDetail() {
               </TableRow>
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Dokumente & Belege */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Dokumente & Belege</CardTitle>
+          </div>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Datei hochladen
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {uploadedFiles.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>Noch keine Dokumente hochgeladen</p>
+              <p className="text-sm">Klicken Sie auf "Datei hochladen" um Belege hinzuzufügen</p>
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {uploadedFiles.map(file => {
+                const FileIcon = getFileIcon(file.type);
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 group"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                      <FileIcon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive"
+                      onClick={() => removeFile(file.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
