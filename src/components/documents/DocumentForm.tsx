@@ -62,7 +62,7 @@ interface Position {
 }
 
 interface DocumentFormProps {
-  type: "quote" | "invoice";
+  type: "quote" | "invoice" | "order" | "delivery-note" | "credit-note" | "purchase-order";
   editMode?: boolean;
   initialData?: any;
 }
@@ -126,8 +126,15 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
   const [esrParticipant, setEsrParticipant] = useState("");
 
   const isQuote = type === "quote";
-  const title = isQuote ? "Neues Angebot" : "Neue Rechnung";
-  const backPath = isQuote ? "/quotes" : "/invoices";
+  const typeConfig: Record<string, { title: string; backPath: string; sendLabel: string }> = {
+    quote: { title: "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot senden" },
+    invoice: { title: "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung senden" },
+    order: { title: "Neuer Auftrag", backPath: "/orders", sendLabel: "Auftrag erstellen" },
+    "delivery-note": { title: "Neuer Lieferschein", backPath: "/delivery-notes", sendLabel: "Lieferschein erstellen" },
+    "credit-note": { title: "Neue Gutschrift", backPath: "/credit-notes", sendLabel: "Gutschrift erstellen" },
+    "purchase-order": { title: "Neue Bestellung", backPath: "/purchase-orders", sendLabel: "Bestellung senden" },
+  };
+  const { title, backPath, sendLabel } = typeConfig[type] || typeConfig.invoice;
 
   const filteredCustomers = mockCustomers.filter(
     (c) =>
