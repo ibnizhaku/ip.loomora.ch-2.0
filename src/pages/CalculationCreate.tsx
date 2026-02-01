@@ -1,0 +1,384 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Plus, Trash2, Calculator, Package, Clock, Truck, Percent } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+interface Position {
+  id: number;
+  type: "material" | "labor" | "external";
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+}
+
+export default function CalculationCreate() {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [project, setProject] = useState("");
+  const [positions, setPositions] = useState<Position[]>([
+    { id: 1, type: "material", description: "", quantity: 1, unit: "Stk", unitPrice: 0 },
+  ]);
+  const [overheadPercent, setOverheadPercent] = useState(10);
+  const [marginPercent, setMarginPercent] = useState(25);
+  const [discountPercent, setDiscountPercent] = useState(0);
+
+  const addPosition = (type: "material" | "labor" | "external") => {
+    setPositions([
+      ...positions,
+      { id: Date.now(), type, description: "", quantity: 1, unit: type === "labor" ? "Std" : "Stk", unitPrice: type === "labor" ? 125 : 0 },
+    ]);
+  };
+
+  const removePosition = (id: number) => {
+    setPositions(positions.filter((p) => p.id !== id));
+  };
+
+  const updatePosition = (id: number, field: keyof Position, value: string | number) => {
+    setPositions(positions.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+  };
+
+  // Calculate totals
+  const materialCost = positions.filter((p) => p.type === "material").reduce((sum, p) => sum + p.quantity * p.unitPrice, 0);
+  const laborCost = positions.filter((p) => p.type === "labor").reduce((sum, p) => sum + p.quantity * p.unitPrice, 0);
+  const laborHours = positions.filter((p) => p.type === "labor").reduce((sum, p) => sum + p.quantity, 0);
+  const externalCost = positions.filter((p) => p.type === "external").reduce((sum, p) => sum + p.quantity * p.unitPrice, 0);
+  
+  const subtotal = materialCost + laborCost + externalCost;
+  const overhead = subtotal * (overheadPercent / 100);
+  const totalCost = subtotal + overhead;
+  const marginAmount = totalCost * (marginPercent / 100);
+  const grossPrice = totalCost + marginAmount;
+  const discountAmount = grossPrice * (discountPercent / 100);
+  const sellingPrice = grossPrice - discountAmount;
+  const profit = sellingPrice - totalCost;
+  const profitMargin = sellingPrice > 0 ? (profit / sellingPrice) * 100 : 0;
+
+  const handleSave = () => {
+    if (!name) {
+      toast.error("Bitte geben Sie eine Bezeichnung ein");
+      return;
+    }
+    toast.success("Kalkulation erstellt");
+    navigate("/calculation");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="font-display text-2xl font-bold">Neue Kalkulation</h1>
+          <p className="text-muted-foreground">Bottom-Up Projektkalkulation</p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Form */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Grunddaten</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Bezeichnung *</Label>
+                  <Input
+                    placeholder="z.B. Metalltreppe Villa Sonnenberg"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Kunde</Label>
+                  <Input
+                    placeholder="Kundenname"
+                    value={customer}
+                    onChange={(e) => setCustomer(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Projekt (optional)</Label>
+                <Input
+                  placeholder="PRJ-2024-XXX"
+                  value={project}
+                  onChange={(e) => setProject(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Positionen */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5" />
+                Kostenpositionen
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => addPosition("material")}>
+                  <Package className="h-4 w-4 mr-2" />
+                  Material
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => addPosition("labor")}>
+                  <Clock className="h-4 w-4 mr-2" />
+                  Arbeit
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => addPosition("external")}>
+                  <Truck className="h-4 w-4 mr-2" />
+                  Fremd
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Typ</TableHead>
+                    <TableHead>Bezeichnung</TableHead>
+                    <TableHead className="w-20">Menge</TableHead>
+                    <TableHead className="w-20">Einheit</TableHead>
+                    <TableHead className="w-28">Preis/Einheit</TableHead>
+                    <TableHead className="w-28 text-right">Total</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {positions.map((pos) => (
+                    <TableRow key={pos.id}>
+                      <TableCell>
+                        <Select
+                          value={pos.type}
+                          onValueChange={(value) => updatePosition(pos.id, "type", value as "material" | "labor" | "external")}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="material">Material</SelectItem>
+                            <SelectItem value="labor">Arbeit</SelectItem>
+                            <SelectItem value="external">Fremd</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-8"
+                          placeholder="Beschreibung"
+                          value={pos.description}
+                          onChange={(e) => updatePosition(pos.id, "description", e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-8 w-16"
+                          type="number"
+                          value={pos.quantity}
+                          onChange={(e) => updatePosition(pos.id, "quantity", parseFloat(e.target.value) || 0)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-8 w-16"
+                          value={pos.unit}
+                          onChange={(e) => updatePosition(pos.id, "unit", e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-8 w-24"
+                          type="number"
+                          value={pos.unitPrice}
+                          onChange={(e) => updatePosition(pos.id, "unitPrice", parseFloat(e.target.value) || 0)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        CHF {(pos.quantity * pos.unitPrice).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removePosition(pos.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {positions.length === 0 && (
+                <div className="py-8 text-center text-muted-foreground">
+                  <Calculator className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Keine Positionen vorhanden</p>
+                  <p className="text-sm">Fügen Sie Material, Arbeit oder Fremdleistungen hinzu</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Zuschläge */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Percent className="h-5 w-5" />
+                Zuschläge & Marge
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Gemeinkosten (%)</Label>
+                  <Input
+                    type="number"
+                    value={overheadPercent}
+                    onChange={(e) => setOverheadPercent(parseFloat(e.target.value) || 0)}
+                  />
+                  <p className="text-sm text-muted-foreground">= CHF {overhead.toLocaleString()}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Gewinnmarge (%)</Label>
+                  <Input
+                    type="number"
+                    value={marginPercent}
+                    onChange={(e) => setMarginPercent(parseFloat(e.target.value) || 0)}
+                  />
+                  <p className="text-sm text-muted-foreground">= CHF {marginAmount.toLocaleString()}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rabatt (%)</Label>
+                  <Input
+                    type="number"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+                  />
+                  <p className="text-sm text-muted-foreground">= CHF {discountAmount.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Summary Sidebar */}
+        <div className="space-y-6">
+          <Card className="sticky top-6">
+            <CardHeader>
+              <CardTitle>Kalkulation</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Cost Breakdown */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-blue-500" />
+                    Material
+                  </span>
+                  <span className="font-mono">CHF {materialCost.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-purple-500" />
+                    Arbeit ({laborHours}h)
+                  </span>
+                  <span className="font-mono">CHF {laborCost.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-warning" />
+                    Fremdleistung
+                  </span>
+                  <span className="font-mono">CHF {externalCost.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between text-sm">
+                <span>Zwischensumme</span>
+                <span className="font-mono">CHF {subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Gemeinkosten ({overheadPercent}%)</span>
+                <span className="font-mono">CHF {overhead.toLocaleString()}</span>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between font-medium">
+                <span>Selbstkosten</span>
+                <span className="font-mono">CHF {totalCost.toLocaleString()}</span>
+              </div>
+
+              <div className="flex justify-between text-sm">
+                <span>+ Marge ({marginPercent}%)</span>
+                <span className="font-mono">CHF {marginAmount.toLocaleString()}</span>
+              </div>
+              {discountPercent > 0 && (
+                <div className="flex justify-between text-sm text-destructive">
+                  <span>- Rabatt ({discountPercent}%)</span>
+                  <span className="font-mono">CHF {discountAmount.toLocaleString()}</span>
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="flex justify-between text-lg font-bold">
+                <span>Verkaufspreis</span>
+                <span className="font-mono text-primary">CHF {sellingPrice.toLocaleString()}</span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-success/10">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Gewinn</span>
+                  <span className={cn(
+                    "font-mono font-bold",
+                    profitMargin >= 20 ? "text-success" : profitMargin >= 15 ? "text-warning" : "text-destructive"
+                  )}>
+                    CHF {profit.toLocaleString()} ({profitMargin.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Margin Bar */}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Kostenstruktur</p>
+                <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+                  {sellingPrice > 0 && (
+                    <>
+                      <div className="bg-blue-500" style={{ width: `${(materialCost / sellingPrice) * 100}%` }} />
+                      <div className="bg-purple-500" style={{ width: `${(laborCost / sellingPrice) * 100}%` }} />
+                      <div className="bg-warning" style={{ width: `${(externalCost / sellingPrice) * 100}%` }} />
+                      <div className="bg-muted-foreground/30" style={{ width: `${(overhead / sellingPrice) * 100}%` }} />
+                      <div className="bg-success" style={{ width: `${(profit / sellingPrice) * 100}%` }} />
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          Abbrechen
+        </Button>
+        <Button className="gap-2" onClick={handleSave}>
+          <Save className="h-4 w-4" />
+          Kalkulation speichern
+        </Button>
+      </div>
+    </div>
+  );
+}

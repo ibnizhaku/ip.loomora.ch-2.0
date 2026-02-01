@@ -64,6 +64,7 @@ import BOMDetail from "./pages/BOMDetail";
 import BOMCreate from "./pages/BOMCreate";
 import Calculation from "./pages/Calculation";
 import CalculationDetail from "./pages/CalculationDetail";
+import CalculationCreate from "./pages/CalculationCreate";
 import Production from "./pages/Production";
 import ProductionDetail from "./pages/ProductionDetail";
 import LeadDetail from "./pages/LeadDetail";
@@ -314,6 +315,7 @@ const App = () => (
                   <Route path="/bom/new" element={<BOMCreate />} />
                   <Route path="/bom/:id" element={<BOMDetail />} />
                   <Route path="/calculation" element={<Calculation />} />
+                  <Route path="/calculation/new" element={<CalculationCreate />} />
                   <Route path="/calculation/:id" element={<CalculationDetail />} />
                   <Route path="/production" element={<Production />} />
                   <Route path="/production/:id" element={<ProductionDetail />} />
