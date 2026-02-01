@@ -443,7 +443,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 space-y-4">
         <div className="flex items-center gap-3">
-          <img src={loomoraLogo} alt="Loomora" className="h-30" />
+          <img src={loomoraLogo} alt="Loomora" className="h-8" />
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
