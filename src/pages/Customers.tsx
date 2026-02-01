@@ -149,7 +149,7 @@ export default function Customers() {
             Verwalten Sie Ihre Kundenbeziehungen
           </p>
         </div>
-        <Button className="gap-2">
+      <Button className="gap-2" onClick={() => navigate("/customers/new")}>
           <Plus className="h-4 w-4" />
           Neuer Kunde
         </Button>
