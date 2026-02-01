@@ -110,6 +110,7 @@ import VatReturns from "./pages/VatReturns";
 import VatReturnDetail from "./pages/VatReturnDetail";
 import Discounts from "./pages/Discounts";
 import DiscountDetail from "./pages/DiscountDetail";
+import DiscountCreate from "./pages/DiscountCreate";
 import Roles from "./pages/Roles";
 import RoleDetail from "./pages/RoleDetail";
 import Settings from "./pages/Settings";
@@ -292,6 +293,7 @@ const App = () => (
                   {/* E-Commerce */}
                   <Route path="/shop" element={<Shop />} />
                   <Route path="/discounts" element={<Discounts />} />
+                  <Route path="/discounts/new" element={<DiscountCreate />} />
                   <Route path="/discounts/:id" element={<DiscountDetail />} />
                   <Route path="/reviews" element={<Reviews />} />
                   <Route path="/reviews/:id" element={<ReviewDetail />} />
