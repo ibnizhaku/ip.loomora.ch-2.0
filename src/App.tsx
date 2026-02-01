@@ -133,6 +133,7 @@ import SepaPayments from "./pages/SepaPayments";
 import SepaPaymentDetail from "./pages/SepaPaymentDetail";
 import CostCenters from "./pages/CostCenters";
 import CostCenterDetail from "./pages/CostCenterDetail";
+import CostCenterCreate from "./pages/CostCenterCreate";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
 import Leads from "./pages/Leads";
@@ -257,6 +258,7 @@ const App = () => (
                   <Route path="/sepa-payments" element={<SepaPayments />} />
                   <Route path="/sepa-payments/:id" element={<SepaPaymentDetail />} />
                   <Route path="/cost-centers" element={<CostCenters />} />
+                  <Route path="/cost-centers/new" element={<CostCenterCreate />} />
                   <Route path="/cost-centers/:id" element={<CostCenterDetail />} />
                   <Route path="/budgets" element={<Budgets />} />
                   <Route path="/budgets/:id" element={<BudgetDetail />} />

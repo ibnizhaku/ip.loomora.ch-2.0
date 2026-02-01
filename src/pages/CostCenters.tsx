@@ -143,15 +143,32 @@ export default function CostCenters() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [centerList, setCenterList] = useState(costCenters);
+  const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "warning" | "over-budget">("all");
+
+  const filteredCenters = centerList.filter((center) => {
+    const matchesSearch = center.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      center.number.includes(searchQuery) ||
+      center.manager.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || center.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalBudget = centerList.reduce((acc, c) => acc + c.budget, 0);
   const totalActual = centerList.reduce((acc, c) => acc + c.actual, 0);
   const totalVariance = totalBudget - totalActual;
 
+  const onTrackCount = centerList.filter(c => c.status === "on-track").length;
+  const warningCount = centerList.filter(c => c.status === "warning").length;
+  const overBudgetCount = centerList.filter(c => c.status === "over-budget").length;
+
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setCenterList(centerList.filter(c => c.id !== id));
     toast.success("Kostenstelle gelöscht");
+  };
+
+  const handleStatCardClick = (filter: "all" | "on-track" | "warning" | "over-budget") => {
+    setStatusFilter(statusFilter === filter ? "all" : filter);
   };
 
   return (
@@ -178,61 +195,71 @@ export default function CostCenters() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            statusFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("all")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Target className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamtbudget</p>
-              <p className="text-2xl font-bold">€{totalBudget.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalBudget.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            statusFilter === "on-track" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("on-track")}
+        >
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
-              <PieChart className="h-6 w-6 text-info" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+              <TrendingUp className="h-6 w-6 text-success" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Ist-Kosten</p>
-              <p className="text-2xl font-bold">€{totalActual.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Im Plan</p>
+              <p className="text-2xl font-bold text-success">{onTrackCount} Stellen</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-xl",
-              totalVariance >= 0 ? "bg-success/10" : "bg-destructive/10"
-            )}>
-              {totalVariance >= 0 ? (
-                <TrendingUp className="h-6 w-6 text-success" />
-              ) : (
-                <TrendingDown className="h-6 w-6 text-destructive" />
-              )}
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Abweichung</p>
-              <p className={cn(
-                "text-2xl font-bold",
-                totalVariance >= 0 ? "text-success" : "text-destructive"
-              )}>
-                {totalVariance >= 0 ? "+" : ""}€{totalVariance.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            statusFilter === "warning" ? "border-warning ring-2 ring-warning/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("warning")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
               <Target className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Auslastung</p>
-              <p className="text-2xl font-bold">
-                {((totalActual / totalBudget) * 100).toFixed(1)}%
-              </p>
+              <p className="text-sm text-muted-foreground">Achtung</p>
+              <p className="text-2xl font-bold text-warning">{warningCount} Stellen</p>
+            </div>
+          </div>
+        </div>
+        <div 
+          className={cn(
+            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-md",
+            statusFilter === "over-budget" ? "border-destructive ring-2 ring-destructive/20" : "border-border"
+          )}
+          onClick={() => handleStatCardClick("over-budget")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
+              <TrendingDown className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Überschritten</p>
+              <p className="text-2xl font-bold text-destructive">{overBudgetCount} Stellen</p>
             </div>
           </div>
         </div>
@@ -270,7 +297,7 @@ export default function CostCenters() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {centerList.map((center, index) => {
+            {filteredCenters.map((center, index) => {
               const utilizationPercent = (center.actual / center.budget) * 100;
 
               return (
@@ -295,10 +322,10 @@ export default function CostCenters() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    €{center.budget.toLocaleString()}
+                    CHF {center.budget.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell className="text-right font-mono font-medium">
-                    €{center.actual.toLocaleString()}
+                    CHF {center.actual.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1 min-w-[100px]">
@@ -318,7 +345,7 @@ export default function CostCenters() {
                     "text-right font-mono font-medium",
                     center.variance >= 0 ? "text-success" : "text-destructive"
                   )}>
-                    {center.variance >= 0 ? "+" : ""}€{center.variance.toLocaleString()}
+                    {center.variance >= 0 ? "+" : ""}CHF {center.variance.toLocaleString("de-CH")}
                     <span className="text-xs ml-1">
                       ({center.variancePercent >= 0 ? "+" : ""}{center.variancePercent}%)
                     </span>
