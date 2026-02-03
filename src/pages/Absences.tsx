@@ -15,7 +15,8 @@ import {
   MoreHorizontal,
   Users,
   AlertCircle,
-  Stethoscope
+  Stethoscope,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -83,19 +87,29 @@ const Absences = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [requests, setRequests] = useState(absenceRequests);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<string[]>([]);
+  const [filterRequestStatus, setFilterRequestStatus] = useState<string[]>([]);
   const pendingRequests = requests.filter(r => r.status === "Ausstehend");
 
   const totalFerien = employeeVacation.reduce((sum, e) => sum + e.total, 0);
   const genommenFerien = employeeVacation.reduce((sum, e) => sum + e.taken, 0);
+  const activeFilters = filterType.length + filterRequestStatus.length;
 
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
   };
 
+  const resetFilters = () => {
+    setFilterType([]);
+    setFilterRequestStatus([]);
+  };
+
   const filteredRequests = requests.filter(r => {
     const matchesSearch = r.employee.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || r.status === statusFilter || r.type === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesFilterType = filterType.length === 0 || filterType.includes(r.type);
+    const matchesFilterStatus = filterRequestStatus.length === 0 || filterRequestStatus.includes(r.status);
+    return matchesSearch && matchesStatus && matchesFilterType && matchesFilterStatus;
   });
 
   const handleApprove = (id: number, name: string) => {
@@ -237,10 +251,72 @@ const Absences = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn(activeFilters > 0 && "border-primary")}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                  {activeFilters > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">{activeFilters}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Filter</h4>
+                    {activeFilters > 0 && (
+                      <Button variant="ghost" size="sm" onClick={resetFilters}>
+                        <X className="h-4 w-4 mr-1" />
+                        Zurücksetzen
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Art</Label>
+                    {["Ferien", "Krankheit", "Unfall", "Fortbildung"].map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`type-${type}`}
+                          checked={filterType.includes(type)}
+                          onCheckedChange={(checked) => {
+                            setFilterType(checked 
+                              ? [...filterType, type]
+                              : filterType.filter(t => t !== type)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`type-${type}`} className="text-sm font-normal cursor-pointer">
+                          {type}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Status</Label>
+                    {["Ausstehend", "Genehmigt", "Bestätigt", "Abgelehnt"].map((status) => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${status}`}
+                          checked={filterRequestStatus.includes(status)}
+                          onCheckedChange={(checked) => {
+                            setFilterRequestStatus(checked 
+                              ? [...filterRequestStatus, status]
+                              : filterRequestStatus.filter(s => s !== status)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
+                          {status}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Card>

@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Play,
   MoreHorizontal,
-  Calculator
+  Calculator,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -139,6 +144,9 @@ const Payroll = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterPosition, setFilterPosition] = useState<string[]>([]);
+  const [showAbschliessenDialog, setShowAbschliessenDialog] = useState(false);
   const currentRun = payrollRuns.find(r => r.status === "In Bearbeitung");
 
   const totalBrutto = employeePayroll.reduce((sum, e) => sum + e.bruttoLohn, 0);
@@ -146,15 +154,59 @@ const Payroll = () => {
   const totalAHV = employeePayroll.reduce((sum, e) => sum + e.ahvIvEo, 0);
   const totalBVG = employeePayroll.reduce((sum, e) => sum + e.bvg, 0);
 
+  const uniquePositions = [...new Set(employeePayroll.map(e => e.position))];
+  const activeFilters = filterStatus.length + filterPosition.length;
+
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
+  };
+
+  const resetFilters = () => {
+    setFilterStatus([]);
+    setFilterPosition([]);
+  };
+
+  const handleSwissdecExport = () => {
+    toast.success("Swissdec Export wird erstellt...");
+    setTimeout(() => {
+      const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<Salary xmlns="http://www.swissdec.ch/schema/sd/20200220/SalaryDeclaration">
+  <DeclarationPeriod>2024-02</DeclarationPeriod>
+  <TotalEmployees>${employeePayroll.length}</TotalEmployees>
+  <TotalGross>${totalBrutto}</TotalGross>
+</Salary>`;
+      const blob = new Blob([xmlContent], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "swissdec_elm_2024-02.xml";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Swissdec XML-Datei wurde generiert", {
+        description: "Die Lohndaten wurden im ELM-Format exportiert"
+      });
+    }, 1500);
+  };
+
+  const handleLohnlaufAbschliessen = () => {
+    setShowAbschliessenDialog(false);
+    toast.success("Lohnlauf Februar 2024 wird abgeschlossen...");
+    setTimeout(() => {
+      toast.success("Lohnlauf erfolgreich abgeschlossen", {
+        description: "Alle Lohnabrechnungen wurden finalisiert"
+      });
+    }, 1500);
   };
 
   const filteredEmployees = employeePayroll.filter(e => {
     const matchesSearch = e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.position.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || e.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesFilterStatus = filterStatus.length === 0 || filterStatus.includes(e.status);
+    const matchesFilterPosition = filterPosition.length === 0 || filterPosition.includes(e.position);
+    return matchesSearch && matchesStatus && matchesFilterStatus && matchesFilterPosition;
   });
 
   return (
@@ -168,14 +220,7 @@ const Payroll = () => {
         <div className="flex gap-2">
           <Button 
             variant="outline"
-            onClick={() => {
-              toast.success("Swissdec Export wird erstellt...");
-              setTimeout(() => {
-                toast.success("Swissdec XML-Datei wurde generiert", {
-                  description: "Die Lohndaten wurden im ELM-Format exportiert"
-                });
-              }, 1500);
-            }}
+            onClick={handleSwissdecExport}
           >
             <Download className="h-4 w-4 mr-2" />
             Swissdec Export
@@ -288,7 +333,7 @@ const Payroll = () => {
                 <Badge className={statusConfig[currentRun.status].color}>
                   {currentRun.status}
                 </Badge>
-                <Button onClick={() => toast.success("Lohnlauf wird abgeschlossen...")}>
+                <Button onClick={() => setShowAbschliessenDialog(true)}>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Abschliessen
                 </Button>
@@ -297,6 +342,52 @@ const Payroll = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Lohnlauf Abschliessen Dialog */}
+      <Dialog open={showAbschliessenDialog} onOpenChange={setShowAbschliessenDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lohnlauf abschliessen</DialogTitle>
+            <DialogDescription>
+              Möchten Sie den Lohnlauf für {currentRun?.period} wirklich abschliessen?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4 bg-muted/50">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Mitarbeitende</p>
+                  <p className="font-medium">{currentRun?.employees}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Bruttolohnsumme</p>
+                  <p className="font-medium">CHF {formatCHF(currentRun?.grossTotal || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Nettolohnsumme</p>
+                  <p className="font-medium">CHF {formatCHF(currentRun?.netTotal || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Status</p>
+                  <Badge className="mt-1">{currentRun?.status}</Badge>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Nach dem Abschliessen werden alle Lohnabrechnungen finalisiert und können für den Swissdec-Export verwendet werden.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAbschliessenDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleLohnlaufAbschliessen}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Jetzt abschliessen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="employees" className="space-y-6">
         <TabsList>
@@ -317,10 +408,72 @@ const Payroll = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn(activeFilters > 0 && "border-primary")}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                  {activeFilters > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">{activeFilters}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Filter</h4>
+                    {activeFilters > 0 && (
+                      <Button variant="ghost" size="sm" onClick={resetFilters}>
+                        <X className="h-4 w-4 mr-1" />
+                        Zurücksetzen
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Status</Label>
+                    {["Berechnet", "Prüfung"].map((status) => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${status}`}
+                          checked={filterStatus.includes(status)}
+                          onCheckedChange={(checked) => {
+                            setFilterStatus(checked 
+                              ? [...filterStatus, status]
+                              : filterStatus.filter(s => s !== status)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
+                          {status}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Position</Label>
+                    {uniquePositions.slice(0, 4).map((position) => (
+                      <div key={position} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`position-${position}`}
+                          checked={filterPosition.includes(position)}
+                          onCheckedChange={(checked) => {
+                            setFilterPosition(checked 
+                              ? [...filterPosition, position]
+                              : filterPosition.filter(p => p !== position)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`position-${position}`} className="text-sm font-normal cursor-pointer">
+                          {position}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Card>
