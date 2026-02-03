@@ -11,6 +11,10 @@ import {
   Wallet,
   PiggyBank,
   CreditCard,
+  Lock,
+  Unlock,
+  CheckCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +26,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface BalanceItem {
@@ -133,11 +146,26 @@ export default function BalanceSheet() {
   const [expandedIds, setExpandedIds] = useState<string[]>(["a1", "a2", "p1", "p3"]);
   const [period, setPeriod] = useState("2024");
   const [activeTab, setActiveTab] = useState("balance");
+  const [showLockDialog, setShowLockDialog] = useState(false);
+  const [lockedPeriods, setLockedPeriods] = useState<string[]>(["2022", "2023"]);
+
+  const isPeriodLocked = lockedPeriods.includes(period);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  const handleLockPeriod = () => {
+    if (isPeriodLocked) {
+      setLockedPeriods(prev => prev.filter(p => p !== period));
+      toast.success(`Periode ${period} wurde entsperrt`);
+    } else {
+      setLockedPeriods(prev => [...prev, period]);
+      toast.success(`Periode ${period} wurde gesperrt`);
+    }
+    setShowLockDialog(false);
   };
 
   const totalAssets = assets.reduce((acc, a) => acc + a.currentYear, 0);
@@ -146,6 +174,8 @@ export default function BalanceSheet() {
   const totalRevenue = pnlItems.revenue.reduce((acc, r) => acc + r.currentYear, 0);
   const totalExpenses = pnlItems.expenses.reduce((acc, e) => acc + e.currentYear, 0);
   const netIncome = totalRevenue - totalExpenses;
+
+  const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH")}`;
 
   const renderBalanceItem = (item: BalanceItem, level: number = 0) => {
     const isExpanded = expandedIds.includes(item.id);
@@ -177,10 +207,10 @@ export default function BalanceSheet() {
           </div>
           <div className="flex items-center gap-8">
             <span className="font-mono w-[120px] text-right">
-              €{item.currentYear.toLocaleString()}
+              {formatCHF(item.currentYear)}
             </span>
             <span className="font-mono w-[120px] text-right text-muted-foreground">
-              €{item.previousYear.toLocaleString()}
+              {formatCHF(item.previousYear)}
             </span>
             <span className={cn(
               "w-[80px] text-right text-sm",
@@ -207,7 +237,7 @@ export default function BalanceSheet() {
             Bilanz & GuV
           </h1>
           <p className="text-muted-foreground">
-            Jahresabschluss nach HGB
+            Jahresabschluss nach OR (Schweizer Rechnungslegung)
           </p>
         </div>
         <div className="flex gap-2">
@@ -217,11 +247,43 @@ export default function BalanceSheet() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2024">GJ 2024</SelectItem>
-              <SelectItem value="2023">GJ 2023</SelectItem>
-              <SelectItem value="2022">GJ 2022</SelectItem>
+              <SelectItem value="2024">
+                <span className="flex items-center gap-2">
+                  GJ 2024
+                  {lockedPeriods.includes("2024") && <Lock className="h-3 w-3" />}
+                </span>
+              </SelectItem>
+              <SelectItem value="2023">
+                <span className="flex items-center gap-2">
+                  GJ 2023
+                  {lockedPeriods.includes("2023") && <Lock className="h-3 w-3" />}
+                </span>
+              </SelectItem>
+              <SelectItem value="2022">
+                <span className="flex items-center gap-2">
+                  GJ 2022
+                  {lockedPeriods.includes("2022") && <Lock className="h-3 w-3" />}
+                </span>
+              </SelectItem>
             </SelectContent>
           </Select>
+          <Button 
+            variant={isPeriodLocked ? "destructive" : "outline"} 
+            className="gap-2"
+            onClick={() => setShowLockDialog(true)}
+          >
+            {isPeriodLocked ? (
+              <>
+                <Lock className="h-4 w-4" />
+                Gesperrt
+              </>
+            ) : (
+              <>
+                <Unlock className="h-4 w-4" />
+                Periode sperren
+              </>
+            )}
+          </Button>
           <Button variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
             PDF Export
@@ -229,22 +291,32 @@ export default function BalanceSheet() {
         </div>
       </div>
 
+      {/* Period Lock Status */}
+      {isPeriodLocked && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <Lock className="h-4 w-4 text-destructive" />
+          <span className="text-sm text-destructive font-medium">
+            Periode {period} ist gesperrt – keine Buchungen möglich
+          </span>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10">
-              <Building className="h-6 w-6 text-blue-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+              <Building className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bilanzsumme Aktiva</p>
-              <p className="text-2xl font-bold">€{totalAssets.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{formatCHF(totalAssets)}</p>
             </div>
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10">
-              <Scale className="h-6 w-6 text-purple-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/50">
+              <Scale className="h-6 w-6 text-secondary-foreground" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Eigenkapitalquote</p>
@@ -261,7 +333,7 @@ export default function BalanceSheet() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamtleistung</p>
-              <p className="text-2xl font-bold text-success">€{totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-success">{formatCHF(totalRevenue)}</p>
             </div>
           </div>
         </div>
@@ -272,7 +344,7 @@ export default function BalanceSheet() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Jahresüberschuss</p>
-              <p className="text-2xl font-bold">€{netIncome.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{formatCHF(netIncome)}</p>
             </div>
           </div>
         </div>
@@ -305,10 +377,10 @@ export default function BalanceSheet() {
                   <span>Summe Aktiva</span>
                   <div className="flex items-center gap-8">
                     <span className="font-mono w-[120px] text-right">
-                      €{totalAssets.toLocaleString()}
+                      {formatCHF(totalAssets)}
                     </span>
                     <span className="font-mono w-[120px] text-right text-muted-foreground">
-                      €{assets.reduce((acc, a) => acc + a.previousYear, 0).toLocaleString()}
+                      {formatCHF(assets.reduce((acc, a) => acc + a.previousYear, 0))}
                     </span>
                     <span className="w-[80px]" />
                   </div>
@@ -335,10 +407,10 @@ export default function BalanceSheet() {
                   <span>Summe Passiva</span>
                   <div className="flex items-center gap-8">
                     <span className="font-mono w-[120px] text-right">
-                      €{totalLiabilities.toLocaleString()}
+                      {formatCHF(totalLiabilities)}
                     </span>
                     <span className="font-mono w-[120px] text-right text-muted-foreground">
-                      €{liabilities.reduce((acc, l) => acc + l.previousYear, 0).toLocaleString()}
+                      {formatCHF(liabilities.reduce((acc, l) => acc + l.previousYear, 0))}
                     </span>
                     <span className="w-[80px]" />
                   </div>
@@ -362,10 +434,10 @@ export default function BalanceSheet() {
                   <span>{item.name}</span>
                   <div className="flex gap-8">
                     <span className="font-mono w-[120px] text-right text-success">
-                      €{item.currentYear.toLocaleString()}
+                      {formatCHF(item.currentYear)}
                     </span>
                     <span className="font-mono w-[120px] text-right text-muted-foreground">
-                      €{item.previousYear.toLocaleString()}
+                      {formatCHF(item.previousYear)}
                     </span>
                   </div>
                 </div>
@@ -374,10 +446,10 @@ export default function BalanceSheet() {
                 <span>Summe Erträge</span>
                 <div className="flex gap-8">
                   <span className="font-mono w-[120px] text-right text-success">
-                    €{totalRevenue.toLocaleString()}
+                    {formatCHF(totalRevenue)}
                   </span>
                   <span className="font-mono w-[120px] text-right text-muted-foreground">
-                    €{pnlItems.revenue.reduce((acc, r) => acc + r.previousYear, 0).toLocaleString()}
+                    {formatCHF(pnlItems.revenue.reduce((acc, r) => acc + r.previousYear, 0))}
                   </span>
                 </div>
               </div>
@@ -391,10 +463,10 @@ export default function BalanceSheet() {
                   <span>{item.name}</span>
                   <div className="flex gap-8">
                     <span className="font-mono w-[120px] text-right text-destructive">
-                      €{item.currentYear.toLocaleString()}
+                      {formatCHF(item.currentYear)}
                     </span>
                     <span className="font-mono w-[120px] text-right text-muted-foreground">
-                      €{item.previousYear.toLocaleString()}
+                      {formatCHF(item.previousYear)}
                     </span>
                   </div>
                 </div>
@@ -403,10 +475,10 @@ export default function BalanceSheet() {
                 <span>Summe Aufwendungen</span>
                 <div className="flex gap-8">
                   <span className="font-mono w-[120px] text-right text-destructive">
-                    €{totalExpenses.toLocaleString()}
+                    {formatCHF(totalExpenses)}
                   </span>
                   <span className="font-mono w-[120px] text-right text-muted-foreground">
-                    €{pnlItems.expenses.reduce((acc, e) => acc + e.previousYear, 0).toLocaleString()}
+                    {formatCHF(pnlItems.expenses.reduce((acc, e) => acc + e.previousYear, 0))}
                   </span>
                 </div>
               </div>
@@ -421,11 +493,11 @@ export default function BalanceSheet() {
                     "font-mono font-bold text-xl w-[120px] text-right",
                     netIncome >= 0 ? "text-success" : "text-destructive"
                   )}>
-                    €{netIncome.toLocaleString()}
+                    {formatCHF(netIncome)}
                   </span>
                   <span className="font-mono w-[120px] text-right text-muted-foreground">
-                    €{(pnlItems.revenue.reduce((acc, r) => acc + r.previousYear, 0) - 
-                       pnlItems.expenses.reduce((acc, e) => acc + e.previousYear, 0)).toLocaleString()}
+                    {formatCHF(pnlItems.revenue.reduce((acc, r) => acc + r.previousYear, 0) - 
+                       pnlItems.expenses.reduce((acc, e) => acc + e.previousYear, 0))}
                   </span>
                 </div>
               </div>
@@ -433,6 +505,72 @@ export default function BalanceSheet() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Period Lock Dialog */}
+      <Dialog open={showLockDialog} onOpenChange={setShowLockDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {isPeriodLocked ? (
+                <>
+                  <Unlock className="h-5 w-5" />
+                  Periode {period} entsperren
+                </>
+              ) : (
+                <>
+                  <Lock className="h-5 w-5" />
+                  Periode {period} sperren
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {isPeriodLocked ? (
+                <>
+                  Möchten Sie die Periode <strong>GJ {period}</strong> entsperren? 
+                  Nach dem Entsperren können wieder Buchungen in dieser Periode vorgenommen werden.
+                  <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                      <span className="text-sm text-destructive">
+                        Achtung: Das Entsperren einer abgeschlossenen Periode kann die Revisionssicherheit beeinträchtigen.
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  Möchten Sie die Periode <strong>GJ {period}</strong> sperren?
+                  <div className="mt-3 space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      <span>Keine weiteren Buchungen möglich</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      <span>Revisionssichere Abschluss-Dokumentation</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      <span>Daten bleiben lesbar für Auswertungen</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLockDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button 
+              variant={isPeriodLocked ? "destructive" : "default"}
+              onClick={handleLockPeriod}
+            >
+              {isPeriodLocked ? "Entsperren" : "Periode sperren"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
