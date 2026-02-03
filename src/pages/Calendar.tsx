@@ -132,6 +132,13 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 1, 1));
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2024, 1, 1));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [selectedEventForReminder, setSelectedEventForReminder] = useState<Event | null>(null);
+  const [reminderSettings, setReminderSettings] = useState({
+    time: "15min",
+    method: "notification",
+  });
+  const [eventReminders, setEventReminders] = useState<Record<string, { time: string; method: string }>>({});
   const [newEvent, setNewEvent] = useState({
     title: "",
     type: "meeting" as Event["type"],
@@ -235,7 +242,52 @@ export default function Calendar() {
   };
 
   const handleSetReminder = (event: Event) => {
-    toast.success(`Erinnerung für "${event.title}" gesetzt`);
+    setSelectedEventForReminder(event);
+    // Pre-fill with existing reminder if available
+    if (eventReminders[event.id]) {
+      setReminderSettings(eventReminders[event.id]);
+    } else {
+      setReminderSettings({ time: "15min", method: "notification" });
+    }
+    setIsReminderDialogOpen(true);
+  };
+
+  const handleSaveReminder = () => {
+    if (selectedEventForReminder) {
+      setEventReminders(prev => ({
+        ...prev,
+        [selectedEventForReminder.id]: reminderSettings,
+      }));
+      
+      const timeLabels: Record<string, string> = {
+        "5min": "5 Minuten",
+        "15min": "15 Minuten",
+        "30min": "30 Minuten",
+        "1h": "1 Stunde",
+        "1d": "1 Tag",
+      };
+      
+      const methodLabels: Record<string, string> = {
+        "notification": "Browser-Benachrichtigung",
+        "email": "E-Mail",
+        "both": "Beide",
+      };
+      
+      toast.success(
+        `Erinnerung gesetzt: ${timeLabels[reminderSettings.time]} vorher per ${methodLabels[reminderSettings.method]}`
+      );
+      setIsReminderDialogOpen(false);
+    }
+  };
+
+  const handleRemoveReminder = (eventId: string) => {
+    setEventReminders(prev => {
+      const updated = { ...prev };
+      delete updated[eventId];
+      return updated;
+    });
+    toast.success("Erinnerung wurde entfernt");
+    setIsReminderDialogOpen(false);
   };
 
   const isToday = (date: Date) => {
@@ -360,7 +412,15 @@ export default function Calendar() {
                       <div className="flex-1">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h4 className="font-medium">{event.title}</h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium">{event.title}</h4>
+                              {eventReminders[event.id] && (
+                                <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30 gap-1">
+                                  <Bell className="h-3 w-3" />
+                                  Erinnerung
+                                </Badge>
+                              )}
+                            </div>
                             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3.5 w-3.5" />
@@ -396,7 +456,7 @@ export default function Calendar() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleSetReminder(event)}>
                                 <Bell className="h-4 w-4 mr-2" />
-                                Erinnerung setzen
+                                {eventReminders[event.id] ? "Erinnerung bearbeiten" : "Erinnerung setzen"}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
@@ -608,6 +668,90 @@ export default function Calendar() {
             </Button>
             <Button onClick={handleCreateEvent}>
               Termin erstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reminder Dialog */}
+      <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Erinnerung setzen
+            </DialogTitle>
+          </DialogHeader>
+          {selectedEventForReminder && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="font-medium">{selectedEventForReminder.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedEventForReminder.date} um {selectedEventForReminder.startTime}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Erinnern vor</Label>
+                <Select
+                  value={reminderSettings.time}
+                  onValueChange={(value) => setReminderSettings({ ...reminderSettings, time: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5min">5 Minuten vorher</SelectItem>
+                    <SelectItem value="15min">15 Minuten vorher</SelectItem>
+                    <SelectItem value="30min">30 Minuten vorher</SelectItem>
+                    <SelectItem value="1h">1 Stunde vorher</SelectItem>
+                    <SelectItem value="1d">1 Tag vorher</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Benachrichtigungsart</Label>
+                <Select
+                  value={reminderSettings.method}
+                  onValueChange={(value) => setReminderSettings({ ...reminderSettings, method: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="notification">Browser-Benachrichtigung</SelectItem>
+                    <SelectItem value="email">E-Mail</SelectItem>
+                    <SelectItem value="both">Beide</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {eventReminders[selectedEventForReminder.id] && (
+                <div className="p-3 rounded-lg border border-warning/30 bg-warning/10">
+                  <p className="text-sm text-warning font-medium">
+                    Aktive Erinnerung vorhanden
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="mt-2 h-auto py-1 px-2 text-xs text-destructive hover:text-destructive"
+                    onClick={() => handleRemoveReminder(selectedEventForReminder.id)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Erinnerung entfernen
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReminderDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSaveReminder}>
+              <Bell className="h-4 w-4 mr-2" />
+              Erinnerung speichern
             </Button>
           </DialogFooter>
         </DialogContent>
