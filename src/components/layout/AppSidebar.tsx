@@ -224,11 +224,6 @@ const accountingItems: NavItem[] = [
     icon: Receipt,
   },
   {
-    title: "Offene Posten",
-    url: "/open-items",
-    icon: AlertTriangle,
-  },
-  {
     title: "Debitoren",
     url: "/debtors",
     icon: UserPlus2,

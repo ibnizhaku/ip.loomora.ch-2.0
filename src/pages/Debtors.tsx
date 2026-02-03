@@ -17,12 +17,13 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  Euro,
+  Banknote,
   FileText,
   Mail,
   Phone,
   Building2,
   Eye,
+  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -177,10 +178,16 @@ export default function Debtors() {
             Forderungen und Kundenkonten verwalten
           </p>
         </div>
-        <Button onClick={() => navigate("/customers/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Neuer Debitor
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/customers")}>
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Zu Kunden
+          </Button>
+          <Button onClick={() => navigate("/customers/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Neuer Debitor
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -188,11 +195,11 @@ export default function Debtors() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Offene Forderungen</CardTitle>
-            <Euro className="h-4 w-4 text-muted-foreground" />
+            <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalReceivables.toLocaleString("de-DE")} €
+              CHF {totalReceivables.toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
               {debtors.length} Debitoren
@@ -206,7 +213,7 @@ export default function Debtors() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {totalOverdue.toLocaleString("de-DE")} €
+              CHF {totalOverdue.toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
               {((totalOverdue / totalReceivables) * 100).toFixed(1)}% der Forderungen
@@ -294,12 +301,12 @@ export default function Debtors() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {debtor.openAmount.toLocaleString("de-DE")} €
+                      CHF {debtor.openAmount.toLocaleString("de-CH")}
                     </TableCell>
                     <TableCell className="text-right">
                       {debtor.overdueAmount > 0 ? (
                         <span className="text-destructive font-medium">
-                          {debtor.overdueAmount.toLocaleString("de-DE")} €
+                          CHF {debtor.overdueAmount.toLocaleString("de-CH")}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
@@ -307,7 +314,7 @@ export default function Debtors() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div>
-                        <span>{debtor.creditLimit.toLocaleString("de-DE")} €</span>
+                        <span>CHF {debtor.creditLimit.toLocaleString("de-CH")}</span>
                         <Progress
                           value={(debtor.openAmount / debtor.creditLimit) * 100}
                           className="mt-1 h-1"
@@ -362,7 +369,7 @@ export default function Debtors() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-medium text-destructive">
-                        {debtor.overdueAmount.toLocaleString("de-DE")} €
+                        CHF {debtor.overdueAmount.toLocaleString("de-CH")}
                       </TableCell>
                       <TableCell>
                         <Badge variant="destructive">
@@ -404,7 +411,7 @@ export default function Debtors() {
                     <TableCell className="font-mono text-sm">{invoice.id}</TableCell>
                     <TableCell className="font-medium">{invoice.debtor}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {invoice.amount.toLocaleString("de-DE")} €
+                      CHF {invoice.amount.toLocaleString("de-CH")}
                     </TableCell>
                     <TableCell>
                       {new Date(invoice.dueDate).toLocaleDateString("de-DE")}

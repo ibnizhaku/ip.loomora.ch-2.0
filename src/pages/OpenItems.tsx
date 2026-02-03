@@ -217,10 +217,10 @@ export default function OpenItems() {
               </div>
             </TableCell>
             <TableCell className="text-right font-mono">
-              €{item.amount.toLocaleString()}
+              CHF {item.amount.toLocaleString("de-CH")}
             </TableCell>
             <TableCell className="text-right font-mono font-medium">
-              €{item.openAmount.toLocaleString()}
+              CHF {item.openAmount.toLocaleString("de-CH")}
             </TableCell>
             <TableCell>
               <Badge className={statusStyles[item.status]}>
@@ -283,7 +283,7 @@ export default function OpenItems() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Forderungen</p>
-              <p className="text-2xl font-bold text-success">€{totalReceivables.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-success">CHF {totalReceivables.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function OpenItems() {
             <div>
               <p className="text-sm text-muted-foreground">Überfällig (Debitoren)</p>
               <p className="text-2xl font-bold text-destructive">
-                €{overdueReceivables.reduce((acc, i) => acc + i.openAmount, 0).toLocaleString()}
+                CHF {overdueReceivables.reduce((acc, i) => acc + i.openAmount, 0).toLocaleString("de-CH")}
               </p>
             </div>
           </div>
@@ -307,7 +307,7 @@ export default function OpenItems() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Verbindlichkeiten</p>
-              <p className="text-2xl font-bold text-orange-600">€{totalPayables.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-orange-600">CHF {totalPayables.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
