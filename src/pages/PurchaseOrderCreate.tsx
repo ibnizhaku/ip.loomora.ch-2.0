@@ -10,6 +10,11 @@ import {
   FileText,
   Search,
   Check,
+  Mail,
+  Download,
+  Printer,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +49,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -81,6 +94,8 @@ interface OrderItem {
   total: number;
 }
 
+type DeliveryMethod = "email" | "pdf" | "print";
+
 export default function PurchaseOrderCreate() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"supplier" | "products" | "review">("supplier");
@@ -91,6 +106,13 @@ export default function PurchaseOrderCreate() {
   const [expectedDelivery, setExpectedDelivery] = useState("");
   const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
+  
+  // Delivery dialog state
+  const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [deliveryStep, setDeliveryStep] = useState<"select" | "sending" | "done">("select");
+  const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState<DeliveryMethod[]>([]);
+  const [sendingProgress, setSendingProgress] = useState(0);
+  const [orderNumber, setOrderNumber] = useState("");
 
   // Filter products by selected supplier
   const supplierProducts = selectedSupplier 
@@ -152,7 +174,15 @@ export default function PurchaseOrderCreate() {
   const vat = subtotal * 0.081; // 8.1% Swiss VAT
   const total = subtotal + vat;
 
-  const handleSubmit = () => {
+  const toggleDeliveryMethod = (method: DeliveryMethod) => {
+    setSelectedDeliveryMethods(prev =>
+      prev.includes(method)
+        ? prev.filter(m => m !== method)
+        : [...prev, method]
+    );
+  };
+
+  const openDeliveryDialog = () => {
     if (!selectedSupplier) {
       toast.error("Bitte wählen Sie einen Lieferanten");
       return;
@@ -162,8 +192,56 @@ export default function PurchaseOrderCreate() {
       return;
     }
     
-    // In real app, this would call the API
-    toast.success("Bestellung erfolgreich erstellt");
+    // Generate order number
+    const num = Math.floor(Math.random() * 9000) + 1000;
+    setOrderNumber(`EK-2024-${num}`);
+    setShowDeliveryDialog(true);
+    setDeliveryStep("select");
+    setSelectedDeliveryMethods([]);
+    setSendingProgress(0);
+  };
+
+  const processDelivery = async () => {
+    if (selectedDeliveryMethods.length === 0) {
+      toast.error("Bitte wählen Sie mindestens eine Versandart");
+      return;
+    }
+
+    setDeliveryStep("sending");
+    setSendingProgress(0);
+
+    // Simulate processing each delivery method
+    const steps = selectedDeliveryMethods.length * 2;
+    for (let i = 1; i <= steps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSendingProgress((i / steps) * 100);
+    }
+
+    // Simulate final actions
+    if (selectedDeliveryMethods.includes("pdf")) {
+      // Simulate PDF download
+      toast.info("PDF wird generiert...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    if (selectedDeliveryMethods.includes("print")) {
+      // Simulate print dialog
+      toast.info("Druckdialog wird geöffnet...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    if (selectedDeliveryMethods.includes("email")) {
+      // Simulate email sending
+      toast.info(`E-Mail an ${selectedSupplier?.name} wird gesendet...`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setDeliveryStep("done");
+  };
+
+  const finishOrder = () => {
+    setShowDeliveryDialog(false);
+    toast.success(`Bestellung ${orderNumber} erfolgreich erstellt`);
     navigate("/purchase-orders");
   };
 
@@ -624,7 +702,7 @@ export default function PurchaseOrderCreate() {
               </div>
 
               <div className="space-y-2">
-                <Button className="w-full" onClick={handleSubmit}>
+                <Button className="w-full" onClick={openDeliveryDialog}>
                   Bestellung aufgeben
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => setStep("products")}>
@@ -635,6 +713,195 @@ export default function PurchaseOrderCreate() {
           </Card>
         </div>
       )}
+
+      {/* Delivery Method Dialog */}
+      <Dialog open={showDeliveryDialog} onOpenChange={setShowDeliveryDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {deliveryStep === "select" && "Bestellung versenden"}
+              {deliveryStep === "sending" && "Bestellung wird verarbeitet..."}
+              {deliveryStep === "done" && "Bestellung erfolgreich!"}
+            </DialogTitle>
+            <DialogDescription>
+              {deliveryStep === "select" && `Bestellung ${orderNumber} an ${selectedSupplier?.name}`}
+              {deliveryStep === "sending" && "Bitte warten Sie, während Ihre Bestellung verarbeitet wird."}
+              {deliveryStep === "done" && `Ihre Bestellung ${orderNumber} wurde erfolgreich erstellt.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {deliveryStep === "select" && (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <Label>Versandart wählen (Mehrfachauswahl möglich)</Label>
+                
+                <button
+                  type="button"
+                  onClick={() => toggleDeliveryMethod("email")}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all text-left",
+                    selectedDeliveryMethods.includes("email") 
+                      ? "border-primary bg-primary/5" 
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <div className={cn(
+                    "flex items-center justify-center h-10 w-10 rounded-lg",
+                    selectedDeliveryMethods.includes("email") ? "bg-primary text-primary-foreground" : "bg-muted"
+                  )}>
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">Per E-Mail versenden</div>
+                    <div className="text-sm text-muted-foreground">
+                      Bestellung direkt an den Lieferanten senden (Simulation)
+                    </div>
+                  </div>
+                  {selectedDeliveryMethods.includes("email") && (
+                    <Check className="h-5 w-5 text-primary" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleDeliveryMethod("pdf")}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all text-left",
+                    selectedDeliveryMethods.includes("pdf") 
+                      ? "border-primary bg-primary/5" 
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <div className={cn(
+                    "flex items-center justify-center h-10 w-10 rounded-lg",
+                    selectedDeliveryMethods.includes("pdf") ? "bg-primary text-primary-foreground" : "bg-muted"
+                  )}>
+                    <Download className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">Als PDF herunterladen</div>
+                    <div className="text-sm text-muted-foreground">
+                      Bestelldokument zum manuellen Versand speichern
+                    </div>
+                  </div>
+                  {selectedDeliveryMethods.includes("pdf") && (
+                    <Check className="h-5 w-5 text-primary" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleDeliveryMethod("print")}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all text-left",
+                    selectedDeliveryMethods.includes("print") 
+                      ? "border-primary bg-primary/5" 
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <div className={cn(
+                    "flex items-center justify-center h-10 w-10 rounded-lg",
+                    selectedDeliveryMethods.includes("print") ? "bg-primary text-primary-foreground" : "bg-muted"
+                  )}>
+                    <Printer className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">Drucken</div>
+                    <div className="text-sm text-muted-foreground">
+                      Bestellung für Post- oder Fax-Versand ausdrucken
+                    </div>
+                  </div>
+                  {selectedDeliveryMethods.includes("print") && (
+                    <Check className="h-5 w-5 text-primary" />
+                  )}
+                </button>
+              </div>
+
+              {/* Order Summary */}
+              <div className="p-4 rounded-lg bg-muted/50 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Positionen:</span>
+                  <span>{items.length}</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Bestellwert:</span>
+                  <span>CHF {total.toLocaleString("de-CH", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowDeliveryDialog(false)}>
+                  Abbrechen
+                </Button>
+                <Button 
+                  className="flex-1" 
+                  onClick={processDelivery}
+                  disabled={selectedDeliveryMethods.length === 0}
+                >
+                  Bestellung aufgeben
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {deliveryStep === "sending" && (
+            <div className="space-y-6 py-4">
+              <div className="flex justify-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              </div>
+              <Progress value={sendingProgress} className="h-2" />
+              <div className="text-center text-sm text-muted-foreground">
+                {sendingProgress < 30 && "Bestellung wird erstellt..."}
+                {sendingProgress >= 30 && sendingProgress < 60 && "Dokumente werden generiert..."}
+                {sendingProgress >= 60 && sendingProgress < 90 && "Versand wird vorbereitet..."}
+                {sendingProgress >= 90 && "Fast fertig..."}
+              </div>
+            </div>
+          )}
+
+          {deliveryStep === "done" && (
+            <div className="space-y-6 py-4">
+              <div className="flex justify-center">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-success/10">
+                  <CheckCircle2 className="h-10 w-10 text-success" />
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-center">
+                <p className="font-medium">Bestellung {orderNumber}</p>
+                <p className="text-sm text-muted-foreground">
+                  Folgende Aktionen wurden durchgeführt:
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {selectedDeliveryMethods.includes("email") && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 text-success" />
+                    <span>E-Mail an {selectedSupplier?.name} gesendet</span>
+                  </div>
+                )}
+                {selectedDeliveryMethods.includes("pdf") && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 text-success" />
+                    <span>PDF-Dokument heruntergeladen</span>
+                  </div>
+                )}
+                {selectedDeliveryMethods.includes("print") && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 text-success" />
+                    <span>Druckauftrag gesendet</span>
+                  </div>
+                )}
+              </div>
+
+              <Button className="w-full" onClick={finishOrder}>
+                Fertig
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
