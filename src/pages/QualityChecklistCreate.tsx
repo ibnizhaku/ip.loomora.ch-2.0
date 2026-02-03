@@ -1,0 +1,237 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Plus, Trash2, GripVertical, Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+
+interface CheckPoint {
+  id: string;
+  name: string;
+  category: string;
+  targetValue: string;
+  weight: number;
+}
+
+export default function QualityChecklistCreate() {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [norm, setNorm] = useState("");
+  const [execClass, setExecClass] = useState("");
+  const [description, setDescription] = useState("");
+  const [checkPoints, setCheckPoints] = useState<CheckPoint[]>([
+    { id: crypto.randomUUID(), name: "", category: "", targetValue: "", weight: 10 },
+  ]);
+
+  const addCheckPoint = () => {
+    setCheckPoints([
+      ...checkPoints,
+      { id: crypto.randomUUID(), name: "", category: "", targetValue: "", weight: 10 },
+    ]);
+  };
+
+  const removeCheckPoint = (id: string) => {
+    if (checkPoints.length > 1) {
+      setCheckPoints(checkPoints.filter((cp) => cp.id !== id));
+    }
+  };
+
+  const updateCheckPoint = (id: string, field: keyof CheckPoint, value: string | number) => {
+    setCheckPoints(
+      checkPoints.map((cp) => (cp.id === id ? { ...cp, [field]: value } : cp))
+    );
+  };
+
+  const handleSave = () => {
+    if (!name) {
+      toast.error("Bitte geben Sie einen Namen ein");
+      return;
+    }
+    if (checkPoints.some((cp) => !cp.name)) {
+      toast.error("Bitte füllen Sie alle Prüfpunkte aus");
+      return;
+    }
+    toast.success("Checklisten-Vorlage erstellt");
+    navigate("/quality/checklists");
+  };
+
+  const totalWeight = checkPoints.reduce((sum, cp) => sum + cp.weight, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="font-display text-2xl font-bold">Neue Checklisten-Vorlage</h1>
+          <p className="text-muted-foreground">Prüfvorlage für Qualitätskontrollen erstellen</p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Grunddaten */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Grunddaten</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Vorlagenname *</Label>
+              <Input
+                placeholder="z.B. Schweissnaht-Prüfung EN 1090"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Kategorie</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Kategorie wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="schweissen">Schweissen</SelectItem>
+                  <SelectItem value="massgenauigkeit">Massgenauigkeit</SelectItem>
+                  <SelectItem value="oberflaeche">Oberfläche</SelectItem>
+                  <SelectItem value="verbindungen">Verbindungen</SelectItem>
+                  <SelectItem value="wareneingang">Wareneingang</SelectItem>
+                  <SelectItem value="endkontrolle">Endkontrolle</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Prüfnorm</Label>
+              <Select value={norm} onValueChange={setNorm}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Norm wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en1090-2">SN EN 1090-2</SelectItem>
+                  <SelectItem value="iso12944">ISO 12944</SelectItem>
+                  <SelectItem value="iso9001">ISO 9001</SelectItem>
+                  <SelectItem value="iso3834">ISO 3834</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Ausführungsklasse</Label>
+              <Select value={execClass} onValueChange={setExecClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Klasse wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="exc1">EXC1</SelectItem>
+                  <SelectItem value="exc2">EXC2</SelectItem>
+                  <SelectItem value="exc3">EXC3</SelectItem>
+                  <SelectItem value="exc4">EXC4</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Beschreibung</Label>
+              <Textarea
+                placeholder="Optionale Beschreibung..."
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Prüfpunkte */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>
+              Prüfpunkte ({checkPoints.length})
+              {totalWeight !== 100 && (
+                <span className="ml-2 text-sm font-normal text-warning">
+                  Gewichtung: {totalWeight}% (sollte 100% sein)
+                </span>
+              )}
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={addCheckPoint}>
+              <Plus className="mr-2 h-4 w-4" />
+              Prüfpunkt
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {checkPoints.map((cp, index) => (
+              <div
+                key={cp.id}
+                className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3"
+              >
+                <div className="flex h-8 w-8 items-center justify-center text-muted-foreground">
+                  <GripVertical className="h-4 w-4" />
+                </div>
+                <div className="flex-1 grid gap-3 sm:grid-cols-4">
+                  <div className="sm:col-span-2 space-y-1">
+                    <Label className="text-xs">Prüfpunkt *</Label>
+                    <Input
+                      placeholder="z.B. Sichtprüfung VT"
+                      value={cp.name}
+                      onChange={(e) => updateCheckPoint(cp.id, "name", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Soll-Wert</Label>
+                    <Input
+                      placeholder="z.B. Klasse C"
+                      value={cp.targetValue}
+                      onChange={(e) => updateCheckPoint(cp.id, "targetValue", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Gewicht (%)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={cp.weight}
+                      onChange={(e) =>
+                        updateCheckPoint(cp.id, "weight", parseInt(e.target.value) || 0)
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => removeCheckPoint(cp.id)}
+                  disabled={checkPoints.length === 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          Abbrechen
+        </Button>
+        <Button onClick={handleSave}>
+          <Save className="mr-2 h-4 w-4" />
+          Vorlage speichern
+        </Button>
+      </div>
+    </div>
+  );
+}

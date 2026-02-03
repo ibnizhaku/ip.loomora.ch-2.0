@@ -80,6 +80,8 @@ import ServiceDetail from "./pages/ServiceDetail";
 import QualityControl from "./pages/QualityControl";
 import QualityCheckDetail from "./pages/QualityCheckDetail";
 import QualityCheckCreate from "./pages/QualityCheckCreate";
+import QualityChecklists from "./pages/QualityChecklists";
+import QualityChecklistCreate from "./pages/QualityChecklistCreate";
 import ServiceCreate from "./pages/ServiceCreate";
 import ContractCreate from "./pages/ContractCreate";
 import DocumentUpload from "./pages/DocumentUpload";
@@ -366,6 +368,8 @@ const App = () => (
                   <Route path="/service/:id" element={<ServiceDetail />} />
                   <Route path="/quality" element={<QualityControl />} />
                   <Route path="/quality/new" element={<QualityCheckCreate />} />
+                  <Route path="/quality/checklists" element={<QualityChecklists />} />
+                  <Route path="/quality/checklists/new" element={<QualityChecklistCreate />} />
                   <Route path="/quality/:id" element={<QualityCheckDetail />} />
                   <Route path="/login" element={<Login />} />
                   
