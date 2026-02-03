@@ -138,7 +138,7 @@ const SupplierDetail = () => {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">€{supplierData.stats.totalVolume.toLocaleString()}</div>
+            <div className="text-2xl font-bold">CHF {supplierData.stats.totalVolume.toLocaleString('de-CH')}</div>
             <p className="text-sm text-muted-foreground">Gesamtvolumen</p>
           </CardContent>
         </Card>
@@ -324,7 +324,7 @@ const SupplierDetail = () => {
                     <TableRow key={product.articleNo}>
                       <TableCell className="font-mono">{product.articleNo}</TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right">€{product.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">CHF {product.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={stockColors[product.stock]}>
                           {product.stock}
@@ -364,7 +364,7 @@ const SupplierDetail = () => {
                       </TableCell>
                       <TableCell>{order.date}</TableCell>
                       <TableCell className="text-right">{order.items}</TableCell>
-                      <TableCell className="text-right">€{order.total.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">CHF {order.total.toLocaleString('de-CH')}</TableCell>
                       <TableCell>
                         <Badge className="bg-success/10 text-success">{order.status}</Badge>
                       </TableCell>
