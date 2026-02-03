@@ -10,6 +10,10 @@ import {
   MapPin,
   MoreHorizontal,
   X,
+  Edit,
+  Trash2,
+  Copy,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +28,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -204,6 +215,29 @@ export default function Calendar() {
     toast.success("Termin wurde erstellt");
   };
 
+  const handleEditEvent = (event: Event) => {
+    toast.info(`Termin "${event.title}" bearbeiten`);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    toast.success("Termin wurde gelöscht");
+  };
+
+  const handleDuplicateEvent = (event: Event) => {
+    const newEventCopy: Event = {
+      ...event,
+      id: String(Date.now()),
+      title: `${event.title} (Kopie)`,
+    };
+    setEvents(prev => [...prev, newEventCopy]);
+    toast.success("Termin wurde dupliziert");
+  };
+
+  const handleSetReminder = (event: Event) => {
+    toast.success(`Erinnerung für "${event.title}" gesetzt`);
+  };
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
@@ -341,13 +375,39 @@ export default function Calendar() {
                               )}
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => handleEditEvent(event)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Bearbeiten
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicateEvent(event)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplizieren
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleSetReminder(event)}>
+                                <Bell className="h-4 w-4 mr-2" />
+                                Erinnerung setzen
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteEvent(event.id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Löschen
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
 
                         {event.attendees && event.attendees.length > 0 && (
