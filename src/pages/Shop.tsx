@@ -174,6 +174,7 @@ export default function Shop() {
 
   const handleSettings = () => {
     navigate("/settings");
+    toast.info("Navigiere zu Shop-Einstellungen");
   };
 
   const newOrdersCount = shopOrders.filter(o => o.status === "pending").length;

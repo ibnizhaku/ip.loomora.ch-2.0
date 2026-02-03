@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus,
   Search,
@@ -19,7 +20,21 @@ import {
   Copy,
   Trash2,
   TrendingUp,
+  Edit,
+  Eye,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
 
 interface Discount {
@@ -178,9 +193,22 @@ export default function Discounts() {
     setStatusFilter("all");
   };
 
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDiscounts(prev => prev.filter(d => d.id !== id));
+    toast.success("Rabattcode gelöscht");
+  };
+
+  const handleEdit = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/discounts/${id}`);
+  };
+
   const handleRowClick = (id: string) => {
     navigate(`/discounts/${id}`);
   };
+
+  const activeFilters = (statusFilter !== "all" ? 1 : 0) + (typeFilter !== "all" ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -268,9 +296,77 @@ export default function Discounts() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="relative">
+              <Filter className="h-4 w-4" />
+              {activeFilters > 0 && (
+                <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs">
+                  {activeFilters}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="end">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">Status</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="active" 
+                      checked={statusFilter === "active"}
+                      onCheckedChange={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
+                    />
+                    <label htmlFor="active" className="text-sm cursor-pointer">Aktiv</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="inactive" 
+                      checked={statusFilter === "inactive"}
+                      onCheckedChange={() => setStatusFilter(statusFilter === "inactive" ? "all" : "inactive")}
+                    />
+                    <label htmlFor="inactive" className="text-sm cursor-pointer">Inaktiv</label>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">Typ</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="percentage" 
+                      checked={typeFilter === "percentage"}
+                      onCheckedChange={() => setTypeFilter(typeFilter === "percentage" ? "all" : "percentage")}
+                    />
+                    <label htmlFor="percentage" className="text-sm cursor-pointer">Prozent</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="fixed" 
+                      checked={typeFilter === "fixed"}
+                      onCheckedChange={() => setTypeFilter(typeFilter === "fixed" ? "all" : "fixed")}
+                    />
+                    <label htmlFor="fixed" className="text-sm cursor-pointer">Festbetrag</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="shipping" 
+                      checked={typeFilter === "shipping"}
+                      onCheckedChange={() => setTypeFilter(typeFilter === "shipping" ? "all" : "shipping")}
+                    />
+                    <label htmlFor="shipping" className="text-sm cursor-pointer">Versand</label>
+                  </div>
+                </div>
+              </div>
+              {activeFilters > 0 && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => { setStatusFilter("all"); setTypeFilter("all"); }}>
+                  Filter zurücksetzen
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
         {(statusFilter !== "all" || typeFilter !== "all") && (
           <Button variant="ghost" onClick={() => { setStatusFilter("all"); setTypeFilter("all"); }}>
             Filter zurücksetzen
@@ -352,11 +448,32 @@ export default function Discounts() {
                   />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => handleEdit(discount.id, e)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleEdit(discount.id, e)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Bearbeiten
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleCopyCode(discount.code, e)}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Code kopieren
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(discount.id, e)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

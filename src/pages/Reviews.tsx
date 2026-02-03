@@ -7,6 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Search,
   Filter,
@@ -156,6 +164,10 @@ export default function Reviews() {
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "positive">("all");
+  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [statusFilterChecked, setStatusFilterChecked] = useState<string[]>([]);
 
   const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   const pendingCount = reviews.filter((r) => r.status === "pending").length;
@@ -202,8 +214,26 @@ export default function Reviews() {
 
   const handleReply = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const review = reviews.find(r => r.id === id);
-    toast.info(`Antwort an ${review?.customer} wird vorbereitet`);
+    setSelectedReviewId(id);
+    setReplyDialogOpen(true);
+  };
+
+  const handleSendReply = () => {
+    if (!replyText.trim()) {
+      toast.error("Bitte geben Sie eine Antwort ein");
+      return;
+    }
+    setReviews(prev => prev.map(r => {
+      if (r.id === selectedReviewId) {
+        return { ...r, hasResponse: true };
+      }
+      return r;
+    }));
+    const review = reviews.find(r => r.id === selectedReviewId);
+    toast.success(`Antwort an ${review?.customer} gesendet`);
+    setReplyDialogOpen(false);
+    setReplyText("");
+    setSelectedReviewId(null);
   };
 
   const handleFlag = (id: string, e: React.MouseEvent) => {
@@ -362,9 +392,39 @@ export default function Reviews() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-2">Sterne</h4>
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map((stars) => (
+                        <div key={stars} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`stars-${stars}`} 
+                            checked={ratingFilter === stars}
+                            onCheckedChange={() => setRatingFilter(ratingFilter === stars ? "all" : stars)}
+                          />
+                          <label htmlFor={`stars-${stars}`} className="text-sm cursor-pointer flex items-center gap-1">
+                            {stars} <Star className="h-3 w-3 text-warning fill-warning" />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {(statusFilter !== "all" || ratingFilter !== "all") && (
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => { setStatusFilter("all"); setRatingFilter("all"); }}>
+                      Filter zurücksetzen
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
             {(statusFilter !== "all" || ratingFilter !== "all") && (
               <Button variant="ghost" onClick={() => { setStatusFilter("all"); setRatingFilter("all"); }}>
                 Filter zurücksetzen
@@ -558,6 +618,36 @@ export default function Reviews() {
           ))}
         </TabsContent>
       </Tabs>
+
+      {/* Reply Dialog */}
+      <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Auf Bewertung antworten</DialogTitle>
+            <DialogDescription>
+              {selectedReviewId && reviews.find(r => r.id === selectedReviewId) && (
+                <>Antwort an {reviews.find(r => r.id === selectedReviewId)?.customer}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea 
+              placeholder="Ihre Antwort eingeben..."
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplyDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSendReply}>
+              Antwort senden
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
