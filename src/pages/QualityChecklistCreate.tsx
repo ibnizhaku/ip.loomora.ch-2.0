@@ -95,7 +95,7 @@ export default function QualityChecklistCreate() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/quality/checklists")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -255,7 +255,7 @@ export default function QualityChecklistCreate() {
 
       {/* Actions */}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => navigate(-1)}>
+        <Button variant="outline" onClick={() => navigate("/quality/checklists")}>
           Abbrechen
         </Button>
         <Button onClick={handleSave}>
