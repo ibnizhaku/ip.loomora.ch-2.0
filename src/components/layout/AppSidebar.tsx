@@ -496,9 +496,9 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar-background">
       <SidebarHeader className="p-4 space-y-4">
-        <div className="flex items-center gap-3 px-1">
+        <NavLink to="/" className="flex items-center gap-3 px-1 hover:opacity-80 transition-opacity">
           <img src={loomoraLogo} alt="Loomora" className="h-10" />
-        </div>
+        </NavLink>
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary" />
           <Input
