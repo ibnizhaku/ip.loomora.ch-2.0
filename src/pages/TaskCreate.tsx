@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -12,7 +12,10 @@ import {
   User,
   Tag,
   Paperclip,
-  X
+  X,
+  FileText,
+  Image,
+  File
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
 
 const projects = [
   { id: "1", name: "E-Commerce Platform" },
@@ -48,7 +52,60 @@ export default function TaskCreate() {
   const [subtasks, setSubtasks] = useState<{ id: number; title: string }[]>([]);
   const [newSubtask, setNewSubtask] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [attachments, setAttachments] = useState<{ name: string; size: string }[]>([]);
+  const [attachments, setAttachments] = useState<{ name: string; size: string; type: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return Image;
+    if (type === "application/pdf") return FileText;
+    return File;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+      }));
+      setAttachments(prev => [...prev, ...newAttachments]);
+      toast({
+        title: "Dateien hinzugefügt",
+        description: `${files.length} Datei(en) wurden hinzugefügt.`,
+      });
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+      }));
+      setAttachments(prev => [...prev, ...newAttachments]);
+      toast({
+        title: "Dateien hinzugefügt",
+        description: `${files.length} Datei(en) wurden hinzugefügt.`,
+      });
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const addSubtask = () => {
     if (newSubtask.trim()) {
@@ -206,33 +263,72 @@ export default function TaskCreate() {
                 <Paperclip className="h-5 w-5" />
                 Anhänge
               </CardTitle>
+              {attachments.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {attachments.length} Datei(en)
+                </span>
+              )}
             </CardHeader>
             <CardContent>
-              {attachments.length > 0 ? (
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                multiple
+                className="hidden"
+              />
+              
+              {attachments.length > 0 && (
                 <div className="space-y-2 mb-4">
-                  {attachments.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div>
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">{file.size}</p>
+                  {attachments.map((file, index) => {
+                    const FileIcon = getFileIcon(file.type);
+                    return (
+                      <div 
+                        key={index} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 animate-fade-in"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileIcon className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-sm">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{file.size}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => removeAttachment(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Paperclip className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Dateien hierher ziehen oder klicken zum Auswählen
-                  </p>
-                  <Button variant="outline" size="sm">
-                    Dateien auswählen
-                  </Button>
+                    );
+                  })}
                 </div>
               )}
+              
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Dateien hierher ziehen oder klicken zum Auswählen
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  Dateien auswählen
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
