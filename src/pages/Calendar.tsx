@@ -134,15 +134,26 @@ export default function Calendar() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedEventForReminder, setSelectedEventForReminder] = useState<Event | null>(null);
   const [selectedEventForDuplicate, setSelectedEventForDuplicate] = useState<Event | null>(null);
+  const [selectedEventForEdit, setSelectedEventForEdit] = useState<Event | null>(null);
   const [duplicateDate, setDuplicateDate] = useState<Date>(new Date());
+  const [editDate, setEditDate] = useState<Date>(new Date());
   const [reminderSettings, setReminderSettings] = useState({
     time: "15min",
     method: "notification",
   });
   const [eventReminders, setEventReminders] = useState<Record<string, { time: string; method: string }>>({});
   const [newEvent, setNewEvent] = useState({
+    title: "",
+    type: "meeting" as Event["type"],
+    startTime: "09:00",
+    endTime: "10:00",
+    location: "",
+    description: "",
+  });
+  const [editEvent, setEditEvent] = useState({
     title: "",
     type: "meeting" as Event["type"],
     startTime: "09:00",
@@ -226,7 +237,41 @@ export default function Calendar() {
   };
 
   const handleEditEvent = (event: Event) => {
-    toast.info(`Termin "${event.title}" bearbeiten`);
+    setSelectedEventForEdit(event);
+    const [year, month, day] = event.date.split("-").map(Number);
+    setEditDate(new Date(year, month - 1, day));
+    setEditEvent({
+      title: event.title,
+      type: event.type,
+      startTime: event.startTime,
+      endTime: event.endTime || "",
+      location: event.location || "",
+      description: event.description || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleConfirmEdit = () => {
+    if (selectedEventForEdit && editEvent.title.trim()) {
+      setEvents(prev => prev.map(e => 
+        e.id === selectedEventForEdit.id
+          ? {
+              ...e,
+              title: editEvent.title,
+              type: editEvent.type,
+              startTime: editEvent.startTime,
+              endTime: editEvent.endTime || undefined,
+              date: formatDateKey(editDate),
+              location: editEvent.location || undefined,
+              description: editEvent.description || undefined,
+            }
+          : e
+      ));
+      toast.success("Termin wurde aktualisiert");
+      setIsEditDialogOpen(false);
+    } else {
+      toast.error("Bitte geben Sie einen Titel ein");
+    }
   };
 
   const handleDeleteEvent = (eventId: string) => {
@@ -822,6 +867,117 @@ export default function Calendar() {
             <Button onClick={handleConfirmDuplicate}>
               <Copy className="h-4 w-4 mr-2" />
               Duplizieren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Termin bearbeiten
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Titel</Label>
+              <Input
+                id="edit-title"
+                placeholder="Terminbezeichnung"
+                value={editEvent.title}
+                onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Datum</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {format(editDate, "PPP", { locale: de })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={editDate}
+                    onSelect={(date) => date && setEditDate(date)}
+                    locale={de}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-startTime">Von</Label>
+                <Input
+                  id="edit-startTime"
+                  type="time"
+                  value={editEvent.startTime}
+                  onChange={(e) => setEditEvent({ ...editEvent, startTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-endTime">Bis</Label>
+                <Input
+                  id="edit-endTime"
+                  type="time"
+                  value={editEvent.endTime}
+                  onChange={(e) => setEditEvent({ ...editEvent, endTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Typ</Label>
+              <Select
+                value={editEvent.type}
+                onValueChange={(value) => setEditEvent({ ...editEvent, type: value as Event["type"] })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                  <SelectItem value="call">Anruf</SelectItem>
+                  <SelectItem value="deadline">Deadline</SelectItem>
+                  <SelectItem value="reminder">Erinnerung</SelectItem>
+                  <SelectItem value="vacation">Urlaub</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-location">Ort (optional)</Label>
+              <Input
+                id="edit-location"
+                placeholder="z.B. Konferenzraum A"
+                value={editEvent.location}
+                onChange={(e) => setEditEvent({ ...editEvent, location: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Beschreibung (optional)</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="Weitere Details..."
+                value={editEvent.description}
+                onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleConfirmEdit}>
+              Änderungen speichern
             </Button>
           </DialogFooter>
         </DialogContent>
