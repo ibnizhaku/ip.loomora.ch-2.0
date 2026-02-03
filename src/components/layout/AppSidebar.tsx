@@ -5,11 +5,8 @@ import {
   Users,
   FolderKanban,
   FileText,
-  FileUp,
   BarChart3,
-  Settings,
   HelpCircle,
-  LogOut,
   ChevronDown,
   Package,
   Clock,
@@ -31,14 +28,12 @@ import {
   GraduationCap,
   UserPlus,
   Network,
-  AlertTriangle,
   BookOpen,
   Calculator,
   Landmark,
   Scale,
   Wallet,
   PiggyBank,
-  Send,
   Target,
   Plane,
   Box,
@@ -71,7 +66,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -545,31 +539,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border/50">
-        <SidebarMenu className="gap-0.5 mb-3">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className={cn(
-                "group/item relative rounded-lg transition-all duration-200",
-                "hover:bg-sidebar-accent/60",
-                location.pathname === "/settings" &&
-                  "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-              )}
-            >
-              <NavLink to="/settings" className="flex items-center gap-3">
-                {location.pathname === "/settings" && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
-                )}
-                <span className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
-                  location.pathname === "/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover/item:text-foreground"
-                )}>
-                  <Settings className="h-4 w-4" />
-                </span>
-                <span className="text-sm">Einstellungen</span>
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+        <SidebarMenu className="gap-0.5">
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -590,31 +560,11 @@ export function AppSidebar() {
                 )}>
                   <HelpCircle className="h-4 w-4" />
                 </span>
-                <span className="text-sm">Hilfe</span>
+                <span className="text-sm">Hilfe & Support</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-
-        <div className="p-3 rounded-xl bg-gradient-to-br from-sidebar-accent/50 to-sidebar-accent/30 border border-sidebar-border/50 hover:border-sidebar-border transition-colors duration-200">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 ring-2 ring-primary/20 ring-offset-2 ring-offset-sidebar-background">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-sm font-semibold">
-                MK
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">Max Keller</p>
-              <p className="text-xs text-muted-foreground/70 truncate">
-                Administrator
-              </p>
-            </div>
-            <button className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 group">
-              <LogOut className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-            </button>
-          </div>
-        </div>
       </SidebarFooter>
     </Sidebar>
   );
