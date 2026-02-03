@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useCreateCustomer } from "@/hooks/use-customers";
 
 export default function CustomerCreate() {
   const navigate = useNavigate();
+  const createCustomer = useCreateCustomer();
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -31,11 +33,28 @@ export default function CustomerCreate() {
     notes: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would save to a database
-    toast.success("Kunde erfolgreich erstellt");
-    navigate("/customers");
+    
+    try {
+      await createCustomer.mutateAsync({
+        name: formData.name,
+        companyName: formData.company,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        mobile: formData.mobile || undefined,
+        website: formData.website || undefined,
+        street: formData.street || undefined,
+        zipCode: formData.zip || undefined,
+        city: formData.city || undefined,
+        country: formData.country || undefined,
+        notes: formData.notes || undefined,
+      });
+      toast.success("Kunde erfolgreich erstellt");
+      navigate("/customers");
+    } catch (error) {
+      toast.error("Fehler beim Erstellen des Kunden");
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -220,11 +239,15 @@ export default function CustomerCreate() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate("/customers")}>
+          <Button type="button" variant="outline" onClick={() => navigate("/customers")} disabled={createCustomer.isPending}>
             Abbrechen
           </Button>
-          <Button type="submit" className="gap-2">
-            <Save className="h-4 w-4" />
+          <Button type="submit" className="gap-2" disabled={createCustomer.isPending}>
+            {createCustomer.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             Kunde erstellen
           </Button>
         </div>
