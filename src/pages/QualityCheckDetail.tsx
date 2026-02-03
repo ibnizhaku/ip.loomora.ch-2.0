@@ -1,5 +1,5 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, Camera, FileText, User } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, Camera, FileText, User, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { ChecklistDialog } from "@/components/quality/ChecklistDialog";
 
 const qcData = {
   id: "QC-2024-0178",
@@ -45,6 +46,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 
 export default function QualityCheckDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const okCount = prüfpunkte.filter(p => p.status === "ok").length;
   const StatusIcon = statusConfig[qcData.status].icon;
@@ -70,6 +72,10 @@ export default function QualityCheckDetail() {
           <p className="text-muted-foreground">{qcData.projekt}</p>
         </div>
         <div className="flex gap-2">
+          <ChecklistDialog 
+            prüfungId={qcData.id} 
+            prüfungName={qcData.projekt} 
+          />
           <Button variant="outline">
             <Camera className="mr-2 h-4 w-4" />
             Fotos
@@ -77,6 +83,10 @@ export default function QualityCheckDetail() {
           <Button variant="outline">
             <FileText className="mr-2 h-4 w-4" />
             Prüfbericht
+          </Button>
+          <Button onClick={() => navigate("/quality-control/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Neue Prüfung
           </Button>
         </div>
       </div>
