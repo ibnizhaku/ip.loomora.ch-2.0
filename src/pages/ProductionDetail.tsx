@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { CapacityDialog } from "@/components/production/CapacityDialog";
 
 const produktionData = {
   id: "WA-2024-0156",
@@ -84,6 +85,10 @@ export default function ProductionDetail() {
           <p className="text-muted-foreground">{produktionData.bezeichnung}</p>
         </div>
         <div className="flex gap-2">
+          <CapacityDialog 
+            produktionId={produktionData.id} 
+            bezeichnung={produktionData.bezeichnung} 
+          />
           <Button variant="outline">
             <Pause className="mr-2 h-4 w-4" />
             Pausieren
