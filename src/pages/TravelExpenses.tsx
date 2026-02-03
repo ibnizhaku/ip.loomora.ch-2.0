@@ -18,6 +18,9 @@ import {
   XCircle,
   Download,
   Upload,
+  X,
+  Trash2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +39,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -189,13 +196,22 @@ export default function TravelExpenses() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<TravelExpense[]>(initialExpenses);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterDestination, setFilterDestination] = useState<string[]>([]);
 
   const totalExpenses = expenses.reduce((acc, e) => acc + e.totalAmount, 0);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted");
   const approvedExpenses = expenses.filter((e) => e.status === "approved" || e.status === "paid");
+  const uniqueDestinations = [...new Set(expenses.map(e => e.destination))];
+  const activeFilters = filterStatus.length + filterDestination.length;
 
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
+  };
+
+  const resetFilters = () => {
+    setFilterStatus([]);
+    setFilterDestination([]);
   };
 
   const handleApprove = (id: string, e: React.MouseEvent) => {
@@ -216,6 +232,28 @@ export default function TravelExpenses() {
     toast.error(`Reisekostenabrechnung ${expense?.number} abgelehnt`);
   };
 
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const expense = expenses.find(exp => exp.id === id);
+    setExpenses(prev => prev.filter(exp => exp.id !== id));
+    toast.success(`Reisekostenabrechnung ${expense?.number} gelöscht`);
+  };
+
+  const handleDuplicate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const expense = expenses.find(exp => exp.id === id);
+    if (expense) {
+      const newExpense: TravelExpense = {
+        ...expense,
+        id: String(Date.now()),
+        number: `RK-2024-${String(expenses.length + 1).padStart(3, "0")}`,
+        status: "draft",
+      };
+      setExpenses(prev => [newExpense, ...prev]);
+      toast.success(`Reisekostenabrechnung dupliziert`);
+    }
+  };
+
   const filteredExpenses = expenses.filter((exp) => {
     const matchesSearch = exp.employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       exp.purpose.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -224,8 +262,11 @@ export default function TravelExpenses() {
     const matchesStatus = !statusFilter || 
       (statusFilter === "submitted" && exp.status === "submitted") ||
       (statusFilter === "approved" && (exp.status === "approved" || exp.status === "paid"));
+
+    const matchesFilterStatus = filterStatus.length === 0 || filterStatus.includes(exp.status);
+    const matchesFilterDestination = filterDestination.length === 0 || filterDestination.includes(exp.destination);
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesFilterStatus && matchesFilterDestination;
   });
 
   return (
@@ -333,10 +374,72 @@ export default function TravelExpenses() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("gap-2", activeFilters > 0 && "border-primary")}>
+              <Filter className="h-4 w-4" />
+              Filter
+              {activeFilters > 0 && (
+                <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center">{activeFilters}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Filter</h4>
+                {activeFilters > 0 && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    <X className="h-4 w-4 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Status</Label>
+                {(["draft", "submitted", "approved", "rejected", "paid"] as const).map((status) => (
+                  <div key={status} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${status}`}
+                      checked={filterStatus.includes(status)}
+                      onCheckedChange={(checked) => {
+                        setFilterStatus(checked 
+                          ? [...filterStatus, status]
+                          : filterStatus.filter(s => s !== status)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
+                      {statusLabels[status]}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Reiseziel</Label>
+                {uniqueDestinations.map((destination) => (
+                  <div key={destination} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`dest-${destination}`}
+                      checked={filterDestination.includes(destination)}
+                      onCheckedChange={(checked) => {
+                        setFilterDestination(checked 
+                          ? [...filterDestination, destination]
+                          : filterDestination.filter(d => d !== destination)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`dest-${destination}`} className="text-sm font-normal cursor-pointer">
+                      {destination}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="rounded-2xl border border-border bg-card">
@@ -435,7 +538,7 @@ export default function TravelExpenses() {
                           <Eye className="h-4 w-4 mr-2" />
                           Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Bearbeitungsmodus geöffnet"); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/travel-expenses/${expense.id}/edit`); }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
@@ -443,6 +546,11 @@ export default function TravelExpenses() {
                           <Upload className="h-4 w-4 mr-2" />
                           Belege hochladen
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleDuplicate(expense.id, e)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplizieren
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         {expense.status === "submitted" && (
                           <>
                             <DropdownMenuItem 
@@ -460,6 +568,15 @@ export default function TravelExpenses() {
                               Ablehnen
                             </DropdownMenuItem>
                           </>
+                        )}
+                        {(expense.status === "draft" || expense.status === "rejected") && (
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={(e) => handleDelete(expense.id, e)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Löschen
+                          </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
