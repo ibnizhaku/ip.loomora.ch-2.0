@@ -126,7 +126,7 @@ const CreditNotes = () => {
           <h1 className="font-display text-3xl font-bold tracking-tight">Gutschriften</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Gutschriften und Erstattungen</p>
         </div>
-        <Button onClick={() => navigate("/credit-notes/create")}>
+        <Button onClick={() => navigate("/credit-notes/new")}>
           <Plus className="h-4 w-4 mr-2" />
           Neue Gutschrift
         </Button>
