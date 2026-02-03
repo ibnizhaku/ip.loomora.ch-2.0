@@ -17,15 +17,23 @@ import {
   Download,
   Banknote,
   FileText,
-  XCircle,
   Gavel,
+  Printer,
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -59,40 +67,42 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 // Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
-const levelConfig: Record<number, { label: string; color: string; fee: number }> = {
-  1: { label: "1. Mahnung", color: "bg-muted text-muted-foreground", fee: 0 },
-  2: { label: "2. Mahnung", color: "bg-warning/10 text-warning", fee: 20 },
-  3: { label: "3. Mahnung", color: "bg-orange-500/10 text-orange-500", fee: 30 },
-  4: { label: "4. Mahnung", color: "bg-destructive/10 text-destructive", fee: 50 },
-  5: { label: "Inkasso", color: "bg-destructive text-destructive-foreground", fee: 100 },
+const levelConfig: Record<number, { label: string; color: string; fee: number; days: number }> = {
+  1: { label: "1. Mahnung", color: "bg-muted text-muted-foreground", fee: 0, days: 10 },
+  2: { label: "2. Mahnung", color: "bg-warning/10 text-warning", fee: 20, days: 10 },
+  3: { label: "3. Mahnung", color: "bg-orange-500/10 text-orange-500", fee: 30, days: 10 },
+  4: { label: "4. Mahnung", color: "bg-destructive/10 text-destructive", fee: 50, days: 10 },
+  5: { label: "Inkasso", color: "bg-destructive text-destructive-foreground", fee: 100, days: 0 },
 };
 
 interface Reminder {
   id: string;
   invoice: string;
   customer: string;
+  customerEmail?: string;
   dueDate: string;
   amount: number;
   level: number;
   lastReminder: string;
   daysOverdue: number;
-  selected?: boolean;
 }
 
 const initialReminders: Reminder[] = [
-  { id: "MA-2024-0028", invoice: "RE-2024-0156", customer: "Müller & Partner GmbH", dueDate: "19.01.2024", amount: 8262.55, level: 2, lastReminder: "27.01.2024", daysOverdue: 12 },
-  { id: "MA-2024-0027", invoice: "RE-2024-0148", customer: "Innovation Labs", dueDate: "15.01.2024", amount: 4580.00, level: 3, lastReminder: "25.01.2024", daysOverdue: 16 },
-  { id: "MA-2024-0026", invoice: "RE-2024-0142", customer: "Weber Elektronik", dueDate: "22.01.2024", amount: 2890.00, level: 1, lastReminder: "28.01.2024", daysOverdue: 9 },
-  { id: "MA-2024-0025", invoice: "RE-2024-0135", customer: "StartUp Solutions", dueDate: "10.01.2024", amount: 12500.00, level: 4, lastReminder: "20.01.2024", daysOverdue: 21 },
-  { id: "MA-2024-0024", invoice: "RE-2024-0128", customer: "Digital Consulting", dueDate: "18.01.2024", amount: 3450.00, level: 2, lastReminder: "26.01.2024", daysOverdue: 13 },
+  { id: "MA-2024-0028", invoice: "RE-2024-0156", customer: "Müller & Partner GmbH", customerEmail: "buchhaltung@mueller-partner.ch", dueDate: "19.01.2024", amount: 8262.55, level: 2, lastReminder: "27.01.2024", daysOverdue: 12 },
+  { id: "MA-2024-0027", invoice: "RE-2024-0148", customer: "Innovation Labs", customerEmail: "finance@innovationlabs.ch", dueDate: "15.01.2024", amount: 4580.00, level: 3, lastReminder: "25.01.2024", daysOverdue: 16 },
+  { id: "MA-2024-0026", invoice: "RE-2024-0142", customer: "Weber Elektronik", customerEmail: "info@weber-elektronik.ch", dueDate: "22.01.2024", amount: 2890.00, level: 1, lastReminder: "28.01.2024", daysOverdue: 9 },
+  { id: "MA-2024-0025", invoice: "RE-2024-0135", customer: "StartUp Solutions", customerEmail: "admin@startup-solutions.ch", dueDate: "10.01.2024", amount: 12500.00, level: 4, lastReminder: "20.01.2024", daysOverdue: 21 },
+  { id: "MA-2024-0024", invoice: "RE-2024-0128", customer: "Digital Consulting", customerEmail: "rechnungen@digital-consulting.ch", dueDate: "18.01.2024", amount: 3450.00, level: 2, lastReminder: "26.01.2024", daysOverdue: 13 },
 ];
 
 const overdueInvoices = [
-  { id: "RE-2024-0160", customer: "Tech Industries", dueDate: "25.01.2024", amount: 5680.00, daysOverdue: 6, remindersSent: 0 },
-  { id: "RE-2024-0158", customer: "Media Solutions", dueDate: "23.01.2024", amount: 1890.00, daysOverdue: 8, remindersSent: 0 },
+  { id: "RE-2024-0160", customer: "Tech Industries", customerEmail: "ap@tech-industries.ch", dueDate: "25.01.2024", amount: 5680.00, daysOverdue: 6, remindersSent: 0 },
+  { id: "RE-2024-0158", customer: "Media Solutions", customerEmail: "finance@media-solutions.ch", dueDate: "23.01.2024", amount: 1890.00, daysOverdue: 8, remindersSent: 0 },
 ];
 
 const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+
+type DeliveryMethod = "email" | "post" | "both";
 
 const Reminders = () => {
   const navigate = useNavigate();
@@ -102,6 +112,12 @@ const Reminders = () => {
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedReminders, setSelectedReminders] = useState<string[]>([]);
+  
+  // Multi-step wizard state
+  const [bulkStep, setBulkStep] = useState(1);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("email");
+  const [isSending, setIsSending] = useState(false);
+  const [sendingProgress, setSendingProgress] = useState(0);
 
   const toggleLevelFilter = (level: number) => {
     setLevelFilters((prev) =>
@@ -123,6 +139,11 @@ const Reminders = () => {
     const matchesLevel = levelFilters.length === 0 || levelFilters.includes(r.level);
     return matchesSearch && matchesLevel;
   });
+
+  const selectedReminderData = reminders.filter((r) => selectedReminders.includes(r.id));
+  const totalAmount = selectedReminderData.reduce((sum, r) => sum + r.amount, 0);
+  const totalFees = selectedReminderData.reduce((sum, r) => sum + levelConfig[Math.min(r.level + 1, 5)].fee, 0);
+  const grandTotal = totalAmount + totalFees;
 
   const totalOutstanding = reminders.reduce((sum, r) => sum + r.amount, 0);
   const avgOverdue = Math.round(reminders.reduce((sum, r) => sum + r.daysOverdue, 0) / reminders.length);
@@ -154,14 +175,45 @@ const Reminders = () => {
       toast.error("Bitte wählen Sie mindestens eine Mahnung aus");
       return;
     }
+    setBulkStep(1);
+    setDeliveryMethod("email");
+    setIsSending(false);
+    setSendingProgress(0);
     setBulkDialogOpen(true);
   };
 
-  const confirmBulkReminder = () => {
-    const count = selectedReminders.length;
-    toast.success(`${count} Sammel-Mahnung${count > 1 ? "en" : ""} wird versendet...`);
-    setSelectedReminders([]);
+  const closeBulkDialog = () => {
     setBulkDialogOpen(false);
+    setBulkStep(1);
+    setIsSending(false);
+    setSendingProgress(0);
+  };
+
+  const confirmBulkReminder = async () => {
+    setIsSending(true);
+    setSendingProgress(0);
+
+    // Simulate sending process
+    const totalSteps = selectedReminders.length;
+    for (let i = 0; i < totalSteps; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setSendingProgress(((i + 1) / totalSteps) * 100);
+    }
+
+    // Update reminder levels
+    setReminders((prev) =>
+      prev.map((r) => {
+        if (selectedReminders.includes(r.id)) {
+          const newLevel = Math.min(r.level + 1, 5);
+          const today = new Date().toLocaleDateString("de-CH");
+          return { ...r, level: newLevel, lastReminder: today };
+        }
+        return r;
+      })
+    );
+
+    setIsSending(false);
+    setBulkStep(5); // Success step
   };
 
   const handleCreateReminder = (invoiceId?: string) => {
@@ -203,6 +255,21 @@ const Reminders = () => {
     );
     toast.success(`${reminder.invoice} an Inkasso übergeben`);
   };
+
+  const finishBulkProcess = () => {
+    toast.success(`${selectedReminders.length} Mahnungen erfolgreich versendet`);
+    setSelectedReminders([]);
+    closeBulkDialog();
+  };
+
+  // Wizard step titles
+  const stepTitles = [
+    "Übersicht",
+    "Versandart",
+    "Vorschau",
+    "Bestätigung",
+    "Abgeschlossen",
+  ];
 
   return (
     <div className="space-y-6">
@@ -509,51 +576,395 @@ const Reminders = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Bulk Reminder Dialog */}
-      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-        <DialogContent>
+      {/* Multi-Step Bulk Reminder Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={(open) => !isSending && (open ? setBulkDialogOpen(true) : closeBulkDialog())}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Sammel-Mahnung versenden</DialogTitle>
             <DialogDescription>
-              Sie sind dabei, {selectedReminders.length} Mahnung{selectedReminders.length > 1 ? "en" : ""} als Sammel-Mahnung zu versenden.
+              {bulkStep < 5 ? `Schritt ${bulkStep} von 4: ${stepTitles[bulkStep - 1]}` : "Versand abgeschlossen"}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <div className="rounded-lg border p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Anzahl Mahnungen:</span>
-                <span className="font-medium">{selectedReminders.length}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Gesamtbetrag:</span>
-                <span className="font-medium">
-                  {formatCHF(
-                    reminders
-                      .filter((r) => selectedReminders.includes(r.id))
-                      .reduce((sum, r) => sum + r.amount, 0)
+
+          {/* Progress indicator */}
+          {bulkStep < 5 && (
+            <div className="flex items-center gap-2 py-2">
+              {[1, 2, 3, 4].map((step) => (
+                <div key={step} className="flex items-center gap-2 flex-1">
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
+                      step < bulkStep
+                        ? "bg-primary text-primary-foreground"
+                        : step === bulkStep
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {step < bulkStep ? <Check className="h-4 w-4" /> : step}
+                  </div>
+                  {step < 4 && (
+                    <div className={cn("h-1 flex-1 rounded", step < bulkStep ? "bg-primary" : "bg-muted")} />
                   )}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Mahngebühren:</span>
-                <span className="font-medium text-warning">
-                  {formatCHF(
-                    reminders
-                      .filter((r) => selectedReminders.includes(r.id))
-                      .reduce((sum, r) => sum + levelConfig[Math.min(r.level + 1, 5)].fee, 0)
-                  )}
-                </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Step 1: Overview */}
+          {bulkStep === 1 && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Folgende {selectedReminders.length} Mahnung{selectedReminders.length > 1 ? "en" : ""} wurden ausgewählt:
+              </p>
+              <ScrollArea className="h-[200px] rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Kunde</TableHead>
+                      <TableHead>Rechnung</TableHead>
+                      <TableHead>Aktuelle Stufe</TableHead>
+                      <TableHead className="text-right">Betrag</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedReminderData.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.customer}</TableCell>
+                        <TableCell>{r.invoice}</TableCell>
+                        <TableCell>
+                          <Badge className={levelConfig[r.level].color}>
+                            {levelConfig[r.level].label}
+                          </Badge>
+                          <ChevronRight className="inline h-3 w-3 mx-1" />
+                          <Badge className={levelConfig[Math.min(r.level + 1, 5)].color}>
+                            {levelConfig[Math.min(r.level + 1, 5)].label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{formatCHF(r.amount)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+              <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                <div className="flex justify-between text-sm">
+                  <span>Anzahl Mahnungen:</span>
+                  <span className="font-medium">{selectedReminders.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Offene Forderungen:</span>
+                  <span className="font-medium">{formatCHF(totalAmount)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-sm">
+                  <span>Mahngebühren (neu):</span>
+                  <span className="font-medium text-warning">{formatCHF(totalFees)}</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Gesamtforderung:</span>
+                  <span>{formatCHF(grandTotal)}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Step 2: Delivery Method */}
+          {bulkStep === 2 && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Wählen Sie die Versandart für die Mahnungen:
+              </p>
+              <RadioGroup value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}>
+                <div className="space-y-3">
+                  <div className={cn(
+                    "flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50",
+                    deliveryMethod === "email" && "border-primary bg-primary/5"
+                  )}>
+                    <RadioGroupItem value="email" id="email" />
+                    <Label htmlFor="email" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-5 w-5 text-primary" />
+                        <span className="font-medium">Per E-Mail</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Schneller Versand an die hinterlegte E-Mail-Adresse
+                      </p>
+                    </Label>
+                  </div>
+                  <div className={cn(
+                    "flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50",
+                    deliveryMethod === "post" && "border-primary bg-primary/5"
+                  )}>
+                    <RadioGroupItem value="post" id="post" />
+                    <Label htmlFor="post" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Printer className="h-5 w-5 text-primary" />
+                        <span className="font-medium">Per Post (Druck)</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        PDF-Dokumente zum Ausdrucken und Versenden per Post
+                      </p>
+                    </Label>
+                  </div>
+                  <div className={cn(
+                    "flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50",
+                    deliveryMethod === "both" && "border-primary bg-primary/5"
+                  )}>
+                    <RadioGroupItem value="both" id="both" />
+                    <Label htmlFor="both" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Send className="h-5 w-5 text-primary" />
+                        <span className="font-medium">E-Mail + Post</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Sowohl per E-Mail als auch als PDF zum Drucken
+                      </p>
+                    </Label>
+                  </div>
+                </div>
+              </RadioGroup>
+              {(deliveryMethod === "email" || deliveryMethod === "both") && (
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <p className="text-sm font-medium mb-2">E-Mail-Empfänger:</p>
+                  <div className="space-y-1">
+                    {selectedReminderData.map((r) => (
+                      <div key={r.id} className="text-sm flex justify-between">
+                        <span>{r.customer}</span>
+                        <span className="text-muted-foreground">{r.customerEmail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Preview */}
+          {bulkStep === 3 && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Vorschau der Mahnschreiben (Schweizer Standard):
+              </p>
+              <ScrollArea className="h-[300px] rounded-lg border bg-white p-4">
+                <div className="space-y-4 text-sm">
+                  <div className="text-right text-muted-foreground">
+                    Muster AG<br />
+                    Musterstrasse 1<br />
+                    8000 Zürich<br />
+                    CHE-123.456.789 MWST
+                  </div>
+                  <div className="mt-8">
+                    <strong>{selectedReminderData[0]?.customer}</strong><br />
+                    z.Hd. Buchhaltung<br />
+                    Kundenstrasse 10<br />
+                    8000 Zürich
+                  </div>
+                  <div className="mt-8 text-right">
+                    Zürich, {new Date().toLocaleDateString("de-CH")}
+                  </div>
+                  <div className="mt-4">
+                    <strong className="text-lg">
+                      {levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)].label}
+                    </strong>
+                  </div>
+                  <p className="mt-4">
+                    Sehr geehrte Damen und Herren
+                  </p>
+                  <p>
+                    Trotz unserer bisherigen Zahlungserinnerungen mussten wir feststellen, dass 
+                    die nachstehende Rechnung noch nicht beglichen wurde:
+                  </p>
+                  <table className="w-full mt-4 text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Rechnung</th>
+                        <th className="text-left py-2">Datum</th>
+                        <th className="text-right py-2">Betrag</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="py-2">{selectedReminderData[0]?.invoice}</td>
+                        <td className="py-2">{selectedReminderData[0]?.dueDate}</td>
+                        <td className="text-right py-2">{formatCHF(selectedReminderData[0]?.amount || 0)}</td>
+                      </tr>
+                      {(selectedReminderData[0]?.level || 0) >= 1 && (
+                        <tr>
+                          <td className="py-2" colSpan={2}>Mahngebühr</td>
+                          <td className="text-right py-2">
+                            {formatCHF(levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)].fee)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="border-t font-bold">
+                        <td className="py-2" colSpan={2}>Total</td>
+                        <td className="text-right py-2">
+                          {formatCHF((selectedReminderData[0]?.amount || 0) + levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)].fee)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="mt-4">
+                    Wir bitten Sie, den ausstehenden Betrag innert 10 Tagen auf unser Konto 
+                    zu überweisen. Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+                  </p>
+                  <p className="mt-4">
+                    Freundliche Grüsse<br />
+                    <strong>Muster AG</strong>
+                  </p>
+                  <div className="mt-8 p-4 border rounded bg-muted/30">
+                    <p className="text-xs text-muted-foreground text-center">
+                      [QR-Einzahlungsschein wird hier generiert]
+                    </p>
+                  </div>
+                </div>
+              </ScrollArea>
+              <p className="text-xs text-muted-foreground">
+                * Bei mehreren Mahnungen wird für jeden Kunden ein separates Schreiben erstellt.
+              </p>
+            </div>
+          )}
+
+          {/* Step 4: Confirmation */}
+          {bulkStep === 4 && !isSending && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-6 text-center">
+                <Send className="h-12 w-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-lg font-semibold mb-2">Bereit zum Versand</h3>
+                <p className="text-muted-foreground">
+                  {selectedReminders.length} Mahnung{selectedReminders.length > 1 ? "en" : ""} per{" "}
+                  {deliveryMethod === "email" ? "E-Mail" : deliveryMethod === "post" ? "Post" : "E-Mail und Post"} versenden?
+                </p>
+              </div>
+              <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                <div className="flex justify-between text-sm">
+                  <span>Versandart:</span>
+                  <span className="font-medium">
+                    {deliveryMethod === "email" ? "E-Mail" : deliveryMethod === "post" ? "Post (Druck)" : "E-Mail + Post"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Anzahl Mahnungen:</span>
+                  <span className="font-medium">{selectedReminders.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Gesamtforderung inkl. Gebühren:</span>
+                  <span className="font-medium">{formatCHF(grandTotal)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Sending Progress */}
+          {bulkStep === 4 && isSending && (
+            <div className="space-y-4 py-8">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 mx-auto mb-4 text-primary animate-spin" />
+                <h3 className="text-lg font-semibold mb-2">Mahnungen werden versendet...</h3>
+                <p className="text-muted-foreground">
+                  Bitte warten Sie, bis alle Mahnungen versendet wurden.
+                </p>
+              </div>
+              <Progress value={sendingProgress} className="h-2" />
+              <p className="text-center text-sm text-muted-foreground">
+                {Math.round(sendingProgress)}% abgeschlossen
+              </p>
+            </div>
+          )}
+
+          {/* Step 5: Success */}
+          {bulkStep === 5 && (
+            <div className="space-y-4 py-8">
+              <div className="text-center">
+                <div className="flex h-16 w-16 mx-auto mb-4 items-center justify-center rounded-full bg-success/10">
+                  <CheckCircle2 className="h-10 w-10 text-success" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Versand erfolgreich!</h3>
+                <p className="text-muted-foreground">
+                  {selectedReminders.length} Mahnung{selectedReminders.length > 1 ? "en" : ""} wurde{selectedReminders.length > 1 ? "n" : ""} erfolgreich versendet.
+                </p>
+              </div>
+              <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                <div className="flex justify-between text-sm">
+                  <span>Versendete Mahnungen:</span>
+                  <span className="font-medium">{selectedReminders.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Neue Mahngebühren:</span>
+                  <span className="font-medium text-warning">{formatCHF(totalFees)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Gesamtforderung:</span>
+                  <span className="font-medium">{formatCHF(grandTotal)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-sm">
+                  <span>Versandart:</span>
+                  <span className="font-medium">
+                    {deliveryMethod === "email" ? "E-Mail" : deliveryMethod === "post" ? "Post (Druck)" : "E-Mail + Post"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Nächste Mahnstufe fällig:</span>
+                  <span className="font-medium">in 10 Tagen</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={confirmBulkReminder}>
-              <Send className="h-4 w-4 mr-2" />
-              Mahnungen versenden
-            </Button>
+            {bulkStep === 1 && (
+              <>
+                <Button variant="outline" onClick={closeBulkDialog}>Abbrechen</Button>
+                <Button onClick={() => setBulkStep(2)}>
+                  Weiter
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </>
+            )}
+            {bulkStep === 2 && (
+              <>
+                <Button variant="outline" onClick={() => setBulkStep(1)}>
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Zurück
+                </Button>
+                <Button onClick={() => setBulkStep(3)}>
+                  Weiter
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </>
+            )}
+            {bulkStep === 3 && (
+              <>
+                <Button variant="outline" onClick={() => setBulkStep(2)}>
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Zurück
+                </Button>
+                <Button onClick={() => setBulkStep(4)}>
+                  Weiter
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </>
+            )}
+            {bulkStep === 4 && !isSending && (
+              <>
+                <Button variant="outline" onClick={() => setBulkStep(3)}>
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Zurück
+                </Button>
+                <Button onClick={confirmBulkReminder}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Jetzt versenden
+                </Button>
+              </>
+            )}
+            {bulkStep === 5 && (
+              <Button onClick={finishBulkProcess}>
+                <Check className="h-4 w-4 mr-2" />
+                Fertig
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
