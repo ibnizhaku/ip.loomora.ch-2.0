@@ -1,13 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
+import autoTable from 'jspdf-autotable';
 
 interface OrderItem {
   sku: string;
@@ -178,7 +170,7 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
     `CHF ${item.total.toLocaleString('de-CH', { minimumFractionDigits: 2 })}`,
   ]);
 
-  doc.autoTable({
+  const tableResult = autoTable(doc, {
     startY: y,
     head: [['Pos.', 'Art.-Nr.', 'Bezeichnung', 'Menge', 'Einzelpreis', 'Total']],
     body: tableData,
@@ -208,7 +200,7 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
   });
 
   // === TOTALS ===
-  y = doc.lastAutoTable.finalY + 10;
+  y = (tableResult as any).finalY + 10;
 
   const totalsX = 130;
   const totalsValueX = pageWidth - margin;
