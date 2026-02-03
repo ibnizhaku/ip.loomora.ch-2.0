@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus,
   Search,
   Filter,
   MoreHorizontal,
@@ -14,10 +13,10 @@ import {
   Trash,
   Grid3X3,
   List,
-  Upload,
   FolderOpen,
   Eye,
   Edit,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +27,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
+import { DocumentUploadDialog } from "@/components/documents/DocumentUploadDialog";
 
 interface Document {
   id: string;
@@ -130,10 +137,17 @@ export default function Documents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [documentList, setDocumentList] = useState<Document[]>(initialDocuments);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [sharedFilter, setSharedFilter] = useState<boolean | null>(null);
 
-  const filteredDocuments = documentList.filter((d) =>
-    d.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const hasActiveFilters = typeFilters.length > 0 || sharedFilter !== null;
+
+  const filteredDocuments = documentList.filter((d) => {
+    const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilters.length === 0 || typeFilters.includes(d.type);
+    const matchesShared = sharedFilter === null || d.shared === sharedFilter;
+    return matchesSearch && matchesType && matchesShared;
+  });
 
   const folders = filteredDocuments.filter((d) => d.type === "folder");
   const files = filteredDocuments.filter((d) => d.type !== "folder");
@@ -157,14 +171,10 @@ export default function Documents() {
     toast.success(doc.shared ? "Freigabe aufgehoben" : "Dokument freigegeben");
   };
 
-  const handleUpload = () => {
-    toast.success("Upload-Dialog würde sich öffnen...");
-  };
-
-  const handleNewFolder = () => {
+  const handleFolderCreated = (folder: { id: string; name: string; description?: string }) => {
     const newFolder: Document = {
-      id: Date.now().toString(),
-      name: "Neuer Ordner",
+      id: folder.id,
+      name: folder.name,
       type: "folder",
       modifiedDate: "gerade eben",
       modifiedBy: "Max Keller",
@@ -172,7 +182,19 @@ export default function Documents() {
       items: 0,
     };
     setDocumentList([newFolder, ...documentList]);
-    toast.success("Ordner erstellt");
+  };
+
+  const handleFilesUploaded = (files: { id: string; name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[]) => {
+    const newDocs: Document[] = files.map(f => ({
+      id: f.id,
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      modifiedDate: "gerade eben",
+      modifiedBy: "Max Keller",
+      shared: false,
+    }));
+    setDocumentList([...newDocs, ...documentList]);
   };
 
   return (
@@ -188,14 +210,8 @@ export default function Documents() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleNewFolder}>
-            <FolderOpen className="h-4 w-4" />
-            Neuer Ordner
-          </Button>
-          <Button className="gap-2" onClick={handleUpload}>
-            <Upload className="h-4 w-4" />
-            Hochladen
-          </Button>
+          <NewFolderDialog onFolderCreated={handleFolderCreated} />
+          <DocumentUploadDialog onFilesUploaded={handleFilesUploaded} />
         </div>
       </div>
 
@@ -263,9 +279,90 @@ export default function Documents() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="relative">
+                <Filter className="h-4 w-4" />
+                {hasActiveFilters && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Filter</h4>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-muted-foreground"
+                      onClick={() => {
+                        setTypeFilters([]);
+                        setSharedFilter(null);
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Zurücksetzen
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Dateityp</p>
+                  {Object.entries(typeConfig).map(([key, config]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`type-${key}`}
+                        checked={typeFilters.includes(key)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setTypeFilters([...typeFilters, key]);
+                          } else {
+                            setTypeFilters(typeFilters.filter((t) => t !== key));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`type-${key}`}
+                        className="text-sm cursor-pointer flex-1 capitalize"
+                      >
+                        {key === "pdf" ? "PDF" : key === "doc" ? "Dokument" : key === "image" ? "Bild" : key === "spreadsheet" ? "Tabelle" : "Ordner"}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Freigabe</p>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="shared-yes"
+                      checked={sharedFilter === true}
+                      onCheckedChange={(checked) => {
+                        setSharedFilter(checked ? true : null);
+                      }}
+                    />
+                    <label htmlFor="shared-yes" className="text-sm cursor-pointer">
+                      Nur geteilte
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="shared-no"
+                      checked={sharedFilter === false}
+                      onCheckedChange={(checked) => {
+                        setSharedFilter(checked ? false : null);
+                      }}
+                    />
+                    <label htmlFor="shared-no" className="text-sm cursor-pointer">
+                      Nur private
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="flex rounded-lg border border-border p-1">
             <Button
               variant={view === "grid" ? "secondary" : "ghost"}
