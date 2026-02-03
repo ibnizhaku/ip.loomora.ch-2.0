@@ -214,9 +214,9 @@ export default function QualityControl() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/quality/checklists")}>
             <FileText className="h-4 w-4" />
-            Checkliste
+            Checklisten
           </Button>
           <Button className="gap-2" onClick={() => navigate("/quality/new")}>
             <Plus className="h-4 w-4" />
