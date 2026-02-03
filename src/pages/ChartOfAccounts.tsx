@@ -281,7 +281,33 @@ export default function ChartOfAccounts() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("Export wird erstellt...")}>
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={() => {
+              const flattenAccounts = (accs: Account[], prefix = ""): string[] => {
+                return accs.flatMap(acc => {
+                  const row = `${acc.number};${acc.name};${typeLabels[acc.type]};${acc.balance}`;
+                  if (acc.children) {
+                    return [row, ...flattenAccounts(acc.children, "  ")];
+                  }
+                  return [row];
+                });
+              };
+              
+              const csvContent = "Kontonummer;Kontoname;Typ;Saldo CHF\n" + flattenAccounts(accounts).join("\n");
+              const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `Kontenplan-${new Date().toISOString().split('T')[0]}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast.success("Kontenplan exportiert");
+            }}
+          >
             <Download className="h-4 w-4" />
             Export
           </Button>
