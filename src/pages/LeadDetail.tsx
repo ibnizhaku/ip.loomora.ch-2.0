@@ -1,11 +1,16 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, User, Building2, Mail, Phone, MapPin, Calendar, TrendingUp, MessageSquare, FileText, Star } from "lucide-react";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, User, Building2, Mail, Phone, MapPin, Calendar, TrendingUp, MessageSquare, FileText, Star, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 const leadData = {
   id: "LEAD-2024-0234",
@@ -56,6 +61,12 @@ const typIcons: Record<string, string> = {
 
 export default function LeadDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [activityType, setActivityType] = useState("Anruf");
+  const [activityNote, setActivityNote] = useState("");
+  const [activities, setActivities] = useState(aktivitäten);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -65,6 +76,34 @@ export default function LeadDetail() {
   };
 
   const gewichtetesPotenzial = leadData.potenzial * (leadData.wahrscheinlichkeit / 100);
+
+  const handleAddActivity = () => {
+    if (!activityNote.trim()) {
+      toast.error("Bitte geben Sie eine Beschreibung ein");
+      return;
+    }
+    const newActivity = {
+      datum: new Date().toLocaleDateString("de-CH"),
+      typ: activityType,
+      beschreibung: activityNote,
+      user: "PS",
+    };
+    setActivities([newActivity, ...activities]);
+    setActivityDialogOpen(false);
+    setActivityNote("");
+    toast.success("Aktivität wurde hinzugefügt");
+  };
+
+  const handleCreateQuote = () => {
+    toast.success("Angebot wird erstellt...");
+    navigate("/quotes/new");
+  };
+
+  const handleConvertToCustomer = () => {
+    toast.success(`${leadData.firma} wurde als Kunde angelegt`);
+    setConvertDialogOpen(false);
+    navigate("/customers");
+  };
 
   return (
     <div className="space-y-6">
@@ -93,15 +132,15 @@ export default function LeadDetail() {
           <p className="text-muted-foreground">{leadData.id} • {leadData.branche}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActivityDialogOpen(true)}>
             <MessageSquare className="mr-2 h-4 w-4" />
             Aktivität
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleCreateQuote}>
             <FileText className="mr-2 h-4 w-4" />
             Angebot
           </Button>
-          <Button>
+          <Button onClick={() => setConvertDialogOpen(true)}>
             <TrendingUp className="mr-2 h-4 w-4" />
             Zu Kunde konvertieren
           </Button>
@@ -258,13 +297,14 @@ export default function LeadDetail() {
             <MessageSquare className="h-5 w-5 text-muted-foreground" />
             <CardTitle>Aktivitäten</CardTitle>
           </div>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setActivityDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
             Neue Aktivität
           </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {aktivitäten.map((akt, i) => (
+            {activities.map((akt, i) => (
               <div key={i} className="flex gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
                 <div className="text-2xl">{typIcons[akt.typ] || "📌"}</div>
                 <div className="flex-1">
@@ -282,6 +322,87 @@ export default function LeadDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Activity Dialog */}
+      <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Neue Aktivität erfassen</DialogTitle>
+            <DialogDescription>
+              Dokumentieren Sie Ihren Kundenkontakt
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Aktivitätstyp</label>
+              <Select value={activityType} onValueChange={setActivityType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Anruf">📞 Anruf</SelectItem>
+                  <SelectItem value="E-Mail">✉️ E-Mail</SelectItem>
+                  <SelectItem value="Besuch">🏢 Besuch</SelectItem>
+                  <SelectItem value="Meeting">👥 Meeting</SelectItem>
+                  <SelectItem value="Messe">🎪 Messe</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Beschreibung</label>
+              <Textarea 
+                placeholder="Was wurde besprochen?"
+                value={activityNote}
+                onChange={(e) => setActivityNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivityDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleAddActivity}>
+              Aktivität speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Customer Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lead zu Kunde konvertieren</DialogTitle>
+            <DialogDescription>
+              Möchten Sie "{leadData.firma}" als Kunden anlegen?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border p-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Firma</span>
+                <span className="font-medium">{leadData.firma}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Ansprechpartner</span>
+                <span className="font-medium">{leadData.ansprechpartner}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Potenzial</span>
+                <span className="font-medium">{formatCurrency(leadData.potenzial)}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleConvertToCustomer}>
+              Kunde anlegen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

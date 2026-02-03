@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -32,8 +33,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface CostCenter {
   id: string;
@@ -144,13 +152,15 @@ export default function CostCenters() {
   const [searchQuery, setSearchQuery] = useState("");
   const [centerList, setCenterList] = useState(costCenters);
   const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "warning" | "over-budget">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
 
   const filteredCenters = centerList.filter((center) => {
     const matchesSearch = center.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       center.number.includes(searchQuery) ||
       center.manager.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || center.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesCategory = categoryFilter.length === 0 || categoryFilter.includes(center.category);
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const totalBudget = centerList.reduce((acc, c) => acc + c.budget, 0);
@@ -171,6 +181,56 @@ export default function CostCenters() {
     setStatusFilter(statusFilter === filter ? "all" : filter);
   };
 
+  const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+
+  const handleCreateReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFontSize(18);
+    doc.text("Kostenstellenbericht", pageWidth / 2, 20, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(`Erstellt am: ${new Date().toLocaleDateString("de-CH")}`, pageWidth / 2, 28, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.text("Zusammenfassung", 14, 42);
+    doc.setFontSize(10);
+    doc.text(`Gesamtbudget: ${formatCHF(totalBudget)}`, 14, 50);
+    doc.text(`Ist-Kosten: ${formatCHF(totalActual)}`, 14, 56);
+    doc.text(`Abweichung: ${formatCHF(totalVariance)}`, 14, 62);
+    doc.text(`Im Plan: ${onTrackCount} | Achtung: ${warningCount} | Überschritten: ${overBudgetCount}`, 14, 68);
+    
+    autoTable(doc, {
+      startY: 78,
+      head: [["Nr.", "Kostenstelle", "Verantwortlich", "Budget", "Ist", "Abweichung", "Status"]],
+      body: centerList.map(c => [
+        c.number,
+        c.name,
+        c.manager,
+        formatCHF(c.budget),
+        formatCHF(c.actual),
+        `${c.variance >= 0 ? "+" : ""}${formatCHF(c.variance)}`,
+        statusLabels[c.status],
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`Kostenstellenbericht_${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success("Bericht wurde erstellt");
+  };
+
+  const toggleCategoryFilter = (category: string) => {
+    setCategoryFilter(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const activeFilters = categoryFilter.length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -183,7 +243,7 @@ export default function CostCenters() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("Bericht wird erstellt...")}>
+          <Button variant="outline" className="gap-2" onClick={handleCreateReport}>
             <BarChart3 className="h-4 w-4" />
             Bericht erstellen
           </Button>
@@ -275,10 +335,43 @@ export default function CostCenters() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filter
+              {activeFilters > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
+                  {activeFilters}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="end">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">Kategorie</h4>
+                <div className="space-y-2">
+                  {Object.entries(categoryLabels).map(([key, label]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={key} 
+                        checked={categoryFilter.includes(key)}
+                        onCheckedChange={() => toggleCategoryFilter(key)}
+                      />
+                      <label htmlFor={key} className="text-sm cursor-pointer">{label}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {activeFilters > 0 && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setCategoryFilter([])}>
+                  Filter zurücksetzen
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="rounded-2xl border border-border bg-card">

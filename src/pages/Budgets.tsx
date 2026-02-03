@@ -35,6 +35,30 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+const budgetDataByYear: Record<string, typeof budgets> = {
+  "2024": [
+    { id: "1", name: "Personalkosten", category: "Operating", period: "2024", planned: 1200000, actual: 480000, forecast: 1180000, status: "on-track" },
+    { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2024", planned: 150000, actual: 85000, forecast: 175000, status: "at-risk" },
+    { id: "3", name: "IT Infrastruktur", category: "CAPEX", period: "2024", planned: 80000, actual: 95000, forecast: 120000, status: "over-budget" },
+    { id: "4", name: "Reisekosten", category: "Operating", period: "2024", planned: 45000, actual: 12000, forecast: 35000, status: "under-utilized" },
+    { id: "5", name: "Weiterbildung", category: "Operating", period: "2024", planned: 30000, actual: 8500, forecast: 28000, status: "on-track" },
+    { id: "6", name: "Büroausstattung", category: "CAPEX", period: "2024", planned: 25000, actual: 22000, forecast: 25000, status: "on-track" },
+  ],
+  "2023": [
+    { id: "1", name: "Personalkosten", category: "Operating", period: "2023", planned: 1100000, actual: 1080000, forecast: 1080000, status: "on-track" },
+    { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2023", planned: 120000, actual: 115000, forecast: 115000, status: "on-track" },
+    { id: "3", name: "IT Infrastruktur", category: "CAPEX", period: "2023", planned: 70000, actual: 68000, forecast: 68000, status: "on-track" },
+    { id: "4", name: "Reisekosten", category: "Operating", period: "2023", planned: 40000, actual: 38500, forecast: 38500, status: "on-track" },
+    { id: "5", name: "Weiterbildung", category: "Operating", period: "2023", planned: 25000, actual: 24000, forecast: 24000, status: "on-track" },
+  ],
+  "2025": [
+    { id: "1", name: "Personalkosten", category: "Operating", period: "2025", planned: 1350000, actual: 0, forecast: 1350000, status: "on-track" },
+    { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2025", planned: 180000, actual: 0, forecast: 180000, status: "on-track" },
+    { id: "3", name: "IT Infrastruktur", category: "CAPEX", period: "2025", planned: 100000, actual: 0, forecast: 100000, status: "on-track" },
+    { id: "4", name: "Reisekosten", category: "Operating", period: "2025", planned: 50000, actual: 0, forecast: 50000, status: "on-track" },
+  ],
+};
+
 interface Budget {
   id: string;
   name: string;
@@ -142,9 +166,10 @@ const statusIcons = {
 export default function Budgets() {
   const navigate = useNavigate();
   const [year, setYear] = useState("2024");
-  const [budgetList] = useState(budgets);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "at-risk" | "over-budget" | "under-utilized">("all");
+
+  const budgetList = budgetDataByYear[year] || budgets;
 
   const filteredBudgets = budgetList.filter((budget) => {
     const matchesSearch = budget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -166,6 +191,32 @@ export default function Budgets() {
     setStatusFilter(statusFilter === filter ? "all" : filter);
   };
 
+  const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+
+  const handleExport = () => {
+    const csvContent = [
+      ["Name", "Kategorie", "Periode", "Geplant", "Ist", "Prognose", "Status"].join(";"),
+      ...budgetList.map(b => [
+        b.name,
+        b.category,
+        b.period,
+        b.planned.toString().replace(".", ","),
+        b.actual.toString().replace(".", ","),
+        b.forecast.toString().replace(".", ","),
+        statusLabels[b.status],
+      ].join(";"))
+    ].join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Budgets_${year}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Budget-Export wurde erstellt");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -184,11 +235,12 @@ export default function Budgets() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="2025">2025</SelectItem>
               <SelectItem value="2024">2024</SelectItem>
               <SelectItem value="2023">2023</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("Export wird erstellt...")}>
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             Export
           </Button>

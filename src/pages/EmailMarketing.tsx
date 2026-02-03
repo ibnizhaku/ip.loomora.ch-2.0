@@ -8,6 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Plus,
   Search,
   MoreHorizontal,
@@ -21,6 +28,11 @@ import {
   FileText,
   Copy,
   BarChart3,
+  Edit,
+  Trash2,
+  Pause,
+  Play,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -140,9 +152,45 @@ export default function EmailMarketing() {
     toast.success(`E-Mail "${newsletter.subject}" dupliziert`);
   };
 
+  const handleDelete = (e: React.MouseEvent, newsletter: Newsletter) => {
+    e.stopPropagation();
+    toast.success(`E-Mail "${newsletter.subject}" gelöscht`);
+  };
+
+  const handleEdit = (e: React.MouseEvent, newsletter: Newsletter) => {
+    e.stopPropagation();
+    toast.info(`E-Mail "${newsletter.subject}" wird bearbeitet`);
+    navigate("/email-marketing/new");
+  };
+
+  const handleViewStats = (e: React.MouseEvent, newsletter: Newsletter) => {
+    e.stopPropagation();
+    toast.info(`Statistiken für "${newsletter.subject}"`);
+  };
+
   const handleUseTemplate = (template: { name: string }) => {
     toast.success(`Vorlage "${template.name}" wird verwendet`);
     navigate("/email-marketing/new");
+  };
+
+  const handleDeleteTemplate = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation();
+    toast.success(`Vorlage "${name}" gelöscht`);
+  };
+
+  const handleEditTemplate = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation();
+    toast.info(`Vorlage "${name}" wird bearbeitet`);
+  };
+
+  const handleDeleteList = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation();
+    toast.success(`Liste "${name}" gelöscht`);
+  };
+
+  const handleExportList = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation();
+    toast.success(`Liste "${name}" wird exportiert`);
   };
 
   return (
@@ -300,15 +348,38 @@ export default function EmailMarketing() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={(e) => handleViewStats(e, newsletter)}>
                           <BarChart3 className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={(e) => handleDuplicate(e, newsletter)}>
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => handleEdit(e, newsletter)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Bearbeiten
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleDuplicate(e, newsletter)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplizieren
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleViewStats(e, newsletter)}>
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              Statistiken
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, newsletter)}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Löschen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -328,9 +399,28 @@ export default function EmailMarketing() {
                       <CardTitle className="text-lg">{template.name}</CardTitle>
                       <CardDescription>{template.category}</CardDescription>
                     </div>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => handleEditTemplate(e, template.name)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUseTemplate(template)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Verwenden
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDeleteTemplate(e, template.name)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -367,9 +457,28 @@ export default function EmailMarketing() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>{list.name}</CardTitle>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => handleExportList(e, list.name)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Exportieren
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDeleteList(e, list.name)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardHeader>
                 <CardContent>
