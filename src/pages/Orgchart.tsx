@@ -10,7 +10,9 @@ import {
   Search,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Layers,
+  Crown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface OrgNode {
   id: string;
@@ -247,6 +250,7 @@ const Orgchart = () => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["1"]));
   const [searchTerm, setSearchTerm] = useState("");
   const [zoom, setZoom] = useState(100);
+  const [highlightFilter, setHighlightFilter] = useState<string | null>(null);
 
   const toggleNode = (id: string) => {
     const newExpanded = new Set(expandedNodes);
@@ -281,7 +285,40 @@ const Orgchart = () => {
     return count;
   };
 
+  // Count departments
+  const getDepartments = (node: OrgNode, departments: Set<string> = new Set()): Set<string> => {
+    departments.add(node.department);
+    node.reports?.forEach(child => getDepartments(child, departments));
+    return departments;
+  };
+
+  // Count leaders (nodes with reports)
+  const countLeaders = (node: OrgNode): number => {
+    let count = node.reports && node.reports.length > 0 ? 1 : 0;
+    node.reports?.forEach(child => {
+      count += countLeaders(child);
+    });
+    return count;
+  };
+
+  // Count levels
+  const getMaxLevel = (node: OrgNode, level = 1): number => {
+    if (!node.reports || node.reports.length === 0) return level;
+    return Math.max(...node.reports.map(child => getMaxLevel(child, level + 1)));
+  };
+
   const totalEmployees = countEmployees(orgData);
+  const totalDepartments = getDepartments(orgData).size;
+  const totalLeaders = countLeaders(orgData);
+  const maxLevels = getMaxLevel(orgData);
+
+  const handleStatClick = (filter: string | null) => {
+    setHighlightFilter(highlightFilter === filter ? null : filter);
+    if (filter) {
+      expandAll();
+      toast.info(`Filter: ${filter}`, { description: "Alle Knoten wurden geöffnet" });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -303,7 +340,13 @@ const Orgchart = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50 hover:shadow-md",
+            highlightFilter === null && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatClick(null)}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -316,41 +359,59 @@ const Orgchart = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-info/50 hover:shadow-md",
+            highlightFilter === "abteilungen" && "border-info ring-2 ring-info/20"
+          )}
+          onClick={() => handleStatClick("abteilungen")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
                 <Building2 className="h-5 w-5 text-info" />
               </div>
               <div>
-                <p className="text-2xl font-bold">5</p>
+                <p className="text-2xl font-bold">{totalDepartments}</p>
                 <p className="text-sm text-muted-foreground">Abteilungen</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-success/50 hover:shadow-md",
+            highlightFilter === "fuehrung" && "border-success ring-2 ring-success/20"
+          )}
+          onClick={() => handleStatClick("fuehrung")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                <Users className="h-5 w-5 text-success" />
+                <Crown className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">4</p>
+                <p className="text-2xl font-bold">{totalLeaders}</p>
                 <p className="text-sm text-muted-foreground">Führungskräfte</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:border-warning/50 hover:shadow-md",
+            highlightFilter === "ebenen" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatClick("ebenen")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-                <Users className="h-5 w-5 text-warning" />
+                <Layers className="h-5 w-5 text-warning" />
               </div>
               <div>
-                <p className="text-2xl font-bold">3</p>
-                <p className="text-sm text-muted-foreground">Ebenen</p>
+                <p className="text-2xl font-bold">{maxLevels}</p>
+                <p className="text-sm text-muted-foreground">Hierarchie-Ebenen</p>
               </div>
             </div>
           </CardContent>
@@ -400,25 +461,64 @@ const Orgchart = () => {
 
       {/* Legend */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Legende</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            Legende & Interaktion
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded border-2 border-primary bg-primary/10" />
-              <span>Geschäftsführung</span>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kartentypen</p>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg border-2 border-primary bg-primary/10 flex items-center justify-center">
+                  <Crown className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">CEO / Geschäftsführung</p>
+                  <p className="text-xs text-muted-foreground">Oberste Führungsebene</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg border-2 border-border bg-card flex items-center justify-center">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Abteilungsleiter</p>
+                  <p className="text-xs text-muted-foreground">Führungskräfte mit direkten Reports</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg border-2 border-border bg-muted/50 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Mitarbeiter</p>
+                  <p className="text-xs text-muted-foreground">Teammitglieder ohne direkte Reports</p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded border-2 border-border" />
-              <span>Führungskraft</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded border-2 border-border bg-muted" />
-              <span>Mitarbeiter</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span>Klicken Sie auf eine Karte für Details</span>
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Interaktion</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">Klick auf Karte</Badge>
+                  <span className="text-muted-foreground">→ Details anzeigen</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">Name anklicken</Badge>
+                  <span className="text-muted-foreground">→ Mitarbeiterprofil öffnen</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">+/- Button</Badge>
+                  <span className="text-muted-foreground">→ Team ein-/ausblenden</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">Statistik-Karten</Badge>
+                  <span className="text-muted-foreground">→ Struktur filtern</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

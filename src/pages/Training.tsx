@@ -15,7 +15,12 @@ import {
   Video,
   MapPin,
   MoreHorizontal,
-  TrendingUp
+  TrendingUp,
+  X,
+  Edit,
+  Trash2,
+  Download,
+  UserPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +40,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -80,25 +89,49 @@ const Training = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [filterTrainingStatus, setFilterTrainingStatus] = useState<string[]>([]);
+  const [filterTrainingType, setFilterTrainingType] = useState<string[]>([]);
+  const [trainingsList, setTrainingsList] = useState(trainings);
 
-  const totalTrainings = trainings.length;
-  const totalParticipants = trainings.reduce((sum, t) => sum + t.participants, 0);
+  const totalTrainings = trainingsList.length;
+  const totalParticipants = trainingsList.reduce((sum, t) => sum + t.participants, 0);
   const avgHours = Math.round(employeeTrainings.reduce((sum, e) => sum + e.hoursThisYear, 0) / employeeTrainings.length);
   const totalBudget = 15000;
-  const usedBudget = trainings.reduce((sum, t) => sum + t.cost, 0);
+  const usedBudget = trainingsList.reduce((sum, t) => sum + t.cost, 0);
   const budgetPercent = Math.round((usedBudget / totalBudget) * 100);
+  const activeFilters = filterTrainingStatus.length + filterTrainingType.length;
 
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
   };
 
-  const filteredTrainings = trainings.filter(t => {
+  const resetFilters = () => {
+    setFilterTrainingStatus([]);
+    setFilterTrainingType([]);
+  };
+
+  const handleCancel = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTrainingsList(prev => prev.map(t => t.id === id ? { ...t, status: "Abgesagt" } : t));
+    toast.error("Schulung abgesagt");
+  };
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const training = trainingsList.find(t => t.id === id);
+    setTrainingsList(prev => prev.filter(t => t.id !== id));
+    toast.success(`${training?.title} gelöscht`);
+  };
+
+  const filteredTrainings = trainingsList.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || 
       (statusFilter === "planned" && t.status === "Geplant") ||
       (statusFilter === "running" && t.status === "Laufend") ||
       (statusFilter === "completed" && t.status === "Abgeschlossen");
-    return matchesSearch && matchesStatus;
+    const matchesFilterStatus = filterTrainingStatus.length === 0 || filterTrainingStatus.includes(t.status);
+    const matchesFilterType = filterTrainingType.length === 0 || filterTrainingType.includes(t.type);
+    return matchesSearch && matchesStatus && matchesFilterStatus && matchesFilterType;
   });
 
   return (
@@ -225,10 +258,72 @@ const Training = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn(activeFilters > 0 && "border-primary")}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                  {activeFilters > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">{activeFilters}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Filter</h4>
+                    {activeFilters > 0 && (
+                      <Button variant="ghost" size="sm" onClick={resetFilters}>
+                        <X className="h-4 w-4 mr-1" />
+                        Zurücksetzen
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Status</Label>
+                    {["Geplant", "Laufend", "Abgeschlossen", "Abgesagt"].map((status) => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${status}`}
+                          checked={filterTrainingStatus.includes(status)}
+                          onCheckedChange={(checked) => {
+                            setFilterTrainingStatus(checked 
+                              ? [...filterTrainingStatus, status]
+                              : filterTrainingStatus.filter(s => s !== status)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
+                          {status}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Art</Label>
+                    {["Workshop", "E-Learning", "Coaching", "Zertifizierung"].map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`type-${type}`}
+                          checked={filterTrainingType.includes(type)}
+                          onCheckedChange={(checked) => {
+                            setFilterTrainingType(checked 
+                              ? [...filterTrainingType, type]
+                              : filterTrainingType.filter(t => t !== type)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`type-${type}`} className="text-sm font-normal cursor-pointer">
+                          {type}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Card>
@@ -299,16 +394,35 @@ const Training = () => {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Teilnehmerverwaltung geöffnet"); }}>
                                 Teilnehmer verwalten
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Bearbeitungsmodus"); }}>
+                            </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}/edit`); }}>
+                                <Edit className="mr-2 h-4 w-4" />
                                 Bearbeiten
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("Teilnehmer hinzugefügt"); }}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Teilnehmer hinzufügen
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("PDF wird erstellt..."); }}>
+                                <Download className="mr-2 h-4 w-4" />
+                                PDF Export
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               {training.status === "Geplant" && (
                                 <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={(e) => { e.stopPropagation(); toast.error("Schulung abgesagt"); }}
+                                  className="text-warning"
+                                  onClick={(e) => handleCancel(training.id, e)}
                                 >
                                   Absagen
+                                </DropdownMenuItem>
+                              )}
+                              {(training.status === "Abgesagt" || training.status === "Abgeschlossen") && (
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={(e) => handleDelete(training.id, e)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Löschen
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>

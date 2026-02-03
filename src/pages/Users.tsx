@@ -12,6 +12,10 @@ import {
   Key,
   UserCog,
   Send,
+  X,
+  Edit,
+  Trash2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +38,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -139,11 +145,15 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [twoFactorFilter, setTwoFactorFilter] = useState<boolean | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [filterUserStatus, setFilterUserStatus] = useState<string[]>([]);
+  const [filterUserRole, setFilterUserRole] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({
     email: "",
     name: "",
     role: "user" as User["role"],
   });
+
+  const activeFilters = filterUserStatus.length + filterUserRole.length;
 
   const handleStatClick = (filter: string, type: "status" | "role" | "2fa") => {
     if (type === "status") {
@@ -161,6 +171,11 @@ export default function Users() {
     }
   };
 
+  const resetFilters = () => {
+    setFilterUserStatus([]);
+    setFilterUserRole([]);
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -168,7 +183,9 @@ export default function Users() {
     const matchesStatus = statusFilter ? u.status === statusFilter : true;
     const matchesRole = roleFilter ? u.role === roleFilter : true;
     const matches2FA = twoFactorFilter !== null ? u.twoFactor === twoFactorFilter : true;
-    return matchesSearch && matchesStatus && matchesRole && matches2FA;
+    const matchesFilterStatus = filterUserStatus.length === 0 || filterUserStatus.includes(u.status);
+    const matchesFilterRole = filterUserRole.length === 0 || filterUserRole.includes(u.role);
+    return matchesSearch && matchesStatus && matchesRole && matches2FA && matchesFilterStatus && matchesFilterRole;
   });
 
   const handleInvite = () => {
@@ -299,9 +316,72 @@ export default function Users() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(activeFilters > 0 && "border-primary")}>
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+              {activeFilters > 0 && (
+                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">{activeFilters}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Filter</h4>
+                {activeFilters > 0 && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    <X className="h-4 w-4 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Status</Label>
+                {(["active", "inactive", "pending"] as const).map((status) => (
+                  <div key={status} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${status}`}
+                      checked={filterUserStatus.includes(status)}
+                      onCheckedChange={(checked) => {
+                        setFilterUserStatus(checked 
+                          ? [...filterUserStatus, status]
+                          : filterUserStatus.filter(s => s !== status)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
+                      {statusConfig[status].label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Rolle</Label>
+                {(["admin", "manager", "user", "viewer"] as const).map((role) => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`role-${role}`}
+                      checked={filterUserRole.includes(role)}
+                      onCheckedChange={(checked) => {
+                        setFilterUserRole(checked 
+                          ? [...filterUserRole, role]
+                          : filterUserRole.filter(r => r !== role)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`role-${role}`} className="text-sm font-normal cursor-pointer">
+                      {roleConfig[role].label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
