@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, GripVertical, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,9 @@ export default function QualityChecklistCreate() {
   const [checkPoints, setCheckPoints] = useState<CheckPoint[]>([
     { id: crypto.randomUUID(), name: "", category: "", targetValue: "", weight: 10 },
   ]);
+  
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
 
   const addCheckPoint = () => {
     setCheckPoints([
@@ -51,6 +54,26 @@ export default function QualityChecklistCreate() {
     setCheckPoints(
       checkPoints.map((cp) => (cp.id === id ? { ...cp, [field]: value } : cp))
     );
+  };
+
+  const handleDragStart = (index: number) => {
+    dragItem.current = index;
+  };
+
+  const handleDragEnter = (index: number) => {
+    dragOverItem.current = index;
+  };
+
+  const handleDragEnd = () => {
+    if (dragItem.current !== null && dragOverItem.current !== null) {
+      const newCheckPoints = [...checkPoints];
+      const draggedItem = newCheckPoints[dragItem.current];
+      newCheckPoints.splice(dragItem.current, 1);
+      newCheckPoints.splice(dragOverItem.current, 0, draggedItem);
+      setCheckPoints(newCheckPoints);
+    }
+    dragItem.current = null;
+    dragOverItem.current = null;
   };
 
   const handleSave = () => {
@@ -172,9 +195,17 @@ export default function QualityChecklistCreate() {
             {checkPoints.map((cp, index) => (
               <div
                 key={cp.id}
-                className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3"
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragEnter={() => handleDragEnter(index)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => e.preventDefault()}
+                className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3 transition-opacity hover:border-primary/30"
               >
-                <div className="flex h-8 w-8 items-center justify-center text-muted-foreground">
+                <div 
+                  className="flex h-8 w-8 items-center justify-center text-muted-foreground cursor-grab active:cursor-grabbing hover:text-foreground transition-colors"
+                  title="Zum Umsortieren ziehen"
+                >
                   <GripVertical className="h-4 w-4" />
                 </div>
                 <div className="flex-1 grid gap-3 sm:grid-cols-4">
