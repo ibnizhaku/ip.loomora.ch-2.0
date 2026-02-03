@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Trash2,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -149,11 +159,103 @@ const statusLabels = {
   rejected: "Abgelehnt",
 };
 
+// Available BOMs for selection
+interface BOMItem {
+  id: string;
+  articleNumber: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  type: "material" | "work" | "external";
+}
+
+interface BOM {
+  id: string;
+  number: string;
+  name: string;
+  project?: string;
+  status: "draft" | "active" | "archived";
+  totalMaterial: number;
+  totalWork: number;
+  items: BOMItem[];
+}
+
+const availableBOMs: BOM[] = [
+  {
+    id: "1",
+    number: "STL-2024-001",
+    name: "Metalltreppe 3-geschossig",
+    project: "PRJ-2024-015",
+    status: "active",
+    totalMaterial: 12450,
+    totalWork: 8600,
+    items: [
+      { id: "1-1", articleNumber: "ART-001", name: "Stahlträger HEB 200", quantity: 24, unit: "lfm", unitPrice: 85, type: "material" },
+      { id: "1-2", articleNumber: "ART-002", name: "Treppenstufen Gitterrost", quantity: 36, unit: "Stk", unitPrice: 125, type: "material" },
+      { id: "1-3", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 48, unit: "Std", unitPrice: 125, type: "work" },
+    ],
+  },
+  {
+    id: "2",
+    number: "STL-2024-002",
+    name: "Geländer Balkon 15m",
+    project: "PRJ-2024-018",
+    status: "active",
+    totalMaterial: 3200,
+    totalWork: 2400,
+    items: [
+      { id: "2-1", articleNumber: "ART-003", name: "Edelstahl Rundrohr 42mm", quantity: 45, unit: "lfm", unitPrice: 28, type: "material" },
+      { id: "2-2", articleNumber: "DL-002", name: "Montagearbeiten", quantity: 16, unit: "Std", unitPrice: 125, type: "work" },
+    ],
+  },
+  {
+    id: "3",
+    number: "STL-2024-003",
+    name: "Brandschutztür T90",
+    status: "draft",
+    totalMaterial: 1800,
+    totalWork: 960,
+    items: [
+      { id: "3-1", articleNumber: "ART-004", name: "Stahlzarge T90", quantity: 1, unit: "Stk", unitPrice: 450, type: "material" },
+      { id: "3-2", articleNumber: "ART-005", name: "Türblatt T90", quantity: 1, unit: "Stk", unitPrice: 680, type: "material" },
+      { id: "3-3", articleNumber: "DL-003", name: "Einbau", quantity: 6, unit: "Std", unitPrice: 125, type: "work" },
+    ],
+  },
+  {
+    id: "4",
+    number: "STL-2024-004",
+    name: "Vordach Stahl verzinkt",
+    status: "active",
+    totalMaterial: 4500,
+    totalWork: 2100,
+    items: [
+      { id: "4-1", articleNumber: "ART-006", name: "Stützen HEB 140", quantity: 4, unit: "Stk", unitPrice: 320, type: "material" },
+      { id: "4-2", articleNumber: "ART-007", name: "Träger IPE 180", quantity: 12, unit: "lfm", unitPrice: 95, type: "material" },
+      { id: "4-3", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 14, unit: "Std", unitPrice: 125, type: "work" },
+    ],
+  },
+];
+
+const bomStatusStyles = {
+  draft: "bg-muted text-muted-foreground",
+  active: "bg-success/10 text-success",
+  archived: "bg-secondary text-secondary-foreground",
+};
+
+const bomStatusLabels = {
+  draft: "Entwurf",
+  active: "Aktiv",
+  archived: "Archiviert",
+};
+
 export default function Calculation() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [calcList, setCalcList] = useState<Calculation[]>(initialCalculations);
+  const [bomDialogOpen, setBomDialogOpen] = useState(false);
+  const [bomSearchQuery, setBomSearchQuery] = useState("");
 
   const totalCalcs = calcList.length;
   const approvedCalcs = calcList.filter((c) => c.status === "approved").length;
@@ -171,6 +273,11 @@ export default function Calculation() {
     const matchesStatus = statusFilter === "all" || calc.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const filteredBOMs = availableBOMs.filter((bom) =>
+    bom.name.toLowerCase().includes(bomSearchQuery.toLowerCase()) ||
+    bom.number.toLowerCase().includes(bomSearchQuery.toLowerCase())
+  );
 
   const handleDelete = (e: React.MouseEvent, calcId: string) => {
     e.stopPropagation();
@@ -197,9 +304,27 @@ export default function Calculation() {
     toast.info("Angebot wird erstellt...");
   };
 
-  const handleFromBOM = () => {
-    navigate("/bom");
-    toast.info("Stückliste auswählen...");
+  const handleSelectBOM = (bom: BOM) => {
+    // Store BOM data in sessionStorage for calculation page
+    const calcData = {
+      bomId: bom.number,
+      bomName: bom.name,
+      projekt: bom.project || "",
+      projektNr: bom.project || "",
+      materialkosten: bom.totalMaterial,
+      positionen: bom.items.map(item => ({
+        artikelNr: item.articleNumber,
+        bezeichnung: item.name,
+        menge: item.quantity,
+        einheit: item.unit,
+        einzelpreis: item.unitPrice,
+        type: item.type,
+      })),
+    };
+    sessionStorage.setItem('calculationFromBOM', JSON.stringify(calcData));
+    setBomDialogOpen(false);
+    toast.success(`Stückliste "${bom.name}" ausgewählt`);
+    navigate('/calculation/new');
   };
 
   return (
@@ -214,10 +339,70 @@ export default function Calculation() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleFromBOM}>
-            <FileText className="h-4 w-4" />
-            Aus Stückliste
-          </Button>
+          <Dialog open={bomDialogOpen} onOpenChange={setBomDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Layers className="h-4 w-4" />
+                Aus Stückliste
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Stückliste auswählen</DialogTitle>
+                <DialogDescription>
+                  Wählen Sie eine Stückliste als Grundlage für die Kalkulation
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Stückliste suchen..."
+                    className="pl-10"
+                    value={bomSearchQuery}
+                    onChange={(e) => setBomSearchQuery(e.target.value)}
+                  />
+                </div>
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-2">
+                    {filteredBOMs.map((bom) => (
+                      <div
+                        key={bom.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 hover:bg-muted/50 cursor-pointer transition-all"
+                        onClick={() => handleSelectBOM(bom)}
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                          <Layers className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">{bom.name}</p>
+                            <Badge className={bomStatusStyles[bom.status]} variant="secondary">
+                              {bomStatusLabels[bom.status]}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-mono">{bom.number}</span>
+                            {bom.project && <> • {bom.project}</>}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-sm">CHF {(bom.totalMaterial + bom.totalWork).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">{bom.items.length} Positionen</p>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredBOMs.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Keine Stücklisten gefunden</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button className="gap-2" onClick={() => navigate("/calculation/new")}>
             <Plus className="h-4 w-4" />
             Neue Kalkulation
