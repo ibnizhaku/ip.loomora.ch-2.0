@@ -61,6 +61,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
 
 // Mock suppliers data
 const suppliers = [
@@ -229,20 +230,56 @@ export default function PurchaseOrderCreate() {
 
     // Simulate final actions
     if (selectedDeliveryMethods.includes("pdf")) {
-      // Simulate PDF download
       toast.info("PDF wird generiert...");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Generate actual PDF
+      const projectData = selectedProject && selectedProject !== "none"
+        ? projects.find(p => p.id === selectedProject) || null
+        : null;
+      
+      generatePurchaseOrderPDF({
+        orderNumber,
+        supplier: selectedSupplier!,
+        items,
+        subtotal,
+        vat,
+        total,
+        expectedDelivery: expectedDelivery || undefined,
+        reference: reference || undefined,
+        notes: notes || undefined,
+        project: projectData,
+      });
     }
     
     if (selectedDeliveryMethods.includes("print")) {
-      // Simulate print dialog
       toast.info("Druckdialog wird geöffnet...");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Generate PDF and trigger print
+      const projectData = selectedProject && selectedProject !== "none"
+        ? projects.find(p => p.id === selectedProject) || null
+        : null;
+      
+      generatePurchaseOrderPDF({
+        orderNumber,
+        supplier: selectedSupplier!,
+        items,
+        subtotal,
+        vat,
+        total,
+        expectedDelivery: expectedDelivery || undefined,
+        reference: reference || undefined,
+        notes: notes || undefined,
+        project: projectData,
+      });
+      // Note: For print, we'd ideally open PDF in new tab and trigger print
+      // This is a limitation - real print would need different approach
     }
 
     if (selectedDeliveryMethods.includes("email")) {
-      // Simulate email sending
-      toast.info(`E-Mail an ${selectedSupplier?.name} wird gesendet...`);
+      // Simulate email sending (would need backend)
+      toast.info(`E-Mail an ${selectedSupplier?.name} wird gesendet (Simulation)...`);
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
