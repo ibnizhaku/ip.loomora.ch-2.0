@@ -5,6 +5,7 @@ import {
   Users,
   FolderKanban,
   FileText,
+  FileUp,
   BarChart3,
   Settings,
   HelpCircle,
@@ -195,6 +196,12 @@ const accountingItems: NavItem[] = [
     title: "Bankkonten",
     url: "/bank-accounts",
     icon: Landmark,
+  },
+  {
+    title: "Bank-Import",
+    url: "/bank-import",
+    icon: FileUp,
+    keywords: ["camt", "iso20022", "kontoauszug", "import"],
   },
   {
     title: "SEPA-Zahlungen",
