@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Plus, Trash2, Calculator, Package, Clock, Truck, Percent } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Calculator, Package, Clock, Truck, Percent, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,12 +26,45 @@ export default function CalculationCreate() {
   const [name, setName] = useState("");
   const [customer, setCustomer] = useState("");
   const [project, setProject] = useState("");
+  const [bomReference, setBomReference] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([
     { id: 1, type: "material", description: "", quantity: 1, unit: "Stk", unitPrice: 0 },
   ]);
   const [overheadPercent, setOverheadPercent] = useState(10);
   const [marginPercent, setMarginPercent] = useState(25);
   const [discountPercent, setDiscountPercent] = useState(0);
+
+  // Load BOM data from sessionStorage if available
+  useEffect(() => {
+    const bomDataStr = sessionStorage.getItem('calculationFromBOM');
+    if (bomDataStr) {
+      try {
+        const bomData = JSON.parse(bomDataStr);
+        setName(bomData.bomName || "");
+        setProject(bomData.projektNr || "");
+        setBomReference(bomData.bomId);
+        
+        // Convert BOM positions to calculation positions
+        if (bomData.positionen && bomData.positionen.length > 0) {
+          const calcPositions: Position[] = bomData.positionen.map((p: any, index: number) => ({
+            id: Date.now() + index,
+            type: "material" as const,
+            description: `${p.artikelNr || ''} - ${p.bezeichnung}`,
+            quantity: p.menge,
+            unit: p.einheit,
+            unitPrice: p.einzelpreis,
+          }));
+          setPositions(calcPositions);
+        }
+        
+        // Clear the stored data
+        sessionStorage.removeItem('calculationFromBOM');
+        toast.info(`Daten aus Stückliste ${bomData.bomId} übernommen`);
+      } catch (e) {
+        console.error("Failed to parse BOM data:", e);
+      }
+    }
+  }, []);
 
   const addPosition = (type: "material" | "labor" | "external") => {
     setPositions([
@@ -78,10 +112,16 @@ export default function CalculationCreate() {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="font-display text-2xl font-bold">Neue Kalkulation</h1>
           <p className="text-muted-foreground">Bottom-Up Projektkalkulation</p>
         </div>
+        {bomReference && (
+          <Badge variant="outline" className="gap-2">
+            <FileText className="h-3 w-3" />
+            Aus Stückliste: {bomReference}
+          </Badge>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
