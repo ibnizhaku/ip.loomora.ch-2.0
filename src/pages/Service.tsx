@@ -7,9 +7,7 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Calendar,
   User,
-  Building2,
   MoreHorizontal,
   Eye,
   Edit,
@@ -20,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -34,6 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { UpcomingMaintenanceDialog } from "@/components/service/UpcomingMaintenanceDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -207,10 +205,7 @@ export default function Service() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => navigate("/calendar")}>
-            <Calendar className="h-4 w-4" />
-            Wartungsplan
-          </Button>
+          <UpcomingMaintenanceDialog />
           <Button className="gap-2" onClick={() => navigate("/service/new")}>
             <Plus className="h-4 w-4" />
             Service-Ticket
