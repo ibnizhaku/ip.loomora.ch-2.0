@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, Camera, FileText, User, Plus } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ChecklistDialog } from "@/components/quality/ChecklistDialog";
+import { PhotoUploadDialog } from "@/components/quality/PhotoUploadDialog";
 
 const qcData = {
   id: "QC-2024-0178",
@@ -76,10 +77,10 @@ export default function QualityCheckDetail() {
             prüfungId={qcData.id} 
             prüfungName={qcData.projekt} 
           />
-          <Button variant="outline">
-            <Camera className="mr-2 h-4 w-4" />
-            Fotos
-          </Button>
+          <PhotoUploadDialog 
+            prüfungId={qcData.id} 
+            prüfungName={qcData.projekt} 
+          />
           <Button variant="outline">
             <FileText className="mr-2 h-4 w-4" />
             Prüfbericht
