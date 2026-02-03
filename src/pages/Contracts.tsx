@@ -17,6 +17,7 @@ import {
   Trash2,
   Copy,
   Eye,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -150,14 +157,20 @@ export default function Contracts() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [autoRenewalFilter, setAutoRenewalFilter] = useState<boolean | null>(null);
   const [contractList, setContractList] = useState<Contract[]>(initialContracts);
+
+  const hasActiveFilters = typeFilters.length > 0 || autoRenewalFilter !== null;
 
   const filteredContracts = contractList.filter((c) => {
     const matchesSearch = c.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.client.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilters.length === 0 || typeFilters.includes(c.type);
+    const matchesAutoRenewal = autoRenewalFilter === null || c.autoRenewal === autoRenewalFilter;
+    return matchesSearch && matchesStatus && matchesType && matchesAutoRenewal;
   });
 
   const totalValue = contractList.filter((c) => c.status === "active").reduce((acc, c) => acc + c.value, 0);
@@ -312,9 +325,90 @@ export default function Contracts() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="relative">
+              <Filter className="h-4 w-4" />
+              {hasActiveFilters && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Filter</h4>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground"
+                    onClick={() => {
+                      setTypeFilters([]);
+                      setAutoRenewalFilter(null);
+                    }}
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Vertragstyp</p>
+                {Object.entries(typeConfig).map(([key, config]) => (
+                  <div key={key} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`type-${key}`}
+                      checked={typeFilters.includes(key)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setTypeFilters([...typeFilters, key]);
+                        } else {
+                          setTypeFilters(typeFilters.filter((t) => t !== key));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`type-${key}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {config.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Auto-Verlängerung</p>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="auto-renewal-yes"
+                    checked={autoRenewalFilter === true}
+                    onCheckedChange={(checked) => {
+                      setAutoRenewalFilter(checked ? true : null);
+                    }}
+                  />
+                  <label htmlFor="auto-renewal-yes" className="text-sm cursor-pointer">
+                    Mit Auto-Verlängerung
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="auto-renewal-no"
+                    checked={autoRenewalFilter === false}
+                    onCheckedChange={(checked) => {
+                      setAutoRenewalFilter(checked ? false : null);
+                    }}
+                  />
+                  <label htmlFor="auto-renewal-no" className="text-sm cursor-pointer">
+                    Ohne Auto-Verlängerung
+                  </label>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
