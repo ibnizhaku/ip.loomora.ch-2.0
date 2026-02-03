@@ -25,7 +25,7 @@ export default function QualityCheckCreate() {
       return;
     }
     toast.success("QS-Prüfung erstellt");
-    navigate("/quality-control");
+    navigate("/quality");
   };
 
   return (

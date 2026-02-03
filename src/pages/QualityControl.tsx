@@ -218,7 +218,7 @@ export default function QualityControl() {
             <FileText className="h-4 w-4" />
             Checkliste
           </Button>
-          <Button className="gap-2" onClick={() => navigate("/quality-control/new")}>
+          <Button className="gap-2" onClick={() => navigate("/quality/new")}>
             <Plus className="h-4 w-4" />
             Neue Prüfung
           </Button>
@@ -330,7 +330,7 @@ export default function QualityControl() {
             key={check.id}
             className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 50}ms` }}
-            onClick={() => navigate(`/quality-control/${check.id}`)}
+            onClick={() => navigate(`/quality/${check.id}`)}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start gap-4">
@@ -380,11 +380,11 @@ export default function QualityControl() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/quality-control/${check.id}`)}>
+                    <DropdownMenuItem onClick={() => navigate(`/quality/${check.id}`)}>
                       <Eye className="h-4 w-4 mr-2" />
                       Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate(`/quality-control/${check.id}`)}>
+                    <DropdownMenuItem onClick={() => navigate(`/quality/${check.id}`)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
