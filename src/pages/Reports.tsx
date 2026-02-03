@@ -24,90 +24,79 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ReportExportDialog } from "@/components/reports/ReportExportDialog";
+import { ReportDetailDialog } from "@/components/reports/ReportDetailDialog";
 
-const kpiData = [
-  {
-    title: "Umsatz YTD",
-    value: "CHF 584'250",
-    change: "+18.5%",
-    trend: "up",
-    icon: Euro,
-  },
-  {
-    title: "Projekte abgeschlossen",
-    value: "47",
-    change: "+12",
-    trend: "up",
-    icon: FolderKanban,
-  },
-  {
-    title: "Neue Kunden",
-    value: "23",
-    change: "+8",
-    trend: "up",
-    icon: Users,
-  },
-  {
-    title: "Auslastung",
-    value: "87%",
-    change: "+5%",
-    trend: "up",
-    icon: Activity,
-  },
+// Year-based KPI data
+const getKpiData = (year: string) => {
+  const data: Record<string, typeof kpiData2024> = {
+    "2024": [
+      { title: "Umsatz YTD", value: "CHF 584'250", change: "+18.5%", trend: "up", icon: Euro },
+      { title: "Projekte abgeschlossen", value: "47", change: "+12", trend: "up", icon: FolderKanban },
+      { title: "Neue Kunden", value: "23", change: "+8", trend: "up", icon: Users },
+      { title: "Auslastung", value: "87%", change: "+5%", trend: "up", icon: Activity },
+    ],
+    "2023": [
+      { title: "Umsatz YTD", value: "CHF 512'800", change: "+15.2%", trend: "up", icon: Euro },
+      { title: "Projekte abgeschlossen", value: "38", change: "+9", trend: "up", icon: FolderKanban },
+      { title: "Neue Kunden", value: "18", change: "+5", trend: "up", icon: Users },
+      { title: "Auslastung", value: "82%", change: "+3%", trend: "up", icon: Activity },
+    ],
+    "2022": [
+      { title: "Umsatz YTD", value: "CHF 445'320", change: "+12.8%", trend: "up", icon: Euro },
+      { title: "Projekte abgeschlossen", value: "32", change: "+7", trend: "up", icon: FolderKanban },
+      { title: "Neue Kunden", value: "14", change: "+3", trend: "up", icon: Users },
+      { title: "Auslastung", value: "78%", change: "+2%", trend: "up", icon: Activity },
+    ],
+  };
+  return data[year] || data["2024"];
+};
+
+const kpiData2024 = [
+  { title: "Umsatz YTD", value: "CHF 584'250", change: "+18.5%", trend: "up", icon: Euro },
+  { title: "Projekte abgeschlossen", value: "47", change: "+12", trend: "up", icon: FolderKanban },
+  { title: "Neue Kunden", value: "23", change: "+8", trend: "up", icon: Users },
+  { title: "Auslastung", value: "87%", change: "+5%", trend: "up", icon: Activity },
 ];
 
 const reportTypes = [
-  {
-    id: "1",
-    title: "Umsatzbericht",
-    description: "Monatliche Einnahmen und Ausgaben",
-    icon: Euro,
-    lastGenerated: "vor 2 Tagen",
-    type: "financial",
-  },
-  {
-    id: "2",
-    title: "Projektübersicht",
-    description: "Status aller aktiven Projekte",
-    icon: FolderKanban,
-    lastGenerated: "vor 1 Tag",
-    type: "project",
-  },
-  {
-    id: "3",
-    title: "Zeiterfassungsbericht",
-    description: "Arbeitszeiten nach Mitarbeiter",
-    icon: Calendar,
-    lastGenerated: "vor 3 Tagen",
-    type: "time",
-  },
-  {
-    id: "4",
-    title: "Kundenbericht",
-    description: "Kundenaktivität und Umsatz",
-    icon: Users,
-    lastGenerated: "vor 1 Woche",
-    type: "customer",
-  },
-  {
-    id: "5",
-    title: "Leistungsanalyse",
-    description: "Team-Performance und KPIs",
-    icon: TrendingUp,
-    lastGenerated: "vor 5 Tagen",
-    type: "performance",
-  },
-  {
-    id: "6",
-    title: "Lagerbericht",
-    description: "Bestandsübersicht und Bewegungen",
-    icon: BarChart3,
-    lastGenerated: "vor 4 Tagen",
-    type: "inventory",
-  },
+  { id: "1", title: "Umsatzbericht", description: "Monatliche Einnahmen und Ausgaben", icon: Euro, lastGenerated: "vor 2 Tagen", type: "financial" },
+  { id: "2", title: "Projektübersicht", description: "Status aller aktiven Projekte", icon: FolderKanban, lastGenerated: "vor 1 Tag", type: "project" },
+  { id: "3", title: "Zeiterfassungsbericht", description: "Arbeitszeiten nach Mitarbeiter", icon: Calendar, lastGenerated: "vor 3 Tagen", type: "time" },
+  { id: "4", title: "Kundenbericht", description: "Kundenaktivität und Umsatz", icon: Users, lastGenerated: "vor 1 Woche", type: "customer" },
+  { id: "5", title: "Leistungsanalyse", description: "Team-Performance und KPIs", icon: TrendingUp, lastGenerated: "vor 5 Tagen", type: "performance" },
+  { id: "6", title: "Lagerbericht", description: "Bestandsübersicht und Bewegungen", icon: BarChart3, lastGenerated: "vor 4 Tagen", type: "inventory" },
 ];
 
-const revenueByProject = [
+// Year-based revenue data
+const getRevenueByProject = (year: string) => {
+  const data: Record<string, typeof revenue2024> = {
+    "2024": [
+      { name: "Stahlbau", value: 245000, percentage: 42 },
+      { name: "Treppen", value: 128000, percentage: 22 },
+      { name: "Geländer", value: 98000, percentage: 17 },
+      { name: "Brandschutz", value: 68000, percentage: 12 },
+      { name: "Service", value: 45250, percentage: 7 },
+    ],
+    "2023": [
+      { name: "Stahlbau", value: 215000, percentage: 42 },
+      { name: "Treppen", value: 112000, percentage: 22 },
+      { name: "Geländer", value: 87000, percentage: 17 },
+      { name: "Brandschutz", value: 58000, percentage: 11 },
+      { name: "Service", value: 40800, percentage: 8 },
+    ],
+    "2022": [
+      { name: "Stahlbau", value: 187000, percentage: 42 },
+      { name: "Treppen", value: 98000, percentage: 22 },
+      { name: "Geländer", value: 76000, percentage: 17 },
+      { name: "Brandschutz", value: 49000, percentage: 11 },
+      { name: "Service", value: 35320, percentage: 8 },
+    ],
+  };
+  return data[year] || data["2024"];
+};
+
+const revenue2024 = [
   { name: "Stahlbau", value: 245000, percentage: 42 },
   { name: "Treppen", value: 128000, percentage: 22 },
   { name: "Geländer", value: 98000, percentage: 17 },
@@ -118,19 +107,10 @@ const revenueByProject = [
 export default function Reports() {
   const navigate = useNavigate();
   const [selectedYear, setSelectedYear] = useState("2024");
-  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [selectedReport, setSelectedReport] = useState<typeof reportTypes[0] | null>(null);
 
-  const handleDownloadReport = (reportId: string, reportTitle: string) => {
-    setIsGenerating(reportId);
-    setTimeout(() => {
-      setIsGenerating(null);
-      toast.success(`${reportTitle} wird heruntergeladen...`);
-    }, 1500);
-  };
-
-  const handleExportAll = () => {
-    toast.success("Alle Berichte werden exportiert...");
-  };
+  const kpiData = getKpiData(selectedYear);
+  const revenueByProject = getRevenueByProject(selectedYear);
 
   const handleRefreshReport = (reportTitle: string) => {
     toast.success(`${reportTitle} wird aktualisiert...`);
@@ -159,10 +139,7 @@ export default function Reports() {
               <SelectItem value="2022">2022</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2" onClick={handleExportAll}>
-            <Download className="h-4 w-4" />
-            Exportieren
-          </Button>
+          <ReportExportDialog year={selectedYear} />
         </div>
       </div>
 
@@ -265,7 +242,7 @@ export default function Reports() {
                   "group flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 transition-all cursor-pointer animate-fade-in"
                 )}
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => handleDownloadReport(report.id, report.title)}
+                onClick={() => setSelectedReport(report)}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary group-hover:bg-primary/10 transition-colors">
@@ -299,19 +276,25 @@ export default function Reports() {
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDownloadReport(report.id, report.title);
+                      setSelectedReport(report);
                     }}
                   >
-                    {isGenerating === report.id ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
+                    <Download className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Report Detail Dialog */}
+          {selectedReport && (
+            <ReportDetailDialog
+              report={selectedReport}
+              year={selectedYear}
+              open={!!selectedReport}
+              onOpenChange={(open) => !open && setSelectedReport(null)}
+            />
+          )}
         </div>
       </div>
 
