@@ -1,4 +1,5 @@
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Wrench, Clock, User, MessageSquare, CheckCircle2, AlertTriangle, FileText, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { MaintenancePlanDialog } from "@/components/service/MaintenancePlanDialog";
+import { ServiceReportDialog } from "@/components/service/ServiceReportDialog";
+import { ServiceCompleteDialog } from "@/components/service/ServiceCompleteDialog";
+import { toast } from "sonner";
 
 const serviceData = {
   id: "TKT-2024-0456",
@@ -50,12 +55,27 @@ const prioritätConfig: Record<string, { label: string; color: string }> = {
 
 export default function ServiceDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [comment, setComment] = useState("");
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
       style: "currency",
       currency: "CHF",
     }).format(value);
+  };
+
+  const handleAddComment = () => {
+    if (!comment.trim()) {
+      toast.error("Bitte geben Sie einen Kommentar ein");
+      return;
+    }
+    toast.success("Kommentar hinzugefügt");
+    setComment("");
+  };
+
+  const handleComplete = () => {
+    navigate("/service");
   };
 
   return (
@@ -80,14 +100,21 @@ export default function ServiceDetail() {
           <p className="text-muted-foreground">{serviceData.titel}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <FileText className="mr-2 h-4 w-4" />
-            Rapport
-          </Button>
-          <Button>
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Abschliessen
-          </Button>
+          <MaintenancePlanDialog 
+            ticketId={serviceData.id}
+            customerName={serviceData.kunde}
+          />
+          <ServiceReportDialog
+            ticketId={serviceData.id}
+            ticketTitle={serviceData.titel}
+            customerName={serviceData.kunde}
+            technicianName={serviceData.zugewiesen}
+          />
+          <ServiceCompleteDialog
+            ticketId={serviceData.id}
+            ticketTitle={serviceData.titel}
+            onComplete={handleComplete}
+          />
         </div>
       </div>
 
@@ -207,8 +234,13 @@ export default function ServiceDetail() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <Textarea placeholder="Kommentar hinzufügen..." className="flex-1" />
-            <Button>Senden</Button>
+            <Textarea 
+              placeholder="Kommentar hinzufügen..." 
+              className="flex-1"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+            <Button onClick={handleAddComment}>Senden</Button>
           </div>
           <Separator />
           <div className="space-y-4">
