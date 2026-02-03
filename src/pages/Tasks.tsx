@@ -12,11 +12,13 @@ import {
   Calendar,
   User,
   Tag,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -24,6 +26,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -124,14 +132,38 @@ export default function Tasks() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
+  const [projectFilters, setProjectFilters] = useState<string[]>([]);
+
+  const allProjects = [...new Set(tasks.map(t => t.project))];
+  const hasActiveFilters = priorityFilters.length > 0 || projectFilters.length > 0;
 
   const filteredTasks = tasks.filter((t) => {
     const matchesSearch =
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.project.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "all" || t.status === selectedStatus;
-    return matchesSearch && matchesStatus;
+    const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(t.priority);
+    const matchesProject = projectFilters.length === 0 || projectFilters.includes(t.project);
+    return matchesSearch && matchesStatus && matchesPriority && matchesProject;
   });
+
+  const togglePriorityFilter = (priority: string) => {
+    setPriorityFilters(prev => 
+      prev.includes(priority) ? prev.filter(p => p !== priority) : [...prev, priority]
+    );
+  };
+
+  const toggleProjectFilter = (project: string) => {
+    setProjectFilters(prev => 
+      prev.includes(project) ? prev.filter(p => p !== project) : [...prev, project]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setPriorityFilters([]);
+    setProjectFilters([]);
+  };
 
   const tasksByStatus = {
     todo: tasks.filter((t) => t.status === "todo").length,
@@ -196,9 +228,67 @@ export default function Tasks() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="relative">
+              <Filter className="h-4 w-4" />
+              {hasActiveFilters && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-4" align="end">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold">Filter</h4>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-auto py-1 px-2 text-xs">
+                  <X className="h-3 w-3 mr-1" />
+                  Zurücksetzen
+                </Button>
+              )}
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Priorität</Label>
+                <div className="space-y-2">
+                  {Object.entries(priorityConfig).map(([key, config]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`priority-${key}`}
+                        checked={priorityFilters.includes(key)}
+                        onCheckedChange={() => togglePriorityFilter(key)}
+                      />
+                      <label htmlFor={`priority-${key}`} className="text-sm cursor-pointer">
+                        {config.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Projekt</Label>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {allProjects.map((project) => (
+                    <div key={project} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`project-${project}`}
+                        checked={projectFilters.includes(project)}
+                        onCheckedChange={() => toggleProjectFilter(project)}
+                      />
+                      <label htmlFor={`project-${project}`} className="text-sm cursor-pointer truncate">
+                        {project}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Task List */}
