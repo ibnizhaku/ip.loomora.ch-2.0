@@ -11,6 +11,7 @@ import {
   Truck,
   Package,
   MoreHorizontal,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const purchaseOrders = [
   { id: "EK-2024-0048", supplier: "TechParts International", date: "30.01.2024", items: 15, total: 8450, status: "Bestellt", expectedDelivery: "05.02.2024" },
@@ -48,6 +55,8 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
   "Storniert": { color: "bg-destructive/10 text-destructive", icon: Package },
 };
 
+const statusOptions = Object.keys(statusConfig);
+
 const stats = [
   { title: "Offene Bestellungen", value: "12", change: "+3 diese Woche" },
   { title: "Diesen Monat", value: "CHF 48'900", change: "+15% vs. Vormonat" },
@@ -58,11 +67,28 @@ const stats = [
 const PurchaseOrders = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
 
-  const filteredOrders = purchaseOrders.filter(order =>
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  const resetFilters = () => {
+    setSelectedStatuses([]);
+  };
+
+  const hasActiveFilters = selectedStatuses.length > 0;
+
+  const filteredOrders = purchaseOrders.filter(order => {
+    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(order.status);
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -102,10 +128,59 @@ const PurchaseOrders = () => {
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={hasActiveFilters ? "border-primary" : ""}>
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                  {selectedStatuses.length}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm">Status</h4>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={resetFilters}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {statusOptions.map((status) => {
+                  const config = statusConfig[status];
+                  const StatusIcon = config.icon;
+                  return (
+                    <div key={status} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`status-${status}`}
+                        checked={selectedStatuses.includes(status)}
+                        onCheckedChange={() => toggleStatus(status)}
+                      />
+                      <label
+                        htmlFor={`status-${status}`}
+                        className="flex items-center gap-2 text-sm cursor-pointer flex-1"
+                      >
+                        <StatusIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        {status}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
