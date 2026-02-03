@@ -211,7 +211,7 @@ export default function Orders() {
             Verwalten Sie Ihre Kundenaufträge
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/orders/create")}>
+        <Button className="gap-2" onClick={() => navigate("/orders/new")}>
           <Plus className="h-4 w-4" />
           Neuer Auftrag
         </Button>
