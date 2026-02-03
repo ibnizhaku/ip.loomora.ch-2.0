@@ -241,10 +241,6 @@ export default function Production() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => navigate("/calendar")}>
-            <Calendar className="h-4 w-4" />
-            Kapazität
-          </Button>
           <Button className="gap-2" onClick={() => navigate("/production/new")}>
             <Plus className="h-4 w-4" />
             Werkstattauftrag
