@@ -1,5 +1,6 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Package, Layers, Calculator, FileText, Plus, Trash2, Edit } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +52,7 @@ const statusColors: Record<string, string> = {
 
 export default function BOMDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -87,9 +89,33 @@ export default function BOMDetail() {
             <FileText className="mr-2 h-4 w-4" />
             PDF Export
           </Button>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              // Store BOM data in sessionStorage for calculation page
+              const calcData = {
+                bomId: bomData.id,
+                bomName: bomData.bezeichnung,
+                projekt: bomData.projekt,
+                projektNr: bomData.projektNr,
+                materialkosten: totalMaterial,
+                fertigungszeit: bomData.fertigungszeit,
+                positionen: positionen.map(p => ({
+                  artikelNr: p.artikelNr,
+                  bezeichnung: p.bezeichnung,
+                  menge: p.menge,
+                  einheit: p.einheit,
+                  einzelpreis: p.einzelpreis,
+                  total: p.total,
+                })),
+              };
+              sessionStorage.setItem('calculationFromBOM', JSON.stringify(calcData));
+              toast.success("Daten für Kalkulation übernommen");
+              navigate('/calculation/new');
+            }}
+          >
             <Calculator className="mr-2 h-4 w-4" />
-            Kalkulation
+            Kalkulation erstellen
           </Button>
           <Button>
             <Edit className="mr-2 h-4 w-4" />
