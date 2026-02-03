@@ -13,6 +13,7 @@ import {
   Copy,
   Trash2,
   Download,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -159,13 +166,30 @@ const statusLabels = {
   reversed: "Storniert",
 };
 
+const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+
 export default function JournalEntries() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [entryList, setEntryList] = useState(entries);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
 
-  const totalDebit = entryList.filter(e => e.status === "posted").reduce((acc, e) => acc + e.amount, 0);
+  const filteredEntries = entryList.filter(entry => {
+    const matchesSearch = 
+      entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.debitAccount.includes(searchQuery) ||
+      entry.creditAccount.includes(searchQuery);
+    const matchesStatus = statusFilter.length === 0 || statusFilter.includes(entry.status);
+    const matchesType = typeFilter.length === 0 || typeFilter.includes(entry.type);
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const totalDebit = filteredEntries.filter(e => e.status === "posted").reduce((acc, e) => acc + e.amount, 0);
   const totalCredit = totalDebit;
+  const activeFilters = statusFilter.length + typeFilter.length;
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -187,6 +211,33 @@ export default function JournalEntries() {
     toast.success("Buchung dupliziert");
   };
 
+  const handleDatevExport = () => {
+    // DATEV CSV format
+    const header = "Umsatz;Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto;BU-Schlüssel;Belegdatum;Belegfeld 1;Buchungstext";
+    const rows = filteredEntries.filter(e => e.status === "posted").map(entry => {
+      const dateParts = entry.date.split(".");
+      const datevDate = `${dateParts[0]}${dateParts[1]}`;
+      return `${entry.amount.toFixed(2).replace(".", ",")};S;CHF;;;;;;${entry.debitAccount};${entry.creditAccount};;${datevDate};${entry.number};${entry.description}`;
+    });
+    
+    const csvContent = header + "\n" + rows.join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DATEV-Export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("DATEV Export erstellt");
+  };
+
+  const resetFilters = () => {
+    setStatusFilter([]);
+    setTypeFilter([]);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -199,7 +250,7 @@ export default function JournalEntries() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("DATEV Export wird erstellt...")}>
+          <Button variant="outline" className="gap-2" onClick={handleDatevExport}>
             <Download className="h-4 w-4" />
             DATEV Export
           </Button>
@@ -218,7 +269,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Buchungen gesamt</p>
-              <p className="text-2xl font-bold">{entries.length}</p>
+              <p className="text-2xl font-bold">{filteredEntries.length}</p>
             </div>
           </div>
         </div>
@@ -229,7 +280,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Soll-Summe</p>
-              <p className="text-2xl font-bold text-success">CHF {totalDebit.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold text-success">{formatCHF(totalDebit)}</p>
             </div>
           </div>
         </div>
@@ -240,7 +291,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Haben-Summe</p>
-              <p className="text-2xl font-bold text-info">CHF {totalCredit.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold text-info">{formatCHF(totalCredit)}</p>
             </div>
           </div>
         </div>
@@ -267,10 +318,72 @@ export default function JournalEntries() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filter
+              {activeFilters > 0 && (
+                <Badge className="ml-1 h-5 w-5 rounded-full p-0 text-xs">{activeFilters}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Filter</h4>
+                {activeFilters > 0 && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    <X className="h-4 w-4 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Status</p>
+                <div className="space-y-2">
+                  {Object.entries(statusLabels).map(([key, label]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`status-${key}`}
+                        checked={statusFilter.includes(key)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setStatusFilter([...statusFilter, key]);
+                          } else {
+                            setStatusFilter(statusFilter.filter(s => s !== key));
+                          }
+                        }}
+                      />
+                      <label htmlFor={`status-${key}`} className="text-sm">{label}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Buchungstyp</p>
+                <div className="space-y-2">
+                  {Object.entries(typeLabels).map(([key, label]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`type-${key}`}
+                        checked={typeFilter.includes(key)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setTypeFilter([...typeFilter, key]);
+                          } else {
+                            setTypeFilter(typeFilter.filter(t => t !== key));
+                          }
+                        }}
+                      />
+                      <label htmlFor={`type-${key}`} className="text-sm">{label}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="rounded-2xl border border-border bg-card">
@@ -289,7 +402,7 @@ export default function JournalEntries() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entryList.map((entry, index) => (
+            {filteredEntries.map((entry, index) => (
               <TableRow
                 key={entry.id}
                 className="animate-fade-in cursor-pointer hover:bg-muted/50"
@@ -323,7 +436,7 @@ export default function JournalEntries() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right font-mono font-medium">
-                  CHF {entry.amount.toLocaleString("de-CH")}
+                  {formatCHF(entry.amount)}
                 </TableCell>
                 <TableCell>
                   <Badge className={typeStyles[entry.type]}>

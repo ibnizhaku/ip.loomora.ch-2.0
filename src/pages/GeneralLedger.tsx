@@ -7,6 +7,8 @@ import {
   TrendingDown,
   BookOpen,
   ChevronRight,
+  X,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface LedgerAccount {
   id: string;
@@ -149,21 +158,52 @@ const typeLabels = {
   expense: "Aufwand",
 };
 
+const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+
 export default function GeneralLedger() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [hasActivityFilter, setHasActivityFilter] = useState(false);
+  const [minTransactions, setMinTransactions] = useState(0);
 
   const filteredAccounts = ledgerAccounts.filter((account) => {
     const matchesSearch =
       account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       account.number.includes(searchQuery);
     const matchesType = typeFilter === "all" || account.type === typeFilter;
-    return matchesSearch && matchesType;
+    const matchesActivity = !hasActivityFilter || account.transactionCount >= minTransactions;
+    return matchesSearch && matchesType && matchesActivity;
   });
 
-  const totalDebit = ledgerAccounts.reduce((acc, a) => acc + a.debitTotal, 0);
-  const totalCredit = ledgerAccounts.reduce((acc, a) => acc + a.creditTotal, 0);
+  const totalDebit = filteredAccounts.reduce((acc, a) => acc + a.debitTotal, 0);
+  const totalCredit = filteredAccounts.reduce((acc, a) => acc + a.creditTotal, 0);
+  const activeFilters = (typeFilter !== "all" ? 1 : 0) + (hasActivityFilter ? 1 : 0);
+
+  const handleExport = () => {
+    const csvContent = "Kontonummer;Kontoname;Typ;Anfangsbestand CHF;Soll CHF;Haben CHF;Saldo CHF;Letzte Aktivität;Buchungen\n" +
+      filteredAccounts.map(acc => 
+        `${acc.number};${acc.name};${typeLabels[acc.type]};${acc.openingBalance};${acc.debitTotal};${acc.creditTotal};${acc.closingBalance};${acc.lastActivity};${acc.transactionCount}`
+      ).join("\n");
+    
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Hauptbuch-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Hauptbuch exportiert");
+  };
+
+  const resetFilters = () => {
+    setTypeFilter("all");
+    setHasActivityFilter(false);
+    setMinTransactions(0);
+  };
 
   return (
     <div className="space-y-6">
@@ -177,7 +217,7 @@ export default function GeneralLedger() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -192,7 +232,7 @@ export default function GeneralLedger() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Konten aktiv</p>
-              <p className="text-2xl font-bold">{ledgerAccounts.length}</p>
+              <p className="text-2xl font-bold">{filteredAccounts.length}</p>
             </div>
           </div>
         </div>
@@ -203,7 +243,7 @@ export default function GeneralLedger() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Soll gesamt</p>
-              <p className="text-2xl font-bold">CHF {totalDebit.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">{formatCHF(totalDebit)}</p>
             </div>
           </div>
         </div>
@@ -214,7 +254,7 @@ export default function GeneralLedger() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Haben gesamt</p>
-              <p className="text-2xl font-bold">CHF {totalCredit.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">{formatCHF(totalCredit)}</p>
             </div>
           </div>
         </div>
@@ -265,10 +305,55 @@ export default function GeneralLedger() {
             <SelectItem value="expense">Aufwand</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filter
+              {activeFilters > 0 && (
+                <Badge className="ml-1 h-5 w-5 rounded-full p-0 text-xs">{activeFilters}</Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Erweiterte Filter</h4>
+                {activeFilters > 0 && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    <X className="h-4 w-4 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Aktivität</p>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="has-activity"
+                      checked={hasActivityFilter}
+                      onCheckedChange={(checked) => setHasActivityFilter(!!checked)}
+                    />
+                    <label htmlFor="has-activity" className="text-sm">Nur aktive Konten</label>
+                  </div>
+                  {hasActivityFilter && (
+                    <div className="ml-6">
+                      <label className="text-sm text-muted-foreground">Min. Buchungen:</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={minTransactions}
+                        onChange={(e) => setMinTransactions(parseInt(e.target.value) || 0)}
+                        className="mt-1 w-24"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="space-y-3">
@@ -300,15 +385,15 @@ export default function GeneralLedger() {
               <div className="flex items-center gap-8">
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Anfangsbestand</p>
-                  <p className="font-mono font-medium">CHF {account.openingBalance.toLocaleString("de-CH")}</p>
+                  <p className="font-mono font-medium">{formatCHF(account.openingBalance)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Soll</p>
-                  <p className="font-mono font-medium text-success">CHF {account.debitTotal.toLocaleString("de-CH")}</p>
+                  <p className="font-mono font-medium text-success">{formatCHF(account.debitTotal)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Haben</p>
-                  <p className="font-mono font-medium text-info">CHF {account.creditTotal.toLocaleString("de-CH")}</p>
+                  <p className="font-mono font-medium text-info">{formatCHF(account.creditTotal)}</p>
                 </div>
                 <div className="text-right min-w-[120px]">
                   <p className="text-sm text-muted-foreground">Saldo</p>
@@ -317,7 +402,7 @@ export default function GeneralLedger() {
                     account.type === "revenue" && "text-success",
                     account.type === "expense" && "text-destructive"
                   )}>
-                    CHF {account.closingBalance.toLocaleString("de-CH")}
+                    {formatCHF(account.closingBalance)}
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
