@@ -71,6 +71,15 @@ const suppliers = [
   { id: "5", name: "Server Solutions", number: "LF-0005", city: "Luzern", paymentTerms: 30 },
 ];
 
+// Mock projects data
+const projects = [
+  { id: "1", name: "Website Redesign", number: "P-2024-001" },
+  { id: "2", name: "Server Migration", number: "P-2024-002" },
+  { id: "3", name: "Büro Renovation", number: "P-2024-003" },
+  { id: "4", name: "IT-Infrastruktur Upgrade", number: "P-2024-004" },
+  { id: "5", name: "Marketing Kampagne Q1", number: "P-2024-005" },
+];
+
 // Mock products that can be ordered
 const availableProducts = [
   { id: "1", sku: "COMP-001", name: "Intel Core i7 Prozessor", unit: "Stk", price: 320, supplierId: "1" },
@@ -106,6 +115,7 @@ export default function PurchaseOrderCreate() {
   const [expectedDelivery, setExpectedDelivery] = useState("");
   const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
+  const [selectedProject, setSelectedProject] = useState<string>("");
   
   // Delivery dialog state
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
@@ -640,10 +650,29 @@ export default function PurchaseOrderCreate() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="project">Projekt zuweisen</Label>
+                  <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Projekt auswählen (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Kein Projekt</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.number} - {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
                   <Label htmlFor="reference">Ihre Referenz</Label>
                   <Input
                     id="reference"
-                    placeholder="z.B. Projekt XYZ"
+                    placeholder="z.B. Interne Bestellnummer"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                   />
@@ -694,12 +723,16 @@ export default function PurchaseOrderCreate() {
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  <span>Zahlungsziel: {selectedSupplier?.paymentTerms} Tage</span>
+              {selectedProject && selectedProject !== "none" && (
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="font-medium">
+                      Projekt: {projects.find(p => p.id === selectedProject)?.name}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Button className="w-full" onClick={openDeliveryDialog}>
