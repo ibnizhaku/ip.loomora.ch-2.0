@@ -293,10 +293,28 @@ export default function BillOfMaterials() {
     navigate(`/bom/${bomId}`);
   };
 
-  const handleCalculation = (e: React.MouseEvent, bomId: string) => {
+  const handleCalculation = (e: React.MouseEvent, bom: BOM) => {
     e.stopPropagation();
-    navigate(`/calculation`);
-    toast.info("Zur Kalkulation weitergeleitet");
+    
+    // Store BOM data in sessionStorage for calculation page
+    const calcData = {
+      bomId: bom.number,
+      bomName: bom.name,
+      projekt: bom.project || "",
+      projektNr: bom.project || "",
+      materialkosten: bom.totalMaterial,
+      positionen: bom.items.map(item => ({
+        artikelNr: item.articleNumber,
+        bezeichnung: item.name,
+        menge: item.quantity,
+        einheit: item.unit,
+        einzelpreis: item.unitPrice,
+        total: item.quantity * item.unitPrice,
+      })),
+    };
+    sessionStorage.setItem('calculationFromBOM', JSON.stringify(calcData));
+    toast.success("Daten für Kalkulation übernommen");
+    navigate('/calculation/new');
   };
 
   const handleCreateFromTemplate = (templateId: string) => {
@@ -600,7 +618,7 @@ export default function BillOfMaterials() {
                           <Copy className="h-4 w-4 mr-2" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleCalculation(e, bom.id)}>
+                        <DropdownMenuItem onClick={(e) => handleCalculation(e, bom)}>
                           <Wrench className="h-4 w-4 mr-2" />
                           Kalkulation
                         </DropdownMenuItem>
