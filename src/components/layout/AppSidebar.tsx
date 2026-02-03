@@ -86,7 +86,7 @@ interface NavItem {
   url: string;
   icon: any;
   keywords?: string[]; // Additional search terms
-  subItems?: { title: string; url: string }[];
+  subItems?: { title: string; url: string; icon?: any }[];
 }
 
 const mainNavItems: NavItem[] = [
@@ -188,81 +188,55 @@ const managementItems: NavItem[] = [
 
 const accountingItems: NavItem[] = [
   {
-    title: "Finanzen",
+    title: "Controlling",
     url: "/finance",
     icon: CreditCard,
-  },
-  {
-    title: "Bankkonten",
-    url: "/bank-accounts",
-    icon: Landmark,
-  },
-  {
-    title: "Bank-Import",
-    url: "/bank-import",
-    icon: FileUp,
-    keywords: ["camt", "iso20022", "kontoauszug", "import"],
-  },
-  {
-    title: "SEPA-Zahlungen",
-    url: "/sepa-payments",
-    icon: Send,
-  },
-  {
-    title: "Kontenplan",
-    url: "/chart-of-accounts",
-    icon: BookOpen,
-  },
-  {
-    title: "Buchungsjournal",
-    url: "/journal-entries",
-    icon: FileText,
-  },
-  {
-    title: "Hauptbuch",
-    url: "/general-ledger",
-    icon: Receipt,
+    keywords: ["finanzen", "übersicht", "dashboard"],
+    subItems: [
+      { title: "Kassenbuch", url: "/cash-book", icon: Wallet },
+      { title: "Kostenstellen", url: "/cost-centers", icon: Target },
+      { title: "Budgets", url: "/budgets", icon: PiggyBank },
+    ],
   },
   {
     title: "Debitoren",
     url: "/debtors",
     icon: UserPlus2,
+    keywords: ["forderungen", "kunden", "offene posten"],
   },
   {
     title: "Kreditoren",
     url: "/creditors",
     icon: UserMinus,
+    keywords: ["verbindlichkeiten", "lieferanten", "offene posten"],
   },
   {
-    title: "Bilanz & GuV",
+    title: "Zahlungsverkehr",
+    url: "/bank-accounts",
+    icon: Landmark,
+    keywords: ["bank", "konto", "sepa", "camt", "iso20022"],
+  },
+  {
+    title: "Finanzbuchhaltung",
+    url: "/chart-of-accounts",
+    icon: BookOpen,
+    keywords: ["fibu", "buchhaltung"],
+    subItems: [
+      { title: "Kontenplan", url: "/chart-of-accounts", icon: BookOpen },
+      { title: "Buchungsjournal", url: "/journal-entries", icon: FileText },
+      { title: "Hauptbuch", url: "/general-ledger", icon: Receipt },
+    ],
+  },
+  {
+    title: "Abschlüsse",
     url: "/balance-sheet",
     icon: Scale,
-  },
-  {
-    title: "MWST-Abrechnung",
-    url: "/vat-returns",
-    icon: Calculator,
-    keywords: ["mwst", "mehrwertsteuer", "vat", "steuer", "estv"],
-  },
-  {
-    title: "Anlagenbuchhaltung",
-    url: "/fixed-assets",
-    icon: PiggyBank,
-  },
-  {
-    title: "Kassenbuch",
-    url: "/cash-book",
-    icon: Wallet,
-  },
-  {
-    title: "Kostenstellen",
-    url: "/cost-centers",
-    icon: Target,
-  },
-  {
-    title: "Budgets",
-    url: "/budgets",
-    icon: PiggyBank,
+    keywords: ["bilanz", "guv", "jahresabschluss"],
+    subItems: [
+      { title: "Bilanz & GuV", url: "/balance-sheet", icon: Scale },
+      { title: "MWST-Abrechnung", url: "/vat-returns", icon: Calculator },
+      { title: "Anlagenbuchhaltung", url: "/fixed-assets", icon: PiggyBank },
+    ],
   },
 ];
 
@@ -364,6 +338,7 @@ interface NavGroupProps {
   location: ReturnType<typeof useLocation>;
   defaultOpen?: boolean;
   searchQuery?: string;
+  useSubmenus?: boolean;
 }
 
 function filterItems(items: NavItem[], query: string): NavItem[] {
@@ -372,12 +347,14 @@ function filterItems(items: NavItem[], query: string): NavItem[] {
   return items.filter((item) => {
     const titleMatch = item.title.toLowerCase().includes(lowerQuery);
     const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
-    return titleMatch || keywordMatch;
+    const subItemMatch = item.subItems?.some((sub) => sub.title.toLowerCase().includes(lowerQuery));
+    return titleMatch || keywordMatch || subItemMatch;
   });
 }
 
-function NavGroup({ label, items, location, defaultOpen = true, searchQuery = "" }: NavGroupProps) {
+function NavGroup({ label, items, location, defaultOpen = true, searchQuery = "", useSubmenus = false }: NavGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const filteredItems = filterItems(items, searchQuery);
   
   // Force open when searching and has results
@@ -387,6 +364,17 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
   if (searchQuery && filteredItems.length === 0) {
     return null;
   }
+
+  const toggleSubmenu = (url: string) => {
+    setOpenSubmenus(prev => ({ ...prev, [url]: !prev[url] }));
+  };
+
+  const isSubmenuOpen = (item: NavItem) => {
+    if (searchQuery) return true; // Always open when searching
+    if (openSubmenus[item.url] !== undefined) return openSubmenus[item.url];
+    // Auto-open if current route is in submenu
+    return item.subItems?.some(sub => location.pathname === sub.url) || false;
+  };
 
   return (
     <Collapsible open={shouldBeOpen} onOpenChange={searchQuery ? undefined : setIsOpen}>
@@ -414,19 +402,64 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
             <SidebarMenu>
               {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    className={cn(
-                      "transition-all duration-200",
-                      location.pathname === item.url &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
-                    )}
-                  >
-                    <NavLink to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
+                  {item.subItems && useSubmenus ? (
+                    <Collapsible open={isSubmenuOpen(item)} onOpenChange={() => toggleSubmenu(item.url)}>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          className={cn(
+                            "transition-all duration-200 w-full justify-between",
+                            (location.pathname === item.url || item.subItems?.some(sub => location.pathname === sub.url)) &&
+                              "bg-sidebar-accent text-sidebar-accent-foreground"
+                          )}
+                        >
+                          <span className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              "h-3 w-3 transition-transform duration-200",
+                              isSubmenuOpen(item) && "rotate-180"
+                            )}
+                          />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.subItems.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.url}>
+                              <SidebarMenuSubButton
+                                asChild
+                                className={cn(
+                                  "transition-all duration-200",
+                                  location.pathname === subItem.url &&
+                                    "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                )}
+                              >
+                                <NavLink to={subItem.url}>
+                                  <span>{subItem.title}</span>
+                                </NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    <SidebarMenuButton
+                      asChild
+                      className={cn(
+                        "transition-all duration-200",
+                        location.pathname === item.url &&
+                          "bg-sidebar-accent text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <NavLink to={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -463,7 +496,7 @@ export function AppSidebar() {
         <NavGroup label="CRM" items={crmItems} location={location} searchQuery={sidebarSearch} />
         <NavGroup label="Verkauf" items={salesItems} location={location} searchQuery={sidebarSearch} />
         <NavGroup label="Verwaltung" items={managementItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} searchQuery={sidebarSearch} />
+        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} searchQuery={sidebarSearch} useSubmenus={true} />
         <NavGroup label="Marketing" items={marketingItems} location={location} searchQuery={sidebarSearch} />
         <NavGroup label="E-Commerce" items={ecommerceItems} location={location} searchQuery={sidebarSearch} />
         <NavGroup label="Personal (HR)" items={hrItems} location={location} searchQuery={sidebarSearch} />
