@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Grid3X3, List, Calendar } from "lucide-react";
+import { Plus, Search, Filter, Grid3X3, List, Calendar, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 interface Project {
   id: string;
@@ -121,14 +128,42 @@ export default function Projects() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+
+  const hasActiveFilters = priorityFilters.length > 0 || statusFilters.length > 0;
 
   const filteredProjects = projects.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.client.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = !statusFilter || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesStatusCard = !statusFilter || p.status === statusFilter;
+    const matchesStatusFilter = statusFilters.length === 0 || statusFilters.includes(p.status);
+    const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(p.priority);
+    return matchesSearch && matchesStatusCard && matchesStatusFilter && matchesPriority;
   });
+
+  const togglePriorityFilter = (priority: string) => {
+    setPriorityFilters(prev => 
+      prev.includes(priority) 
+        ? prev.filter(p => p !== priority)
+        : [...prev, priority]
+    );
+  };
+
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilters(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setPriorityFilters([]);
+    setStatusFilters([]);
+    setStatusFilter(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -160,9 +195,67 @@ export default function Projects() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="relative">
+                <Filter className="h-4 w-4" />
+                {hasActiveFilters && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-4" align="end">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold">Filter</h4>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-auto py-1 px-2 text-xs">
+                    <X className="h-3 w-3 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Status</Label>
+                  <div className="space-y-2">
+                    {Object.entries(statusConfig).map(([key, config]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`status-${key}`}
+                          checked={statusFilters.includes(key)}
+                          onCheckedChange={() => toggleStatusFilter(key)}
+                        />
+                        <label htmlFor={`status-${key}`} className="text-sm cursor-pointer">
+                          {config.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Priorität</Label>
+                  <div className="space-y-2">
+                    {Object.entries(priorityConfig).map(([key, config]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`priority-${key}`}
+                          checked={priorityFilters.includes(key)}
+                          onCheckedChange={() => togglePriorityFilter(key)}
+                        />
+                        <label htmlFor={`priority-${key}`} className="text-sm cursor-pointer">
+                          {config.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="flex rounded-lg border border-border p-1">
             <Button
               variant={view === "grid" ? "secondary" : "ghost"}
