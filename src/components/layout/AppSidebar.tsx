@@ -370,98 +370,123 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
   };
 
   const isSubmenuOpen = (item: NavItem) => {
-    if (searchQuery) return true; // Always open when searching
+    if (searchQuery) return true;
     if (openSubmenus[item.url] !== undefined) return openSubmenus[item.url];
-    // Auto-open if current route is in submenu
     return item.subItems?.some(sub => location.pathname === sub.url) || false;
   };
 
   return (
     <Collapsible open={shouldBeOpen} onOpenChange={searchQuery ? undefined : setIsOpen}>
-      <SidebarGroup>
-        <CollapsibleTrigger className="w-full" disabled={!!searchQuery}>
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 flex items-center justify-between cursor-pointer hover:text-foreground transition-colors">
-            {label}
-            {filteredItems.length !== items.length && searchQuery && (
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                {filteredItems.length}
-              </span>
-            )}
+      <SidebarGroup className="py-1">
+        <CollapsibleTrigger className="w-full group/trigger" disabled={!!searchQuery}>
+          <SidebarGroupLabel className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest px-3 py-2 flex items-center justify-between cursor-pointer hover:text-muted-foreground transition-colors duration-200">
+            <span className="flex items-center gap-2">
+              {label}
+              {filteredItems.length !== items.length && searchQuery && (
+                <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">
+                  {filteredItems.length}
+                </span>
+              )}
+            </span>
             {!searchQuery && (
               <ChevronDown
                 className={cn(
-                  "h-4 w-4 transition-transform duration-200",
+                  "h-3.5 w-3.5 transition-transform duration-300 opacity-50 group-hover/trigger:opacity-100",
                   shouldBeOpen && "rotate-180"
                 )}
               />
             )}
           </SidebarGroupLabel>
         </CollapsibleTrigger>
-        <CollapsibleContent>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filteredItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  {item.subItems && useSubmenus ? (
-                    <Collapsible open={isSubmenuOpen(item)} onOpenChange={() => toggleSubmenu(item.url)}>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton
-                          className={cn(
-                            "transition-all duration-200 w-full justify-between",
-                            (location.pathname === item.url || item.subItems?.some(sub => location.pathname === sub.url)) &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground"
-                          )}
-                        >
-                          <span className="flex items-center gap-2">
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.title}</span>
-                          </span>
-                          <ChevronDown
+        <CollapsibleContent className="animate-in slide-in-from-top-1 duration-200">
+          <SidebarGroupContent className="px-1">
+            <SidebarMenu className="gap-0.5">
+              {filteredItems.map((item) => {
+                const isActive = location.pathname === item.url || 
+                  item.subItems?.some(sub => location.pathname === sub.url);
+                
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    {item.subItems && useSubmenus ? (
+                      <Collapsible open={isSubmenuOpen(item)} onOpenChange={() => toggleSubmenu(item.url)}>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
                             className={cn(
-                              "h-3 w-3 transition-transform duration-200",
-                              isSubmenuOpen(item) && "rotate-180"
+                              "group/item relative w-full justify-between rounded-lg transition-all duration-200",
+                              "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                              isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                             )}
-                          />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {item.subItems.map((subItem) => (
-                            <SidebarMenuSubItem key={subItem.url}>
-                              <SidebarMenuSubButton
-                                asChild
-                                className={cn(
-                                  "transition-all duration-200",
-                                  location.pathname === subItem.url &&
-                                    "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                )}
-                              >
-                                <NavLink to={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </NavLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ) : (
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        "transition-all duration-200",
-                        location.pathname === item.url &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground"
-                      )}
-                    >
-                      <NavLink to={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
+                          >
+                            <span className="flex items-center gap-3">
+                              <span className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-200",
+                                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover/item:text-foreground"
+                              )}>
+                                <item.icon className="h-4 w-4" />
+                              </span>
+                              <span className="text-sm">{item.title}</span>
+                            </span>
+                            <ChevronDown
+                              className={cn(
+                                "h-3.5 w-3.5 text-muted-foreground transition-transform duration-300",
+                                isSubmenuOpen(item) && "rotate-180"
+                              )}
+                            />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="animate-in slide-in-from-top-1 duration-200">
+                          <SidebarMenuSub className="ml-5 mt-1 border-l-2 border-sidebar-border pl-3 space-y-0.5">
+                            {item.subItems.map((subItem) => {
+                              const isSubActive = location.pathname === subItem.url;
+                              return (
+                                <SidebarMenuSubItem key={subItem.url}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    className={cn(
+                                      "relative rounded-md py-2 transition-all duration-200",
+                                      "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                                      isSubActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                    )}
+                                  >
+                                    <NavLink to={subItem.url}>
+                                      {isSubActive && (
+                                        <span className="absolute left-[-13px] top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-full" />
+                                      )}
+                                      <span className="text-sm">{subItem.title}</span>
+                                    </NavLink>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ) : (
+                      <SidebarMenuButton
+                        asChild
+                        className={cn(
+                          "group/item relative rounded-lg transition-all duration-200",
+                          "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        )}
+                      >
+                        <NavLink to={item.url} className="flex items-center gap-3">
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                          )}
+                          <span className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-200",
+                            isActive ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover/item:text-foreground"
+                          )}>
+                            <item.icon className="h-4 w-4" />
+                          </span>
+                          <span className="text-sm">{item.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </CollapsibleContent>
@@ -475,23 +500,31 @@ export function AppSidebar() {
   const [sidebarSearch, setSidebarSearch] = useState("");
 
   return (
-    <Sidebar className="border-r border-sidebar-border">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar-background">
       <SidebarHeader className="p-4 space-y-4">
-        <div className="flex items-center gap-3">
-          <img src={loomoraLogo} alt="Loomora" className="h-12" />
+        <div className="flex items-center gap-3 px-1">
+          <img src={loomoraLogo} alt="Loomora" className="h-10" />
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary" />
           <Input
-            placeholder="Menü durchsuchen..."
-            className="pl-9 h-9 bg-sidebar-accent/50 border-sidebar-border text-sm"
+            placeholder="Suchen..."
+            className="pl-9 h-10 bg-sidebar-accent/30 border-transparent hover:border-sidebar-border focus:border-primary/50 focus:bg-sidebar-accent/50 text-sm rounded-lg transition-all duration-200 placeholder:text-muted-foreground/50"
             value={sidebarSearch}
             onChange={(e) => setSidebarSearch(e.target.value)}
           />
+          {sidebarSearch && (
+            <button
+              onClick={() => setSidebarSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-muted-foreground/20 hover:bg-muted-foreground/30 flex items-center justify-center transition-colors"
+            >
+              <span className="text-[10px] font-bold text-muted-foreground">✕</span>
+            </button>
+          )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 overflow-y-auto">
+      <SidebarContent className="px-3 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
         <NavGroup label="Hauptmenü" items={mainNavItems} location={location} searchQuery={sidebarSearch} />
         <NavGroup label="CRM" items={crmItems} location={location} searchQuery={sidebarSearch} />
         <NavGroup label="Verkauf" items={salesItems} location={location} searchQuery={sidebarSearch} />
@@ -503,57 +536,82 @@ export function AppSidebar() {
         <NavGroup label="Administration" items={adminItems} location={location} searchQuery={sidebarSearch} />
         
         {sidebarSearch && (
-          <div className="px-2 py-4 text-center">
-            <p className="text-xs text-muted-foreground">
-              Suche: "{sidebarSearch}"
+          <div className="px-3 py-6 text-center">
+            <p className="text-xs text-muted-foreground/60">
+              {filterItems([...mainNavItems, ...crmItems, ...salesItems, ...managementItems, ...accountingItems, ...marketingItems, ...ecommerceItems, ...hrItems, ...adminItems], sidebarSearch).length} Ergebnisse für "{sidebarSearch}"
             </p>
           </div>
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <SidebarMenu>
+      <SidebarFooter className="p-3 border-t border-sidebar-border/50">
+        <SidebarMenu className="gap-0.5 mb-3">
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               className={cn(
-                "transition-all duration-200",
+                "group/item relative rounded-lg transition-all duration-200",
+                "hover:bg-sidebar-accent/60",
                 location.pathname === "/settings" &&
-                  "bg-sidebar-accent text-sidebar-accent-foreground"
+                  "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
               )}
             >
-              <NavLink to="/settings">
-                <Settings className="h-4 w-4" />
-                <span>Einstellungen</span>
+              <NavLink to="/settings" className="flex items-center gap-3">
+                {location.pathname === "/settings" && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                )}
+                <span className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+                  location.pathname === "/settings" ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover/item:text-foreground"
+                )}>
+                  <Settings className="h-4 w-4" />
+                </span>
+                <span className="text-sm">Einstellungen</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="transition-all duration-200">
-              <NavLink to="/help">
-                <HelpCircle className="h-4 w-4" />
-                <span>Hilfe</span>
+            <SidebarMenuButton
+              asChild
+              className={cn(
+                "group/item relative rounded-lg transition-all duration-200",
+                "hover:bg-sidebar-accent/60",
+                location.pathname === "/help" &&
+                  "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+              )}
+            >
+              <NavLink to="/help" className="flex items-center gap-3">
+                {location.pathname === "/help" && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                )}
+                <span className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+                  location.pathname === "/help" ? "bg-primary/10 text-primary" : "text-muted-foreground group-hover/item:text-foreground"
+                )}>
+                  <HelpCircle className="h-4 w-4" />
+                </span>
+                <span className="text-sm">Hilfe</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <div className="mt-4 p-3 rounded-xl bg-secondary/50 border border-border">
+        <div className="p-3 rounded-xl bg-gradient-to-br from-sidebar-accent/50 to-sidebar-accent/30 border border-sidebar-border/50 hover:border-sidebar-border transition-colors duration-200">
           <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+            <Avatar className="h-10 w-10 ring-2 ring-primary/20 ring-offset-2 ring-offset-sidebar-background">
               <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-sm font-semibold">
                 MK
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Max Keller</p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-sm font-semibold truncate">Max Keller</p>
+              <p className="text-xs text-muted-foreground/70 truncate">
                 Administrator
               </p>
             </div>
-            <button className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-              <LogOut className="h-4 w-4 text-muted-foreground" />
+            <button className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors duration-200 group">
+              <LogOut className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
             </button>
           </div>
         </div>
