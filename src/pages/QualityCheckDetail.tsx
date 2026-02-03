@@ -85,7 +85,7 @@ export default function QualityCheckDetail() {
             <FileText className="mr-2 h-4 w-4" />
             Prüfbericht
           </Button>
-          <Button onClick={() => navigate("/quality-control/new")}>
+          <Button onClick={() => navigate("/quality/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Neue Prüfung
           </Button>
