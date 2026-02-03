@@ -3,20 +3,16 @@ import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
   TrendingDown,
-  Euro,
   ArrowUpRight,
   ArrowDownRight,
-  CreditCard,
   Wallet,
   PiggyBank,
-  Plus,
   Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { AddTransactionDialog } from "@/components/finance/AddTransactionDialog";
 
 interface Transaction {
   id: string;
@@ -28,7 +24,12 @@ interface Transaction {
   status: "completed" | "pending";
 }
 
-const transactions: Transaction[] = [
+// Helper function for Swiss CHF formatting
+const formatCHF = (amount: number) => {
+  return amount.toLocaleString("de-CH", { minimumFractionDigits: 0 });
+};
+
+const initialTransactions: Transaction[] = [
   {
     id: "1",
     description: "Zahlung von Fashion Store GmbH",
@@ -96,7 +97,7 @@ const monthlyData = [
 
 export default function Finance() {
   const navigate = useNavigate();
-  const [transactionList] = useState(transactions);
+  const [transactionList, setTransactionList] = useState<Transaction[]>(initialTransactions);
   
   const totalIncome = transactionList
     .filter((t) => t.type === "income")
@@ -105,6 +106,10 @@ export default function Finance() {
     .filter((t) => t.type === "expense")
     .reduce((acc, t) => acc + t.amount, 0);
   const balance = totalIncome - totalExpense;
+
+  const handleTransactionAdded = (transaction: Transaction) => {
+    setTransactionList([transaction, ...transactionList]);
+  };
 
   return (
     <div className="space-y-6">
@@ -118,10 +123,7 @@ export default function Finance() {
             Übersicht über Ihre Einnahmen und Ausgaben
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/journal-entries/new")}>
-          <Plus className="h-4 w-4" />
-          Transaktion hinzufügen
-        </Button>
+        <AddTransactionDialog onTransactionAdded={handleTransactionAdded} />
       </div>
 
       {/* Stats */}
@@ -133,7 +135,7 @@ export default function Finance() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Kontostand</p>
-              <p className="text-2xl font-bold">€{balance.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {formatCHF(balance)}</p>
             </div>
           </div>
         </div>
@@ -145,7 +147,7 @@ export default function Finance() {
             <div>
               <p className="text-sm text-muted-foreground">Einnahmen (Monat)</p>
               <p className="text-2xl font-bold text-success">
-                €{totalIncome.toLocaleString()}
+                CHF {formatCHF(totalIncome)}
               </p>
             </div>
           </div>
@@ -158,7 +160,7 @@ export default function Finance() {
             <div>
               <p className="text-sm text-muted-foreground">Ausgaben (Monat)</p>
               <p className="text-2xl font-bold text-destructive">
-                €{totalExpense.toLocaleString()}
+                CHF {formatCHF(totalExpense)}
               </p>
             </div>
           </div>
@@ -171,7 +173,7 @@ export default function Finance() {
             <div>
               <p className="text-sm text-muted-foreground">Gewinn (Monat)</p>
               <p className="text-2xl font-bold">
-                €{(totalIncome - totalExpense).toLocaleString()}
+                CHF {formatCHF(totalIncome - totalExpense)}
               </p>
             </div>
           </div>
@@ -197,12 +199,12 @@ export default function Finance() {
                 <div
                   className="w-5 bg-success rounded-t transition-all hover:opacity-80"
                   style={{ height: `${(data.income / 150000) * 100}%` }}
-                  title={`Einnahmen: €${data.income.toLocaleString()}`}
+                  title={`Einnahmen: CHF ${formatCHF(data.income)}`}
                 />
                 <div
                   className="w-5 bg-destructive/70 rounded-t transition-all hover:opacity-80"
                   style={{ height: `${(data.expense / 150000) * 100}%` }}
-                  title={`Ausgaben: €${data.expense.toLocaleString()}`}
+                  title={`Ausgaben: CHF ${formatCHF(data.expense)}`}
                 />
               </div>
               <span className="text-xs text-muted-foreground">{data.month}</span>
@@ -280,8 +282,7 @@ export default function Finance() {
                       : "text-destructive"
                   )}
                 >
-                  {transaction.type === "income" ? "+" : "-"}€
-                  {transaction.amount.toLocaleString()}
+                  {transaction.type === "income" ? "+" : "-"}CHF {formatCHF(transaction.amount)}
                 </p>
               </div>
             </div>
