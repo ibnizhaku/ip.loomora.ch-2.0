@@ -15,6 +15,7 @@ import {
   TrendingUp,
   CheckCircle,
   Clock,
+  FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,11 +64,11 @@ const bankAccounts: BankAccount[] = [
   {
     id: "1",
     name: "Geschäftskonto Hauptkonto",
-    bank: "Deutsche Bank",
-    iban: "DE89 3704 0044 0532 0130 00",
-    bic: "COBADEFFXXX",
+    bank: "UBS Switzerland AG",
+    iban: "CH93 0076 2011 6238 5295 7",
+    bic: "UBSWCHZH80A",
     balance: 145320.50,
-    currency: "EUR",
+    currency: "CHF",
     type: "checking",
     lastSync: "31.01.2024 14:30",
     status: "active",
@@ -75,11 +76,11 @@ const bankAccounts: BankAccount[] = [
   {
     id: "2",
     name: "Sparkonto Rücklagen",
-    bank: "Sparkasse",
-    iban: "DE55 1234 5678 9012 3456 78",
-    bic: "SPKHDE2HXXX",
+    bank: "Raiffeisen Schweiz",
+    iban: "CH39 8080 8001 2345 6789 0",
+    bic: "RAABORXXX",
     balance: 50000.00,
-    currency: "EUR",
+    currency: "CHF",
     type: "savings",
     lastSync: "31.01.2024 08:00",
     status: "active",
@@ -87,13 +88,25 @@ const bankAccounts: BankAccount[] = [
   {
     id: "3",
     name: "Kreditkarte Business",
-    bank: "American Express",
+    bank: "Viseca Card Services",
     iban: "-",
     bic: "-",
     balance: -2340.00,
-    currency: "EUR",
+    currency: "CHF",
     type: "credit",
     lastSync: "30.01.2024 23:00",
+    status: "active",
+  },
+  {
+    id: "4",
+    name: "Zahlungsverkehr",
+    bank: "PostFinance AG",
+    iban: "CH58 0900 0000 1234 5678 9",
+    bic: "POFICHBEXXX",
+    balance: 28450.00,
+    currency: "CHF",
+    type: "checking",
+    lastSync: "31.01.2024 12:00",
     status: "active",
   },
 ];
@@ -186,9 +199,13 @@ export default function BankAccounts() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/bank-import")}>
+            <FileUp className="h-4 w-4" />
+            Bank-Import
+          </Button>
           <Button variant="outline" className="gap-2" onClick={() => toast.success("Konten werden synchronisiert...")}>
             <RefreshCw className="h-4 w-4" />
-            Konten synchronisieren
+            Synchronisieren
           </Button>
           <Button className="gap-2" onClick={() => navigate("/bank-accounts/new")}>
             <Plus className="h-4 w-4" />
@@ -205,7 +222,7 @@ export default function BankAccounts() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamtsaldo</p>
-              <p className="text-2xl font-bold">€{totalBalance.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalBalance.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -275,7 +292,7 @@ export default function BankAccounts() {
                 "text-2xl font-bold font-mono",
                 account.balance < 0 && "text-destructive"
               )}>
-                €{account.balance.toLocaleString()}
+                CHF {account.balance.toLocaleString("de-CH")}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
                 Letzte Sync: {account.lastSync}
@@ -342,7 +359,7 @@ export default function BankAccounts() {
                       "text-right font-mono font-medium",
                       tx.type === "credit" ? "text-success" : "text-destructive"
                     )}>
-                      {tx.type === "credit" ? "+" : "-"}€{tx.amount.toLocaleString()}
+                      {tx.type === "credit" ? "+" : "-"}CHF {tx.amount.toLocaleString("de-CH")}
                     </TableCell>
                     <TableCell>
                       <Badge className={statusStyles[tx.status]}>
