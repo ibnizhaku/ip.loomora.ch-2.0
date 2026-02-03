@@ -15,6 +15,7 @@ import {
   Unlock,
   CheckCircle,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface BalanceItem {
   id: string;
@@ -45,101 +48,284 @@ interface BalanceItem {
   children?: BalanceItem[];
 }
 
-const assets: BalanceItem[] = [
-  {
-    id: "a1",
-    name: "A. Anlagevermögen",
-    currentYear: 125000,
-    previousYear: 135000,
-    children: [
+// Data per year
+const balanceDataByYear: Record<string, { assets: BalanceItem[]; liabilities: BalanceItem[] }> = {
+  "2024": {
+    assets: [
       {
-        id: "a1-1",
-        name: "I. Immaterielle Vermögensgegenstände",
-        currentYear: 5000,
-        previousYear: 7500,
+        id: "a1",
+        name: "A. Anlagevermögen",
+        currentYear: 125000,
+        previousYear: 135000,
+        children: [
+          { id: "a1-1", name: "I. Immaterielle Vermögensgegenstände", currentYear: 5000, previousYear: 7500 },
+          {
+            id: "a1-2",
+            name: "II. Sachanlagen",
+            currentYear: 120000,
+            previousYear: 127500,
+            children: [
+              { id: "a1-2-1", name: "1. Grundstücke", currentYear: 50000, previousYear: 50000 },
+              { id: "a1-2-2", name: "2. Technische Anlagen", currentYear: 45000, previousYear: 52500 },
+              { id: "a1-2-3", name: "3. Betriebs- und Geschäftsausstattung", currentYear: 25000, previousYear: 25000 },
+            ],
+          },
+        ],
       },
       {
-        id: "a1-2",
-        name: "II. Sachanlagen",
-        currentYear: 120000,
-        previousYear: 127500,
+        id: "a2",
+        name: "B. Umlaufvermögen",
+        currentYear: 89500,
+        previousYear: 75000,
         children: [
-          { id: "a1-2-1", name: "1. Grundstücke", currentYear: 50000, previousYear: 50000 },
-          { id: "a1-2-2", name: "2. Technische Anlagen", currentYear: 45000, previousYear: 52500 },
-          { id: "a1-2-3", name: "3. Betriebs- und Geschäftsausstattung", currentYear: 25000, previousYear: 25000 },
+          { id: "a2-1", name: "I. Vorräte", currentYear: 10000, previousYear: 8000 },
+          {
+            id: "a2-2",
+            name: "II. Forderungen",
+            currentYear: 32000,
+            previousYear: 28000,
+            children: [
+              { id: "a2-2-1", name: "1. Forderungen aus L+L", currentYear: 32000, previousYear: 28000 },
+            ],
+          },
+          { id: "a2-3", name: "III. Kassenbestand, Bankguthaben", currentYear: 47500, previousYear: 39000 },
+        ],
+      },
+    ],
+    liabilities: [
+      {
+        id: "p1",
+        name: "A. Eigenkapital",
+        currentYear: 139500,
+        previousYear: 125000,
+        children: [
+          { id: "p1-1", name: "I. Gezeichnetes Kapital", currentYear: 50000, previousYear: 50000 },
+          { id: "p1-2", name: "II. Kapitalrücklage", currentYear: 25000, previousYear: 25000 },
+          { id: "p1-3", name: "III. Gewinnvortrag", currentYear: 50000, previousYear: 35000 },
+          { id: "p1-4", name: "IV. Jahresüberschuss", currentYear: 14500, previousYear: 15000 },
+        ],
+      },
+      {
+        id: "p2",
+        name: "B. Rückstellungen",
+        currentYear: 15000,
+        previousYear: 12000,
+        children: [
+          { id: "p2-1", name: "1. Steuerrückstellungen", currentYear: 5000, previousYear: 4000 },
+          { id: "p2-2", name: "2. Sonstige Rückstellungen", currentYear: 10000, previousYear: 8000 },
+        ],
+      },
+      {
+        id: "p3",
+        name: "C. Verbindlichkeiten",
+        currentYear: 60000,
+        previousYear: 73000,
+        children: [
+          { id: "p3-1", name: "1. Verbindlichkeiten ggü. Kreditinstituten", currentYear: 35000, previousYear: 45000 },
+          { id: "p3-2", name: "2. Verbindlichkeiten aus L+L", currentYear: 25000, previousYear: 28000 },
         ],
       },
     ],
   },
-  {
-    id: "a2",
-    name: "B. Umlaufvermögen",
-    currentYear: 89500,
-    previousYear: 75000,
-    children: [
-      { id: "a2-1", name: "I. Vorräte", currentYear: 10000, previousYear: 8000 },
+  "2023": {
+    assets: [
       {
-        id: "a2-2",
-        name: "II. Forderungen",
-        currentYear: 32000,
-        previousYear: 28000,
+        id: "a1",
+        name: "A. Anlagevermögen",
+        currentYear: 135000,
+        previousYear: 142000,
         children: [
-          { id: "a2-2-1", name: "1. Forderungen aus L+L", currentYear: 32000, previousYear: 28000 },
+          { id: "a1-1", name: "I. Immaterielle Vermögensgegenstände", currentYear: 7500, previousYear: 10000 },
+          {
+            id: "a1-2",
+            name: "II. Sachanlagen",
+            currentYear: 127500,
+            previousYear: 132000,
+            children: [
+              { id: "a1-2-1", name: "1. Grundstücke", currentYear: 50000, previousYear: 50000 },
+              { id: "a1-2-2", name: "2. Technische Anlagen", currentYear: 52500, previousYear: 57000 },
+              { id: "a1-2-3", name: "3. Betriebs- und Geschäftsausstattung", currentYear: 25000, previousYear: 25000 },
+            ],
+          },
         ],
       },
-      { id: "a2-3", name: "III. Kassenbestand, Bankguthaben", currentYear: 47500, previousYear: 39000 },
+      {
+        id: "a2",
+        name: "B. Umlaufvermögen",
+        currentYear: 75000,
+        previousYear: 68000,
+        children: [
+          { id: "a2-1", name: "I. Vorräte", currentYear: 8000, previousYear: 7000 },
+          {
+            id: "a2-2",
+            name: "II. Forderungen",
+            currentYear: 28000,
+            previousYear: 25000,
+            children: [
+              { id: "a2-2-1", name: "1. Forderungen aus L+L", currentYear: 28000, previousYear: 25000 },
+            ],
+          },
+          { id: "a2-3", name: "III. Kassenbestand, Bankguthaben", currentYear: 39000, previousYear: 36000 },
+        ],
+      },
+    ],
+    liabilities: [
+      {
+        id: "p1",
+        name: "A. Eigenkapital",
+        currentYear: 125000,
+        previousYear: 110000,
+        children: [
+          { id: "p1-1", name: "I. Gezeichnetes Kapital", currentYear: 50000, previousYear: 50000 },
+          { id: "p1-2", name: "II. Kapitalrücklage", currentYear: 25000, previousYear: 25000 },
+          { id: "p1-3", name: "III. Gewinnvortrag", currentYear: 35000, previousYear: 20000 },
+          { id: "p1-4", name: "IV. Jahresüberschuss", currentYear: 15000, previousYear: 15000 },
+        ],
+      },
+      {
+        id: "p2",
+        name: "B. Rückstellungen",
+        currentYear: 12000,
+        previousYear: 10000,
+        children: [
+          { id: "p2-1", name: "1. Steuerrückstellungen", currentYear: 4000, previousYear: 3500 },
+          { id: "p2-2", name: "2. Sonstige Rückstellungen", currentYear: 8000, previousYear: 6500 },
+        ],
+      },
+      {
+        id: "p3",
+        name: "C. Verbindlichkeiten",
+        currentYear: 73000,
+        previousYear: 90000,
+        children: [
+          { id: "p3-1", name: "1. Verbindlichkeiten ggü. Kreditinstituten", currentYear: 45000, previousYear: 60000 },
+          { id: "p3-2", name: "2. Verbindlichkeiten aus L+L", currentYear: 28000, previousYear: 30000 },
+        ],
+      },
     ],
   },
-];
+  "2022": {
+    assets: [
+      {
+        id: "a1",
+        name: "A. Anlagevermögen",
+        currentYear: 142000,
+        previousYear: 150000,
+        children: [
+          { id: "a1-1", name: "I. Immaterielle Vermögensgegenstände", currentYear: 10000, previousYear: 12500 },
+          {
+            id: "a1-2",
+            name: "II. Sachanlagen",
+            currentYear: 132000,
+            previousYear: 137500,
+            children: [
+              { id: "a1-2-1", name: "1. Grundstücke", currentYear: 50000, previousYear: 50000 },
+              { id: "a1-2-2", name: "2. Technische Anlagen", currentYear: 57000, previousYear: 62500 },
+              { id: "a1-2-3", name: "3. Betriebs- und Geschäftsausstattung", currentYear: 25000, previousYear: 25000 },
+            ],
+          },
+        ],
+      },
+      {
+        id: "a2",
+        name: "B. Umlaufvermögen",
+        currentYear: 68000,
+        previousYear: 60000,
+        children: [
+          { id: "a2-1", name: "I. Vorräte", currentYear: 7000, previousYear: 6000 },
+          {
+            id: "a2-2",
+            name: "II. Forderungen",
+            currentYear: 25000,
+            previousYear: 22000,
+            children: [
+              { id: "a2-2-1", name: "1. Forderungen aus L+L", currentYear: 25000, previousYear: 22000 },
+            ],
+          },
+          { id: "a2-3", name: "III. Kassenbestand, Bankguthaben", currentYear: 36000, previousYear: 32000 },
+        ],
+      },
+    ],
+    liabilities: [
+      {
+        id: "p1",
+        name: "A. Eigenkapital",
+        currentYear: 110000,
+        previousYear: 95000,
+        children: [
+          { id: "p1-1", name: "I. Gezeichnetes Kapital", currentYear: 50000, previousYear: 50000 },
+          { id: "p1-2", name: "II. Kapitalrücklage", currentYear: 25000, previousYear: 25000 },
+          { id: "p1-3", name: "III. Gewinnvortrag", currentYear: 20000, previousYear: 5000 },
+          { id: "p1-4", name: "IV. Jahresüberschuss", currentYear: 15000, previousYear: 15000 },
+        ],
+      },
+      {
+        id: "p2",
+        name: "B. Rückstellungen",
+        currentYear: 10000,
+        previousYear: 8000,
+        children: [
+          { id: "p2-1", name: "1. Steuerrückstellungen", currentYear: 3500, previousYear: 3000 },
+          { id: "p2-2", name: "2. Sonstige Rückstellungen", currentYear: 6500, previousYear: 5000 },
+        ],
+      },
+      {
+        id: "p3",
+        name: "C. Verbindlichkeiten",
+        currentYear: 90000,
+        previousYear: 107000,
+        children: [
+          { id: "p3-1", name: "1. Verbindlichkeiten ggü. Kreditinstituten", currentYear: 60000, previousYear: 75000 },
+          { id: "p3-2", name: "2. Verbindlichkeiten aus L+L", currentYear: 30000, previousYear: 32000 },
+        ],
+      },
+    ],
+  },
+};
 
-const liabilities: BalanceItem[] = [
-  {
-    id: "p1",
-    name: "A. Eigenkapital",
-    currentYear: 139500,
-    previousYear: 125000,
-    children: [
-      { id: "p1-1", name: "I. Gezeichnetes Kapital", currentYear: 50000, previousYear: 50000 },
-      { id: "p1-2", name: "II. Kapitalrücklage", currentYear: 25000, previousYear: 25000 },
-      { id: "p1-3", name: "III. Gewinnvortrag", currentYear: 50000, previousYear: 35000 },
-      { id: "p1-4", name: "IV. Jahresüberschuss", currentYear: 14500, previousYear: 15000 },
+const pnlDataByYear: Record<string, { revenue: { id: string; name: string; currentYear: number; previousYear: number }[]; expenses: { id: string; name: string; currentYear: number; previousYear: number }[] }> = {
+  "2024": {
+    revenue: [
+      { id: "r1", name: "1. Umsatzerlöse", currentYear: 285000, previousYear: 265000 },
+      { id: "r2", name: "2. Sonstige betriebliche Erträge", currentYear: 5000, previousYear: 3000 },
+    ],
+    expenses: [
+      { id: "e1", name: "3. Materialaufwand", currentYear: 85000, previousYear: 78000 },
+      { id: "e2", name: "4. Personalaufwand", currentYear: 120000, previousYear: 110000 },
+      { id: "e3", name: "5. Abschreibungen", currentYear: 15000, previousYear: 15000 },
+      { id: "e4", name: "6. Sonstige betriebliche Aufwendungen", currentYear: 45000, previousYear: 40000 },
+      { id: "e5", name: "7. Zinsen und ähnliche Aufwendungen", currentYear: 3500, previousYear: 4000 },
+      { id: "e6", name: "8. Steuern vom Einkommen und Ertrag", currentYear: 7000, previousYear: 6000 },
     ],
   },
-  {
-    id: "p2",
-    name: "B. Rückstellungen",
-    currentYear: 15000,
-    previousYear: 12000,
-    children: [
-      { id: "p2-1", name: "1. Steuerrückstellungen", currentYear: 5000, previousYear: 4000 },
-      { id: "p2-2", name: "2. Sonstige Rückstellungen", currentYear: 10000, previousYear: 8000 },
+  "2023": {
+    revenue: [
+      { id: "r1", name: "1. Umsatzerlöse", currentYear: 265000, previousYear: 245000 },
+      { id: "r2", name: "2. Sonstige betriebliche Erträge", currentYear: 3000, previousYear: 2500 },
+    ],
+    expenses: [
+      { id: "e1", name: "3. Materialaufwand", currentYear: 78000, previousYear: 72000 },
+      { id: "e2", name: "4. Personalaufwand", currentYear: 110000, previousYear: 100000 },
+      { id: "e3", name: "5. Abschreibungen", currentYear: 15000, previousYear: 15000 },
+      { id: "e4", name: "6. Sonstige betriebliche Aufwendungen", currentYear: 40000, previousYear: 36000 },
+      { id: "e5", name: "7. Zinsen und ähnliche Aufwendungen", currentYear: 4000, previousYear: 4500 },
+      { id: "e6", name: "8. Steuern vom Einkommen und Ertrag", currentYear: 6000, previousYear: 5000 },
     ],
   },
-  {
-    id: "p3",
-    name: "C. Verbindlichkeiten",
-    currentYear: 60000,
-    previousYear: 73000,
-    children: [
-      { id: "p3-1", name: "1. Verbindlichkeiten ggü. Kreditinstituten", currentYear: 35000, previousYear: 45000 },
-      { id: "p3-2", name: "2. Verbindlichkeiten aus L+L", currentYear: 25000, previousYear: 28000 },
+  "2022": {
+    revenue: [
+      { id: "r1", name: "1. Umsatzerlöse", currentYear: 245000, previousYear: 220000 },
+      { id: "r2", name: "2. Sonstige betriebliche Erträge", currentYear: 2500, previousYear: 2000 },
+    ],
+    expenses: [
+      { id: "e1", name: "3. Materialaufwand", currentYear: 72000, previousYear: 65000 },
+      { id: "e2", name: "4. Personalaufwand", currentYear: 100000, previousYear: 90000 },
+      { id: "e3", name: "5. Abschreibungen", currentYear: 15000, previousYear: 15000 },
+      { id: "e4", name: "6. Sonstige betriebliche Aufwendungen", currentYear: 36000, previousYear: 32000 },
+      { id: "e5", name: "7. Zinsen und ähnliche Aufwendungen", currentYear: 4500, previousYear: 5000 },
+      { id: "e6", name: "8. Steuern vom Einkommen und Ertrag", currentYear: 5000, previousYear: 5000 },
     ],
   },
-];
-
-const pnlItems = {
-  revenue: [
-    { id: "r1", name: "1. Umsatzerlöse", currentYear: 285000, previousYear: 265000 },
-    { id: "r2", name: "2. Sonstige betriebliche Erträge", currentYear: 5000, previousYear: 3000 },
-  ],
-  expenses: [
-    { id: "e1", name: "3. Materialaufwand", currentYear: 85000, previousYear: 78000 },
-    { id: "e2", name: "4. Personalaufwand", currentYear: 120000, previousYear: 110000 },
-    { id: "e3", name: "5. Abschreibungen", currentYear: 15000, previousYear: 15000 },
-    { id: "e4", name: "6. Sonstige betriebliche Aufwendungen", currentYear: 45000, previousYear: 40000 },
-    { id: "e5", name: "7. Zinsen und ähnliche Aufwendungen", currentYear: 3500, previousYear: 4000 },
-    { id: "e6", name: "8. Steuern vom Einkommen und Ertrag", currentYear: 7000, previousYear: 6000 },
-  ],
 };
 
 export default function BalanceSheet() {
@@ -150,6 +336,10 @@ export default function BalanceSheet() {
   const [lockedPeriods, setLockedPeriods] = useState<string[]>(["2022", "2023"]);
 
   const isPeriodLocked = lockedPeriods.includes(period);
+
+  // Get data for selected year
+  const { assets, liabilities } = balanceDataByYear[period] || balanceDataByYear["2024"];
+  const pnlItems = pnlDataByYear[period] || pnlDataByYear["2024"];
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) =>
@@ -170,10 +360,17 @@ export default function BalanceSheet() {
 
   const totalAssets = assets.reduce((acc, a) => acc + a.currentYear, 0);
   const totalLiabilities = liabilities.reduce((acc, l) => acc + l.currentYear, 0);
+  const totalAssetsPrev = assets.reduce((acc, a) => acc + a.previousYear, 0);
+  const totalLiabilitiesPrev = liabilities.reduce((acc, l) => acc + l.previousYear, 0);
 
   const totalRevenue = pnlItems.revenue.reduce((acc, r) => acc + r.currentYear, 0);
   const totalExpenses = pnlItems.expenses.reduce((acc, e) => acc + e.currentYear, 0);
   const netIncome = totalRevenue - totalExpenses;
+  const totalRevenuePrev = pnlItems.revenue.reduce((acc, r) => acc + r.previousYear, 0);
+  const totalExpensesPrev = pnlItems.expenses.reduce((acc, e) => acc + e.previousYear, 0);
+  const netIncomePrev = totalRevenuePrev - totalExpensesPrev;
+
+  const eigenkapitalQuote = ((liabilities[0]?.currentYear || 0) / totalLiabilities) * 100;
 
   const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH")}`;
 
@@ -284,8 +481,126 @@ export default function BalanceSheet() {
               </>
             )}
           </Button>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => {
+              const doc = new jsPDF();
+              const pageWidth = doc.internal.pageSize.getWidth();
+              
+              // Header
+              doc.setFontSize(20);
+              doc.setFont("helvetica", "bold");
+              doc.text("Bilanz & Erfolgsrechnung", pageWidth / 2, 20, { align: "center" });
+              doc.setFontSize(12);
+              doc.setFont("helvetica", "normal");
+              doc.text(`Geschäftsjahr ${period}`, pageWidth / 2, 28, { align: "center" });
+              doc.text("nach OR (Schweizer Rechnungslegung)", pageWidth / 2, 35, { align: "center" });
+              
+              // Bilanz Aktiva
+              doc.setFontSize(14);
+              doc.setFont("helvetica", "bold");
+              doc.text("AKTIVA", 14, 50);
+              
+              const aktivaData = assets.flatMap(item => {
+                const rows: string[][] = [[item.name, formatCHF(item.currentYear), formatCHF(item.previousYear)]];
+                item.children?.forEach(child => {
+                  rows.push(["  " + child.name, formatCHF(child.currentYear), formatCHF(child.previousYear)]);
+                  child.children?.forEach(grandchild => {
+                    rows.push(["    " + grandchild.name, formatCHF(grandchild.currentYear), formatCHF(grandchild.previousYear)]);
+                  });
+                });
+                return rows;
+              });
+              aktivaData.push(["Summe Aktiva", formatCHF(totalAssets), formatCHF(totalAssetsPrev)]);
+              
+              autoTable(doc, {
+                startY: 55,
+                head: [["Position", `GJ ${period}`, `Vorjahr`]],
+                body: aktivaData,
+                theme: 'striped',
+                headStyles: { fillColor: [59, 130, 246] },
+              });
+              
+              // Bilanz Passiva
+              const passivaY = (doc as any).lastAutoTable.finalY + 15;
+              doc.setFontSize(14);
+              doc.text("PASSIVA", 14, passivaY);
+              
+              const passivaData = liabilities.flatMap(item => {
+                const rows: string[][] = [[item.name, formatCHF(item.currentYear), formatCHF(item.previousYear)]];
+                item.children?.forEach(child => {
+                  rows.push(["  " + child.name, formatCHF(child.currentYear), formatCHF(child.previousYear)]);
+                });
+                return rows;
+              });
+              passivaData.push(["Summe Passiva", formatCHF(totalLiabilities), formatCHF(totalLiabilitiesPrev)]);
+              
+              autoTable(doc, {
+                startY: passivaY + 5,
+                head: [["Position", `GJ ${period}`, `Vorjahr`]],
+                body: passivaData,
+                theme: 'striped',
+                headStyles: { fillColor: [59, 130, 246] },
+              });
+              
+              // Neue Seite für GuV
+              doc.addPage();
+              doc.setFontSize(20);
+              doc.setFont("helvetica", "bold");
+              doc.text("Erfolgsrechnung", pageWidth / 2, 20, { align: "center" });
+              doc.setFontSize(12);
+              doc.setFont("helvetica", "normal");
+              doc.text(`Geschäftsjahr ${period}`, pageWidth / 2, 28, { align: "center" });
+              
+              // Erträge
+              doc.setFontSize(14);
+              doc.setFont("helvetica", "bold");
+              doc.text("ERTRÄGE", 14, 45);
+              
+              const revenueData = pnlItems.revenue.map(item => [item.name, formatCHF(item.currentYear), formatCHF(item.previousYear)]);
+              revenueData.push(["Summe Erträge", formatCHF(totalRevenue), formatCHF(totalRevenuePrev)]);
+              
+              autoTable(doc, {
+                startY: 50,
+                head: [["Position", `GJ ${period}`, `Vorjahr`]],
+                body: revenueData,
+                theme: 'striped',
+                headStyles: { fillColor: [34, 197, 94] },
+              });
+              
+              // Aufwendungen
+              const expenseY = (doc as any).lastAutoTable.finalY + 15;
+              doc.setFontSize(14);
+              doc.text("AUFWENDUNGEN", 14, expenseY);
+              
+              const expenseData = pnlItems.expenses.map(item => [item.name, formatCHF(item.currentYear), formatCHF(item.previousYear)]);
+              expenseData.push(["Summe Aufwendungen", formatCHF(totalExpenses), formatCHF(totalExpensesPrev)]);
+              
+              autoTable(doc, {
+                startY: expenseY + 5,
+                head: [["Position", `GJ ${period}`, `Vorjahr`]],
+                body: expenseData,
+                theme: 'striped',
+                headStyles: { fillColor: [239, 68, 68] },
+              });
+              
+              // Ergebnis
+              const resultY = (doc as any).lastAutoTable.finalY + 15;
+              doc.setFontSize(16);
+              doc.setFont("helvetica", "bold");
+              doc.text(`Jahresüberschuss: ${formatCHF(netIncome)}`, 14, resultY);
+              
+              // Footer
+              doc.setFontSize(10);
+              doc.setFont("helvetica", "normal");
+              doc.text(`Erstellt am ${new Date().toLocaleDateString("de-CH")}`, 14, doc.internal.pageSize.getHeight() - 10);
+              
+              doc.save(`Bilanz-GuV-${period}.pdf`);
+              toast.success(`PDF für Geschäftsjahr ${period} exportiert`);
+            }}
+          >
+            <FileText className="h-4 w-4" />
             PDF Export
           </Button>
         </div>
@@ -302,7 +617,10 @@ export default function BalanceSheet() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className="rounded-xl border border-border bg-card p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setActiveTab("balance")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <Building className="h-6 w-6 text-primary" />
@@ -310,10 +628,16 @@ export default function BalanceSheet() {
             <div>
               <p className="text-sm text-muted-foreground">Bilanzsumme Aktiva</p>
               <p className="text-2xl font-bold">{formatCHF(totalAssets)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {totalAssets > totalAssetsPrev ? "+" : ""}{((totalAssets - totalAssetsPrev) / totalAssetsPrev * 100).toFixed(1)}% zum Vorjahr
+              </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className="rounded-xl border border-border bg-card p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setActiveTab("balance")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/50">
               <Scale className="h-6 w-6 text-secondary-foreground" />
@@ -321,12 +645,18 @@ export default function BalanceSheet() {
             <div>
               <p className="text-sm text-muted-foreground">Eigenkapitalquote</p>
               <p className="text-2xl font-bold">
-                {((liabilities[0].currentYear / totalLiabilities) * 100).toFixed(1)}%
+                {eigenkapitalQuote.toFixed(1)}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ziel: &gt;30%
               </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className="rounded-xl border border-border bg-card p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setActiveTab("pnl")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <TrendingUp className="h-6 w-6 text-success" />
@@ -334,10 +664,16 @@ export default function BalanceSheet() {
             <div>
               <p className="text-sm text-muted-foreground">Gesamtleistung</p>
               <p className="text-2xl font-bold text-success">{formatCHF(totalRevenue)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {totalRevenue > totalRevenuePrev ? "+" : ""}{((totalRevenue - totalRevenuePrev) / totalRevenuePrev * 100).toFixed(1)}% zum Vorjahr
+              </p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div 
+          className="rounded-xl border border-border bg-card p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setActiveTab("pnl")}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <PiggyBank className="h-6 w-6 text-primary" />
@@ -345,6 +681,9 @@ export default function BalanceSheet() {
             <div>
               <p className="text-sm text-muted-foreground">Jahresüberschuss</p>
               <p className="text-2xl font-bold">{formatCHF(netIncome)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {netIncome > netIncomePrev ? "+" : ""}{((netIncome - netIncomePrev) / netIncomePrev * 100).toFixed(1)}% zum Vorjahr
+              </p>
             </div>
           </div>
         </div>

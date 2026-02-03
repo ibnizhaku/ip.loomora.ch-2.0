@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Schweizer MWST-Sätze (ab 2024)
 interface VatPeriod {
@@ -151,13 +152,62 @@ export default function VatReturns() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => {
+              if (!currentPeriod) return;
+              const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<VATDeclaration xmlns="http://www.ech.ch/xmlns/eCH-0217/1">
+  <declarationHeader>
+    <declarationKind>1</declarationKind>
+    <senderId>CHE-123.456.789</senderId>
+    <recipientId>CH-ESTV</recipientId>
+    <referenceMessageId>${currentPeriod.period}</referenceMessageId>
+    <businessProcessId>1</businessProcessId>
+    <declarationDate>${new Date().toISOString().split('T')[0]}</declarationDate>
+  </declarationHeader>
+  <vatDeclaration>
+    <taxPeriod>
+      <periodFrom>${currentPeriod.period.split('-')[0]}-${currentPeriod.period.includes('Q1') ? '01' : currentPeriod.period.includes('Q2') ? '04' : currentPeriod.period.includes('Q3') ? '07' : '10'}-01</periodFrom>
+      <periodTo>${currentPeriod.period.split('-')[0]}-${currentPeriod.period.includes('Q1') ? '03' : currentPeriod.period.includes('Q2') ? '06' : currentPeriod.period.includes('Q3') ? '09' : '12'}-${currentPeriod.period.includes('Q1') ? '31' : currentPeriod.period.includes('Q2') ? '30' : currentPeriod.period.includes('Q3') ? '30' : '31'}</periodTo>
+    </taxPeriod>
+    <totalRevenue>1060550</totalRevenue>
+    <taxableRevenue302>880000</taxableRevenue302>
+    <taxableRevenue312>45000</taxableRevenue312>
+    <outputVat>${currentPeriod.outputVat}</outputVat>
+    <inputVat>${currentPeriod.inputVat}</inputVat>
+    <payableAmount>${currentPeriod.payable}</payableAmount>
+  </vatDeclaration>
+</VATDeclaration>`;
+              const blob = new Blob([xmlContent], { type: 'application/xml' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `MWST-${currentPeriod.period}.xml`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast.success(`XML für ${currentPeriod.periodLabel} exportiert`);
+            }}
+          >
             <Download className="h-4 w-4" />
             XML Export
           </Button>
-          <Button className="gap-2">
+          <Button 
+            className="gap-2"
+            onClick={() => {
+              if (!currentPeriod) return;
+              if (currentPeriod.status !== 'draft') {
+                toast.error('Diese Periode wurde bereits übermittelt');
+                return;
+              }
+              toast.success(`MwSt-Abrechnung ${currentPeriod.periodLabel} wurde an ESTV übermittelt`);
+            }}
+          >
             <Send className="h-4 w-4" />
-            An ESTV übermitteln
+            MwSt übermitteln
           </Button>
         </div>
       </div>
