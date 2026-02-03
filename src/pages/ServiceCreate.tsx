@@ -1,13 +1,24 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Wrench } from "lucide-react";
+import { ArrowLeft, Save, Wrench, Calendar, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { TechnicianScheduleDialog } from "@/components/service/TechnicianScheduleDialog";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+
+const technicianNames: Record<string, string> = {
+  mueller: "Thomas Müller",
+  schmidt: "Peter Schmidt",
+  weber: "Michael Weber",
+  bauer: "Stefan Bauer",
+};
 
 export default function ServiceCreate() {
   const navigate = useNavigate();
@@ -18,6 +29,30 @@ export default function ServiceCreate() {
   const [assignee, setAssignee] = useState("");
   const [description, setDescription] = useState("");
   const [equipment, setEquipment] = useState("");
+  
+  // Scheduling state
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [scheduledTime, setScheduledTime] = useState<string | null>(null);
+
+  const handleAssigneeChange = (value: string) => {
+    setAssignee(value);
+    // Open scheduling dialog when technician is selected
+    if (value) {
+      setScheduleDialogOpen(true);
+    }
+  };
+
+  const handleSchedule = (date: Date, time: string) => {
+    setScheduledDate(date);
+    setScheduledTime(time);
+    toast.success(`Termin geplant: ${format(date, "d. MMMM yyyy", { locale: de })} um ${time} Uhr`);
+  };
+
+  const clearSchedule = () => {
+    setScheduledDate(null);
+    setScheduledTime(null);
+  };
 
   const handleSave = () => {
     if (!title || !customer || !category) {
@@ -31,7 +66,7 @@ export default function ServiceCreate() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/service")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -105,12 +140,12 @@ export default function ServiceCreate() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Zuweisung & Details</CardTitle>
+            <CardTitle>Zuweisung & Planung</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Techniker</Label>
-              <Select value={assignee} onValueChange={setAssignee}>
+              <Select value={assignee} onValueChange={handleAssigneeChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Techniker wählen" />
                 </SelectTrigger>
@@ -122,6 +157,45 @@ export default function ServiceCreate() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Scheduled Appointment Display */}
+            {assignee && (
+              <div className="space-y-2">
+                <Label>Geplanter Termin</Label>
+                {scheduledDate && scheduledTime ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg border bg-success/5 border-success/20">
+                    <Calendar className="h-4 w-4 text-success" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {format(scheduledDate, "EEEE, d. MMMM yyyy", { locale: de })}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {scheduledTime} Uhr • {technicianNames[assignee]}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={clearSchedule}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-muted-foreground"
+                    onClick={() => setScheduleDialogOpen(true)}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Termin einplanen...
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Betroffenes Gerät/Anlage</Label>
               <Input 
@@ -144,12 +218,22 @@ export default function ServiceCreate() {
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
+        <Button variant="outline" onClick={() => navigate("/service")}>Abbrechen</Button>
         <Button className="gap-2" onClick={handleSave}>
           <Save className="h-4 w-4" />
           Ticket erstellen
         </Button>
       </div>
+
+      {/* Technician Schedule Dialog */}
+      {assignee && (
+        <TechnicianScheduleDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          technicianId={assignee}
+          onSchedule={handleSchedule}
+        />
+      )}
     </div>
   );
 }
