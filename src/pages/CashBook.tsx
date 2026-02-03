@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -38,8 +39,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface CashEntry {
   id: string;
@@ -148,12 +156,16 @@ export default function CashBook() {
   const [month, setMonth] = useState("2024-01");
   const [entryList, setEntryList] = useState(entries);
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
+  const [filterCostCenter, setFilterCostCenter] = useState<string[]>([]);
+
+  const costCenterOptions = [...new Set(entries.filter(e => e.costCenter).map(e => e.costCenter!))];
 
   const filteredEntries = entryList.filter((entry) => {
     const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.documentNumber.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === "all" || entry.type === typeFilter;
-    return matchesSearch && matchesType;
+    const matchesCostCenter = filterCostCenter.length === 0 || (entry.costCenter && filterCostCenter.includes(entry.costCenter));
+    return matchesSearch && matchesType && matchesCostCenter;
   });
 
   const totalIncome = entryList
@@ -174,6 +186,60 @@ export default function CashBook() {
     setTypeFilter(typeFilter === filter ? "all" : filter);
   };
 
+  const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+
+  const handlePrint = () => {
+    window.print();
+    toast.success("Druckdialog geöffnet");
+  };
+
+  const handlePdfExport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const monthLabel = month === "2024-01" ? "Januar 2024" : month === "2023-12" ? "Dezember 2023" : "November 2023";
+    
+    doc.setFontSize(18);
+    doc.text("Kassenbuch", pageWidth / 2, 20, { align: "center" });
+    doc.setFontSize(12);
+    doc.text(monthLabel, pageWidth / 2, 28, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.text(`Anfangsbestand: ${formatCHF(currentBalance)}`, 14, 40);
+    doc.text(`Einnahmen: ${formatCHF(totalIncome)}`, 14, 46);
+    doc.text(`Ausgaben: ${formatCHF(totalExpense)}`, 14, 52);
+    doc.text(`Endbestand: ${formatCHF(currentBalance)}`, 14, 58);
+    
+    autoTable(doc, {
+      startY: 68,
+      head: [["Datum", "Belegnr.", "Beschreibung", "Kostenstelle", "Einnahme", "Ausgabe", "Saldo"]],
+      body: filteredEntries.map(entry => [
+        entry.date,
+        entry.documentNumber,
+        entry.description,
+        entry.costCenter || "-",
+        entry.type === "income" && entry.amount > 0 ? formatCHF(entry.amount) : "-",
+        entry.type === "expense" ? formatCHF(entry.amount) : "-",
+        formatCHF(entry.runningBalance),
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`Kassenbuch_${month}.pdf`);
+    toast.success("PDF wurde exportiert");
+  };
+
+  const toggleCostCenterFilter = (costCenter: string) => {
+    setFilterCostCenter(prev => 
+      prev.includes(costCenter) 
+        ? prev.filter(c => c !== costCenter)
+        : [...prev, costCenter]
+    );
+  };
+
+  const activeFilters = filterCostCenter.length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -186,11 +252,11 @@ export default function CashBook() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("Wird gedruckt...")}>
+          <Button variant="outline" className="gap-2" onClick={handlePrint}>
             <Printer className="h-4 w-4" />
             Drucken
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("PDF wird exportiert...")}>
+          <Button variant="outline" className="gap-2" onClick={handlePdfExport}>
             <Download className="h-4 w-4" />
             PDF Export
           </Button>
@@ -283,14 +349,49 @@ export default function CashBook() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="2024-01">Januar 2024</SelectItem>
+            <SelectItem value="2024-02">Februar 2024</SelectItem>
             <SelectItem value="2023-12">Dezember 2023</SelectItem>
             <SelectItem value="2023-11">November 2023</SelectItem>
+            <SelectItem value="2023-10">Oktober 2023</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filter
+              {activeFilters > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
+                  {activeFilters}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="end">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">Kostenstelle</h4>
+                <div className="space-y-2">
+                  {costCenterOptions.map((cc) => (
+                    <div key={cc} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={cc} 
+                        checked={filterCostCenter.includes(cc)}
+                        onCheckedChange={() => toggleCostCenterFilter(cc)}
+                      />
+                      <label htmlFor={cc} className="text-sm cursor-pointer">{cc}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {activeFilters > 0 && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setFilterCostCenter([])}>
+                  Filter zurücksetzen
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="rounded-2xl border border-border bg-card">
