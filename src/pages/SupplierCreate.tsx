@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useCreateSupplier } from "@/hooks/use-suppliers";
 
 export default function SupplierCreate() {
   const navigate = useNavigate();
+  const createSupplier = useCreateSupplier();
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -33,10 +35,28 @@ export default function SupplierCreate() {
     notes: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Lieferant erfolgreich erstellt");
-    navigate("/suppliers");
+    
+    try {
+      await createSupplier.mutateAsync({
+        name: formData.name || formData.company,
+        companyName: formData.company,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        website: formData.website || undefined,
+        street: formData.street || undefined,
+        zipCode: formData.zip || undefined,
+        city: formData.city || undefined,
+        country: formData.country || undefined,
+        paymentTermDays: parseInt(formData.paymentTerms) || 30,
+        notes: formData.notes || undefined,
+      });
+      toast.success("Lieferant erfolgreich erstellt");
+      navigate("/suppliers");
+    } catch (error) {
+      toast.error("Fehler beim Erstellen des Lieferanten");
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -239,11 +259,15 @@ export default function SupplierCreate() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate("/suppliers")}>
+          <Button type="button" variant="outline" onClick={() => navigate("/suppliers")} disabled={createSupplier.isPending}>
             Abbrechen
           </Button>
-          <Button type="submit" className="gap-2">
-            <Save className="h-4 w-4" />
+          <Button type="submit" className="gap-2" disabled={createSupplier.isPending}>
+            {createSupplier.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             Lieferant erstellen
           </Button>
         </div>
