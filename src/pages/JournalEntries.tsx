@@ -229,7 +229,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Soll-Summe</p>
-              <p className="text-2xl font-bold text-success">€{totalDebit.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-success">CHF {totalDebit.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Haben-Summe</p>
-              <p className="text-2xl font-bold text-info">€{totalCredit.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-info">CHF {totalCredit.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function JournalEntries() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right font-mono font-medium">
-                  €{entry.amount.toLocaleString()}
+                  CHF {entry.amount.toLocaleString("de-CH")}
                 </TableCell>
                 <TableCell>
                   <Badge className={typeStyles[entry.type]}>

@@ -203,7 +203,7 @@ export default function GeneralLedger() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Soll gesamt</p>
-              <p className="text-2xl font-bold">€{totalDebit.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalDebit.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -214,7 +214,7 @@ export default function GeneralLedger() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Haben gesamt</p>
-              <p className="text-2xl font-bold">€{totalCredit.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalCredit.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -300,15 +300,15 @@ export default function GeneralLedger() {
               <div className="flex items-center gap-8">
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Anfangsbestand</p>
-                  <p className="font-mono font-medium">€{account.openingBalance.toLocaleString()}</p>
+                  <p className="font-mono font-medium">CHF {account.openingBalance.toLocaleString("de-CH")}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Soll</p>
-                  <p className="font-mono font-medium text-success">€{account.debitTotal.toLocaleString()}</p>
+                  <p className="font-mono font-medium text-success">CHF {account.debitTotal.toLocaleString("de-CH")}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Haben</p>
-                  <p className="font-mono font-medium text-info">€{account.creditTotal.toLocaleString()}</p>
+                  <p className="font-mono font-medium text-info">CHF {account.creditTotal.toLocaleString("de-CH")}</p>
                 </div>
                 <div className="text-right min-w-[120px]">
                   <p className="text-sm text-muted-foreground">Saldo</p>
@@ -317,7 +317,7 @@ export default function GeneralLedger() {
                     account.type === "revenue" && "text-success",
                     account.type === "expense" && "text-destructive"
                   )}>
-                    €{account.closingBalance.toLocaleString()}
+                    CHF {account.closingBalance.toLocaleString("de-CH")}
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
