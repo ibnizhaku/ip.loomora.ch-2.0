@@ -17,7 +17,10 @@ import {
   Calendar,
   MapPin,
   ExternalLink,
-  UserPlus
+  UserPlus,
+  X,
+  Copy,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +40,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +87,8 @@ const Recruiting = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [applicants, setApplicants] = useState(initialApplicants);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterSource, setFilterSource] = useState<string[]>([]);
 
   const openPositions = jobPostings.filter(j => j.status === "Aktiv").length;
   const totalApplicants = applicants.length;
@@ -87,9 +96,16 @@ const Recruiting = () => {
     a.status === "In Prüfung" || a.status === "Interview geplant"
   ).length;
   const newThisWeek = applicants.filter(a => a.status === "Neu").length;
+  const uniqueSources = [...new Set(initialApplicants.map(a => a.source))];
+  const activeFilters = filterStatus.length + filterSource.length;
 
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
+  };
+
+  const resetFilters = () => {
+    setFilterStatus([]);
+    setFilterSource([]);
   };
 
   const handleSendOffer = (id: string, e: React.MouseEvent) => {
@@ -110,6 +126,13 @@ const Recruiting = () => {
     toast.info(`Absage an ${applicant?.name} gesendet`);
   };
 
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const applicant = applicants.find(a => a.id === id);
+    setApplicants(prev => prev.filter(app => app.id !== id));
+    toast.success(`Bewerbung von ${applicant?.name} gelöscht`);
+  };
+
   const filteredApplicants = applicants.filter(a => {
     const matchesSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       a.position.toLowerCase().includes(searchTerm.toLowerCase());
@@ -118,7 +141,10 @@ const Recruiting = () => {
       (statusFilter === "new" && a.status === "Neu") ||
       (statusFilter === "progress" && (a.status === "In Prüfung" || a.status === "Interview geplant"));
     
-    return matchesSearch && matchesStatus;
+    const matchesFilterStatus = filterStatus.length === 0 || filterStatus.includes(a.status);
+    const matchesFilterSource = filterSource.length === 0 || filterSource.includes(a.source);
+    
+    return matchesSearch && matchesStatus && matchesFilterStatus && matchesFilterSource;
   });
 
   return (
@@ -259,10 +285,72 @@ const Recruiting = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn(activeFilters > 0 && "border-primary")}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                  {activeFilters > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">{activeFilters}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Filter</h4>
+                    {activeFilters > 0 && (
+                      <Button variant="ghost" size="sm" onClick={resetFilters}>
+                        <X className="h-4 w-4 mr-1" />
+                        Zurücksetzen
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Status</Label>
+                    {["Neu", "In Prüfung", "Interview geplant", "Angebot gesendet", "Abgelehnt"].map((status) => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${status}`}
+                          checked={filterStatus.includes(status)}
+                          onCheckedChange={(checked) => {
+                            setFilterStatus(checked 
+                              ? [...filterStatus, status]
+                              : filterStatus.filter(s => s !== status)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer">
+                          {status}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Quelle</Label>
+                    {uniqueSources.map((source) => (
+                      <div key={source} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`source-${source}`}
+                          checked={filterSource.includes(source)}
+                          onCheckedChange={(checked) => {
+                            setFilterSource(checked 
+                              ? [...filterSource, source]
+                              : filterSource.filter(s => s !== source)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`source-${source}`} className="text-sm font-normal cursor-pointer">
+                          {source}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Card>

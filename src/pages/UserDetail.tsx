@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save, Eye, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const userData = {
   id: "USR-0045",
@@ -57,27 +61,32 @@ const statusColors: Record<string, string> = {
 
 export default function UserDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [berechtigungen, setBerechtigungen] = useState(initialBerechtigungen);
   const [hasChanges, setHasChanges] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(userData.zweiFaktor);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: userData.name,
+    email: userData.email,
+    telefon: userData.telefon,
+    rolle: userData.rolle,
+    abteilung: userData.abteilung,
+  });
 
   const handlePermissionChange = (modul: string, type: "lesen" | "schreiben" | "löschen", value: boolean) => {
     setBerechtigungen(prev => prev.map(b => {
       if (b.modul !== modul) return b;
       
-      // Logic: if disabling read, also disable write and delete
       if (type === "lesen" && !value) {
         return { ...b, lesen: false, schreiben: false, löschen: false };
       }
-      // Logic: if enabling write, also enable read
       if (type === "schreiben" && value) {
         return { ...b, lesen: true, schreiben: true };
       }
-      // Logic: if enabling delete, also enable read and write
       if (type === "löschen" && value) {
         return { ...b, lesen: true, schreiben: true, löschen: true };
       }
-      // Logic: if disabling write, also disable delete
       if (type === "schreiben" && !value) {
         return { ...b, schreiben: false, löschen: false };
       }
@@ -98,6 +107,13 @@ export default function UserDetail() {
     toast.success("Passwort-Reset E-Mail gesendet", {
       description: `Eine E-Mail wurde an ${userData.email} gesendet`
     });
+  };
+
+  const handleSaveEdit = () => {
+    toast.success("Benutzerdaten aktualisiert", {
+      description: `${editForm.name} wurde erfolgreich aktualisiert`
+    });
+    setShowEditDialog(false);
   };
 
   const handleToggle2FA = (checked: boolean) => {
@@ -145,12 +161,47 @@ export default function UserDetail() {
             <Key className="mr-2 h-4 w-4" />
             Passwort zurücksetzen
           </Button>
-          <Button onClick={() => toast.info("Bearbeiten-Dialog öffnen")}>
+          <Button onClick={() => setShowEditDialog(true)}>
             <Settings className="mr-2 h-4 w-4" />
             Bearbeiten
           </Button>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Benutzer bearbeiten</DialogTitle>
+            <DialogDescription>Aktualisieren Sie die Benutzerdaten</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editName">Name</Label>
+              <Input id="editName" value={editForm.name} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editEmail">E-Mail</Label>
+              <Input id="editEmail" type="email" value={editForm.email} onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editTelefon">Telefon</Label>
+              <Input id="editTelefon" value={editForm.telefon} onChange={e => setEditForm(prev => ({ ...prev, telefon: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editAbteilung">Abteilung</Label>
+              <Input id="editAbteilung" value={editForm.abteilung} onChange={e => setEditForm(prev => ({ ...prev, abteilung: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Abbrechen</Button>
+            <Button onClick={handleSaveEdit}>
+              <Save className="mr-2 h-4 w-4" />
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Benutzerdaten */}
