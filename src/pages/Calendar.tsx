@@ -133,7 +133,10 @@ export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2024, 1, 1));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [selectedEventForReminder, setSelectedEventForReminder] = useState<Event | null>(null);
+  const [selectedEventForDuplicate, setSelectedEventForDuplicate] = useState<Event | null>(null);
+  const [duplicateDate, setDuplicateDate] = useState<Date>(new Date());
   const [reminderSettings, setReminderSettings] = useState({
     time: "15min",
     method: "notification",
@@ -232,13 +235,25 @@ export default function Calendar() {
   };
 
   const handleDuplicateEvent = (event: Event) => {
-    const newEventCopy: Event = {
-      ...event,
-      id: String(Date.now()),
-      title: `${event.title} (Kopie)`,
-    };
-    setEvents(prev => [...prev, newEventCopy]);
-    toast.success("Termin wurde dupliziert");
+    setSelectedEventForDuplicate(event);
+    // Parse the event date to set as initial duplicate date
+    const [year, month, day] = event.date.split("-").map(Number);
+    setDuplicateDate(new Date(year, month - 1, day));
+    setIsDuplicateDialogOpen(true);
+  };
+
+  const handleConfirmDuplicate = () => {
+    if (selectedEventForDuplicate) {
+      const newEventCopy: Event = {
+        ...selectedEventForDuplicate,
+        id: String(Date.now()),
+        title: `${selectedEventForDuplicate.title} (Kopie)`,
+        date: formatDateKey(duplicateDate),
+      };
+      setEvents(prev => [...prev, newEventCopy]);
+      toast.success(`Termin wurde auf ${format(duplicateDate, "d. MMMM yyyy", { locale: de })} dupliziert`);
+      setIsDuplicateDialogOpen(false);
+    }
   };
 
   const handleSetReminder = (event: Event) => {
@@ -752,6 +767,61 @@ export default function Calendar() {
             <Button onClick={handleSaveReminder}>
               <Bell className="h-4 w-4 mr-2" />
               Erinnerung speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Dialog */}
+      <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5" />
+              Termin duplizieren
+            </DialogTitle>
+          </DialogHeader>
+          {selectedEventForDuplicate && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="font-medium">{selectedEventForDuplicate.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  Original: {selectedEventForDuplicate.date} um {selectedEventForDuplicate.startTime}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Neues Datum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      {format(duplicateDate, "PPP", { locale: de })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      mode="single"
+                      selected={duplicateDate}
+                      onSelect={(date) => date && setDuplicateDate(date)}
+                      locale={de}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Zeit und andere Einstellungen bleiben unverändert.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDuplicateDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleConfirmDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplizieren
             </Button>
           </DialogFooter>
         </DialogContent>
