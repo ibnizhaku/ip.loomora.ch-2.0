@@ -1,11 +1,14 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const vertragData = {
   id: "AV-2024-0089",
@@ -74,6 +77,7 @@ const lohnklassenBeschreibung: Record<string, string> = {
 
 export default function EmployeeContractDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -85,6 +89,62 @@ export default function EmployeeContractDetail() {
   const jahreslohn = vertragData.monatslohn * (vertragData.tage13 ? 13 : 12);
   const agAbzüge = sozialversicherungen.reduce((sum, s) => sum + s.arbeitgeber, 0);
   const anAbzüge = sozialversicherungen.reduce((sum, s) => sum + s.arbeitnehmer, 0);
+
+  const handlePdfExport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFontSize(18);
+    doc.text("Arbeitsvertrag", pageWidth / 2, 20, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(`${vertragData.id}`, pageWidth / 2, 28, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.text("Mitarbeiter", 14, 42);
+    doc.setFontSize(10);
+    doc.text(`Name: ${vertragData.mitarbeiter}`, 14, 50);
+    doc.text(`Personal-Nr.: ${vertragData.personalNr}`, 14, 56);
+    doc.text(`Position: ${vertragData.position}`, 14, 62);
+    doc.text(`Abteilung: ${vertragData.abteilung}`, 14, 68);
+    
+    doc.setFontSize(12);
+    doc.text("Vertragsdaten", 14, 82);
+    doc.setFontSize(10);
+    doc.text(`Vertragsart: ${vertragData.vertragsart}`, 14, 90);
+    doc.text(`Eintrittsdatum: ${vertragData.eintrittsdatum}`, 14, 96);
+    doc.text(`Arbeitsort: ${vertragData.arbeitsort}`, 14, 102);
+    doc.text(`Kündigungsfrist: ${vertragData.kündigungsfrist}`, 14, 108);
+    
+    doc.setFontSize(12);
+    doc.text("Entlöhnung (GAV Metallbau)", 14, 122);
+    doc.setFontSize(10);
+    doc.text(`Lohnklasse: ${vertragData.lohnklasse} - ${vertragData.lohnklasseBeschreibung}`, 14, 130);
+    doc.text(`Monatslohn: ${formatCurrency(vertragData.monatslohn)}`, 14, 136);
+    doc.text(`Jahreslohn: ${formatCurrency(jahreslohn)} (${vertragData.tage13 ? "13" : "12"} Monatslöhne)`, 14, 142);
+    doc.text(`Ferienanspruch: ${vertragData.ferienanspruch} Tage`, 14, 148);
+    
+    autoTable(doc, {
+      startY: 160,
+      head: [["Sozialversicherung", "AG %", "AN %", "Basis"]],
+      body: sozialversicherungen.map(sv => [
+        sv.bezeichnung,
+        sv.arbeitgeber > 0 ? `${sv.arbeitgeber}%` : "-",
+        sv.arbeitnehmer > 0 ? `${sv.arbeitnehmer}%` : "-",
+        sv.basis,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`Arbeitsvertrag_${vertragData.personalNr}.pdf`);
+    toast.success("PDF wurde exportiert");
+  };
+
+  const handleEdit = () => {
+    toast.info("Bearbeitungsmodus wird geladen...");
+    navigate(`/employee-contracts/${id}/edit`);
+  };
 
   return (
     <div className="space-y-6">
@@ -106,11 +166,11 @@ export default function EmployeeContractDetail() {
           <p className="text-muted-foreground">{vertragData.id}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <FileText className="mr-2 h-4 w-4" />
+          <Button variant="outline" onClick={handlePdfExport}>
+            <Download className="mr-2 h-4 w-4" />
             PDF Export
           </Button>
-          <Button>
+          <Button onClick={handleEdit}>
             <Edit className="mr-2 h-4 w-4" />
             Bearbeiten
           </Button>

@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   User,
@@ -15,7 +15,10 @@ import {
   GraduationCap,
   Award,
   Building2,
-  CalendarDays
+  CalendarDays,
+  Trash2,
+  Download,
+  UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +31,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const employeeData = {
   id: "MA-001",
@@ -92,6 +97,35 @@ const employeeData = {
 
 const EmployeeDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+
+  const handleSendEmail = () => {
+    window.location.href = `mailto:${employeeData.email}`;
+    toast.success("E-Mail-Programm wird geöffnet");
+  };
+
+  const handleEdit = () => {
+    toast.info("Bearbeitungsmodus wird geladen...");
+    // In real app: navigate(`/hr/${id}/edit`)
+  };
+
+  const handleUploadDocument = () => {
+    toast.success("Dokument-Upload wird geöffnet");
+  };
+
+  const handleSalaryAdjustment = () => {
+    toast.info("Gehaltsanpassung wird vorbereitet");
+    navigate("/payroll");
+  };
+
+  const handleRequestVacation = () => {
+    toast.info("Urlaubsantrag wird erstellt");
+    navigate("/absences/new");
+  };
+
+  const handleDeactivate = () => {
+    toast.warning("Mitarbeiter wird deaktiviert...");
+  };
 
   return (
     <div className="space-y-6">
@@ -122,11 +156,11 @@ const EmployeeDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleSendEmail}>
             <Mail className="h-4 w-4 mr-2" />
             E-Mail
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleEdit}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
@@ -137,10 +171,23 @@ const EmployeeDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Dokument hochladen</DropdownMenuItem>
-              <DropdownMenuItem>Gehaltsanpassung</DropdownMenuItem>
-              <DropdownMenuItem>Urlaub beantragen</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Deaktivieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleUploadDocument}>
+                <Download className="h-4 w-4 mr-2" />
+                Dokument hochladen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSalaryAdjustment}>
+                <FileText className="h-4 w-4 mr-2" />
+                Gehaltsanpassung
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleRequestVacation}>
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Urlaub beantragen
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive" onClick={handleDeactivate}>
+                <UserX className="h-4 w-4 mr-2" />
+                Deaktivieren
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

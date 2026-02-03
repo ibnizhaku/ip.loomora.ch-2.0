@@ -229,7 +229,31 @@ export default function EmployeeContracts() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.success("Export wird erstellt...")}>
+          <Button variant="outline" className="gap-2" onClick={() => {
+            const csvContent = [
+              ["Name", "Personal-Nr.", "Vertragsart", "GAV Klasse", "Start", "Ende", "Pensum", "Bruttolohn", "Status"].join(";"),
+              ...contracts.map(c => [
+                c.employeeName,
+                c.employeeId,
+                contractTypeLabels[c.contractType],
+                `GAV ${c.gavClass}`,
+                c.startDate,
+                c.endDate || "-",
+                `${c.workload}%`,
+                `CHF ${c.baseSalary}`,
+                statusLabels[c.status],
+              ].join(";"))
+            ].join("\n");
+            
+            const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "Arbeitsvertraege.csv";
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success("Export wurde erstellt");
+          }}>
             <Download className="h-4 w-4" />
             Export
           </Button>
