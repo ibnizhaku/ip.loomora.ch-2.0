@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   Plus, 
   Search, 
@@ -11,11 +11,17 @@ import {
   Euro,
   MoreHorizontal,
   FileText,
-  ArrowDownLeft
+  ArrowDownLeft,
+  Eye,
+  Download,
+  Mail,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -30,7 +36,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const creditNotes = [
   { id: "GS-2024-0015", invoice: "RE-2024-0145", customer: "Weber Elektronik GmbH", date: "28.01.2024", total: 1250.50, status: "Verbucht", reason: "Warenrückgabe" },
@@ -46,6 +60,8 @@ const statusConfig: Record<string, { color: string }> = {
   "Storniert": { color: "bg-destructive/10 text-destructive" },
 };
 
+const reasonConfig = ["Warenrückgabe", "Preisanpassung", "Kulanz", "Teillieferung", "Reklamation"];
+
 const stats = [
   { title: "Gutschriften (Monat)", value: "CHF 7'891", icon: ArrowDownLeft },
   { title: "Anzahl", value: "15", icon: FileText },
@@ -54,12 +70,53 @@ const stats = [
 ];
 
 const CreditNotes = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [reasonFilters, setReasonFilters] = useState<string[]>([]);
 
-  const filteredNotes = creditNotes.filter(note =>
-    note.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    note.customer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilters((prev) =>
+      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
+    );
+  };
+
+  const toggleReasonFilter = (reason: string) => {
+    setReasonFilters((prev) =>
+      prev.includes(reason) ? prev.filter((r) => r !== reason) : [...prev, reason]
+    );
+  };
+
+  const resetFilters = () => {
+    setStatusFilters([]);
+    setReasonFilters([]);
+  };
+
+  const hasActiveFilters = statusFilters.length > 0 || reasonFilters.length > 0;
+
+  const filteredNotes = creditNotes.filter(note => {
+    const matchesSearch =
+      note.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.customer.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilters.length === 0 || statusFilters.includes(note.status);
+    const matchesReason = reasonFilters.length === 0 || reasonFilters.includes(note.reason);
+    return matchesSearch && matchesStatus && matchesReason;
+  });
+
+  const handleDownloadPdf = (note: typeof creditNotes[0], e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.success(`PDF für ${note.id} wird heruntergeladen...`);
+  };
+
+  const handleSendEmail = (note: typeof creditNotes[0], e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.success(`${note.id} wird per E-Mail an ${note.customer} gesendet...`);
+  };
+
+  const handleCancel = (note: typeof creditNotes[0], e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.success(`${note.id} wurde storniert`);
+  };
 
   return (
     <div className="space-y-6">
@@ -69,7 +126,7 @@ const CreditNotes = () => {
           <h1 className="font-display text-3xl font-bold tracking-tight">Gutschriften</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Gutschriften und Erstattungen</p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/credit-notes/create")}>
           <Plus className="h-4 w-4 mr-2" />
           Neue Gutschrift
         </Button>
@@ -105,10 +162,63 @@ const CreditNotes = () => {
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(hasActiveFilters && "border-primary text-primary")}>
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+              {hasActiveFilters && (
+                <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 bg-popover" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Filter</h4>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Status</Label>
+                <div className="space-y-2">
+                  {Object.keys(statusConfig).map((status) => (
+                    <div key={status} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`status-${status}`}
+                        checked={statusFilters.includes(status)}
+                        onCheckedChange={() => toggleStatusFilter(status)}
+                      />
+                      <label htmlFor={`status-${status}`} className="text-sm cursor-pointer">
+                        {status}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Grund</Label>
+                <div className="space-y-2">
+                  {reasonConfig.map((reason) => (
+                    <div key={reason} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`reason-${reason}`}
+                        checked={reasonFilters.includes(reason)}
+                        onCheckedChange={() => toggleReasonFilter(reason)}
+                      />
+                      <label htmlFor={`reason-${reason}`} className="text-sm cursor-pointer">
+                        {reason}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
@@ -131,16 +241,23 @@ const CreditNotes = () => {
               {filteredNotes.map((note) => {
                 const status = statusConfig[note.status] || statusConfig["Entwurf"];
                 return (
-                  <TableRow key={note.id}>
+                  <TableRow 
+                    key={note.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/credit-notes/${note.id}`)}
+                  >
                     <TableCell>
-                      <Link to={`/credit-notes/${note.id}`} className="font-medium hover:text-primary">
+                      <span className="font-medium hover:text-primary">
                         {note.id}
-                      </Link>
+                      </span>
                     </TableCell>
                     <TableCell>
-                      <Link to={`/invoices/${note.invoice}`} className="text-muted-foreground hover:text-primary">
+                      <span 
+                        className="text-muted-foreground hover:text-primary cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${note.invoice}`); }}
+                      >
                         {note.invoice}
-                      </Link>
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -160,16 +277,32 @@ const CreditNotes = () => {
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Anzeigen</DropdownMenuItem>
-                          <DropdownMenuItem>PDF herunterladen</DropdownMenuItem>
-                          <DropdownMenuItem>Per E-Mail senden</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/credit-notes/${note.id}`); }}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Anzeigen
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => handleDownloadPdf(note, e)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            PDF herunterladen
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => handleSendEmail(note, e)}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            Per E-Mail senden
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-destructive" 
+                            onClick={(e) => handleCancel(note, e)}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Stornieren
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

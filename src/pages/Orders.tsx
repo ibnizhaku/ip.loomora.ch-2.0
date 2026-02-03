@@ -11,12 +11,16 @@ import {
   XCircle,
   Truck,
   Banknote,
-  ArrowRight,
+  Eye,
+  Pencil,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -30,8 +34,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Order {
   id: string;
@@ -142,15 +153,51 @@ const priorityConfig = {
 export default function Orders() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
 
-  const filteredOrders = orders.filter(
-    (o) =>
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilters((prev) =>
+      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
+    );
+  };
+
+  const togglePriorityFilter = (priority: string) => {
+    setPriorityFilters((prev) =>
+      prev.includes(priority) ? prev.filter((p) => p !== priority) : [...prev, priority]
+    );
+  };
+
+  const resetFilters = () => {
+    setStatusFilters([]);
+    setPriorityFilters([]);
+  };
+
+  const hasActiveFilters = statusFilters.length > 0 || priorityFilters.length > 0;
+
+  const filteredOrders = orders.filter((o) => {
+    const matchesSearch =
       o.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.client.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      o.client.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilters.length === 0 || statusFilters.includes(o.status);
+    const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(o.priority);
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
 
   const totalValue = orders.filter((o) => o.status !== "cancelled").reduce((acc, o) => acc + o.amount, 0);
   const activeOrders = orders.filter((o) => ["new", "confirmed", "in-progress"].includes(o.status)).length;
+
+  const handleCreateDeliveryNote = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.success(`Lieferschein für ${order.number} wird erstellt...`);
+    navigate(`/delivery-notes/create?orderId=${order.id}`);
+  };
+
+  const handleCreateInvoice = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.success(`Rechnung für ${order.number} wird erstellt...`);
+    navigate(`/invoices/create?orderId=${order.id}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -164,7 +211,7 @@ export default function Orders() {
             Verwalten Sie Ihre Kundenaufträge
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/orders/create")}>
           <Plus className="h-4 w-4" />
           Neuer Auftrag
         </Button>
@@ -231,9 +278,62 @@ export default function Orders() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className={cn("relative", hasActiveFilters && "border-primary text-primary")}>
+              <Filter className="h-4 w-4" />
+              {hasActiveFilters && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 bg-popover" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Filter</h4>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Status</Label>
+                <div className="space-y-2">
+                  {Object.entries(statusConfig).map(([key, value]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`status-${key}`}
+                        checked={statusFilters.includes(key)}
+                        onCheckedChange={() => toggleStatusFilter(key)}
+                      />
+                      <label htmlFor={`status-${key}`} className="text-sm cursor-pointer">
+                        {value.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Priorität</Label>
+                <div className="space-y-2">
+                  {Object.entries(priorityConfig).map(([key, value]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`priority-${key}`}
+                        checked={priorityFilters.includes(key)}
+                        onCheckedChange={() => togglePriorityFilter(key)}
+                      />
+                      <label htmlFor={`priority-${key}`} className="text-sm cursor-pointer">
+                        {value.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
@@ -298,20 +398,27 @@ export default function Orders() {
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
-                          <ArrowRight className="h-4 w-4" />
+                      <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/edit`); }}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => handleCreateDeliveryNote(order, e)}>
+                          <Truck className="h-4 w-4 mr-2" />
                           Lieferschein erstellen
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
-                          <ArrowRight className="h-4 w-4" />
+                        <DropdownMenuItem onClick={(e) => handleCreateInvoice(order, e)}>
+                          <FileText className="h-4 w-4 mr-2" />
                           Rechnung erstellen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
