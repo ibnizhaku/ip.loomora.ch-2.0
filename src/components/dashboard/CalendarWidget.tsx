@@ -3,10 +3,19 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CalendarDays, Clock, MapPin, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CalendarDays, Clock, MapPin, Users, MoreHorizontal, Edit, Trash2, Copy, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameDay } from "date-fns";
 import { de } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface Event {
   id: string;
@@ -89,17 +98,41 @@ const typeConfig = {
 
 export function CalendarWidget() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [eventsList, setEventsList] = useState<Event[]>(events);
 
-  const eventDates = events.map((e) => e.date);
+  const eventDates = eventsList.map((e) => e.date);
   
   const selectedDayEvents = selectedDate
-    ? events.filter((e) => isSameDay(e.date, selectedDate))
+    ? eventsList.filter((e) => isSameDay(e.date, selectedDate))
     : [];
 
-  const upcomingEvents = events
+  const upcomingEvents = eventsList
     .filter((e) => e.date >= new Date())
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 5);
+
+  const handleEditEvent = (event: Event) => {
+    toast.info(`Termin "${event.title}" bearbeiten`);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    setEventsList(prev => prev.filter(e => e.id !== eventId));
+    toast.success("Termin wurde gelöscht");
+  };
+
+  const handleDuplicateEvent = (event: Event) => {
+    const newEvent: Event = {
+      ...event,
+      id: `${event.id}-copy-${Date.now()}`,
+      title: `${event.title} (Kopie)`,
+    };
+    setEventsList(prev => [...prev, newEvent]);
+    toast.success("Termin wurde dupliziert");
+  };
+
+  const handleSetReminder = (event: Event) => {
+    toast.success(`Erinnerung für "${event.title}" gesetzt`);
+  };
 
   return (
     <Card className="animate-fade-in">
@@ -139,12 +172,12 @@ export function CalendarWidget() {
                 <div
                   key={event.id}
                   className={cn(
-                    "p-3 rounded-lg border transition-all hover:scale-[1.02] cursor-pointer",
+                    "group p-3 rounded-lg border transition-all hover:scale-[1.02] cursor-pointer",
                     typeConfig[event.type].color
                   )}
                 >
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">{event.title}</p>
                       <div className="flex items-center gap-3 mt-1 text-xs opacity-80">
                         <span className="flex items-center gap-1">
@@ -165,6 +198,40 @@ export function CalendarWidget() {
                         )}
                       </div>
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => handleEditEvent(event)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicateEvent(event)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplizieren
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSetReminder(event)}>
+                          <Bell className="h-4 w-4 mr-2" />
+                          Erinnerung setzen
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteEvent(event.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -186,10 +253,10 @@ export function CalendarWidget() {
               {upcomingEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
+                  className="group flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className={cn("h-2 w-2 rounded-full", typeConfig[event.type].color.split(" ")[0].replace("/10", ""))} />
+                  <div className={cn("h-2 w-2 rounded-full shrink-0", typeConfig[event.type].color.split(" ")[0].replace("/10", ""))} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{event.title}</p>
                     <p className="text-xs text-muted-foreground">
@@ -199,6 +266,40 @@ export function CalendarWidget() {
                   <Badge variant="outline" className="text-xs shrink-0">
                     {typeConfig[event.type].label}
                   </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => handleEditEvent(event)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Bearbeiten
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicateEvent(event)}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplizieren
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSetReminder(event)}>
+                        <Bell className="h-4 w-4 mr-2" />
+                        Erinnerung setzen
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               ))}
             </div>
