@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrderDto, UpdateOrderDto } from './dto/order.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { DocumentStatus, InvoiceStatus } from '@prisma/client';
+import { mapOrderResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class OrdersService {
@@ -53,7 +54,7 @@ export class OrdersService {
     ]);
 
     return {
-      data,
+      data: data.map(mapOrderResponse),
       total,
       page,
       pageSize,
@@ -88,7 +89,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    return order;
+    return mapOrderResponse(order);
   }
 
   async create(companyId: string, userId: string, dto: CreateOrderDto) {

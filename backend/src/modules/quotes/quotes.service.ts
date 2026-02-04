@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateQuoteDto, UpdateQuoteDto } from './dto/quote.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { DocumentStatus } from '@prisma/client';
+import { mapQuoteResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class QuotesService {
@@ -53,7 +54,7 @@ export class QuotesService {
     ]);
 
     return {
-      data,
+      data: data.map(mapQuoteResponse),
       total,
       page,
       pageSize,
@@ -83,7 +84,7 @@ export class QuotesService {
       throw new NotFoundException('Quote not found');
     }
 
-    return quote;
+    return mapQuoteResponse(quote);
   }
 
   async create(companyId: string, userId: string, dto: CreateQuoteDto) {

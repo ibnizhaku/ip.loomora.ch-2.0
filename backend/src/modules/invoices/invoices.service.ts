@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceDto, UpdateInvoiceDto, RecordPaymentDto } from './dto/invoice.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { InvoiceStatus, PaymentStatus, PaymentType } from '@prisma/client';
+import { mapInvoiceResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class InvoicesService {
@@ -58,12 +59,15 @@ export class InvoicesService {
       this.prisma.invoice.count({ where }),
     ]);
 
-    // Enrich with computed fields
-    const enrichedData = data.map((invoice) => ({
-      ...invoice,
-      openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
-      isOverdue: invoice.status !== InvoiceStatus.PAID && new Date(invoice.dueDate) < new Date(),
-    }));
+    // Enrich with computed fields and map to frontend format
+    const enrichedData = data.map((invoice) => {
+      const enriched = {
+        ...invoice,
+        openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
+        isOverdue: invoice.status !== InvoiceStatus.PAID && new Date(invoice.dueDate) < new Date(),
+      };
+      return mapInvoiceResponse(enriched);
+    });
 
     return {
       data: enrichedData,
@@ -101,11 +105,12 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    return {
+    const enriched = {
       ...invoice,
       openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
       isOverdue: invoice.status !== InvoiceStatus.PAID && new Date(invoice.dueDate) < new Date(),
     };
+    return mapInvoiceResponse(enriched);
   }
 
   async create(companyId: string, userId: string, dto: CreateInvoiceDto) {
