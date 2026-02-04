@@ -339,6 +339,7 @@ export class ReportsService {
             year: startDate.getFullYear(),
             month: { gte: startDate.getMonth() + 1, lte: endDate.getMonth() + 1 },
           },
+          include: { items: true },
         },
       },
     });
@@ -347,17 +348,23 @@ export class ReportsService {
       emp.payslips.forEach(ps => {
         acc.gross += Number(ps.grossSalary || 0);
         acc.net += Number(ps.netSalary || 0);
-        acc.ahvIvEo += Number(ps.ahvIvEo || 0);
-        acc.alv += Number(ps.alv || 0);
-        acc.bvg += Number(ps.bvg || 0);
-        acc.ktg += Number(ps.ktg || 0);
-        acc.nbuv += Number(ps.nbuv || 0);
-        acc.quellensteuer += Number(ps.quellensteuer || 0);
+        acc.totalDeductions += Number(ps.totalDeductions || 0);
+        
+        // Sum deductions by type from PayslipItems
+        const deductions = ps.items.filter(i => i.category === 'DEDUCTION');
+        deductions.forEach(d => {
+          const type = d.type.toLowerCase();
+          if (type.includes('ahv') || type.includes('eo')) acc.ahvIvEo += Number(d.amount || 0);
+          else if (type.includes('alv')) acc.alv += Number(d.amount || 0);
+          else if (type.includes('bvg') || type.includes('pension')) acc.bvg += Number(d.amount || 0);
+          else if (type.includes('ktg') || type.includes('kranken')) acc.ktg += Number(d.amount || 0);
+          else if (type.includes('nbu') || type.includes('unfall')) acc.nbuv += Number(d.amount || 0);
+          else if (type.includes('quellen') || type.includes('steuer')) acc.quellensteuer += Number(d.amount || 0);
+        });
       });
       return acc;
-    }, { gross: 0, net: 0, ahvIvEo: 0, alv: 0, bvg: 0, ktg: 0, nbuv: 0, quellensteuer: 0 });
+    }, { gross: 0, net: 0, totalDeductions: 0, ahvIvEo: 0, alv: 0, bvg: 0, ktg: 0, nbuv: 0, quellensteuer: 0 });
 
-    const totalDeductions = totals.ahvIvEo + totals.alv + totals.bvg + totals.ktg + totals.nbuv + totals.quellensteuer;
     const employerCosts = totals.gross * (
       this.EMPLOYER_RATES.AHV_IV_EO + 
       this.EMPLOYER_RATES.ALV + 
@@ -372,7 +379,7 @@ export class ReportsService {
         totalEmployees: employees.length,
         totalGrossSalary: totals.gross,
         totalNetSalary: totals.net,
-        totalDeductions,
+        totalDeductions: totals.totalDeductions,
         totalEmployerCosts: totals.gross + employerCosts,
       },
       deductions: {
@@ -492,6 +499,7 @@ export class ReportsService {
             year: startDate.getFullYear(),
             month: { gte: startDate.getMonth() + 1, lte: endDate.getMonth() + 1 },
           },
+          include: { items: true },
         },
       },
     });
@@ -509,7 +517,14 @@ export class ReportsService {
       const tariff = emp.qstData!.tarif;
       
       const income = emp.payslips.reduce((sum, ps) => sum + Number(ps.grossSalary || 0), 0);
-      const tax = emp.payslips.reduce((sum, ps) => sum + Number(ps.quellensteuer || 0), 0);
+      // Get QST from PayslipItems
+      const tax = emp.payslips.reduce((sum, ps) => {
+        const qstItems = ps.items.filter(i => 
+          i.category === 'DEDUCTION' && 
+          (i.type.toLowerCase().includes('quellen') || i.type.toLowerCase().includes('qst'))
+        );
+        return sum + qstItems.reduce((s, i) => s + Number(i.amount || 0), 0);
+      }, 0);
 
       totalIncome += income;
       totalTax += tax;

@@ -91,6 +91,7 @@ export class SwissdecService {
           where: dto.month 
             ? { year, month: dto.month }
             : { year },
+          include: { items: true },
         },
       },
     });
@@ -257,56 +258,54 @@ export class SwissdecService {
     const payslips = await this.prisma.payslip.findMany({
       where: { employeeId, year },
       orderBy: { month: 'asc' },
+      include: { items: true },
     });
 
-    // Sum up all amounts for the year
-    const totals = payslips.reduce((acc, ps) => ({
-      grossSalary: acc.grossSalary + Number(ps.grossSalary || 0),
-      ahvIvEo: acc.ahvIvEo + Number(ps.ahvIvEo || 0),
-      alv: acc.alv + Number(ps.alv || 0),
-      bvg: acc.bvg + Number(ps.bvg || 0),
-      netSalary: acc.netSalary + Number(ps.netSalary || 0),
-      quellensteuer: acc.quellensteuer + Number(ps.quellensteuer || 0),
-    }), {
-      grossSalary: 0,
-      ahvIvEo: 0,
-      alv: 0,
-      bvg: 0,
-      netSalary: 0,
-      quellensteuer: 0,
-    });
+    // Helper to sum deductions by type from items
+    const sumDeductionByType = (typePattern: string): number => {
+      return payslips.reduce((sum, ps) => {
+        const matching = ps.items.filter(i => 
+          i.category === 'DEDUCTION' && i.type.toLowerCase().includes(typePattern)
+        );
+        return sum + matching.reduce((s, i) => s + Number(i.amount || 0), 0);
+      }, 0);
+    };
+
+    // Sum expenses from items
+    const totalExpenses = payslips.reduce((sum, ps) => {
+      const expenses = ps.items.filter(i => i.category === 'EXPENSE');
+      return sum + expenses.reduce((s, i) => s + Number(i.amount || 0), 0);
+    }, 0);
+
+    const grossSalary = payslips.reduce((sum, ps) => sum + Number(ps.grossSalary || 0), 0);
+    const netSalary = payslips.reduce((sum, ps) => sum + Number(ps.netSalary || 0), 0);
+    const ahvIvEo = sumDeductionByType('ahv') + sumDeductionByType('eo');
+    const alv = sumDeductionByType('alv');
+    const bvg = sumDeductionByType('bvg') + sumDeductionByType('pension');
+    const quellensteuer = sumDeductionByType('quellen') + sumDeductionByType('qst');
 
     return {
       employeeId,
       year,
-      grossSalary: totals.grossSalary,
+      grossSalary,
       incidentalBenefits: 0,
       boardAndLodging: 0,
       companyCarPrivateUse: 0,
       otherBenefits: 0,
-      totalGross: totals.grossSalary,
-      deductionAhvIvEo: totals.ahvIvEo,
-      deductionAlv: totals.alv,
-      deductionBvg: totals.bvg,
+      totalGross: grossSalary,
+      deductionAhvIvEo: ahvIvEo,
+      deductionAlv: alv,
+      deductionBvg: bvg,
       deductionOther: 0,
-      netSalary: totals.netSalary,
-      withholdingTax: totals.quellensteuer,
-      expenseReimbursements: 0,
+      netSalary,
+      withholdingTax: quellensteuer,
+      expenseReimbursements: totalExpenses,
     };
   }
 
-  // Calculate salary totals from payslips
+  // Calculate salary totals from payslips with items
   private calculateTotals(payslips: any[]) {
-    return payslips.reduce((acc, ps) => ({
-      grossSalary: acc.grossSalary + Number(ps.grossSalary || 0),
-      ahvIvEo: acc.ahvIvEo + Number(ps.ahvIvEo || 0),
-      alv: acc.alv + Number(ps.alv || 0),
-      bvg: acc.bvg + Number(ps.bvg || 0),
-      ktg: acc.ktg + Number(ps.ktg || 0),
-      nbuv: acc.nbuv + Number(ps.nbuv || 0),
-      quellensteuer: acc.quellensteuer + Number(ps.quellensteuer || 0),
-      netSalary: acc.netSalary + Number(ps.netSalary || 0),
-    }), {
+    const result = {
       grossSalary: 0,
       ahvIvEo: 0,
       alv: 0,
@@ -315,7 +314,27 @@ export class SwissdecService {
       nbuv: 0,
       quellensteuer: 0,
       netSalary: 0,
+    };
+
+    payslips.forEach(ps => {
+      result.grossSalary += Number(ps.grossSalary || 0);
+      result.netSalary += Number(ps.netSalary || 0);
+
+      // Sum deductions by type from PayslipItems
+      const items = ps.items || [];
+      const deductions = items.filter((i: any) => i.category === 'DEDUCTION');
+      deductions.forEach((d: any) => {
+        const type = (d.type || '').toLowerCase();
+        if (type.includes('ahv') || type.includes('eo')) result.ahvIvEo += Number(d.amount || 0);
+        else if (type.includes('alv')) result.alv += Number(d.amount || 0);
+        else if (type.includes('bvg') || type.includes('pension')) result.bvg += Number(d.amount || 0);
+        else if (type.includes('ktg') || type.includes('kranken')) result.ktg += Number(d.amount || 0);
+        else if (type.includes('nbu') || type.includes('unfall')) result.nbuv += Number(d.amount || 0);
+        else if (type.includes('quellen') || type.includes('steuer')) result.quellensteuer += Number(d.amount || 0);
+      });
     });
+
+    return result;
   }
 
   // Validate Swiss AHV number (756.XXXX.XXXX.XX)
