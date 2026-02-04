@@ -1547,6 +1547,10 @@ model Employee {
   productionOperations ProductionOperation[]
   qualityChecks   QualityCheck[]
   serviceTickets  ServiceTicket[]
+  managedCostCenters CostCenter[]
+  swissdecDeclarations SwissdecDeclaration[]
+  gavData         GavEmployeeData?
+  qstData         QstEmployeeData?
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -2659,3 +2663,181 @@ model AssetDepreciation {
   @@index([fixedAssetId])
   @@map("asset_depreciations")
 }
+
+// ============================================
+// HR: SWISSDEC / ELM
+// ============================================
+
+enum SwissdecMessageType {
+  SALARY_DECLARATION
+  ANNUAL_DECLARATION
+  CORRECTION
+  TERMINATION
+}
+
+enum SwissdecStatus {
+  DRAFT
+  VALIDATED
+  SUBMITTED
+  ACKNOWLEDGED
+  REJECTED
+  PROCESSED
+}
+
+model SwissdecSubmission {
+  id              String   @id @default(cuid())
+  reference       String   // ELM-2024-0001
+  
+  messageType     SwissdecMessageType
+  year            Int
+  month           Int?
+  
+  recipients      String[] @default([])  // AHV, FAK, UVG, etc.
+  status          SwissdecStatus @default(DRAFT)
+  
+  employeeCount   Int      @default(0)
+  
+  validationErrors   String[] @default([])
+  validationWarnings String[] @default([])
+  validatedAt     DateTime?
+  
+  submittedAt     DateTime?
+  transmissionId  String?
+  xmlContent      String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  declarations    SwissdecDeclaration[]
+  
+  @@unique([companyId, reference])
+  @@index([companyId])
+  @@index([year])
+  @@index([status])
+  @@map("swissdec_submissions")
+}
+
+model SwissdecDeclaration {
+  id              String   @id @default(cuid())
+  
+  submissionId    String
+  submission      SwissdecSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  
+  year            Int
+  month           Int?
+  
+  data            Json     @default("{}")  // Salary declaration data
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([submissionId])
+  @@index([employeeId])
+  @@map("swissdec_declarations")
+}
+
+// ============================================
+// HR: GAV METALLBAU
+// ============================================
+
+enum GavLohnklasse {
+  A   // Ungelernte
+  B   // Angelernte
+  C   // EFZ
+  D   // EFZ + Zusatz
+  E   // Vorarbeiter
+  F   // Meister
+}
+
+model GavSettings {
+  id              String   @id @default(cuid())
+  
+  year            Int
+  weeklyHours     Decimal  @default(42.5) @db.Decimal(4, 1)
+  
+  minRateA        Decimal  @db.Decimal(6, 2)
+  minRateB        Decimal  @db.Decimal(6, 2)
+  minRateC        Decimal  @db.Decimal(6, 2)
+  minRateD        Decimal  @db.Decimal(6, 2)
+  minRateE        Decimal  @db.Decimal(6, 2)
+  minRateF        Decimal  @db.Decimal(6, 2)
+  
+  schmutzzulage   Decimal  @db.Decimal(6, 2)
+  hoehenzulage    Decimal  @db.Decimal(6, 2)
+  nachtzulageProzent Int
+  sonntagProzent  Int
+  ueberZeitProzent Int
+  essenszulage    Decimal  @db.Decimal(6, 2)
+  unterkunftMax   Decimal  @db.Decimal(6, 2)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([companyId, year])
+  @@index([companyId])
+  @@map("gav_settings")
+}
+
+model GavEmployeeData {
+  id              String   @id @default(cuid())
+  
+  employeeId      String   @unique
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  lohnklasse      GavLohnklasse
+  hourlyRate      Decimal  @db.Decimal(8, 2)
+  
+  yearsExperience Int?
+  hasEfz          Boolean  @default(false)
+  efzProfession   String?
+  efzDate         DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([lohnklasse])
+  @@map("gav_employee_data")
+}
+
+// ============================================
+// HR: WITHHOLDING TAX (QUELLENSTEUER)
+// ============================================
+
+enum QstStatus {
+  ACTIVE
+  EXEMPT
+  CROSS_BORDER
+}
+
+model QstEmployeeData {
+  id              String   @id @default(cuid())
+  
+  employeeId      String   @unique
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  status          QstStatus @default(ACTIVE)
+  kanton          String    // ZH, BE, GE, etc.
+  tarif           String    // A, B, C, etc.
+  childCount      Decimal   @default(0) @db.Decimal(3, 1)  // 0.0, 0.5, 1.0, etc.
+  
+  churchMember    Boolean   @default(true)
+  nationality     String?
+  permitType      String?   // B, L, G, etc.
+  permitValidUntil DateTime?
+  crossBorderCountry String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([kanton])
+  @@index([status])
+  @@map("qst_employee_data")
+}
+
