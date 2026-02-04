@@ -42,6 +42,8 @@ import { FixedAssetsModule } from './modules/fixed-assets/fixed-assets.module';
 import { SwissdecModule } from './modules/swissdec/swissdec.module';
 import { GavMetallbauModule } from './modules/gav-metallbau/gav-metallbau.module';
 import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.module';
+// Reporting
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -91,6 +93,8 @@ import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.
     SwissdecModule,
     GavMetallbauModule,
     WithholdingTaxModule,
+    // Reporting
+    ReportsModule,
   ],
 })
 export class AppModule {}
