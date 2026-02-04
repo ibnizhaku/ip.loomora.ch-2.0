@@ -107,29 +107,7 @@ export function useAuditLogStats() {
         topActions: Array<{ action: string; count: number }>;
         topUsers: Array<{ userId: string; userName: string; count: number }>;
         topEntities: Array<{ entityType: string; count: number }>;
-      }>('/audit-log/stats');
+      }>('/audit-log/statistics');
     },
-  });
-}
-
-// Available Actions (for filters)
-export function useAuditLogActions() {
-  return useQuery({
-    queryKey: ['audit-log', 'actions'],
-    queryFn: async (): Promise<string[]> => {
-      return api.get<string[]>('/audit-log/actions');
-    },
-    staleTime: 300000, // Cache for 5 minutes
-  });
-}
-
-// Available Entity Types (for filters)
-export function useAuditLogEntityTypes() {
-  return useQuery({
-    queryKey: ['audit-log', 'entity-types'],
-    queryFn: async (): Promise<string[]> => {
-      return api.get<string[]>('/audit-log/entity-types');
-    },
-    staleTime: 300000, // Cache for 5 minutes
   });
 }

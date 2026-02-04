@@ -95,9 +95,29 @@ export function useFolderTree() {
   return useQuery({
     queryKey: ['folders', 'tree'],
     queryFn: async (): Promise<Folder[]> => {
-      return api.get<Folder[]>('/documents/folders/tree');
+      // Build tree from flat list - backend returns flat folders
+      const folders = await api.get<Folder[]>('/documents/folders');
+      return buildFolderTree(folders);
     },
   });
+}
+
+// Helper to build folder tree from flat list
+function buildFolderTree(folders: Folder[]): Folder[] {
+  const map = new Map<string, Folder>();
+  const roots: Folder[] = [];
+  
+  folders.forEach(f => map.set(f.id, { ...f, children: [] }));
+  folders.forEach(f => {
+    const folder = map.get(f.id)!;
+    if (f.parentId && map.has(f.parentId)) {
+      map.get(f.parentId)!.children!.push(folder);
+    } else {
+      roots.push(folder);
+    }
+  });
+  
+  return roots;
 }
 
 export function useCreateFolder() {
@@ -169,8 +189,8 @@ export function useDMSDocument(id: string | undefined) {
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: FormData): Promise<DMSDocument> => {
-      return api.post<DMSDocument>('/documents/upload', data);
+    mutationFn: async (data: Record<string, any>): Promise<DMSDocument> => {
+      return api.post<DMSDocument>('/documents', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dms-documents'] });
@@ -209,7 +229,7 @@ export function useArchiveDocument() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<DMSDocument> => {
-      return api.put<DMSDocument>(`/documents/${id}/archive`, {});
+      return api.patch<DMSDocument>(`/documents/${id}/archive`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dms-documents'] });
@@ -234,7 +254,7 @@ export function useMoveDocument() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ documentId, folderId }: { documentId: string; folderId?: string }): Promise<DMSDocument> => {
-      return api.put<DMSDocument>(`/documents/${documentId}/move`, { folderId });
+      return api.patch<DMSDocument>(`/documents/${documentId}/move`, { folderId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dms-documents'] });
@@ -254,7 +274,7 @@ export function useDocumentStats() {
         totalSize: number;
         recentUploads: number;
         archivedDocuments: number;
-      }>('/documents/stats');
+      }>('/documents/statistics');
     },
   });
 }

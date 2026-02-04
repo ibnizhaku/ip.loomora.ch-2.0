@@ -223,7 +223,7 @@ export function useDeleteDiscount() {
 export function useValidateDiscountCode() {
   return useMutation({
     mutationFn: async (code: string): Promise<Discount | null> => {
-      return api.get<Discount | null>(`/ecommerce/discounts/validate/${code}`);
+      return api.post<Discount | null>('/ecommerce/discounts/validate', { code });
     },
   });
 }
@@ -286,15 +286,16 @@ export function useEcommerceStats() {
   return useQuery({
     queryKey: ['ecommerce', 'stats'],
     queryFn: async () => {
-      return api.get<{
-        totalOrders: number;
-        pendingOrders: number;
-        totalRevenue: number;
-        averageOrderValue: number;
-        activeDiscounts: number;
-        pendingReviews: number;
-        averageRating: number;
-      }>('/ecommerce/stats');
+      // Combine order and review stats
+      const [orderStats, reviewStats] = await Promise.all([
+        api.get<{ totalOrders: number; pendingOrders: number; totalRevenue: number; averageOrderValue: number }>('/ecommerce/orders/stats'),
+        api.get<{ pendingReviews: number; averageRating: number; activeDiscounts?: number }>('/ecommerce/reviews/stats'),
+      ]);
+      return {
+        ...orderStats,
+        ...reviewStats,
+        activeDiscounts: reviewStats.activeDiscounts || 0,
+      };
     },
   });
 }

@@ -235,7 +235,7 @@ export function useCreateLeadActivity() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: Partial<LeadActivity>): Promise<LeadActivity> => {
-      return api.post<LeadActivity>(`/marketing/leads/${data.leadId}/activities`, data);
+      return api.post<LeadActivity>('/marketing/leads/activities', data);
     },
     onSuccess: (_, data) => {
       queryClient.invalidateQueries({ queryKey: ['leads', data.leadId] });
@@ -289,15 +289,15 @@ export function useMarketingStats() {
   return useQuery({
     queryKey: ['marketing', 'stats'],
     queryFn: async () => {
-      return api.get<{
-        totalCampaigns: number;
-        activeCampaigns: number;
-        totalLeads: number;
-        qualifiedLeads: number;
-        totalBudget: number;
-        totalSpent: number;
-        conversionRate: number;
-      }>('/marketing/stats');
+      // Combine campaign and lead stats
+      const [campaignStats, leadStats] = await Promise.all([
+        api.get<{ totalCampaigns: number; activeCampaigns: number; totalBudget: number; totalSpent: number }>('/marketing/campaigns/stats'),
+        api.get<{ totalLeads: number; qualifiedLeads: number; conversionRate: number }>('/marketing/leads/stats'),
+      ]);
+      return {
+        ...campaignStats,
+        ...leadStats,
+      };
     },
   });
 }
