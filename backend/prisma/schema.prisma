@@ -1205,6 +1205,9 @@ model ChartOfAccount {
   // Relations
   debitEntries  JournalEntry[] @relation("DebitAccount")
   creditEntries JournalEntry[] @relation("CreditAccount")
+  journalLines  JournalLine[] @relation("JournalLineAccount")
+  budgetLines   BudgetLine[] @relation("BudgetLineAccount")
+  cashTransactions CashTransaction[] @relation("CashTransactionAccount")
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -2234,4 +2237,425 @@ model ServiceReport {
   
   @@index([serviceTicketId])
   @@map("service_reports")
+}
+
+// ============================================
+// EXTENDED ACCOUNTING: JOURNAL ENTRIES
+// ============================================
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+model JournalEntryExtended {
+  id              String   @id @default(cuid())
+  number          String   // JB-2024-00001
+  date            DateTime
+  description     String
+  reference       String?  // Invoice number, etc.
+  documentType    String?  // INVOICE, PAYMENT, MANUAL, etc.
+  documentId      String?
+  
+  status          JournalEntryStatus @default(DRAFT)
+  totalAmount     Decimal  @db.Decimal(14, 2)
+  
+  postedAt        DateTime?
+  
+  // Reversal tracking
+  reversesEntryId String?
+  reversesEntry   JournalEntryExtended? @relation("JournalReversal", fields: [reversesEntryId], references: [id])
+  reversedBy      JournalEntryExtended[] @relation("JournalReversal")
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  lines           JournalLine[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([date])
+  @@index([status])
+  @@map("journal_entries_extended")
+}
+
+model JournalLine {
+  id              String   @id @default(cuid())
+  journalEntryId  String
+  journalEntry    JournalEntryExtended @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  
+  accountId       String
+  account         ChartOfAccount @relation("JournalLineAccount", fields: [accountId], references: [id])
+  
+  debit           Decimal  @default(0) @db.Decimal(14, 2)
+  credit          Decimal  @default(0) @db.Decimal(14, 2)
+  
+  costCenterId    String?
+  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id])
+  
+  description     String?
+  sortOrder       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@index([costCenterId])
+  @@map("journal_lines")
+}
+
+// ============================================
+// EXTENDED ACCOUNTING: COST CENTERS
+// ============================================
+
+model CostCenter {
+  id              String   @id @default(cuid())
+  number          String   // 100, 200, etc.
+  name            String
+  description     String?
+  
+  parentId        String?
+  parent          CostCenter? @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children        CostCenter[] @relation("CostCenterHierarchy")
+  
+  managerId       String?
+  manager         Employee? @relation(fields: [managerId], references: [id])
+  
+  budgetAmount    Decimal? @db.Decimal(14, 2)
+  isActive        Boolean  @default(true)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  journalLines    JournalLine[]
+  budgetLines     BudgetLine[]
+  cashTransactions CashTransaction[]
+  fixedAssets     FixedAsset[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@map("cost_centers")
+}
+
+// ============================================
+// EXTENDED ACCOUNTING: BUDGETS
+// ============================================
+
+enum BudgetStatus {
+  DRAFT
+  APPROVED
+  ACTIVE
+  CLOSED
+}
+
+enum BudgetPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+model Budget {
+  id              String   @id @default(cuid())
+  number          String   // BUD-2024-001
+  name            String
+  description     String?
+  
+  period          BudgetPeriod
+  year            Int
+  quarter         Int?     // 1-4 for quarterly
+  month           Int?     // 1-12 for monthly
+  
+  status          BudgetStatus @default(DRAFT)
+  totalAmount     Decimal  @default(0) @db.Decimal(14, 2)
+  
+  approvedAt      DateTime?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  lines           BudgetLine[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([year])
+  @@index([status])
+  @@map("budgets")
+}
+
+model BudgetLine {
+  id              String   @id @default(cuid())
+  budgetId        String
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  accountId       String
+  account         ChartOfAccount @relation("BudgetLineAccount", fields: [accountId], references: [id])
+  
+  costCenterId    String?
+  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id])
+  
+  amount          Decimal  @db.Decimal(14, 2)
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([budgetId])
+  @@index([accountId])
+  @@map("budget_lines")
+}
+
+// ============================================
+// EXTENDED ACCOUNTING: CASH BOOK
+// ============================================
+
+enum CashTransactionType {
+  RECEIPT
+  PAYMENT
+  OPENING
+  CLOSING
+}
+
+model CashRegister {
+  id              String   @id @default(cuid())
+  name            String
+  location        String?
+  currentBalance  Decimal  @default(0) @db.Decimal(14, 2)
+  isDefault       Boolean  @default(false)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  transactions    CashTransaction[]
+  closings        CashClosing[]
+  
+  @@index([companyId])
+  @@map("cash_registers")
+}
+
+model CashTransaction {
+  id              String   @id @default(cuid())
+  number          String   // KB-2024-00001
+  
+  cashRegisterId  String
+  cashRegister    CashRegister @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  
+  date            DateTime
+  type            CashTransactionType
+  amount          Decimal  @db.Decimal(14, 2)
+  description     String
+  reference       String?
+  category        String?
+  
+  accountId       String?
+  account         ChartOfAccount? @relation("CashTransactionAccount", fields: [accountId], references: [id])
+  
+  costCenterId    String?
+  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id])
+  
+  vatRate         String?
+  vatAmount       Decimal  @default(0) @db.Decimal(14, 2)
+  
+  balanceAfter    Decimal  @db.Decimal(14, 2)
+  isPosted        Boolean  @default(false)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([cashRegisterId])
+  @@index([date])
+  @@map("cash_transactions")
+}
+
+model CashClosing {
+  id              String   @id @default(cuid())
+  
+  cashRegisterId  String
+  cashRegister    CashRegister @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  
+  date            DateTime
+  systemBalance   Decimal  @db.Decimal(14, 2)
+  countedAmount   Decimal  @db.Decimal(14, 2)
+  difference      Decimal  @db.Decimal(14, 2)
+  notes           String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([cashRegisterId])
+  @@index([date])
+  @@map("cash_closings")
+}
+
+// ============================================
+// EXTENDED ACCOUNTING: VAT RETURNS
+// ============================================
+
+enum VatReturnStatus {
+  DRAFT
+  CALCULATED
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum VatReturnPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum VatMethod {
+  AGREED
+  RECEIVED
+}
+
+model VatReturn {
+  id                  String   @id @default(cuid())
+  number              String   // MWST-2024-Q1
+  
+  year                Int
+  period              VatReturnPeriod
+  quarter             Int?     // 1-4
+  month               Int?     // 1-12
+  method              VatMethod @default(AGREED)
+  
+  status              VatReturnStatus @default(DRAFT)
+  
+  data                Json     @default("{}")  // Form 050 fields
+  
+  totalOutputTax      Decimal? @db.Decimal(14, 2)
+  totalInputTax       Decimal? @db.Decimal(14, 2)
+  vatPayable          Decimal? @db.Decimal(14, 2)
+  
+  calculatedAt        DateTime?
+  submittedAt         DateTime?
+  submissionMethod    String?
+  submissionReference String?
+  notes               String?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@unique([companyId, year, period, quarter, month])
+  @@index([companyId])
+  @@index([year])
+  @@index([status])
+  @@map("vat_returns")
+}
+
+// ============================================
+// EXTENDED ACCOUNTING: FIXED ASSETS
+// ============================================
+
+enum AssetCategory {
+  BUILDINGS
+  MACHINERY
+  VEHICLES
+  FURNITURE
+  IT_EQUIPMENT
+  SOFTWARE
+  TOOLS
+  OTHER
+}
+
+enum DepreciationMethod {
+  LINEAR
+  DECLINING
+}
+
+enum AssetStatus {
+  ACTIVE
+  FULLY_DEPRECIATED
+  DISPOSED
+  SOLD
+}
+
+model FixedAsset {
+  id                  String   @id @default(cuid())
+  number              String   // ANL-00001
+  name                String
+  description         String?
+  
+  category            AssetCategory
+  serialNumber        String?
+  location            String?
+  
+  acquisitionDate     DateTime
+  acquisitionCost     Decimal  @db.Decimal(14, 2)
+  residualValue       Decimal  @default(0) @db.Decimal(14, 2)
+  currentBookValue    Decimal  @db.Decimal(14, 2)
+  
+  usefulLife          Int      // Years
+  depreciationMethod  DepreciationMethod
+  depreciationRate    Decimal  @db.Decimal(5, 4)  // e.g., 0.125 for 12.5%
+  
+  status              AssetStatus @default(ACTIVE)
+  
+  // Disposal info
+  disposalDate        DateTime?
+  salePrice           Decimal? @db.Decimal(14, 2)
+  gainLoss            Decimal? @db.Decimal(14, 2)
+  disposalReason      String?
+  disposalNotes       String?
+  
+  // Relations
+  purchaseInvoiceId   String?
+  costCenterId        String?
+  costCenter          CostCenter? @relation(fields: [costCenterId], references: [id])
+  
+  assetAccountId      String?
+  depreciationAccountId String?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  depreciations       AssetDepreciation[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([category])
+  @@index([status])
+  @@map("fixed_assets")
+}
+
+model AssetDepreciation {
+  id              String   @id @default(cuid())
+  
+  fixedAssetId    String
+  fixedAsset      FixedAsset @relation(fields: [fixedAssetId], references: [id], onDelete: Cascade)
+  
+  year            Int
+  amount          Decimal  @db.Decimal(14, 2)
+  bookValueBefore Decimal  @db.Decimal(14, 2)
+  bookValueAfter  Decimal  @db.Decimal(14, 2)
+  
+  journalEntryId  String?
+  isPosted        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([fixedAssetId, year])
+  @@index([fixedAssetId])
+  @@map("asset_depreciations")
 }
