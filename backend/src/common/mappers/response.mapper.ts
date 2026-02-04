@@ -148,6 +148,73 @@ export function mapPayslipResponse(payslip: any) {
   };
 }
 
+// DeliveryNote: Backend → Frontend
+export function mapDeliveryNoteResponse(deliveryNote: any) {
+  if (!deliveryNote) return deliveryNote;
+  
+  const { date, ...rest } = deliveryNote;
+  
+  return {
+    ...rest,
+    deliveryDate: date,
+    customerName: deliveryNote.customer?.name,
+    orderNumber: deliveryNote.order?.number,
+  };
+}
+
+// CreditNote: Backend → Frontend
+export function mapCreditNoteResponse(creditNote: any) {
+  if (!creditNote) return creditNote;
+  
+  const { date, totalAmount, ...rest } = creditNote;
+  
+  return {
+    ...rest,
+    issueDate: date,
+    total: totalAmount ? Number(totalAmount) : 0,
+    customerName: creditNote.customer?.name,
+    invoiceNumber: creditNote.invoice?.number,
+    subtotal: creditNote.subtotal ? Number(creditNote.subtotal) : 0,
+    vatAmount: creditNote.vatAmount ? Number(creditNote.vatAmount) : 0,
+  };
+}
+
+// PurchaseOrder: Backend → Frontend
+export function mapPurchaseOrderResponse(purchaseOrder: any) {
+  if (!purchaseOrder) return purchaseOrder;
+  
+  const { date, totalAmount, ...rest } = purchaseOrder;
+  
+  return {
+    ...rest,
+    orderDate: date,
+    total: totalAmount ? Number(totalAmount) : 0,
+    supplierName: purchaseOrder.supplier?.name,
+    projectName: purchaseOrder.project?.name,
+    subtotal: purchaseOrder.subtotal ? Number(purchaseOrder.subtotal) : 0,
+    vatAmount: purchaseOrder.vatAmount ? Number(purchaseOrder.vatAmount) : 0,
+  };
+}
+
+// PurchaseInvoice: Backend → Frontend
+export function mapPurchaseInvoiceResponse(purchaseInvoice: any) {
+  if (!purchaseInvoice) return purchaseInvoice;
+  
+  const { date, totalAmount, paidAt, ...rest } = purchaseInvoice;
+  
+  return {
+    ...rest,
+    invoiceDate: date,
+    total: totalAmount ? Number(totalAmount) : 0,
+    paidDate: paidAt,
+    supplierName: purchaseInvoice.supplier?.name,
+    purchaseOrderNumber: purchaseInvoice.purchaseOrder?.number,
+    subtotal: purchaseInvoice.subtotal ? Number(purchaseInvoice.subtotal) : 0,
+    vatAmount: purchaseInvoice.vatAmount ? Number(purchaseInvoice.vatAmount) : 0,
+    openAmount: purchaseInvoice.openAmount ?? (Number(totalAmount || 0) - Number(purchaseInvoice.paidAmount || 0)),
+  };
+}
+
 // Helper
 function getMonthName(month: number): string {
   const months = [

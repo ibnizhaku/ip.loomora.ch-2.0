@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto';
 import { CreditNoteStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { mapCreditNoteResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class CreditNotesService {
@@ -50,7 +51,7 @@ export class CreditNotesService {
     ]);
 
     return {
-      data,
+      data: data.map(mapCreditNoteResponse),
       total,
       page,
       pageSize,
@@ -76,7 +77,7 @@ export class CreditNotesService {
       throw new NotFoundException('Gutschrift nicht gefunden');
     }
 
-    return creditNote;
+    return mapCreditNoteResponse(creditNote);
   }
 
   async create(companyId: string, dto: CreateCreditNoteDto) {
