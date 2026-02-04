@@ -13,6 +13,7 @@ import {
   Printer,
   MoreHorizontal,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +31,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { 
+  generateSwissQRInvoicePDF, 
+  generateQRReference,
+  type QRInvoiceData 
+} from "@/lib/pdf/swiss-qr-invoice";
 
-interface QRInvoiceData {
+interface QRInvoiceListItem {
   id: string;
   invoiceNumber: string;
   customer: string;
@@ -47,7 +61,7 @@ interface QRInvoiceData {
   qrGenerated: boolean;
 }
 
-const qrInvoices: QRInvoiceData[] = [
+const qrInvoices: QRInvoiceListItem[] = [
   {
     id: "1",
     invoiceNumber: "RE-2024-0156",
@@ -55,7 +69,7 @@ const qrInvoices: QRInvoiceData[] = [
     amount: 31970,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
-    reference: "000000000000000000000000156",
+    reference: generateQRReference("RE-2024-0156"),
     referenceType: "QRR",
     status: "sent",
     dueDate: "28.02.2024",
@@ -69,7 +83,7 @@ const qrInvoices: QRInvoiceData[] = [
     amount: 8760,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
-    reference: "000000000000000000000000157",
+    reference: generateQRReference("RE-2024-0157"),
     referenceType: "QRR",
     status: "paid",
     dueDate: "15.02.2024",
@@ -83,7 +97,7 @@ const qrInvoices: QRInvoiceData[] = [
     amount: 15700,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
-    reference: "000000000000000000000000158",
+    reference: generateQRReference("RE-2024-0158"),
     referenceType: "QRR",
     status: "generated",
     dueDate: "10.03.2024",
@@ -129,6 +143,16 @@ const refTypeLabels = {
 export default function QRInvoice() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [previewInvoice, setPreviewInvoice] = useState<QRInvoiceListItem | null>(null);
+
+  const filteredInvoices = qrInvoices.filter((invoice) => {
+    const matchesSearch = 
+      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      invoice.customer.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalInvoices = qrInvoices.length;
   const paidInvoices = qrInvoices.filter((i) => i.status === "paid").length;
@@ -138,6 +162,72 @@ export default function QRInvoice() {
   const paidAmount = qrInvoices
     .filter((i) => i.status === "paid")
     .reduce((sum, i) => sum + i.amount, 0);
+
+  const handleGenerateQR = async (invoice: QRInvoiceListItem) => {
+    setIsGenerating(invoice.id);
+    toast.success(`QR-Code für ${invoice.invoiceNumber} wird generiert...`);
+    
+    // Simulate generation delay
+    setTimeout(() => {
+      setIsGenerating(null);
+      toast.success(`QR-Code für ${invoice.invoiceNumber} erfolgreich generiert`);
+    }, 1500);
+  };
+
+  const handleDownloadPDF = async (invoice: QRInvoiceListItem) => {
+    setIsGenerating(invoice.id);
+    
+    try {
+      const qrData: QRInvoiceData = {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.createdAt,
+        dueDate: invoice.dueDate,
+        currency: invoice.currency,
+        amount: invoice.amount,
+        vatRate: 8.1,
+        vatAmount: invoice.amount * 0.081 / 1.081,
+        subtotal: invoice.amount / 1.081,
+        iban: invoice.iban,
+        qrIban: "CH44 3199 9123 0008 8901 2",
+        reference: invoice.reference || generateQRReference(invoice.invoiceNumber),
+        referenceType: invoice.referenceType,
+        additionalInfo: `Rechnung ${invoice.invoiceNumber}`,
+        creditor: {
+          name: "Loomora Metallbau AG",
+          street: "Industriestrasse 15",
+          postalCode: "8005",
+          city: "Zürich",
+          country: "CH",
+        },
+        debtor: {
+          name: invoice.customer,
+          street: "Kundenstrasse 1",
+          postalCode: "8000",
+          city: "Zürich",
+          country: "CH",
+        },
+        positions: [
+          { 
+            position: 1, 
+            description: "Metallbauarbeiten gemäss Auftrag", 
+            quantity: 1, 
+            unit: "Pausch.", 
+            unitPrice: invoice.amount / 1.081, 
+            total: invoice.amount / 1.081 
+          },
+        ],
+        paymentTermDays: 30,
+      };
+
+      await generateSwissQRInvoicePDF(qrData);
+      toast.success(`QR-Rechnung ${invoice.invoiceNumber} heruntergeladen`);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("Fehler beim Erstellen der PDF");
+    } finally {
+      setIsGenerating(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -171,8 +261,8 @@ export default function QRInvoice() {
           <div>
             <h3 className="font-semibold text-info">Swiss QR-Rechnung Standard</h3>
             <p className="text-sm text-muted-foreground">
-              Konform mit ISO 20022 und den Vorgaben von SIX. Unterstützt QR-IBAN mit QR-Referenz (QRR), 
-              Creditor Reference (SCOR) und Rechnungen ohne Referenz.
+              Vollständig konform mit ISO 20022 und SIX Vorgaben. Generiert PDF mit Zahlteil inkl. 
+              QR-Code, Schweizer Kreuz und Empfangsschein. Unterstützt QRR, SCOR und NON Referenzen.
             </p>
           </div>
         </div>
@@ -209,7 +299,7 @@ export default function QRInvoice() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offen</p>
-              <p className="text-2xl font-bold">CHF {openAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {openAmount.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -220,7 +310,7 @@ export default function QRInvoice() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Eingegangen</p>
-              <p className="text-2xl font-bold">CHF {paidAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {paidAmount.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -253,7 +343,7 @@ export default function QRInvoice() {
 
       {/* QR Invoice List */}
       <div className="space-y-3">
-        {qrInvoices.map((invoice, index) => (
+        {filteredInvoices.map((invoice, index) => (
           <div
             key={invoice.id}
             className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
@@ -265,7 +355,9 @@ export default function QRInvoice() {
                   "flex h-14 w-14 items-center justify-center rounded-xl",
                   invoice.qrGenerated ? "bg-primary/10" : "bg-muted"
                 )}>
-                  {invoice.qrGenerated ? (
+                  {isGenerating === invoice.id ? (
+                    <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                  ) : invoice.qrGenerated ? (
                     <QrCode className="h-7 w-7 text-primary" />
                   ) : (
                     <AlertTriangle className="h-7 w-7 text-muted-foreground" />
@@ -287,12 +379,12 @@ export default function QRInvoice() {
               </div>
 
               <div className="flex items-center gap-6">
-                <div className="text-right">
+                <div className="text-right hidden md:block">
                   <p className="text-sm text-muted-foreground">Referenztyp</p>
                   <Badge variant="outline">{refTypeLabels[invoice.referenceType]}</Badge>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right hidden lg:block">
                   <p className="text-sm text-muted-foreground">IBAN</p>
                   <p className="font-mono text-sm">{invoice.iban.substring(0, 12)}...</p>
                 </div>
@@ -300,21 +392,40 @@ export default function QRInvoice() {
                 <div className="text-right min-w-[120px]">
                   <p className="text-sm text-muted-foreground">Betrag</p>
                   <p className="font-mono font-bold text-lg">
-                    {invoice.currency} {invoice.amount.toLocaleString()}
+                    {invoice.currency} {invoice.amount.toLocaleString("de-CH")}
                   </p>
                 </div>
 
                 <div className="flex gap-1">
                   {!invoice.qrGenerated && (
-                    <Button size="sm" className="gap-2">
-                      <QrCode className="h-4 w-4" />
+                    <Button 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => handleGenerateQR(invoice)}
+                      disabled={isGenerating === invoice.id}
+                    >
+                      {isGenerating === invoice.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <QrCode className="h-4 w-4" />
+                      )}
                       QR generieren
                     </Button>
                   )}
-                  {invoice.qrGenerated && invoice.status === "generated" && (
-                    <Button size="sm" variant="outline" className="gap-2">
-                      <Send className="h-4 w-4" />
-                      Versenden
+                  {invoice.qrGenerated && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="gap-2"
+                      onClick={() => handleDownloadPDF(invoice)}
+                      disabled={isGenerating === invoice.id}
+                    >
+                      {isGenerating === invoice.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      PDF
                     </Button>
                   )}
                 </div>
@@ -326,11 +437,11 @@ export default function QRInvoice() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setPreviewInvoice(invoice)}>
                       <Eye className="h-4 w-4 mr-2" />
                       Vorschau
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
                       <Download className="h-4 w-4 mr-2" />
                       PDF herunterladen
                     </DropdownMenuItem>
@@ -339,8 +450,15 @@ export default function QRInvoice() {
                       Drucken
                     </DropdownMenuItem>
                     <DropdownMenuItem>
+                      <Send className="h-4 w-4 mr-2" />
+                      Per E-Mail senden
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      navigator.clipboard.writeText(invoice.reference);
+                      toast.success("QR-Referenz kopiert");
+                    }}>
                       <Copy className="h-4 w-4 mr-2" />
-                      QR-Code kopieren
+                      Referenz kopieren
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -350,7 +468,7 @@ export default function QRInvoice() {
             {invoice.reference && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-sm text-muted-foreground">
-                  QR-Referenz: <span className="font-mono">{invoice.reference}</span>
+                  QR-Referenz: <span className="font-mono">{invoice.reference.replace(/(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/, "$1 $2 $3 $4 $5 $6")}</span>
                 </p>
               </div>
             )}
@@ -360,37 +478,106 @@ export default function QRInvoice() {
 
       {/* QR Code Preview Panel */}
       <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="font-semibold mb-4">QR-Zahlteil Vorschau</h3>
+        <h3 className="font-semibold mb-4">QR-Zahlteil Vorschau (ISO 20022)</h3>
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="p-6 border border-dashed border-border rounded-lg bg-white">
-            <div className="aspect-square max-w-[200px] mx-auto bg-muted rounded-lg flex items-center justify-center">
+          <div className="p-6 border border-dashed border-border rounded-lg bg-white dark:bg-card">
+            <div className="aspect-square max-w-[200px] mx-auto bg-muted rounded-lg flex items-center justify-center relative">
               <QrCode className="h-24 w-24 text-muted-foreground" />
+              {/* Swiss Cross Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 bg-destructive flex items-center justify-center">
+                  <div className="text-destructive-foreground text-2xl font-bold">+</div>
+                </div>
+              </div>
             </div>
             <p className="text-center text-sm text-muted-foreground mt-4">
-              Swiss QR Code
+              Swiss QR Code mit Schweizer Kreuz
             </p>
           </div>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">Konto / Zahlbar an</p>
-              <p className="font-mono">CH93 0076 2011 6238 5295 7</p>
-              <p>Loomora AG</p>
-              <p>Industriestrasse 15</p>
-              <p>8005 Zürich</p>
+              <p className="text-sm font-semibold text-muted-foreground">Konto / Zahlbar an</p>
+              <p className="font-mono text-sm">CH93 0076 2011 6238 5295 7</p>
+              <p className="text-sm">Loomora Metallbau AG</p>
+              <p className="text-sm">Industriestrasse 15</p>
+              <p className="text-sm">8005 Zürich</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Referenz</p>
-              <p className="font-mono">00 00000 00000 00000 00000 00156</p>
+              <p className="text-sm font-semibold text-muted-foreground">Referenz (QRR)</p>
+              <p className="font-mono text-sm">00 00000 00000 00000 00000 00156</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Zahlbar durch</p>
-              <p>Bauherr AG</p>
-              <p>Bahnhofstrasse 10</p>
-              <p>8001 Zürich</p>
+              <p className="text-sm font-semibold text-muted-foreground">Zahlbar durch</p>
+              <p className="text-sm">Bauherr AG</p>
+              <p className="text-sm">Bahnhofstrasse 10</p>
+              <p className="text-sm">8001 Zürich</p>
+            </div>
+            <div className="pt-4 border-t">
+              <div className="flex gap-8">
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">Währung</p>
+                  <p className="text-lg font-bold">CHF</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">Betrag</p>
+                  <p className="text-lg font-bold">31'970.00</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewInvoice} onOpenChange={() => setPreviewInvoice(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>QR-Rechnung Vorschau</DialogTitle>
+            <DialogDescription>
+              {previewInvoice?.invoiceNumber} - {previewInvoice?.customer}
+            </DialogDescription>
+          </DialogHeader>
+          {previewInvoice && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Rechnungsnummer</p>
+                  <p className="font-mono font-semibold">{previewInvoice.invoiceNumber}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Betrag</p>
+                  <p className="font-mono font-semibold">{previewInvoice.currency} {previewInvoice.amount.toLocaleString("de-CH")}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Fälligkeitsdatum</p>
+                  <p className="font-semibold">{previewInvoice.dueDate}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Referenztyp</p>
+                  <p className="font-semibold">{refTypeLabels[previewInvoice.referenceType]}</p>
+                </div>
+              </div>
+              {previewInvoice.reference && (
+                <div>
+                  <p className="text-muted-foreground text-sm">QR-Referenz</p>
+                  <p className="font-mono text-sm bg-muted p-2 rounded">
+                    {previewInvoice.reference.replace(/(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/, "$1 $2 $3 $4 $5 $6")}
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-4">
+                <Button onClick={() => handleDownloadPDF(previewInvoice)} className="flex-1">
+                  <Download className="h-4 w-4 mr-2" />
+                  PDF herunterladen
+                </Button>
+                <Button variant="outline" onClick={() => setPreviewInvoice(null)}>
+                  Schliessen
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
