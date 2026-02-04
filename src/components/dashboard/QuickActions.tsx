@@ -1,4 +1,5 @@
 import { Plus, FileText, Users, FolderPlus, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 interface QuickAction {
@@ -7,6 +8,7 @@ interface QuickAction {
   icon: typeof Plus;
   color: string;
   bgColor: string;
+  path: string;
 }
 
 const actions: QuickAction[] = [
@@ -16,6 +18,7 @@ const actions: QuickAction[] = [
     icon: FolderPlus,
     color: "text-primary",
     bgColor: "bg-primary/10 group-hover:bg-primary/20",
+    path: "/projects/new",
   },
   {
     title: "Neue Rechnung",
@@ -23,6 +26,7 @@ const actions: QuickAction[] = [
     icon: FileText,
     color: "text-success",
     bgColor: "bg-success/10 group-hover:bg-success/20",
+    path: "/invoices/new",
   },
   {
     title: "Neuer Kunde",
@@ -30,6 +34,7 @@ const actions: QuickAction[] = [
     icon: Users,
     color: "text-info",
     bgColor: "bg-info/10 group-hover:bg-info/20",
+    path: "/customers/new",
   },
   {
     title: "Zeit erfassen",
@@ -37,10 +42,13 @@ const actions: QuickAction[] = [
     icon: Clock,
     color: "text-warning",
     bgColor: "bg-warning/10 group-hover:bg-warning/20",
+    path: "/time-tracking",
   },
 ];
 
 export function QuickActions() {
+  const navigate = useNavigate();
+
   return (
     <div className="rounded-2xl bg-card border border-border p-6">
       <h3 className="font-display font-semibold text-lg mb-4">Schnellaktionen</h3>
@@ -49,6 +57,7 @@ export function QuickActions() {
         {actions.map((action, index) => (
           <button
             key={action.title}
+            onClick={() => navigate(action.path)}
             className={cn(
               "group flex flex-col items-center gap-3 p-4 rounded-xl border border-border",
               "transition-all duration-300 hover:border-primary/30 hover:shadow-soft",
