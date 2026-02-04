@@ -85,7 +85,6 @@ export class PurchaseOrdersService {
     // Calculate totals
     let subtotal = 0;
     const itemsWithTotals = dto.items.map((item, index) => {
-      const vatRate = item.vatRate ?? this.VAT_RATE;
       const lineTotal = item.quantity * item.unitPrice;
       subtotal += lineTotal;
 
@@ -94,7 +93,7 @@ export class PurchaseOrdersService {
         quantity: item.quantity,
         unit: item.unit || 'Stk',
         unitPrice: item.unitPrice,
-        vatRate: vatRate.toString(),
+        vatRate: 'STANDARD' as const,
         total: lineTotal,
         position: index + 1,
       };
@@ -136,8 +135,9 @@ export class PurchaseOrdersService {
   async update(id: string, companyId: string, dto: UpdatePurchaseOrderDto) {
     const purchaseOrder = await this.findOne(id, companyId);
 
-    if (purchaseOrder.status === 'RECEIVED') {
-      throw new BadRequestException('Abgeschlossene Bestellung kann nicht bearbeitet werden');
+    // Check if status is a final state (CONFIRMED is the closest to "completed" in DocumentStatus)
+    if (purchaseOrder.status === 'CONFIRMED') {
+      throw new BadRequestException('Bestätigte Bestellung kann nicht bearbeitet werden');
     }
 
     let updateData: any = {

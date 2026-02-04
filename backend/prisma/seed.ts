@@ -898,8 +898,9 @@ async function main() {
         startDate: daysAgo(60),
         endDate: daysFromNow(30),
         budget: 85000,
-        customerId: customers[0].id,
-        companyId: company.id,
+        customer: { connect: { id: customers[0].id } },
+        company: { connect: { id: company.id } },
+        createdBy: { connect: { id: adminUser.id } },
       },
     }),
     prisma.project.upsert({
@@ -914,8 +915,9 @@ async function main() {
         startDate: daysAgo(45),
         endDate: daysFromNow(60),
         budget: 125000,
-        customerId: customers[2].id,
-        companyId: company.id,
+        customer: { connect: { id: customers[2].id } },
+        company: { connect: { id: company.id } },
+        createdBy: { connect: { id: adminUser.id } },
       },
     }),
     prisma.project.upsert({
@@ -930,8 +932,9 @@ async function main() {
         startDate: daysFromNow(30),
         endDate: daysFromNow(120),
         budget: 168000,
-        customerId: customers[1].id,
-        companyId: company.id,
+        customer: { connect: { id: customers[1].id } },
+        company: { connect: { id: company.id } },
+        createdBy: { connect: { id: adminUser.id } },
       },
     }),
     prisma.project.upsert({
@@ -946,8 +949,9 @@ async function main() {
         startDate: daysAgo(180),
         endDate: daysAgo(90),
         budget: 45000,
-        customerId: customers[3].id,
-        companyId: company.id,
+        customer: { connect: { id: customers[3].id } },
+        company: { connect: { id: company.id } },
+        createdBy: { connect: { id: adminUser.id } },
       },
     }),
     prisma.project.upsert({
@@ -962,8 +966,9 @@ async function main() {
         startDate: daysAgo(20),
         endDate: daysFromNow(45),
         budget: 78000,
-        customerId: customers[4].id,
-        companyId: company.id,
+        customer: { connect: { id: customers[4].id } },
+        company: { connect: { id: company.id } },
+        createdBy: { connect: { id: adminUser.id } },
       },
     }),
   ]);
@@ -1101,9 +1106,7 @@ async function main() {
     prisma.timeEntry.create({
       data: {
         date: daysAgo(2),
-        startTime: new Date(daysAgo(2).setHours(7, 30)),
-        endTime: new Date(daysAgo(2).setHours(16, 30)),
-        hours: 8,
+        duration: 480, // 8 hours in minutes
         description: 'Geländerfertigung Werkstatt',
         projectId: projects[0].id,
         taskId: tasks[3].id,
@@ -1114,9 +1117,7 @@ async function main() {
     prisma.timeEntry.create({
       data: {
         date: daysAgo(1),
-        startTime: new Date(daysAgo(1).setHours(7, 0)),
-        endTime: new Date(daysAgo(1).setHours(15, 30)),
-        hours: 7.5,
+        duration: 450, // 7.5 hours in minutes
         description: 'Schweissarbeiten Geländer',
         projectId: projects[0].id,
         taskId: tasks[3].id,
@@ -1127,9 +1128,7 @@ async function main() {
     prisma.timeEntry.create({
       data: {
         date: new Date(),
-        startTime: new Date(new Date().setHours(8, 0)),
-        endTime: new Date(new Date().setHours(12, 0)),
-        hours: 4,
+        duration: 240, // 4 hours in minutes
         description: 'Projektleitung und Koordination',
         projectId: projects[0].id,
         userId: adminUser.id,
@@ -1139,9 +1138,7 @@ async function main() {
     prisma.timeEntry.create({
       data: {
         date: daysAgo(3),
-        startTime: new Date(daysAgo(3).setHours(7, 0)),
-        endTime: new Date(daysAgo(3).setHours(16, 0)),
-        hours: 8,
+        duration: 480, // 8 hours in minutes
         description: 'Stahltreppe Vormontage',
         projectId: projects[1].id,
         userId: managerUser.id,
@@ -1519,9 +1516,9 @@ async function main() {
         companyId: company.id,
         items: {
           create: [
-            { position: 1, productId: products[0].id, description: 'Stahlprofil IPE 200', quantity: 80, unit: 'lfm', unitPrice: 45, vatRate: 'STANDARD', total: 3600 },
-            { position: 2, productId: products[2].id, description: 'Quadratrohr 60x60x3', quantity: 200, unit: 'lfm', unitPrice: 12.50, vatRate: 'STANDARD', total: 2500 },
-            { position: 3, productId: products[3].id, description: 'Flachstahl 50x8', quantity: 320, unit: 'lfm', unitPrice: 4.80, vatRate: 'STANDARD', total: 1536 },
+            { position: 1, description: 'Stahlprofil IPE 200', quantity: 80, unit: 'lfm', unitPrice: 45, vatRate: 'STANDARD', total: 3600 },
+            { position: 2, description: 'Quadratrohr 60x60x3', quantity: 200, unit: 'lfm', unitPrice: 12.50, vatRate: 'STANDARD', total: 2500 },
+            { position: 3, description: 'Flachstahl 50x8', quantity: 320, unit: 'lfm', unitPrice: 4.80, vatRate: 'STANDARD', total: 1536 },
           ],
         },
       },
@@ -1540,8 +1537,8 @@ async function main() {
         companyId: company.id,
         items: {
           create: [
-            { position: 1, productId: products[4].id, description: 'Sechskantschraube M12x50', quantity: 2000, unit: 'Stk', unitPrice: 0.45, vatRate: 'STANDARD', total: 900 },
-            { position: 2, productId: products[5].id, description: 'Ankerschraube M10x80', quantity: 300, unit: 'Stk', unitPrice: 2.80, vatRate: 'STANDARD', total: 840 },
+            { position: 1, description: 'Sechskantschraube M12x50', quantity: 2000, unit: 'Stk', unitPrice: 0.45, vatRate: 'STANDARD', total: 900 },
+            { position: 2, description: 'Ankerschraube M10x80', quantity: 300, unit: 'Stk', unitPrice: 2.80, vatRate: 'STANDARD', total: 840 },
           ],
         },
       },
@@ -1561,7 +1558,7 @@ async function main() {
         companyId: company.id,
         items: {
           create: [
-            { position: 1, productId: products[7].id, description: 'VSG Sicherheitsglas 10mm', quantity: 48, unit: 'm²', unitPrice: 85, vatRate: 'STANDARD', total: 4080 },
+            { position: 1, description: 'VSG Sicherheitsglas 10mm', quantity: 48, unit: 'm²', unitPrice: 85, vatRate: 'STANDARD', total: 4080 },
             { position: 2, description: 'Zuschnitt nach Mass', quantity: 48, unit: 'Stk', unitPrice: 40, vatRate: 'STANDARD', total: 1920 },
           ],
         },
@@ -1730,7 +1727,7 @@ async function main() {
   // =====================================================
   console.log('📦 Erstelle Bankkonten...');
 
-  const bankAccounts = await Promise.all([
+  const bankAccountsList = await Promise.all([
     prisma.bankAccount.upsert({
       where: { id: 'bank-ubs' },
       update: {},
@@ -1814,30 +1811,24 @@ async function main() {
   await Promise.all([
     prisma.journalEntry.create({
       data: {
-        number: 'BU-2024-001',
         date: daysAgo(70),
+        debitAccountId: accounts[1].id,
+        creditAccountId: accounts[3].id,
+        amount: 48645,
         description: 'Zahlungseingang RE-2023-048',
+        reference: 'RE-2023-048',
         companyId: company.id,
-        lines: {
-          create: [
-            { accountId: accounts[1].id, description: 'Zahlungseingang Architektur Bern', debit: 48645, credit: 0, position: 1 },
-            { accountId: accounts[3].id, description: 'Debitor ausgeglichen', debit: 0, credit: 48645, position: 2 },
-          ],
-        },
       },
     }),
     prisma.journalEntry.create({
       data: {
-        number: 'BU-2024-002',
         date: daysAgo(12),
+        debitAccountId: accounts[9].id,
+        creditAccountId: accounts[1].id,
+        amount: 9188.50,
         description: 'Zahlung Stahl Schweiz AG',
+        reference: 'LF-0001',
         companyId: company.id,
-        lines: {
-          create: [
-            { accountId: accounts[9].id, description: 'Kreditor Stahl', debit: 9188.50, credit: 0, position: 1 },
-            { accountId: accounts[1].id, description: 'Bankbelastung', debit: 0, credit: 9188.50, position: 2 },
-          ],
-        },
       },
     }),
   ]);
@@ -2024,8 +2015,8 @@ async function main() {
   console.log('📦 Erstelle Budgets...');
 
   await Promise.all([
-    prisma.budget.create({ data: { name: 'Jahresbudget 2024', year: 2024, totalAmount: 960000, status: 'ACTIVE', companyId: company.id } }),
-    prisma.budget.create({ data: { name: 'Investitionsbudget 2024', year: 2024, totalAmount: 150000, status: 'ACTIVE', notes: 'CNC-Maschine und Fahrzeug', companyId: company.id } }),
+    prisma.budget.create({ data: { number: 'BUD-2024-001', name: 'Jahresbudget 2024', period: 'YEARLY', year: 2024, totalAmount: 960000, status: 'ACTIVE', companyId: company.id } }),
+    prisma.budget.create({ data: { number: 'BUD-2024-002', name: 'Investitionsbudget 2024', period: 'YEARLY', year: 2024, totalAmount: 150000, status: 'ACTIVE', companyId: company.id } }),
   ]);
 
   console.log('  ✓ 2 Budgets erstellt');
@@ -2351,7 +2342,7 @@ async function main() {
       type: 'IN_PROCESS',
       status: 'PASSED',
       inspectorId: employees[1].id,
-      checkDate: daysAgo(5),
+      completedAt: daysAgo(5),
       notes: 'Alle Prüfpunkte bestanden',
       companyId: company.id,
     },
@@ -2373,9 +2364,9 @@ async function main() {
         customerId: customers[0].id,
         priority: 'HIGH',
         status: 'OPEN',
-        category: 'Reparatur',
-        assignedEmployeeId: employees[4].id,
-        dueDate: daysFromNow(3),
+        serviceType: 'REPAIR',
+        assignedTechnicianId: employees[4].id,
+        scheduledDate: daysFromNow(3),
         companyId: company.id,
       },
     }),
@@ -2387,9 +2378,9 @@ async function main() {
         customerId: customers[1].id,
         priority: 'MEDIUM',
         status: 'IN_PROGRESS',
-        category: 'Wartung',
-        assignedEmployeeId: employees[4].id,
-        dueDate: daysFromNow(14),
+        serviceType: 'MAINTENANCE',
+        assignedTechnicianId: employees[4].id,
+        scheduledDate: daysFromNow(14),
         companyId: company.id,
       },
     }),
@@ -2403,9 +2394,9 @@ async function main() {
   console.log('📦 Erstelle Leads...');
 
   await Promise.all([
-    prisma.lead.create({ data: { name: 'Neue Anfrage Treppengeländer', companyName: 'Wohnbau Basel AG', email: 'anfrage@wohnbau-bs.ch', phone: '+41 61 555 12 34', source: 'Website', status: 'QUALIFIED', value: 45000, companyId: company.id } }),
-    prisma.lead.create({ data: { name: 'Balkongeländer Neubau', companyName: 'Implenia AG', email: 'projekt@implenia.ch', phone: '+41 44 666 23 45', source: 'Empfehlung', status: 'PROPOSAL', value: 120000, companyId: company.id } }),
-    prisma.lead.create({ data: { name: 'Carport Stahlkonstruktion', email: 'privat@gmail.com', phone: '+41 79 777 34 56', source: 'Cold Call', status: 'NEW', value: 8500, companyId: company.id } }),
+    prisma.lead.create({ data: { name: 'Neue Anfrage Treppengeländer', companyName: 'Wohnbau Basel AG', email: 'anfrage@wohnbau-bs.ch', phone: '+41 61 555 12 34', source: 'Website', status: 'QUALIFIED', estimatedValue: 45000, companyId: company.id } }),
+    prisma.lead.create({ data: { name: 'Balkongeländer Neubau', companyName: 'Implenia AG', email: 'projekt@implenia.ch', phone: '+41 44 666 23 45', source: 'Empfehlung', status: 'PROPOSAL', estimatedValue: 120000, companyId: company.id } }),
+    prisma.lead.create({ data: { name: 'Carport Stahlkonstruktion', email: 'privat@gmail.com', phone: '+41 79 777 34 56', source: 'Cold Call', status: 'NEW', estimatedValue: 8500, companyId: company.id } }),
   ]);
 
   console.log('  ✓ 3 Leads erstellt');
@@ -2438,10 +2429,10 @@ async function main() {
   console.log('📦 Erstelle Kalendereinträge...');
 
   await Promise.all([
-    prisma.calendarEvent.create({ data: { title: 'Kundentermin Immobilien Zürich', description: 'Besprechung Projektfortschritt Geländer', startTime: daysFromNow(3), endTime: new Date(daysFromNow(3).getTime() + 2 * 60 * 60 * 1000), location: 'Bahnhofstrasse 100, Zürich', createdById: adminUser.id, companyId: company.id } }),
-    prisma.calendarEvent.create({ data: { title: 'Team Meeting', description: 'Wöchentliche Projektbesprechung', startTime: daysFromNow(1), endTime: new Date(daysFromNow(1).getTime() + 1 * 60 * 60 * 1000), createdById: adminUser.id, companyId: company.id } }),
-    prisma.calendarEvent.create({ data: { title: 'Lieferung Glas Hotel', description: 'VSG Glas für Wendeltreppe', startTime: daysFromNow(12), endTime: new Date(daysFromNow(12).getTime() + 2 * 60 * 60 * 1000), createdById: managerUser.id, companyId: company.id } }),
-    prisma.calendarEvent.create({ data: { title: 'Montage EG Geländer', description: 'Installation beim Kunden', startTime: daysFromNow(8), endTime: new Date(daysFromNow(8).getTime() + 8 * 60 * 60 * 1000), location: 'Bahnhofstrasse 100, Zürich', createdById: adminUser.id, companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Kundentermin Immobilien Zürich', description: 'Besprechung Projektfortschritt Geländer', startTime: daysFromNow(3), endTime: new Date(daysFromNow(3).getTime() + 2 * 60 * 60 * 1000), location: 'Bahnhofstrasse 100, Zürich', companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Team Meeting', description: 'Wöchentliche Projektbesprechung', startTime: daysFromNow(1), endTime: new Date(daysFromNow(1).getTime() + 1 * 60 * 60 * 1000), companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Lieferung Glas Hotel', description: 'VSG Glas für Wendeltreppe', startTime: daysFromNow(12), endTime: new Date(daysFromNow(12).getTime() + 2 * 60 * 60 * 1000), companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Montage EG Geländer', description: 'Installation beim Kunden', startTime: daysFromNow(8), endTime: new Date(daysFromNow(8).getTime() + 8 * 60 * 60 * 1000), location: 'Bahnhofstrasse 100, Zürich', companyId: company.id } }),
   ]);
 
   console.log('  ✓ 4 Kalendereinträge erstellt');
@@ -2484,22 +2475,23 @@ async function main() {
 
   const training = await prisma.training.create({
     data: {
-      title: 'Schweisszertifizierung EN 1090',
+      name: 'Schweisszertifizierung EN 1090',
       description: 'Rezertifizierung für alle Schweisser',
-      category: 'Fachlich',
+      type: 'CERTIFICATION',
+      status: 'SCHEDULED',
       startDate: daysFromNow(30),
       endDate: daysFromNow(31),
       location: 'SVS Schweissfachschule, Dietikon',
-      trainer: 'Dr. Hans Schmid',
+      instructorName: 'Dr. Hans Schmid',
       maxParticipants: 8,
-      budget: 4500,
-      status: 'planned',
+      totalBudget: 4500,
+      companyId: company.id,
     },
   });
 
   await Promise.all([
-    prisma.trainingParticipant.create({ data: { trainingId: training.id, employeeId: employees[2].id, status: 'registered' } }),
-    prisma.trainingParticipant.create({ data: { trainingId: training.id, employeeId: employees[3].id, status: 'registered' } }),
+    prisma.trainingParticipant.create({ data: { trainingId: training.id, employeeId: employees[2].id, status: 'REGISTERED' } }),
+    prisma.trainingParticipant.create({ data: { trainingId: training.id, employeeId: employees[3].id, status: 'REGISTERED' } }),
   ]);
 
   console.log('  ✓ 1 Schulung mit 2 Teilnehmern erstellt');

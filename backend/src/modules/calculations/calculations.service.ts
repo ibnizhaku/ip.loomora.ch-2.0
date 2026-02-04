@@ -266,6 +266,7 @@ export class CalculationsService {
         notes: `Basierend auf Kalkulation ${calculation.number}`,
         items: {
           create: calculation.items.map((item, index) => ({
+            position: index + 1,
             productId: item.productId,
             description: item.description,
             quantity: item.quantity,
@@ -276,7 +277,6 @@ export class CalculationsService {
             ) / 100),
             discount: 0,
             total: Number(item.total),
-            sortOrder: index,
           })),
         },
       },
