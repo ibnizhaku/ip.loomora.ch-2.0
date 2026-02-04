@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrderDto, UpdateOrderDto } from './dto/order.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { DocumentStatus } from '@prisma/client';
+import { DocumentStatus, InvoiceStatus } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
@@ -126,9 +126,9 @@ export class OrdersService {
         projectId: dto.projectId,
         quoteId: dto.quoteId,
         status: DocumentStatus.CONFIRMED,
-        orderDate: dto.orderDate ? new Date(dto.orderDate) : new Date(),
+        date: dto.orderDate ? new Date(dto.orderDate) : new Date(),
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-        deliveryAddress: dto.deliveryAddress,
+        shippingAddress: dto.deliveryAddress ? { address: dto.deliveryAddress } : undefined,
         subtotal,
         vatAmount,
         total,
@@ -137,7 +137,17 @@ export class OrdersService {
         companyId,
         createdById: userId,
         items: {
-          create: items,
+          create: items.map((item, index) => ({
+            position: index + 1,
+            productId: item.productId,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || 'Stk',
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            vatRate: 'STANDARD',
+            total: item.total,
+          })),
         },
       },
       include: {
@@ -176,16 +186,26 @@ export class OrdersService {
           customerId: dto.customerId,
           projectId: dto.projectId,
           status: dto.status,
-          orderDate: dto.orderDate ? new Date(dto.orderDate) : undefined,
+          date: dto.orderDate ? new Date(dto.orderDate) : undefined,
           deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-          deliveryAddress: dto.deliveryAddress,
+          shippingAddress: dto.deliveryAddress ? { address: dto.deliveryAddress } : undefined,
           subtotal,
           vatAmount,
           total,
           notes: dto.notes,
           internalNotes: dto.internalNotes,
           items: {
-            create: items,
+            create: items.map((item, index) => ({
+              position: index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit || 'Stk',
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              vatRate: 'STANDARD',
+              total: item.total,
+            })),
           },
         },
         include: {
@@ -201,9 +221,9 @@ export class OrdersService {
         customerId: dto.customerId,
         projectId: dto.projectId,
         status: dto.status,
-        orderDate: dto.orderDate ? new Date(dto.orderDate) : undefined,
+        date: dto.orderDate ? new Date(dto.orderDate) : undefined,
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-        deliveryAddress: dto.deliveryAddress,
+        shippingAddress: dto.deliveryAddress ? { address: dto.deliveryAddress } : undefined,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
       },
@@ -245,25 +265,27 @@ export class OrdersService {
         customerId: order.customerId,
         projectId: order.projectId,
         orderId: order.id,
-        status: DocumentStatus.DRAFT,
-        issueDate: new Date(),
+        status: InvoiceStatus.DRAFT,
+        date: new Date(),
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         subtotal: order.subtotal,
         vatAmount: order.vatAmount,
-        total: order.total,
+        totalAmount: order.total,
         qrReference,
         notes: order.notes,
         companyId,
         createdById: userId,
         items: {
-          create: order.items.map((item) => ({
-            position: item.position,
+          create: order.items.map((item, index) => ({
+            position: item.position || index + 1,
             productId: item.productId,
             description: item.description,
             quantity: item.quantity,
             unit: item.unit,
             unitPrice: item.unitPrice,
             discount: item.discount,
+            vatRate: 8.1,
+            vatAmount: Number(item.total) * 0.081,
             total: item.total,
           })),
         },

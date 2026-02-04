@@ -119,7 +119,7 @@ export class AuditLogService {
         take: pageSize,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
       }),
       this.prisma.auditLog.count({ where }),
@@ -128,7 +128,7 @@ export class AuditLogService {
     return {
       data: data.map(log => ({
         ...log,
-        userName: log.user?.name || 'System',
+        userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System',
       })),
       total,
       page,
@@ -142,7 +142,7 @@ export class AuditLogService {
     const log = await this.prisma.auditLog.findFirst({
       where: { id, companyId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -152,7 +152,7 @@ export class AuditLogService {
 
     return {
       ...log,
-      userName: log.user?.name || 'System',
+      userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System',
     };
   }
 
@@ -162,7 +162,7 @@ export class AuditLogService {
       where: { companyId, entityType, entityId },
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, name: true } },
+        user: { select: { id: true, firstName: true, lastName: true } },
       },
     });
   }
@@ -183,7 +183,7 @@ export class AuditLogService {
       where,
       orderBy: { createdAt: 'asc' },
       include: {
-        user: { select: { name: true, email: true } },
+        user: { select: { firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -209,7 +209,7 @@ export class AuditLogService {
     const rows = logs.map(log => [
       new Date(log.createdAt).toLocaleDateString('de-CH'),
       new Date(log.createdAt).toLocaleTimeString('de-CH'),
-      log.user?.name || 'System',
+      log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System',
       log.action,
       log.module,
       log.entityName || log.entityId || '-',
@@ -251,7 +251,7 @@ export class AuditLogService {
         orderBy: { createdAt: 'desc' },
         take: 20,
         include: {
-          user: { select: { name: true } },
+          user: { select: { firstName: true, lastName: true } },
         },
       }),
     ]);
@@ -260,10 +260,10 @@ export class AuditLogService {
     const userIds = byUser.map(u => u.userId);
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, name: true },
+      select: { id: true, firstName: true, lastName: true },
     });
 
-    const userMap = new Map(users.map(u => [u.id, u.name]));
+    const userMap = new Map(users.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
 
     return {
       totalLogs,
@@ -286,7 +286,7 @@ export class AuditLogService {
         action: log.action,
         module: log.module,
         entityName: log.entityName,
-        userName: log.user?.name || 'System',
+        userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System',
         createdAt: log.createdAt,
       })),
     };

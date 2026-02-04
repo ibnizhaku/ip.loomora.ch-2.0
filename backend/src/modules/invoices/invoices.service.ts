@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceDto, UpdateInvoiceDto, RecordPaymentDto } from './dto/invoice.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { DocumentStatus, PaymentStatus, PaymentMethod } from '@prisma/client';
+import { InvoiceStatus, PaymentStatus, PaymentType } from '@prisma/client';
 
 @Injectable()
 export class InvoicesService {
@@ -33,7 +33,7 @@ export class InvoicesService {
     }
 
     if (overdue === 'true') {
-      where.status = { in: [DocumentStatus.SENT, DocumentStatus.OVERDUE] };
+      where.status = { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] };
       where.dueDate = { lt: new Date() };
     }
 
@@ -61,8 +61,8 @@ export class InvoicesService {
     // Enrich with computed fields
     const enrichedData = data.map((invoice) => ({
       ...invoice,
-      openAmount: invoice.total - invoice.paidAmount,
-      isOverdue: invoice.status !== DocumentStatus.PAID && new Date(invoice.dueDate) < new Date(),
+      openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
+      isOverdue: invoice.status !== InvoiceStatus.PAID && new Date(invoice.dueDate) < new Date(),
     }));
 
     return {
@@ -103,8 +103,8 @@ export class InvoicesService {
 
     return {
       ...invoice,
-      openAmount: invoice.total - invoice.paidAmount,
-      isOverdue: invoice.status !== DocumentStatus.PAID && new Date(invoice.dueDate) < new Date(),
+      openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
+      isOverdue: invoice.status !== InvoiceStatus.PAID && new Date(invoice.dueDate) < new Date(),
     };
   }
 
@@ -145,19 +145,30 @@ export class InvoicesService {
         customerId: dto.customerId,
         projectId: dto.projectId,
         orderId: dto.orderId,
-        status: DocumentStatus.DRAFT,
-        issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+        status: InvoiceStatus.DRAFT,
+        date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         dueDate: dto.dueDate ? new Date(dto.dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         subtotal,
         vatAmount,
-        total,
+        totalAmount: total,
         qrReference,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
         companyId,
         createdById: userId,
         items: {
-          create: items,
+          create: items.map((item, index) => ({
+            position: index + 1,
+            productId: item.productId,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || 'Stk',
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            vatRate: this.VAT_RATE * 100,
+            vatAmount: item.total * this.VAT_RATE,
+            total: item.total,
+          })),
         },
       },
       include: {
@@ -176,7 +187,7 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status === DocumentStatus.PAID) {
+    if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException('Cannot modify paid invoice');
     }
 
@@ -199,16 +210,27 @@ export class InvoicesService {
         data: {
           customerId: dto.customerId,
           projectId: dto.projectId,
-          status: dto.status,
-          issueDate: dto.issueDate ? new Date(dto.issueDate) : undefined,
+          status: dto.status as InvoiceStatus,
+          date: dto.issueDate ? new Date(dto.issueDate) : undefined,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
           subtotal,
           vatAmount,
-          total,
+          totalAmount: total,
           notes: dto.notes,
           internalNotes: dto.internalNotes,
           items: {
-            create: items,
+            create: items.map((item, index) => ({
+              position: index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit || 'Stk',
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              vatRate: this.VAT_RATE * 100,
+              vatAmount: item.total * this.VAT_RATE,
+              total: item.total,
+            })),
           },
         },
         include: {
@@ -223,8 +245,8 @@ export class InvoicesService {
       data: {
         customerId: dto.customerId,
         projectId: dto.projectId,
-        status: dto.status,
-        issueDate: dto.issueDate ? new Date(dto.issueDate) : undefined,
+        status: dto.status as InvoiceStatus,
+        date: dto.issueDate ? new Date(dto.issueDate) : undefined,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
@@ -245,37 +267,43 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    const newPaidAmount = invoice.paidAmount + dto.amount;
+    const newPaidAmount = Number(invoice.paidAmount) + dto.amount;
     
-    if (newPaidAmount > invoice.total) {
+    if (newPaidAmount > Number(invoice.totalAmount)) {
       throw new BadRequestException('Payment amount exceeds invoice total');
     }
 
     // Create payment record
+    const year = new Date().getFullYear();
+    const paymentCount = await this.prisma.payment.count({ where: { companyId } });
+    const paymentNumber = `ZE-${year}-${String(paymentCount + 1).padStart(5, '0')}`;
+
     await this.prisma.payment.create({
       data: {
+        number: paymentNumber,
         invoiceId: id,
+        customerId: invoice.customerId,
+        type: 'INCOMING',
         amount: dto.amount,
         paymentDate: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-        method: PaymentMethod.BANK_TRANSFER,
+        method: 'BANK_TRANSFER',
         reference: dto.reference,
-        status: PaymentStatus.COMPLETED,
+        status: 'COMPLETED',
         notes: dto.notes,
         companyId,
-        processedById: userId,
       },
     });
 
     // Update invoice
-    const newStatus = newPaidAmount >= invoice.total 
-      ? DocumentStatus.PAID 
+    const newStatus = newPaidAmount >= Number(invoice.totalAmount)
+      ? InvoiceStatus.PAID 
       : invoice.status;
 
     return this.prisma.invoice.update({
       where: { id },
       data: {
         paidAmount: newPaidAmount,
-        paidDate: newPaidAmount >= invoice.total ? new Date() : undefined,
+        paidAt: newPaidAmount >= Number(invoice.totalAmount) ? new Date() : undefined,
         status: newStatus,
       },
       include: {
@@ -294,13 +322,13 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status !== DocumentStatus.DRAFT) {
+    if (invoice.status !== InvoiceStatus.DRAFT) {
       throw new BadRequestException('Only draft invoices can be sent');
     }
 
     return this.prisma.invoice.update({
       where: { id },
-      data: { status: DocumentStatus.SENT },
+      data: { status: InvoiceStatus.SENT },
     });
   }
 
@@ -313,13 +341,13 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.paidAmount > 0) {
+    if (Number(invoice.paidAmount) > 0) {
       throw new BadRequestException('Cannot cancel invoice with payments');
     }
 
     return this.prisma.invoice.update({
       where: { id },
-      data: { status: DocumentStatus.CANCELLED },
+      data: { status: InvoiceStatus.CANCELLED },
     });
   }
 
@@ -332,7 +360,7 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status !== DocumentStatus.DRAFT) {
+    if (invoice.status !== InvoiceStatus.DRAFT) {
       throw new BadRequestException('Only draft invoices can be deleted');
     }
 
@@ -345,7 +373,7 @@ export class InvoicesService {
     const openInvoices = await this.prisma.invoice.findMany({
       where: {
         companyId,
-        status: { in: [DocumentStatus.SENT, DocumentStatus.OVERDUE] },
+        status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] },
       },
       include: {
         customer: {
@@ -357,7 +385,7 @@ export class InvoicesService {
 
     return openInvoices.map((invoice) => ({
       ...invoice,
-      openAmount: invoice.total - invoice.paidAmount,
+      openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
       daysOverdue: Math.max(0, Math.floor((Date.now() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24))),
     }));
   }
