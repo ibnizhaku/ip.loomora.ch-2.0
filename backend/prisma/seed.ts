@@ -2505,6 +2505,898 @@ async function main() {
   console.log('  ✓ 1 Schulung mit 2 Teilnehmern erstellt');
 
   // =====================================================
+  // 43. LEAD ACTIVITIES
+  // =====================================================
+  console.log('📦 Erstelle Lead-Aktivitäten...');
+
+  const leads = await prisma.lead.findMany({ where: { companyId: company.id }, take: 3 });
+
+  if (leads.length > 0) {
+    await Promise.all([
+      prisma.leadActivity.create({
+        data: {
+          leadId: leads[0].id,
+          type: 'CALL',
+          description: 'Erstkontakt telefonisch',
+          activityDate: daysAgo(5),
+          durationMinutes: 15,
+          outcome: 'Interesse bekundet, Unterlagen zugestellt',
+        },
+      }),
+      prisma.leadActivity.create({
+        data: {
+          leadId: leads[0].id,
+          type: 'EMAIL',
+          description: 'Offerte per E-Mail gesendet',
+          activityDate: daysAgo(3),
+          outcome: 'Offerte CHF 45\'000 zugestellt',
+        },
+      }),
+      prisma.leadActivity.create({
+        data: {
+          leadId: leads[1].id,
+          type: 'MEETING',
+          description: 'Vor-Ort Besichtigung Baustelle',
+          activityDate: daysAgo(7),
+          durationMinutes: 90,
+          outcome: 'Aufmass erstellt, technische Klärungen',
+        },
+      }),
+    ]);
+  }
+
+  console.log('  ✓ 3 Lead-Aktivitäten erstellt');
+
+  // =====================================================
+  // 44. EMAIL CAMPAIGNS
+  // =====================================================
+  console.log('📦 Erstelle E-Mail Kampagnen...');
+
+  await Promise.all([
+    prisma.emailCampaign.create({
+      data: {
+        name: 'Frühlings-Newsletter 2024',
+        subject: 'Neue Geländer-Designs für Ihre Projekte',
+        content: '<h1>Frühlings-Aktion</h1><p>Entdecken Sie unsere neuen Geländer-Designs mit 10% Frühlings-Rabatt. Gültig bis Ende April.</p><p>Besuchen Sie unsere Ausstellung!</p>',
+        status: 'SENT',
+        scheduledAt: daysAgo(14),
+        sentAt: daysAgo(14),
+        senderName: 'Loomora Metallbau',
+        senderEmail: 'newsletter@loomora.ch',
+        sentCount: 245,
+        openCount: 89,
+        clickCount: 23,
+        bounceCount: 3,
+        unsubscribeCount: 2,
+        companyId: company.id,
+      },
+    }),
+    prisma.emailCampaign.create({
+      data: {
+        name: 'Produktneuheit Mai 2024',
+        subject: 'NEU: Modulare Balkongeländer-Systeme',
+        content: '<h1>Neu im Sortiment</h1><p>Unser modulares Balkongeländer-System ermöglicht schnelle Montage und flexible Designs.</p>',
+        status: 'SCHEDULED',
+        scheduledAt: daysFromNow(7),
+        senderName: 'Loomora Metallbau',
+        senderEmail: 'newsletter@loomora.ch',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 E-Mail Kampagnen erstellt');
+
+  // =====================================================
+  // 45. E-COMMERCE: DISCOUNTS
+  // =====================================================
+  console.log('📦 Erstelle Rabattcodes...');
+
+  const discounts = await Promise.all([
+    prisma.discount.create({
+      data: {
+        code: 'FRUEHLING24',
+        name: 'Frühlings-Aktion 2024',
+        description: '10% Rabatt auf alle Balkongeländer',
+        type: 'PERCENTAGE',
+        value: 10,
+        minimumOrderValue: 500,
+        maximumDiscount: 1000,
+        usageLimit: 100,
+        usageCount: 12,
+        validFrom: daysAgo(30),
+        validUntil: daysFromNow(30),
+        isActive: true,
+        companyId: company.id,
+      },
+    }),
+    prisma.discount.create({
+      data: {
+        code: 'NEUKUNDE50',
+        name: 'Neukunden-Rabatt',
+        description: 'CHF 50 Rabatt für Neukunden',
+        type: 'FIXED_AMOUNT',
+        value: 50,
+        minimumOrderValue: 200,
+        usageLimit: 50,
+        usageLimitPerCustomer: 1,
+        usageCount: 8,
+        validFrom: daysAgo(60),
+        isActive: true,
+        companyId: company.id,
+      },
+    }),
+    prisma.discount.create({
+      data: {
+        code: 'GRATISVERSAND',
+        name: 'Gratis Versand',
+        description: 'Kostenloser Versand ab CHF 300',
+        type: 'FREE_SHIPPING',
+        value: 0,
+        minimumOrderValue: 300,
+        validFrom: daysAgo(90),
+        isActive: true,
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Rabattcodes erstellt');
+
+  // =====================================================
+  // 46. E-COMMERCE: SHOP ORDERS
+  // =====================================================
+  console.log('📦 Erstelle Shop-Bestellungen...');
+
+  const shopOrders = await Promise.all([
+    prisma.shopOrder.create({
+      data: {
+        orderNumber: 'WEB-00001',
+        customerId: customers[0].id,
+        customerEmail: 'h.mueller@immo-zh.ch',
+        billingAddress: {
+          name: 'Hans Müller',
+          company: 'Immobilien Zürich AG',
+          street: 'Bahnhofstrasse 100',
+          zipCode: '8001',
+          city: 'Zürich',
+          country: 'CH',
+        },
+        status: 'DELIVERED',
+        paymentMethod: 'INVOICE',
+        paymentStatus: 'PAID',
+        subtotal: 892.50,
+        discountAmount: 89.25,
+        shippingCost: 0,
+        vatAmount: 65.04,
+        total: 868.29,
+        discountId: discounts[0].id,
+        trackingNumber: 'CH123456789',
+        shippedAt: daysAgo(12),
+        deliveredAt: daysAgo(10),
+        companyId: company.id,
+        items: {
+          create: [
+            { productId: products[4].id, quantity: 50, unitPrice: 0.45, discount: 0, total: 22.50 },
+            { productId: products[5].id, quantity: 25, unitPrice: 2.80, discount: 0, total: 70.00 },
+            { productId: products[2].id, quantity: 50, unitPrice: 12.50, discount: 0, total: 625.00 },
+            { productId: products[3].id, quantity: 20, unitPrice: 4.80, discount: 0, total: 96.00 },
+          ],
+        },
+      },
+    }),
+    prisma.shopOrder.create({
+      data: {
+        orderNumber: 'WEB-00002',
+        customerEmail: 'bestellung@privat.ch',
+        billingAddress: {
+          name: 'Thomas Weber',
+          street: 'Hauptstrasse 15',
+          zipCode: '8400',
+          city: 'Winterthur',
+          country: 'CH',
+        },
+        status: 'PROCESSING',
+        paymentMethod: 'TWINT',
+        paymentStatus: 'PAID',
+        subtotal: 265.00,
+        discountAmount: 0,
+        shippingCost: 15.00,
+        vatAmount: 22.68,
+        total: 302.68,
+        companyId: company.id,
+        items: {
+          create: [
+            { productId: products[7].id, quantity: 1, unitPrice: 265.00, discount: 0, total: 265.00 },
+          ],
+        },
+      },
+    }),
+    prisma.shopOrder.create({
+      data: {
+        orderNumber: 'WEB-00003',
+        customerId: customers[1].id,
+        customerEmail: 'p.meier@bau-meier.ch',
+        billingAddress: {
+          name: 'Peter Meier',
+          company: 'Bau Meier GmbH',
+          street: 'Werkstrasse 55',
+          zipCode: '8400',
+          city: 'Winterthur',
+          country: 'CH',
+        },
+        status: 'PENDING',
+        paymentMethod: 'BANK_TRANSFER',
+        paymentStatus: 'PENDING',
+        subtotal: 1580.00,
+        discountAmount: 50.00,
+        shippingCost: 0,
+        vatAmount: 123.93,
+        total: 1653.93,
+        discountId: discounts[1].id,
+        notes: 'Lieferung bitte nur vormittags',
+        companyId: company.id,
+        items: {
+          create: [
+            { productId: products[0].id, quantity: 20, unitPrice: 68.50, discount: 0, total: 1370.00 },
+            { productId: products[1].id, quantity: 10, unitPrice: 21.00, discount: 0, total: 210.00 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Shop-Bestellungen erstellt');
+
+  // =====================================================
+  // 47. E-COMMERCE: REVIEWS
+  // =====================================================
+  console.log('📦 Erstelle Produktbewertungen...');
+
+  await Promise.all([
+    prisma.review.create({
+      data: {
+        productId: products[2].id,
+        shopOrderId: shopOrders[0].id,
+        customerName: 'Hans M.',
+        customerEmail: 'h.mueller@immo-zh.ch',
+        rating: 5,
+        title: 'Ausgezeichnete Qualität',
+        content: 'Die Quadratrohre haben eine sehr gute Verarbeitungsqualität. Massgenau und saubere Schnitte. Lieferung war schnell und unkompliziert.',
+        isVerifiedPurchase: true,
+        status: 'APPROVED',
+        moderatedAt: daysAgo(8),
+        companyId: company.id,
+      },
+    }),
+    prisma.review.create({
+      data: {
+        productId: products[0].id,
+        customerName: 'Sandra R.',
+        rating: 4,
+        title: 'Gutes Preis-Leistungs-Verhältnis',
+        content: 'Stahlträger wie erwartet, Lieferzeit etwas lang (2 Wochen). Qualität aber einwandfrei.',
+        isVerifiedPurchase: false,
+        status: 'APPROVED',
+        moderatedAt: daysAgo(20),
+        companyId: company.id,
+      },
+    }),
+    prisma.review.create({
+      data: {
+        productId: products[7].id,
+        shopOrderId: shopOrders[1].id,
+        customerName: 'Thomas W.',
+        rating: 5,
+        title: 'Perfekt für Balkongeländer',
+        content: 'VSG Glas in Top-Qualität, sehr sorgfältig verpackt. Keine Kratzer, passt perfekt.',
+        isVerifiedPurchase: true,
+        status: 'APPROVED',
+        moderatedAt: daysAgo(3),
+        companyId: company.id,
+      },
+    }),
+    prisma.review.create({
+      data: {
+        productId: products[1].id,
+        customerName: 'Anonym',
+        rating: 3,
+        title: 'Okay',
+        content: 'Material in Ordnung, aber Rost an einigen Stellen bei Lieferung.',
+        isVerifiedPurchase: false,
+        status: 'PENDING',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 4 Produktbewertungen erstellt');
+
+  // =====================================================
+  // 48. CONTRACTS
+  // =====================================================
+  console.log('📦 Erstelle Verträge...');
+
+  const contracts = await Promise.all([
+    prisma.contract.create({
+      data: {
+        contractNumber: 'V-0001-2024',
+        name: 'Wartungsvertrag Toranlage',
+        description: 'Jährliche Wartung der Toranlage inkl. 2 Inspektionen',
+        type: 'MAINTENANCE',
+        status: 'ACTIVE',
+        customerId: customers[1].id,
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-12-31'),
+        durationMonths: 12,
+        autoRenew: true,
+        renewalPeriodMonths: 12,
+        noticePeriodDays: 60,
+        value: 1200,
+        billingCycle: 'ANNUAL',
+        paymentTerms: '30 Tage netto',
+        responsibleId: adminUser.id,
+        companyId: company.id,
+      },
+    }),
+    prisma.contract.create({
+      data: {
+        contractNumber: 'V-0002-2024',
+        name: 'Rahmenvertrag Metallkonstruktionen',
+        description: 'Rahmenvertrag für alle Metallbauarbeiten am Standort Zürich',
+        type: 'FRAMEWORK',
+        status: 'ACTIVE',
+        customerId: customers[0].id,
+        projectId: projects[0].id,
+        startDate: new Date('2024-02-01'),
+        endDate: new Date('2026-01-31'),
+        durationMonths: 24,
+        autoRenew: false,
+        noticePeriodDays: 90,
+        value: 180000,
+        billingCycle: 'MONTHLY',
+        paymentTerms: '30 Tage netto',
+        terms: 'Alle Arbeiten gemäss SIA-Normen. Preise fix für Vertragslaufzeit. Stundensätze gemäss Anhang A.',
+        responsibleId: managerUser.id,
+        companyId: company.id,
+      },
+    }),
+    prisma.contract.create({
+      data: {
+        contractNumber: 'V-0003-2024',
+        name: 'Service-Vertrag Hotel Bellevue',
+        description: 'Notfall-Service und Kleinreparaturen',
+        type: 'SERVICE',
+        status: 'ACTIVE',
+        customerId: customers[2].id,
+        startDate: new Date('2024-03-01'),
+        durationMonths: 24,
+        autoRenew: true,
+        renewalPeriodMonths: 12,
+        noticePeriodDays: 30,
+        value: 600,
+        billingCycle: 'SEMI_ANNUAL',
+        paymentTerms: '14 Tage netto',
+        notes: 'Reaktionszeit max. 24h bei Notfällen',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  // Add contract renewal history
+  await prisma.contractRenewal.create({
+    data: {
+      contractId: contracts[0].id,
+      previousEndDate: new Date('2023-12-31'),
+      newEndDate: new Date('2024-12-31'),
+      previousValue: 1100,
+      newValue: 1200,
+      notes: 'Preisanpassung +9% gem. Teuerung',
+    },
+  });
+
+  console.log('  ✓ 3 Verträge erstellt');
+
+  // =====================================================
+  // 49. RECRUITING: JOB POSTINGS
+  // =====================================================
+  console.log('📦 Erstelle Stellenausschreibungen...');
+
+  const jobPostings = await Promise.all([
+    prisma.jobPosting.create({
+      data: {
+        title: 'Metallbauer/in EFZ',
+        description: 'Wir suchen per sofort oder nach Vereinbarung eine/n motivierte/n Metallbauer/in EFZ für unser Team in Zürich.',
+        requirements: '- Abgeschlossene Lehre als Metallbauer/in EFZ\n- Erfahrung im Stahlbau von Vorteil\n- Führerschein Kat. B\n- Teamfähigkeit und Zuverlässigkeit',
+        benefits: '- Moderner Arbeitsplatz\n- Weiterbildungsmöglichkeiten\n- 5 Wochen Ferien\n- Gute Sozialleistungen\n- Gratis Parkplatz',
+        department: 'Produktion',
+        location: 'Zürich',
+        remoteAllowed: false,
+        employmentType: 'FULL_TIME',
+        status: 'PUBLISHED',
+        salaryMin: 60000,
+        salaryMax: 72000,
+        workloadPercent: 100,
+        startDate: daysFromNow(30),
+        applicationDeadline: daysFromNow(21),
+        publishedAt: daysAgo(7),
+        contactPersonId: employees[1].id,
+        requiredSkills: ['Schweissen', 'Metallbau', 'Technische Zeichnungen', 'Teamarbeit'],
+        companyId: company.id,
+      },
+    }),
+    prisma.jobPosting.create({
+      data: {
+        title: 'Lernende/r Metallbauer/in EFZ',
+        description: 'Starte deine Karriere bei uns! Wir bieten eine fundierte 4-jährige Ausbildung zum/zur Metallbauer/in EFZ.',
+        requirements: '- Sekundarschulabschluss\n- Interesse an handwerklicher Arbeit\n- Gutes technisches Verständnis\n- Motivation und Lernbereitschaft',
+        benefits: '- Moderne Ausbildungswerkstatt\n- Erfahrene Berufsbildner\n- Überbetriebliche Kurse\n- Möglichkeit zur BMS',
+        department: 'Produktion',
+        location: 'Zürich',
+        employmentType: 'APPRENTICESHIP',
+        status: 'PUBLISHED',
+        salaryMin: 800,
+        salaryMax: 1400,
+        workloadPercent: 100,
+        startDate: new Date('2024-08-01'),
+        applicationDeadline: daysFromNow(60),
+        publishedAt: daysAgo(14),
+        contactPersonId: employees[0].id,
+        requiredSkills: ['Handwerkliches Geschick', 'Teamfähigkeit'],
+        companyId: company.id,
+      },
+    }),
+    prisma.jobPosting.create({
+      data: {
+        title: 'Monteur/in Aussendienst',
+        description: 'Verstärken Sie unser Montageteam für Einsätze in der Region Zürich.',
+        requirements: '- Erfahrung in der Montage von Metallkonstruktionen\n- Führerschein Kat. B\n- Höhentauglichkeit\n- Selbständige Arbeitsweise',
+        benefits: '- Firmenwagen\n- Spesen nach SUVA\n- Flexible Arbeitszeiten',
+        department: 'Montage',
+        location: 'Region Zürich',
+        employmentType: 'FULL_TIME',
+        status: 'DRAFT',
+        salaryMin: 58000,
+        salaryMax: 68000,
+        workloadPercent: 100,
+        contactPersonId: employees[0].id,
+        requiredSkills: ['Montage', 'Schweissen', 'Höhenarbeit'],
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Stellenausschreibungen erstellt');
+
+  // =====================================================
+  // 50. RECRUITING: CANDIDATES & INTERVIEWS
+  // =====================================================
+  console.log('📦 Erstelle Kandidaten und Interviews...');
+
+  const candidates = await Promise.all([
+    prisma.candidate.create({
+      data: {
+        firstName: 'Michael',
+        lastName: 'Schneider',
+        email: 'michael.schneider@email.ch',
+        phone: '+41 79 234 56 78',
+        street: 'Musterweg 12',
+        zipCode: '8048',
+        city: 'Zürich',
+        country: 'CH',
+        dateOfBirth: new Date('1992-05-15'),
+        nationality: 'CH',
+        jobPostingId: jobPostings[0].id,
+        status: 'INTERVIEW',
+        source: 'JOB_PORTAL',
+        expectedSalary: 65000,
+        availableFrom: daysFromNow(30),
+        rating: 4,
+        skills: ['Schweissen MIG/MAG', 'Metallbau', 'CAD Grundkenntnisse'],
+        notes: 'Hat sehr guten Eindruck hinterlassen, 5 Jahre Erfahrung',
+        companyId: company.id,
+      },
+    }),
+    prisma.candidate.create({
+      data: {
+        firstName: 'Laura',
+        lastName: 'Keller',
+        email: 'laura.keller@email.ch',
+        phone: '+41 78 345 67 89',
+        city: 'Winterthur',
+        country: 'CH',
+        dateOfBirth: new Date('2008-09-22'),
+        nationality: 'CH',
+        jobPostingId: jobPostings[1].id,
+        status: 'ASSESSMENT',
+        source: 'WEBSITE',
+        availableFrom: new Date('2024-08-01'),
+        rating: 5,
+        skills: ['Motiviert', 'Handwerklich begabt', 'Gute Schulnoten'],
+        notes: 'Sehr motivierte Bewerberin, Schnuppertag am 15.03.',
+        companyId: company.id,
+      },
+    }),
+    prisma.candidate.create({
+      data: {
+        firstName: 'Stefan',
+        lastName: 'Brunner',
+        email: 'stefan.brunner@bluewin.ch',
+        phone: '+41 76 456 78 90',
+        city: 'Baden',
+        nationality: 'CH',
+        jobPostingId: jobPostings[0].id,
+        status: 'REJECTED',
+        source: 'LINKEDIN',
+        expectedSalary: 80000,
+        notes: 'Gehaltsvorstellung zu hoch, keine Schweisserfahrung',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  // Create interviews
+  await Promise.all([
+    prisma.interview.create({
+      data: {
+        candidateId: candidates[0].id,
+        type: 'PHONE',
+        status: 'COMPLETED',
+        scheduledAt: daysAgo(5),
+        durationMinutes: 30,
+        feedback: 'Guter Ersteindruck, kommunikativ, fachlich versiert. Einladung zum Vorstellungsgespräch.',
+        rating: 4,
+        recommendHire: true,
+        companyId: company.id,
+        interviewers: { connect: [{ id: adminUser.id }] },
+      },
+    }),
+    prisma.interview.create({
+      data: {
+        candidateId: candidates[0].id,
+        type: 'ONSITE',
+        status: 'SCHEDULED',
+        scheduledAt: daysFromNow(3),
+        durationMinutes: 90,
+        location: 'Industriestrasse 42, Zürich',
+        notes: 'Werkstattführung und praktische Probe',
+        companyId: company.id,
+        interviewers: { connect: [{ id: adminUser.id }, { id: managerUser.id }] },
+      },
+    }),
+    prisma.interview.create({
+      data: {
+        candidateId: candidates[1].id,
+        type: 'ONSITE',
+        status: 'COMPLETED',
+        scheduledAt: daysAgo(2),
+        durationMinutes: 120,
+        location: 'Industriestrasse 42, Zürich',
+        feedback: 'Sehr positive Schnuppertage. Motiviert, lernwillig, gutes Auftreten. Elterngespräch erfolgt.',
+        rating: 5,
+        recommendHire: true,
+        companyId: company.id,
+        interviewers: { connect: [{ id: managerUser.id }] },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Kandidaten und 3 Interviews erstellt');
+
+  // =====================================================
+  // 51. BANK IMPORT TRANSACTIONS
+  // =====================================================
+  console.log('📦 Erstelle Bank-Transaktionen...');
+
+  const bankAccounts = await prisma.bankAccount.findMany({ where: { companyId: company.id }, take: 1 });
+
+  if (bankAccounts.length > 0) {
+    await Promise.all([
+      prisma.bankTransaction.create({
+        data: {
+          bankAccountId: bankAccounts[0].id,
+          entryReference: 'CAMT054-001',
+          type: 'CREDIT',
+          amount: 4850.50,
+          currency: 'CHF',
+          bookingDate: daysAgo(3),
+          valueDate: daysAgo(3),
+          qrReference: '000000000000000012345678903',
+          remittanceInfo: 'Zahlung RE-2024-001 Immobilien Zürich AG',
+          debtorName: 'Immobilien Zürich AG',
+          debtorIban: 'CH82 0900 0000 1234 5678 1',
+          status: 'RECONCILED',
+          matchedInvoiceId: invoices[0].id,
+          companyId: company.id,
+        },
+      }),
+      prisma.bankTransaction.create({
+        data: {
+          bankAccountId: bankAccounts[0].id,
+          entryReference: 'CAMT054-002',
+          type: 'CREDIT',
+          amount: 12500.00,
+          currency: 'CHF',
+          bookingDate: daysAgo(5),
+          valueDate: daysAgo(5),
+          qrReference: '000000000000000012345678904',
+          remittanceInfo: 'Anzahlung Projekt Hotel Bellevue',
+          debtorName: 'Hotel Bellevue AG',
+          debtorIban: 'CH45 0023 0023 1234 5678 2',
+          status: 'MATCHED',
+          companyId: company.id,
+        },
+      }),
+      prisma.bankTransaction.create({
+        data: {
+          bankAccountId: bankAccounts[0].id,
+          entryReference: 'CAMT054-003',
+          type: 'DEBIT',
+          amount: 3250.80,
+          currency: 'CHF',
+          bookingDate: daysAgo(2),
+          valueDate: daysAgo(2),
+          creditorName: 'Stahl AG Zürich',
+          creditorIban: 'CH93 0076 2011 6238 5295 9',
+          remittanceInfo: 'Zahlung BE-2024-001',
+          status: 'RECONCILED',
+          companyId: company.id,
+        },
+      }),
+      prisma.bankTransaction.create({
+        data: {
+          bankAccountId: bankAccounts[0].id,
+          entryReference: 'CAMT054-004',
+          type: 'CREDIT',
+          amount: 868.29,
+          currency: 'CHF',
+          bookingDate: daysAgo(1),
+          valueDate: daysAgo(1),
+          remittanceInfo: 'Zahlung Online-Shop WEB-00001',
+          debtorName: 'Thomas Weber',
+          status: 'PENDING',
+          companyId: company.id,
+        },
+      }),
+    ]);
+  }
+
+  console.log('  ✓ 4 Bank-Transaktionen erstellt');
+
+  // =====================================================
+  // 52. DMS: FOLDERS
+  // =====================================================
+  console.log('📦 Erstelle DMS Ordner...');
+
+  const folders = await Promise.all([
+    prisma.folder.create({
+      data: {
+        name: 'Projekte',
+        type: 'SYSTEM',
+        description: 'Projektdokumentation',
+        companyId: company.id,
+        createdById: adminUser.id,
+      },
+    }),
+    prisma.folder.create({
+      data: {
+        name: 'Kunden',
+        type: 'SYSTEM',
+        description: 'Kundendokumentation',
+        companyId: company.id,
+        createdById: adminUser.id,
+      },
+    }),
+    prisma.folder.create({
+      data: {
+        name: 'Rechnungen 2024',
+        type: 'INVOICE',
+        description: 'Rechnungsarchiv 2024',
+        companyId: company.id,
+        createdById: adminUser.id,
+      },
+    }),
+    prisma.folder.create({
+      data: {
+        name: 'Personal',
+        type: 'EMPLOYEE',
+        description: 'Personaldokumente',
+        companyId: company.id,
+        createdById: adminUser.id,
+      },
+    }),
+  ]);
+
+  // Create project subfolder
+  const projectFolder = await prisma.folder.create({
+    data: {
+      name: 'Bürogebäude Zürich',
+      type: 'PROJECT',
+      description: 'Dokumente für Projekt Bürogebäude',
+      parentId: folders[0].id,
+      projectId: projects[0].id,
+      companyId: company.id,
+      createdById: adminUser.id,
+    },
+  });
+
+  // Create customer subfolder
+  const customerFolder = await prisma.folder.create({
+    data: {
+      name: 'Immobilien Zürich AG',
+      type: 'CUSTOMER',
+      parentId: folders[1].id,
+      customerId: customers[0].id,
+      companyId: company.id,
+      createdById: adminUser.id,
+    },
+  });
+
+  console.log('  ✓ 6 DMS Ordner erstellt');
+
+  // =====================================================
+  // 53. DMS: DOCUMENTS
+  // =====================================================
+  console.log('📦 Erstelle DMS Dokumente...');
+
+  await Promise.all([
+    prisma.dMSDocument.create({
+      data: {
+        name: 'Aufmassblatt_Geländer_EG.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 245000,
+        storagePath: '/projects/buerogebaeude/aufmass_eg.pdf',
+        description: 'Aufmassblatt für Geländer Erdgeschoss',
+        tags: ['Aufmass', 'Geländer', 'EG'],
+        version: 2,
+        status: 'ACTIVE',
+        folderId: projectFolder.id,
+        projectId: projects[0].id,
+        companyId: company.id,
+        uploadedById: adminUser.id,
+      },
+    }),
+    prisma.dMSDocument.create({
+      data: {
+        name: 'Vertrag_Rahmenauftrag_2024.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 156000,
+        storagePath: '/customers/immo-zh/vertrag_2024.pdf',
+        description: 'Rahmenvertrag 2024-2026',
+        tags: ['Vertrag', 'Rahmenauftrag'],
+        status: 'ACTIVE',
+        folderId: customerFolder.id,
+        customerId: customers[0].id,
+        companyId: company.id,
+        uploadedById: managerUser.id,
+      },
+    }),
+    prisma.dMSDocument.create({
+      data: {
+        name: 'RE-2024-001.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 89000,
+        storagePath: '/invoices/2024/re-2024-001.pdf',
+        description: 'Rechnung AN-2024-001',
+        tags: ['Rechnung', '2024'],
+        status: 'ACTIVE',
+        folderId: folders[2].id,
+        invoiceId: invoices[0].id,
+        companyId: company.id,
+        uploadedById: adminUser.id,
+      },
+    }),
+    prisma.dMSDocument.create({
+      data: {
+        name: 'Arbeitsvertrag_Müller_Thomas.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 234000,
+        storagePath: '/employees/ma-0001/arbeitsvertrag.pdf',
+        tags: ['Arbeitsvertrag', 'Personal'],
+        status: 'ACTIVE',
+        folderId: folders[3].id,
+        employeeId: employees[0].id,
+        companyId: company.id,
+        uploadedById: adminUser.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 4 DMS Dokumente erstellt');
+
+  // =====================================================
+  // 54. AUDIT LOG
+  // =====================================================
+  console.log('📦 Erstelle Audit-Log Einträge...');
+
+  const tenYearsFromNow = new Date();
+  tenYearsFromNow.setFullYear(tenYearsFromNow.getFullYear() + 10);
+
+  await Promise.all([
+    prisma.auditLog.create({
+      data: {
+        userId: adminUser.id,
+        action: 'LOGIN',
+        module: 'AUTH',
+        description: 'Benutzer angemeldet',
+        ipAddress: '192.168.1.100',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+        retentionUntil: tenYearsFromNow,
+        companyId: company.id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: adminUser.id,
+        action: 'CREATE',
+        module: 'INVOICES',
+        entityId: invoices[0].id,
+        entityType: 'Invoice',
+        entityName: 'RE-2024-001',
+        description: 'Rechnung erstellt',
+        newValues: { number: 'RE-2024-001', total: 4850.50 },
+        retentionUntil: tenYearsFromNow,
+        companyId: company.id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: adminUser.id,
+        action: 'SEND',
+        module: 'INVOICES',
+        entityId: invoices[0].id,
+        entityType: 'Invoice',
+        entityName: 'RE-2024-001',
+        description: 'Rechnung per E-Mail versendet',
+        metadata: { recipient: 'h.mueller@immo-zh.ch', method: 'email' },
+        retentionUntil: tenYearsFromNow,
+        companyId: company.id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: managerUser.id,
+        action: 'UPDATE',
+        module: 'PROJECTS',
+        entityId: projects[0].id,
+        entityType: 'Project',
+        entityName: 'Bürogebäude Zürich - Geländer',
+        description: 'Projekt-Status geändert',
+        oldValues: { status: 'PLANNING' },
+        newValues: { status: 'ACTIVE' },
+        retentionUntil: tenYearsFromNow,
+        companyId: company.id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: adminUser.id,
+        action: 'APPROVE',
+        module: 'EMPLOYEES',
+        entityId: employees[3].id,
+        entityType: 'Absence',
+        description: 'Ferienantrag genehmigt',
+        metadata: { absenceType: 'VACATION', days: 5 },
+        retentionUntil: tenYearsFromNow,
+        companyId: company.id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: adminUser.id,
+        action: 'EXPORT',
+        module: 'FINANCE',
+        description: 'Kontoauszug exportiert (CSV)',
+        metadata: { period: '2024-Q1', accounts: ['1000', '1020', '1100'] },
+        retentionUntil: tenYearsFromNow,
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 6 Audit-Log Einträge erstellt');
+
+  // =====================================================
   // SUMMARY
   // =====================================================
   console.log('\n========================================');
@@ -2527,7 +3419,13 @@ async function main() {
   console.log('   - 2 MWST-Abrechnungen');
   console.log('   - 2 Stücklisten, 2 Werkstattaufträge, 1 Kalkulation');
   console.log('   - 1 QS-Checkliste, 1 Prüfung, 2 Service-Tickets');
-  console.log('   - 3 Leads, 1 Kampagne, 4 Kalendereinträge');
+  console.log('   - 3 Leads, 3 Lead-Aktivitäten, 1 Kampagne');
+  console.log('   - 2 E-Mail Kampagnen, 4 Kalendereinträge');
+  console.log('   - 3 Rabattcodes, 3 Shop-Bestellungen, 4 Bewertungen');
+  console.log('   - 3 Verträge, 3 Stellenausschreibungen');
+  console.log('   - 3 Kandidaten, 3 Interviews');
+  console.log('   - 4 Bank-Transaktionen, 6 DMS-Ordner, 4 DMS-Dokumente');
+  console.log('   - 6 Audit-Log Einträge');
   console.log('   - 1 Swissdec-Meldung, 1 Schulung');
   console.log('\n────────────────────────────────────');
   console.log('🔐 Admin Login: admin@loomora.ch');
