@@ -125,21 +125,7 @@ export function useDeleteTraining() {
   });
 }
 
-// Training Participations
-export function useTrainingParticipations(params?: { trainingId?: string; employeeId?: string; status?: string }) {
-  return useQuery({
-    queryKey: ['training-participations', params],
-    queryFn: async (): Promise<PaginatedResponse<TrainingParticipation>> => {
-      const searchParams = new URLSearchParams();
-      if (params?.trainingId) searchParams.set('trainingId', params.trainingId);
-      if (params?.employeeId) searchParams.set('employeeId', params.employeeId);
-      if (params?.status) searchParams.set('status', params.status);
-      const queryString = searchParams.toString();
-      return api.get<PaginatedResponse<TrainingParticipation>>(`/training/participations${queryString ? `?${queryString}` : ''}`);
-    },
-  });
-}
-
+// Register for Training (Add Participant)
 export function useRegisterForTraining() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -148,33 +134,47 @@ export function useRegisterForTraining() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
-      queryClient.invalidateQueries({ queryKey: ['training-participations'] });
     },
   });
 }
 
-export function useCompleteTraining() {
+// Update Participant
+export function useUpdateParticipant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ trainingId, participationId, data }: { trainingId: string; participationId: string; data: { score?: number; certificateUrl?: string } }): Promise<TrainingParticipation> => {
-      return api.put<TrainingParticipation>(`/training/${trainingId}/participants/${participationId}`, { ...data, status: 'COMPLETED' });
+    mutationFn: async ({ trainingId, participantId, data }: { trainingId: string; participantId: string; data: { status?: string; score?: number; certificateUrl?: string; feedback?: string; rating?: number } }): Promise<TrainingParticipation> => {
+      return api.put<TrainingParticipation>(`/training/${trainingId}/participants/${participantId}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (_, { trainingId }) => {
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
-      queryClient.invalidateQueries({ queryKey: ['training-participations'] });
+      queryClient.invalidateQueries({ queryKey: ['trainings', trainingId] });
     },
   });
 }
 
-export function useSubmitTrainingFeedback() {
+// Remove Participant
+export function useRemoveParticipant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ trainingId, participationId, data }: { trainingId: string; participationId: string; data: { feedback: string; rating: number } }): Promise<TrainingParticipation> => {
-      return api.put<TrainingParticipation>(`/training/${trainingId}/participants/${participationId}`, data);
+    mutationFn: async ({ trainingId, participantId }: { trainingId: string; participantId: string }): Promise<void> => {
+      await api.delete(`/training/${trainingId}/participants/${participantId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
-      queryClient.invalidateQueries({ queryKey: ['training-participations'] });
+    },
+  });
+}
+
+// Mark Training as Complete
+export function useMarkTrainingComplete() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (trainingId: string): Promise<Training> => {
+      return api.post<Training>(`/training/${trainingId}/complete`, {});
+    },
+    onSuccess: (_, trainingId) => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      queryClient.invalidateQueries({ queryKey: ['trainings', trainingId] });
     },
   });
 }
@@ -192,6 +192,37 @@ export function useTrainingStats() {
         averageRating: number;
         totalCost: number;
       }>('/training/stats');
+    },
+  });
+}
+
+// Upcoming Trainings
+export function useUpcomingTrainings(days?: number) {
+  return useQuery({
+    queryKey: ['trainings', 'upcoming', days],
+    queryFn: async (): Promise<Training[]> => {
+      const params = days ? `?days=${days}` : '';
+      return api.get<Training[]>(`/training/upcoming${params}`);
+    },
+  });
+}
+
+// Employee Trainings
+export function useEmployeeTrainings(employeeId: string) {
+  return useQuery({
+    queryKey: ['trainings', 'employee', employeeId],
+    queryFn: async (): Promise<Training[]> => {
+      return api.get<Training[]>(`/training/employee/${employeeId}`);
+    },
+    enabled: !!employeeId,
+  });
+}
+
+// Generate Training Report
+export function useGenerateTrainingReport() {
+  return useMutation({
+    mutationFn: async (params: { startDate?: string; endDate?: string; employeeId?: string; type?: string }) => {
+      return api.post('/training/report', params);
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // Types
@@ -81,33 +81,48 @@ export function useEntityHistory(entityType: string, entityId: string) {
   });
 }
 
-// User Activity
+// User Activity (uses general query with userId filter)
 export function useUserActivity(userId: string, params?: { startDate?: string; endDate?: string }) {
   return useQuery({
     queryKey: ['audit-logs', 'user', userId, params],
     queryFn: async (): Promise<PaginatedResponse<AuditLog>> => {
       const searchParams = new URLSearchParams();
+      searchParams.set('userId', userId);
       if (params?.startDate) searchParams.set('startDate', params.startDate);
       if (params?.endDate) searchParams.set('endDate', params.endDate);
-      const queryString = searchParams.toString();
-      return api.get<PaginatedResponse<AuditLog>>(`/audit-log/user/${userId}${queryString ? `?${queryString}` : ''}`);
+      return api.get<PaginatedResponse<AuditLog>>(`/audit-log?${searchParams.toString()}`);
     },
     enabled: !!userId,
   });
 }
 
 // Audit Log Statistics
-export function useAuditLogStats() {
+export function useAuditLogStats(days?: number) {
   return useQuery({
-    queryKey: ['audit-log', 'stats'],
+    queryKey: ['audit-log', 'stats', days],
     queryFn: async () => {
+      const params = days ? `?days=${days}` : '';
       return api.get<{
         totalEntries: number;
         todayEntries: number;
         topActions: Array<{ action: string; count: number }>;
         topUsers: Array<{ userId: string; userName: string; count: number }>;
         topEntities: Array<{ entityType: string; count: number }>;
-      }>('/audit-log/statistics');
+      }>(`/audit-log/statistics${params}`);
+    },
+  });
+}
+
+// Export Audit Logs
+export function useExportAuditLogs() {
+  return useMutation({
+    mutationFn: async (params: { startDate: string; endDate: string; module?: string; format?: 'json' | 'csv' }) => {
+      const searchParams = new URLSearchParams();
+      searchParams.set('startDate', params.startDate);
+      searchParams.set('endDate', params.endDate);
+      if (params.module) searchParams.set('module', params.module);
+      if (params.format) searchParams.set('format', params.format);
+      return api.get(`/audit-log/export?${searchParams.toString()}`);
     },
   });
 }
