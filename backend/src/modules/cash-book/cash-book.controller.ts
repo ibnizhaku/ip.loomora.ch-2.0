@@ -1,0 +1,104 @@
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CashBookService } from './cash-book.service';
+import { CreateCashTransactionDto, UpdateCashTransactionDto, CashBookClosingDto, CreateCashRegisterDto } from './dto/cash-book.dto';
+
+@ApiTags('Cash Book')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('cash-book')
+export class CashBookController {
+  constructor(private readonly cashBookService: CashBookService) {}
+
+  // Cash Registers
+  @Get('registers')
+  @ApiOperation({ summary: 'List all cash registers' })
+  findAllRegisters(@CurrentUser() user: any) {
+    return this.cashBookService.findAllRegisters(user.companyId);
+  }
+
+  @Post('registers')
+  @ApiOperation({ summary: 'Create new cash register' })
+  createRegister(@Body() dto: CreateCashRegisterDto, @CurrentUser() user: any) {
+    return this.cashBookService.createRegister(user.companyId, dto);
+  }
+
+  // Cash Transactions
+  @Get('transactions')
+  @ApiOperation({ summary: 'List all cash transactions' })
+  findAll(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('registerId') registerId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('type') type?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.cashBookService.findAll(user.companyId, {
+      page: page ? parseInt(page) : undefined,
+      pageSize: pageSize ? parseInt(pageSize) : undefined,
+      registerId,
+      startDate,
+      endDate,
+      type,
+      search,
+    });
+  }
+
+  @Get('transactions/:id')
+  @ApiOperation({ summary: 'Get cash transaction by ID' })
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.cashBookService.findOne(id, user.companyId);
+  }
+
+  @Post('registers/:registerId/transactions')
+  @ApiOperation({ summary: 'Create new cash transaction' })
+  create(
+    @Param('registerId') registerId: string,
+    @Body() dto: CreateCashTransactionDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.cashBookService.create(user.companyId, registerId, dto);
+  }
+
+  @Put('transactions/:id')
+  @ApiOperation({ summary: 'Update cash transaction' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCashTransactionDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.cashBookService.update(id, user.companyId, dto);
+  }
+
+  @Delete('transactions/:id')
+  @ApiOperation({ summary: 'Delete cash transaction' })
+  delete(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.cashBookService.delete(id, user.companyId);
+  }
+
+  // Daily operations
+  @Get('registers/:registerId/daily-summary')
+  @ApiOperation({ summary: 'Get daily summary for register' })
+  getDailySummary(
+    @Param('registerId') registerId: string,
+    @Query('date') date: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.cashBookService.getDailySummary(user.companyId, registerId, date);
+  }
+
+  @Post('registers/:registerId/closing')
+  @ApiOperation({ summary: 'Perform daily closing' })
+  performClosing(
+    @Param('registerId') registerId: string,
+    @Body() dto: CashBookClosingDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.cashBookService.performClosing(user.companyId, registerId, dto);
+  }
+}
