@@ -124,7 +124,7 @@ export function useReconcileTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ transactionId, data }: { transactionId: string; data: { invoiceId?: string; paymentId?: string; createPayment?: boolean } }): Promise<BankTransaction> => {
-      return api.post<BankTransaction>(`/bank-import/transactions/${transactionId}/reconcile`, data);
+      return api.post<BankTransaction>('/bank-import/reconcile', { transactionId, ...data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
@@ -153,7 +153,7 @@ export function useIgnoreTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (transactionId: string): Promise<BankTransaction> => {
-      return api.put<BankTransaction>(`/bank-import/transactions/${transactionId}/ignore`, {});
+      return api.patch<BankTransaction>(`/bank-import/transactions/${transactionId}/ignore`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
@@ -171,7 +171,7 @@ export function useBankImportStats() {
         reconciledToday: number;
         totalImported: number;
         lastImportDate?: string;
-      }>('/bank-import/stats');
+      }>('/bank-import/statistics');
     },
   });
 }

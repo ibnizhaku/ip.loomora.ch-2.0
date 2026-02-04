@@ -91,7 +91,7 @@ export function useJobPostings(params?: ListParams & { department?: string }) {
       if (params?.status) searchParams.set('status', params.status);
       if (params?.department) searchParams.set('department', params.department);
       const queryString = searchParams.toString();
-      return api.get<PaginatedResponse<JobPosting>>(`/recruiting/job-postings${queryString ? `?${queryString}` : ''}`);
+      return api.get<PaginatedResponse<JobPosting>>(`/recruiting/jobs${queryString ? `?${queryString}` : ''}`);
     },
   });
 }
@@ -101,7 +101,7 @@ export function useJobPosting(id: string | undefined) {
     queryKey: ['job-postings', id],
     queryFn: async (): Promise<JobPosting | null> => {
       if (!id) return null;
-      return api.get<JobPosting>(`/recruiting/job-postings/${id}`);
+      return api.get<JobPosting>(`/recruiting/jobs/${id}`);
     },
     enabled: !!id,
   });
@@ -111,7 +111,7 @@ export function useCreateJobPosting() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: Partial<JobPosting>): Promise<JobPosting> => {
-      return api.post<JobPosting>('/recruiting/job-postings', data);
+      return api.post<JobPosting>('/recruiting/jobs', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-postings'] });
@@ -123,7 +123,7 @@ export function useUpdateJobPosting() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<JobPosting> }): Promise<JobPosting> => {
-      return api.put<JobPosting>(`/recruiting/job-postings/${id}`, data);
+      return api.put<JobPosting>(`/recruiting/jobs/${id}`, data);
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['job-postings'] });
@@ -136,7 +136,7 @@ export function useDeleteJobPosting() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      await api.delete(`/recruiting/job-postings/${id}`);
+      await api.delete(`/recruiting/jobs/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-postings'] });
@@ -148,7 +148,7 @@ export function usePublishJobPosting() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<JobPosting> => {
-      return api.post<JobPosting>(`/recruiting/job-postings/${id}/publish`, {});
+      return api.post<JobPosting>(`/recruiting/jobs/${id}/publish`, {});
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['job-postings'] });

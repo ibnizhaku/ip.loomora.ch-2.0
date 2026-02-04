@@ -144,7 +144,7 @@ export function useRegisterForTraining() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { trainingId: string; employeeId: string }): Promise<TrainingParticipation> => {
-      return api.post<TrainingParticipation>(`/training/${data.trainingId}/register`, { employeeId: data.employeeId });
+      return api.post<TrainingParticipation>(`/training/${data.trainingId}/participants`, { employeeId: data.employeeId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
@@ -156,8 +156,8 @@ export function useRegisterForTraining() {
 export function useCompleteTraining() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ participationId, data }: { participationId: string; data: { score?: number; certificateUrl?: string } }): Promise<TrainingParticipation> => {
-      return api.put<TrainingParticipation>(`/training/participations/${participationId}/complete`, data);
+    mutationFn: async ({ trainingId, participationId, data }: { trainingId: string; participationId: string; data: { score?: number; certificateUrl?: string } }): Promise<TrainingParticipation> => {
+      return api.put<TrainingParticipation>(`/training/${trainingId}/participants/${participationId}`, { ...data, status: 'COMPLETED' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
@@ -169,8 +169,8 @@ export function useCompleteTraining() {
 export function useSubmitTrainingFeedback() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ participationId, data }: { participationId: string; data: { feedback: string; rating: number } }): Promise<TrainingParticipation> => {
-      return api.put<TrainingParticipation>(`/training/participations/${participationId}/feedback`, data);
+    mutationFn: async ({ trainingId, participationId, data }: { trainingId: string; participationId: string; data: { feedback: string; rating: number } }): Promise<TrainingParticipation> => {
+      return api.put<TrainingParticipation>(`/training/${trainingId}/participants/${participationId}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
