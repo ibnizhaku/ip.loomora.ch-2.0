@@ -140,7 +140,7 @@ export class ReportsService {
         date: { gte: startDate, lte: endDate },
       },
     });
-    const sales = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+    const sales = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
 
     // Get purchase invoices (material costs)
     const purchases = await this.prisma.purchaseInvoice.findMany({
@@ -149,7 +149,7 @@ export class ReportsService {
         date: { gte: startDate, lte: endDate },
       },
     });
-    const materials = purchases.reduce((sum, p) => sum + Number(p.total || 0), 0);
+    const materials = purchases.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0);
 
     // Get payroll costs
     const payslips = await this.prisma.payslip.findMany({
@@ -231,19 +231,19 @@ export class ReportsService {
     const openInvoices = await this.prisma.invoice.findMany({
       where: { companyId, status: { in: ['SENT', 'OVERDUE'] } },
     });
-    const receivables = openInvoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+    const receivables = openInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
 
     // Get payables (open purchase invoices)
     const openPurchases = await this.prisma.purchaseInvoice.findMany({
       where: { companyId, status: { in: ['PENDING', 'APPROVED'] } },
     });
-    const payables = openPurchases.reduce((sum, p) => sum + Number(p.total || 0), 0);
+    const payables = openPurchases.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0);
 
     // Get inventory value
     const products = await this.prisma.product.findMany({
       where: { companyId },
     });
-    const inventory = products.reduce((sum, p) => sum + (Number(p.stock || 0) * Number(p.purchasePrice || 0)), 0);
+    const inventory = products.reduce((sum, p) => sum + (Number(p.stockQuantity || 0) * Number(p.purchasePrice || 0)), 0);
 
     // Get fixed assets
     const assets = await this.prisma.fixedAsset.findMany({
@@ -581,13 +581,13 @@ export class ReportsService {
     });
 
     const projectData = projects.map(project => {
-      const revenue = project.invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+      const revenue = project.invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
       const materialCosts = project.purchaseOrders.reduce((sum, po) => sum + Number(po.total || 0), 0);
       
       // Calculate labor costs from time entries
       const laborCosts = project.timeEntries.reduce((sum, te) => {
-        const hours = Number(te.hours || 0);
-        const hourlyRate = Number(te.employee.salary || 0) / 173.33; // Monthly to hourly
+        const hours = Number(te.duration || 0) / 60; // duration is in minutes
+        const hourlyRate = Number((te.employee as any).salary || 0) / 173.33; // Monthly to hourly
         return sum + (hours * hourlyRate);
       }, 0);
 
@@ -684,26 +684,26 @@ export class ReportsService {
       debtors: {
         items: openInvoices.map(inv => ({
           id: inv.id,
-          number: inv.invoiceNumber,
+          number: inv.number,
           customer: inv.customer?.name || 'Unbekannt',
           date: inv.date,
           dueDate: inv.dueDate,
-          amount: Number(inv.total || 0),
+          amount: Number(inv.totalAmount || 0),
           daysOverdue: inv.dueDate ? Math.max(0, Math.floor((today.getTime() - new Date(inv.dueDate).getTime()) / 86400000)) : 0,
         })),
-        total: openInvoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0),
+        total: openInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0),
       },
       creditors: {
         items: openPurchases.map(p => ({
           id: p.id,
-          number: p.invoiceNumber,
+          number: p.number,
           supplier: p.supplier?.name || 'Unbekannt',
           date: p.date,
           dueDate: p.dueDate,
-          amount: Number(p.total || 0),
+          amount: Number(p.totalAmount || 0),
           daysOverdue: p.dueDate ? Math.max(0, Math.floor((today.getTime() - new Date(p.dueDate).getTime()) / 86400000)) : 0,
         })),
-        total: openPurchases.reduce((sum, p) => sum + Number(p.total || 0), 0),
+        total: openPurchases.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0),
       },
     };
   }
@@ -728,17 +728,17 @@ export class ReportsService {
         byCustomer[customerId] = { name: inv.customer?.name || 'Unbekannt', count: 0, total: 0 };
       }
       byCustomer[customerId].count++;
-      byCustomer[customerId].total += Number(inv.total || 0);
+      byCustomer[customerId].total += Number(inv.totalAmount || 0);
     });
 
     // Group by month
     const byMonth: Record<string, number> = {};
     invoices.forEach(inv => {
       const month = new Date(inv.date).toLocaleDateString('de-CH', { year: 'numeric', month: '2-digit' });
-      byMonth[month] = (byMonth[month] || 0) + Number(inv.total || 0);
+      byMonth[month] = (byMonth[month] || 0) + Number(inv.totalAmount || 0);
     });
 
-    const totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+    const totalSales = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
 
     return {
       metadata,

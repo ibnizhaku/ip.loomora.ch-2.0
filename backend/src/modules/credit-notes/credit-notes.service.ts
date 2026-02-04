@@ -240,13 +240,13 @@ export class CreditNotesService {
         reason: reason as any,
         issueDate: new Date(),
         subtotal: invoice.subtotal,
-        vatRate: Number(invoice.vatRate),
+        vatRate: this.VAT_RATE,
         vatAmount: invoice.vatAmount,
         totalAmount: invoice.totalAmount,
         items: {
           create: invoice.items.map((item, index) => ({
             productId: item.productId,
-            quantity: item.quantity,
+            quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
             unit: item.unit || 'Stk',
             description: item.description,

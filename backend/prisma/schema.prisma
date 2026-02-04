@@ -1669,17 +1669,28 @@ model Payslip {
   employeeId      String
   employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   
-  period          DateTime // Month/Year
+  // Period (year/month for easier querying)
+  year            Int
+  month           Int
+  period          DateTime? // Legacy field, optional
   
   grossSalary     Decimal  @db.Decimal(12, 2)
   netSalary       Decimal  @db.Decimal(12, 2)
   
-  // Swiss social security deductions
-  ahvDeduction    Decimal  @default(0) @db.Decimal(10, 2) // AHV/IV/EO
-  alvDeduction    Decimal  @default(0) @db.Decimal(10, 2) // ALV
-  nbuDeduction    Decimal  @default(0) @db.Decimal(10, 2) // NBU
-  bvgDeduction    Decimal  @default(0) @db.Decimal(10, 2) // BVG (Pensionskasse)
-  taxDeduction    Decimal  @default(0) @db.Decimal(10, 2) // Quellensteuer
+  // Swiss social security deductions (standard Swiss naming)
+  ahvIvEo         Decimal  @default(0) @db.Decimal(10, 2) // AHV/IV/EO
+  alv             Decimal  @default(0) @db.Decimal(10, 2) // ALV
+  bvg             Decimal  @default(0) @db.Decimal(10, 2) // BVG (Pensionskasse)
+  ktg             Decimal  @default(0) @db.Decimal(10, 2) // Krankentaggeld
+  nbuv            Decimal  @default(0) @db.Decimal(10, 2) // Nichtberufsunfall
+  quellensteuer   Decimal  @default(0) @db.Decimal(10, 2) // Quellensteuer
+  
+  // Legacy field names (for backwards compatibility)
+  ahvDeduction    Decimal  @default(0) @db.Decimal(10, 2)
+  alvDeduction    Decimal  @default(0) @db.Decimal(10, 2)
+  nbuDeduction    Decimal  @default(0) @db.Decimal(10, 2)
+  bvgDeduction    Decimal  @default(0) @db.Decimal(10, 2)
+  taxDeduction    Decimal  @default(0) @db.Decimal(10, 2)
   
   hoursWorked     Decimal? @db.Decimal(6, 2)
   overtime        Decimal? @db.Decimal(6, 2)
@@ -1696,8 +1707,9 @@ model Payslip {
   // Relations
   items           PayslipItem[]
   
+  @@unique([employeeId, year, month])
   @@index([employeeId])
-  @@index([period])
+  @@index([year, month])
   @@map("payslips")
 }
 
