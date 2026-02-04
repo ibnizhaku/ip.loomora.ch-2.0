@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeQueryDto } from './dto/employee.dto';
+import { mapEmployeeResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class EmployeesService {
@@ -32,24 +33,28 @@ export class EmployeesService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           department: { select: { id: true, name: true } },
+          contracts: { orderBy: { startDate: 'desc' }, take: 1 },
         },
       }),
       this.prisma.employee.count({ where }),
     ]);
 
-    // Transform to match frontend format
-    const transformedData = data.map((e) => ({
-      id: e.id,
-      number: e.number,
-      name: `${e.firstName} ${e.lastName}`,
-      position: e.position || 'Keine Angabe',
-      department: e.department?.name || 'Keine Abteilung',
-      email: e.email || '',
-      phone: e.phone || e.mobile || '',
-      status: e.status.toLowerCase(),
-      startDate: e.hireDate?.toLocaleDateString('de-CH') || '',
-      avatar: e.avatarUrl,
-    }));
+    // Transform to match frontend format using mapper
+    const transformedData = data.map((e) => {
+      const mapped = mapEmployeeResponse(e);
+      return {
+        ...mapped,
+        name: `${e.firstName} ${e.lastName}`,
+        position: e.position || 'Keine Angabe',
+        department: e.department?.name || 'Keine Abteilung',
+        email: e.email || '',
+        phone: e.phone || e.mobile || '',
+        status: e.status.toLowerCase(),
+        hireDate: e.hireDate?.toISOString(),
+        startDate: e.hireDate?.toLocaleDateString('de-CH') || '',
+        avatar: e.avatarUrl,
+      };
+    });
 
     return this.prisma.createPaginatedResponse(transformedData, total, page, pageSize);
   }
@@ -68,7 +73,7 @@ export class EmployeesService {
       throw new NotFoundException('Employee not found');
     }
 
-    return employee;
+    return mapEmployeeResponse(employee);
   }
 
   async create(companyId: string, dto: CreateEmployeeDto) {
