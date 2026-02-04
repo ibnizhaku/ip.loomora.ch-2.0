@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCreditNoteDto, UpdateCreditNoteDto, CreditNoteStatus } from './dto/credit-note.dto';
+import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto';
+import { CreditNoteStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()

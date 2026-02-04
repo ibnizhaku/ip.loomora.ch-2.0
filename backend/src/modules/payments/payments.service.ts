@@ -4,9 +4,8 @@ import {
   CreatePaymentDto, 
   UpdatePaymentDto, 
   ReconcilePaymentDto,
-  PaymentStatus,
-  PaymentType,
 } from './dto/payment.dto';
+import { PaymentStatus, PaymentType } from '@prisma/client';
 
 @Injectable()
 export class PaymentsService {
