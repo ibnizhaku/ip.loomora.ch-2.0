@@ -147,9 +147,23 @@ export function useUpdateShopOrderStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }): Promise<ShopOrder> => {
-      return api.put<ShopOrder>(`/ecommerce/orders/${id}/status`, { status });
+      // Backend uses general PUT /orders/:id for updates including status
+      return api.put<ShopOrder>(`/ecommerce/orders/${id}`, { status });
     },
     onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['shop-orders', id] });
+    },
+  });
+}
+
+export function useCancelShopOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<ShopOrder> => {
+      return api.post<ShopOrder>(`/ecommerce/orders/${id}/cancel`, {});
+    },
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['shop-orders'] });
       queryClient.invalidateQueries({ queryKey: ['shop-orders', id] });
     },
@@ -245,11 +259,12 @@ export function useReviews(params?: ListParams & { productId?: string; isApprove
   });
 }
 
-export function useApproveReview() {
+export function useModerateReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string): Promise<Review> => {
-      return api.put<Review>(`/ecommerce/reviews/${id}/approve`, {});
+    mutationFn: async ({ id, data }: { id: string; data: { isApproved?: boolean; response?: string } }): Promise<Review> => {
+      // Backend uses general PUT /reviews/:id for moderation (approve + respond)
+      return api.put<Review>(`/ecommerce/reviews/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
@@ -257,16 +272,26 @@ export function useApproveReview() {
   });
 }
 
+// Convenience wrapper for approving
+export function useApproveReview() {
+  const moderateReview = useModerateReview();
+  return {
+    ...moderateReview,
+    mutateAsync: (id: string) => moderateReview.mutateAsync({ id, data: { isApproved: true } }),
+    mutate: (id: string) => moderateReview.mutate({ id, data: { isApproved: true } }),
+  };
+}
+
+// Convenience wrapper for responding
 export function useRespondToReview() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, response }: { id: string; response: string }): Promise<Review> => {
-      return api.put<Review>(`/ecommerce/reviews/${id}/respond`, { response });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews'] });
-    },
-  });
+  const moderateReview = useModerateReview();
+  return {
+    ...moderateReview,
+    mutateAsync: ({ id, response }: { id: string; response: string }) => 
+      moderateReview.mutateAsync({ id, data: { response } }),
+    mutate: ({ id, response }: { id: string; response: string }) => 
+      moderateReview.mutate({ id, data: { response } }),
+  };
 }
 
 export function useDeleteReview() {
