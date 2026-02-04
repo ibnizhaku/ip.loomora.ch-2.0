@@ -23,6 +23,9 @@ import { DeliveryNotesModule } from './modules/delivery-notes/delivery-notes.mod
 import { CreditNotesModule } from './modules/credit-notes/credit-notes.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { PurchaseInvoicesModule } from './modules/purchase-invoices/purchase-invoices.module';
+import { GoodsReceiptsModule } from './modules/goods-receipts/goods-receipts.module';
 
 @Module({
   imports: [
@@ -52,6 +55,9 @@ import { PaymentsModule } from './modules/payments/payments.module';
     CreditNotesModule,
     RemindersModule,
     PaymentsModule,
+    PurchaseOrdersModule,
+    PurchaseInvoicesModule,
+    GoodsReceiptsModule,
   ],
 })
 export class AppModule {}
