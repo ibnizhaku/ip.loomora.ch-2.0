@@ -126,6 +126,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
   const [esrParticipant, setEsrParticipant] = useState("");
 
   const isQuote = type === "quote";
+  const isInvoice = type === "invoice";
   const typeConfig: Record<string, { title: string; backPath: string; sendLabel: string }> = {
     quote: { title: "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot senden" },
     invoice: { title: "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung senden" },
@@ -240,7 +241,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-display text-2xl font-bold">{title}</h1>
-              {!isQuote && useQrInvoice && (
+              {isInvoice && useQrInvoice && (
                 <Badge variant="outline" className="gap-1">
                   <QrCode className="h-3 w-3" />
                   QR-Rechnung
@@ -248,7 +249,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
               )}
             </div>
             <p className="text-muted-foreground">
-              {isQuote ? "Erstellen Sie ein neues Angebot" : "Erstellen Sie eine neue Rechnung (Swiss QR-Invoice)"}
+              {typeConfig[type]?.title || "Dokument erstellen"}
             </p>
           </div>
         </div>
@@ -578,7 +579,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
           </Card>
 
           {/* QR Invoice Preview (for invoices) */}
-          {!isQuote && useQrInvoice && (
+          {isInvoice && useQrInvoice && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -711,7 +712,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                     </SelectContent>
                   </Select>
                 </div>
-              ) : (
+              ) : isInvoice ? (
                 <>
                   <div className="space-y-2">
                     <Label>Zahlungsziel</Label>
@@ -762,7 +763,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                     </div>
                   )}
                 </>
-              )}
+              ) : null}
 
               <div className="space-y-2">
                 <Label>Standard MwSt.-Satz</Label>
@@ -797,7 +798,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
           </Card>
 
           {/* Bank Account Info */}
-          {!isQuote && (
+          {isInvoice && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
