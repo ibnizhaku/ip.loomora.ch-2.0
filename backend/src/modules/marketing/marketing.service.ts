@@ -301,16 +301,16 @@ export class MarketingService {
   }
 
   async getLeadStats(companyId: string) {
-    const statuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST'];
+    const statuses: Array<'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST'> = ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST'];
     
     const statusCounts = await Promise.all(
       statuses.map(async (status) => ({
         status,
         count: await this.prisma.lead.count({ where: { companyId, status } }),
-        value: (await this.prisma.lead.aggregate({
+        value: Number((await this.prisma.lead.aggregate({
           where: { companyId, status },
           _sum: { estimatedValue: true },
-        }))._sum.estimatedValue || 0,
+        }))._sum.estimatedValue || 0),
       }))
     );
 
@@ -322,7 +322,7 @@ export class MarketingService {
 
     return {
       total,
-      totalValue: totalValue._sum.estimatedValue || 0,
+      totalValue: Number(totalValue._sum.estimatedValue || 0),
       byStatus: statusCounts,
     };
   }

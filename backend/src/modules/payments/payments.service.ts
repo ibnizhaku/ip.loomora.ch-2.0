@@ -329,7 +329,7 @@ export class PaymentsService {
       _sum: { amount: true },
     });
 
-    const totalPaid = payments._sum.amount || 0;
+    const totalPaid = Number(payments._sum.amount || 0);
     const invoiceTotal = Number(invoice.totalAmount);
 
     let newStatus = invoice.status;
@@ -366,7 +366,7 @@ export class PaymentsService {
       _sum: { amount: true },
     });
 
-    const totalPaid = payments._sum.amount || 0;
+    const totalPaid = Number(payments._sum.amount || 0);
     const invoiceTotal = Number(purchaseInvoice.totalAmount);
 
     if (totalPaid >= invoiceTotal) {

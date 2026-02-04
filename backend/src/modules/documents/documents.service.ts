@@ -197,7 +197,7 @@ export class DocumentsService {
       },
       include: {
         folder: { select: { id: true, name: true } },
-        uploadedBy: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, firstName: true, lastName: true } },
       },
     });
   }
@@ -249,7 +249,7 @@ export class DocumentsService {
         orderBy: { createdAt: 'desc' },
         include: {
           folder: { select: { id: true, name: true } },
-          uploadedBy: { select: { id: true, name: true } },
+          uploadedBy: { select: { id: true, firstName: true, lastName: true } },
           project: { select: { id: true, name: true } },
           customer: { select: { id: true, name: true } },
         },
@@ -271,11 +271,11 @@ export class DocumentsService {
       where: { id, companyId },
       include: {
         folder: { select: { id: true, name: true } },
-        uploadedBy: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, firstName: true, lastName: true } },
         project: { select: { id: true, name: true } },
         customer: { select: { id: true, name: true } },
         invoice: { select: { id: true, number: true } },
-        contract: { select: { id: true, number: true, title: true } },
+        contract: { select: { id: true, title: true } },
         employee: { select: { id: true, firstName: true, lastName: true } },
         versions: {
           orderBy: { version: 'desc' },
