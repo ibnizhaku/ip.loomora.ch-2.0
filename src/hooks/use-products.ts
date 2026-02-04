@@ -13,7 +13,7 @@ const QUERY_KEY = 'products';
 const CATEGORIES_KEY = 'product-categories';
 
 // Fetch all products with pagination
-export function useProducts(params?: ListParams & { category?: string; status?: string }) {
+export function useProducts(params?: ListParams & { categoryId?: string; isService?: boolean }) {
   return useQuery({
     queryKey: [QUERY_KEY, params],
     queryFn: () => {
@@ -23,8 +23,8 @@ export function useProducts(params?: ListParams & { category?: string; status?: 
       if (params?.search) searchParams.set('search', params.search);
       if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
       if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
-      if (params?.category) searchParams.set('category', params.category);
-      if (params?.status) searchParams.set('status', params.status);
+      if (params?.categoryId) searchParams.set('categoryId', params.categoryId);
+      if (params?.isService !== undefined) searchParams.set('isService', String(params.isService));
       
       const query = searchParams.toString();
       return api.get<PaginatedResponse<Product>>(`/products${query ? `?${query}` : ''}`);
@@ -88,16 +88,29 @@ export function useDeleteProduct() {
   });
 }
 
-// Update stock
-export function useUpdateStock() {
+// Adjust stock - matches backend POST /products/:id/adjust-stock
+export function useAdjustStock() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, quantity, type }: { id: string; quantity: number; type: 'IN' | 'OUT' | 'ADJUSTMENT' }) =>
-      api.post(`/products/${id}/stock`, { quantity, type }),
+    mutationFn: ({ id, data }: { id: string; data: { quantity: number; type: 'IN' | 'OUT' | 'ADJUSTMENT'; reason?: string } }) =>
+      api.post(`/products/${id}/adjust-stock`, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
+// Create product category
+export function useCreateProductCategory() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: { name: string; description?: string }) =>
+      api.post<ProductCategory>('/products/categories', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CATEGORIES_KEY] });
     },
   });
 }

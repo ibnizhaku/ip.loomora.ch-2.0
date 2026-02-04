@@ -89,8 +89,8 @@ export default function Products() {
   const { data, isLoading, error } = useProducts({ 
     search: searchQuery, 
     pageSize: 100,
-    category: categoryFilter !== "all" ? categoryFilter : undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
+    categoryId: categoryFilter !== "all" ? categoryFilter : undefined,
+    isService: statusFilter === "services" ? true : statusFilter === "products" ? false : undefined,
   });
   const { data: categories } = useProductCategories();
   const stats = useProductStats();
