@@ -158,7 +158,7 @@ export function usePublishJobPosting() {
 }
 
 // Candidates
-export function useCandidates(params?: ListParams & { jobPostingId?: string; rating?: number }) {
+export function useCandidates(params?: ListParams & { jobPostingId?: string }) {
   return useQuery({
     queryKey: ['candidates', params],
     queryFn: async (): Promise<PaginatedResponse<Candidate>> => {
@@ -168,9 +168,33 @@ export function useCandidates(params?: ListParams & { jobPostingId?: string; rat
       if (params?.search) searchParams.set('search', params.search);
       if (params?.status) searchParams.set('status', params.status);
       if (params?.jobPostingId) searchParams.set('jobPostingId', params.jobPostingId);
-      if (params?.rating) searchParams.set('rating', String(params.rating));
       const queryString = searchParams.toString();
       return api.get<PaginatedResponse<Candidate>>(`/recruiting/candidates${queryString ? `?${queryString}` : ''}`);
+    },
+  });
+}
+
+// Candidate Pipeline (Kanban view)
+export function useCandidatePipeline(jobPostingId?: string) {
+  return useQuery({
+    queryKey: ['candidates', 'pipeline', jobPostingId],
+    queryFn: async () => {
+      const params = jobPostingId ? `?jobPostingId=${jobPostingId}` : '';
+      return api.get<Record<string, Candidate[]>>(`/recruiting/candidates/pipeline${params}`);
+    },
+  });
+}
+
+// Hire Candidate
+export function useHireCandidate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<Candidate> => {
+      return api.post<Candidate>(`/recruiting/candidates/${id}/hire`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['job-postings'] });
     },
   });
 }
@@ -225,23 +249,8 @@ export function useDeleteCandidate() {
   });
 }
 
-// Interviews
-export function useInterviews(params?: ListParams & { candidateId?: string; startDate?: string; endDate?: string }) {
-  return useQuery({
-    queryKey: ['interviews', params],
-    queryFn: async (): Promise<PaginatedResponse<Interview>> => {
-      const searchParams = new URLSearchParams();
-      if (params?.page) searchParams.set('page', String(params.page));
-      if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
-      if (params?.status) searchParams.set('status', params.status);
-      if (params?.candidateId) searchParams.set('candidateId', params.candidateId);
-      if (params?.startDate) searchParams.set('startDate', params.startDate);
-      if (params?.endDate) searchParams.set('endDate', params.endDate);
-      const queryString = searchParams.toString();
-      return api.get<PaginatedResponse<Interview>>(`/recruiting/interviews${queryString ? `?${queryString}` : ''}`);
-    },
-  });
-}
+// Interviews - NOTE: Backend only has POST/PUT for interviews (no GET list endpoint)
+// Interviews are fetched via candidate.interviews relation
 
 export function useCreateInterview() {
   const queryClient = useQueryClient();

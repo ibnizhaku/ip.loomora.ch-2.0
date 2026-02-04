@@ -231,6 +231,17 @@ export function useDeleteLead() {
 }
 
 // Lead Activities
+export function useLeadActivities(leadId: string | undefined) {
+  return useQuery({
+    queryKey: ['leads', leadId, 'activities'],
+    queryFn: async (): Promise<LeadActivity[]> => {
+      if (!leadId) return [];
+      return api.get<LeadActivity[]>(`/marketing/leads/${leadId}/activities`);
+    },
+    enabled: !!leadId,
+  });
+}
+
 export function useCreateLeadActivity() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -239,6 +250,21 @@ export function useCreateLeadActivity() {
     },
     onSuccess: (_, data) => {
       queryClient.invalidateQueries({ queryKey: ['leads', data.leadId] });
+      queryClient.invalidateQueries({ queryKey: ['leads', data.leadId, 'activities'] });
+    },
+  });
+}
+
+// Convert Lead to Customer
+export function useConvertLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { leadId: string; createCustomer?: boolean }): Promise<any> => {
+      return api.post('/marketing/leads/convert', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
   });
 }
