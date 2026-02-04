@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDeliveryNoteDto, UpdateDeliveryNoteDto, DeliveryNoteStatus } from './dto/delivery-note.dto';
+import { mapDeliveryNoteResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class DeliveryNotesService {
@@ -46,7 +47,7 @@ export class DeliveryNotesService {
     ]);
 
     return {
-      data,
+      data: data.map(mapDeliveryNoteResponse),
       total,
       page,
       pageSize,
@@ -72,7 +73,7 @@ export class DeliveryNotesService {
       throw new NotFoundException('Lieferschein nicht gefunden');
     }
 
-    return deliveryNote;
+    return mapDeliveryNoteResponse(deliveryNote);
   }
 
   async create(companyId: string, dto: CreateDeliveryNoteDto) {

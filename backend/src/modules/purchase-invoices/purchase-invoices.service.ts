@@ -7,6 +7,7 @@ import {
   PurchaseInvoiceStatus,
   OcrExtractedDataDto,
 } from './dto/purchase-invoice.dto';
+import { mapPurchaseInvoiceResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class PurchaseInvoicesService {
@@ -56,7 +57,7 @@ export class PurchaseInvoicesService {
     ]);
 
     return {
-      data,
+      data: data.map(mapPurchaseInvoiceResponse),
       total,
       page,
       pageSize,
@@ -78,7 +79,7 @@ export class PurchaseInvoicesService {
       throw new NotFoundException('Einkaufsrechnung nicht gefunden');
     }
 
-    return purchaseInvoice;
+    return mapPurchaseInvoiceResponse(purchaseInvoice);
   }
 
   async create(companyId: string, dto: CreatePurchaseInvoiceDto) {

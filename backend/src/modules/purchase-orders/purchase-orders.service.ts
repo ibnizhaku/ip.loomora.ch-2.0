@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePurchaseOrderDto, UpdatePurchaseOrderDto, PurchaseOrderStatus } from './dto/purchase-order.dto';
+import { mapPurchaseOrderResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -46,7 +47,7 @@ export class PurchaseOrdersService {
     ]);
 
     return {
-      data,
+      data: data.map(mapPurchaseOrderResponse),
       total,
       page,
       pageSize,
@@ -69,7 +70,7 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Bestellung nicht gefunden');
     }
 
-    return purchaseOrder;
+    return mapPurchaseOrderResponse(purchaseOrder);
   }
 
   async create(companyId: string, dto: CreatePurchaseOrderDto) {
