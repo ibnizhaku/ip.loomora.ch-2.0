@@ -120,7 +120,7 @@ export class OrdersService {
     const vatAmount = subtotal * this.VAT_RATE;
     const total = subtotal + vatAmount;
 
-    return this.prisma.order.create({
+    const created = await this.prisma.order.create({
       data: {
         number,
         customerId: dto.customerId,
@@ -156,6 +156,7 @@ export class OrdersService {
         items: true,
       },
     });
+    return mapOrderResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateOrderDto) {
@@ -181,7 +182,7 @@ export class OrdersService {
 
       await this.prisma.orderItem.deleteMany({ where: { orderId: id } });
 
-      return this.prisma.order.update({
+      const updated = await this.prisma.order.update({
         where: { id },
         data: {
           customerId: dto.customerId,
@@ -214,9 +215,10 @@ export class OrdersService {
           items: true,
         },
       });
+      return mapOrderResponse(updated);
     }
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id },
       data: {
         customerId: dto.customerId,
@@ -233,6 +235,7 @@ export class OrdersService {
         items: true,
       },
     });
+    return mapOrderResponse(updated);
   }
 
   async createInvoice(id: string, companyId: string, userId: string) {

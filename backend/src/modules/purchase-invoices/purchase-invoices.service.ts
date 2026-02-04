@@ -105,7 +105,7 @@ export class PurchaseInvoicesService {
     const year = new Date().getFullYear();
     const internalNumber = `ER-${year}-${String(count + 1).padStart(4, '0')}`;
 
-    return this.prisma.purchaseInvoice.create({
+    const created = await this.prisma.purchaseInvoice.create({
       data: {
         companyId,
         supplierId: dto.supplierId,
@@ -125,6 +125,7 @@ export class PurchaseInvoicesService {
         purchaseOrder: { select: { id: true, number: true } },
       },
     });
+    return mapPurchaseInvoiceResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdatePurchaseInvoiceDto) {
@@ -161,7 +162,7 @@ export class PurchaseInvoicesService {
       };
     }
 
-    return this.prisma.purchaseInvoice.update({
+    const updated = await this.prisma.purchaseInvoice.update({
       where: { id },
       data: updateData,
       include: {
@@ -169,6 +170,7 @@ export class PurchaseInvoicesService {
         purchaseOrder: { select: { id: true, number: true } },
       },
     });
+    return mapPurchaseInvoiceResponse(updated);
   }
 
   async delete(id: string, companyId: string) {

@@ -144,7 +144,7 @@ export class InvoicesService {
     // Generate QR reference
     const qrReference = String(Date.now()).padStart(27, '0');
 
-    return this.prisma.invoice.create({
+    const created = await this.prisma.invoice.create({
       data: {
         number,
         customerId: dto.customerId,
@@ -181,6 +181,7 @@ export class InvoicesService {
         items: true,
       },
     });
+    return mapInvoiceResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateInvoiceDto) {
@@ -210,7 +211,7 @@ export class InvoicesService {
 
       await this.prisma.invoiceItem.deleteMany({ where: { invoiceId: id } });
 
-      return this.prisma.invoice.update({
+      const updated = await this.prisma.invoice.update({
         where: { id },
         data: {
           customerId: dto.customerId,
@@ -243,9 +244,10 @@ export class InvoicesService {
           items: true,
         },
       });
+      return mapInvoiceResponse(updated);
     }
 
-    return this.prisma.invoice.update({
+    const updated = await this.prisma.invoice.update({
       where: { id },
       data: {
         customerId: dto.customerId,
@@ -261,6 +263,7 @@ export class InvoicesService {
         items: true,
       },
     });
+    return mapInvoiceResponse(updated);
   }
 
   async recordPayment(id: string, companyId: string, userId: string, dto: RecordPaymentDto) {

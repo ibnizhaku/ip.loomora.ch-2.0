@@ -108,7 +108,7 @@ export class PurchaseOrdersService {
     const year = new Date().getFullYear();
     const number = `BE-${year}-${String(count + 1).padStart(4, '0')}`;
 
-    return this.prisma.purchaseOrder.create({
+    const created = await this.prisma.purchaseOrder.create({
       data: {
         companyId,
         supplierId: dto.supplierId,
@@ -130,6 +130,7 @@ export class PurchaseOrdersService {
         items: true,
       },
     });
+    return mapPurchaseOrderResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdatePurchaseOrderDto) {
@@ -185,7 +186,7 @@ export class PurchaseOrdersService {
       updateData.date = new Date();
     }
 
-    return this.prisma.purchaseOrder.update({
+    const updated = await this.prisma.purchaseOrder.update({
       where: { id },
       data: updateData,
       include: {
@@ -194,6 +195,7 @@ export class PurchaseOrdersService {
         items: true,
       },
     });
+    return mapPurchaseOrderResponse(updated);
   }
 
   async delete(id: string, companyId: string) {

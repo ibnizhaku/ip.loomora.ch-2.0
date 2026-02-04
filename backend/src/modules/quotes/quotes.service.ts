@@ -115,7 +115,7 @@ export class QuotesService {
     const vatAmount = subtotal * this.VAT_RATE;
     const total = subtotal + vatAmount;
 
-    return this.prisma.quote.create({
+    const created = await this.prisma.quote.create({
       data: {
         number,
         customerId: dto.customerId,
@@ -149,6 +149,7 @@ export class QuotesService {
         items: true,
       },
     });
+    return mapQuoteResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateQuoteDto) {
@@ -176,7 +177,7 @@ export class QuotesService {
       // Delete existing items and create new ones
       await this.prisma.quoteItem.deleteMany({ where: { quoteId: id } });
 
-      return this.prisma.quote.update({
+      const updated = await this.prisma.quote.update({
         where: { id },
         data: {
           customerId: dto.customerId,
@@ -208,9 +209,10 @@ export class QuotesService {
           items: true,
         },
       });
+      return mapQuoteResponse(updated);
     }
 
-    return this.prisma.quote.update({
+    const updated = await this.prisma.quote.update({
       where: { id },
       data: {
         customerId: dto.customerId,
@@ -226,6 +228,7 @@ export class QuotesService {
         items: true,
       },
     });
+    return mapQuoteResponse(updated);
   }
 
   async convertToOrder(id: string, companyId: string, userId: string) {
