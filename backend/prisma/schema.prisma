@@ -301,6 +301,8 @@ model Customer {
   deliveryNotes   DeliveryNote[]
   payments        Payment[]
   projects        Project[]
+  calculations    Calculation[]
+  serviceTickets  ServiceTicket[]
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -365,6 +367,9 @@ model Contact {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Relations
+  serviceTickets ServiceTicket[]
   
   @@index([customerId])
   @@index([supplierId])
@@ -465,6 +470,7 @@ model Product {
   creditNoteItems CreditNoteItem[]
   goodsReceiptItems GoodsReceiptItem[]
   inventoryMovements InventoryMovement[]
+  bomItems        BomItem[]
   
   @@unique([companyId, sku])
   @@index([companyId])
@@ -604,6 +610,7 @@ model Order {
   items           OrderItem[]
   invoices        Invoice[]
   deliveryNotes   DeliveryNote[]
+  productionOrders ProductionOrder[]
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -1270,6 +1277,10 @@ model Project {
   orders          Order[]
   purchaseOrders  PurchaseOrder[]
   members         ProjectMember[]
+  boms            BillOfMaterial[]
+  productionOrders ProductionOrder[]
+  calculations    Calculation[]
+  serviceTickets  ServiceTicket[]
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -1530,6 +1541,9 @@ model Employee {
   trainingParticipations TrainingParticipant[]
   travelExpenses  TravelExpense[]
   projectMemberships ProjectMember[]
+  productionOperations ProductionOperation[]
+  qualityChecks   QualityCheck[]
+  serviceTickets  ServiceTicket[]
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -1787,4 +1801,437 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================
+// PRODUCTION: BILL OF MATERIALS
+// ============================================
+
+model BillOfMaterial {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  
+  isTemplate  Boolean  @default(false)
+  category    String?  // Treppe, Geländer, Tor, etc.
+  
+  companyId   String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  items           BomItem[]
+  productionOrders ProductionOrder[]
+  calculations    Calculation[]
+  
+  @@index([companyId])
+  @@index([projectId])
+  @@map("bill_of_materials")
+}
+
+model BomItem {
+  id          String   @id @default(cuid())
+  bomId       String
+  bom         BillOfMaterial @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  
+  type        String   // MATERIAL, LABOR, EXTERNAL
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  
+  description String
+  quantity    Decimal  @db.Decimal(12, 3)
+  unit        String
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  
+  hours       Decimal? @db.Decimal(10, 2)  // For labor items
+  hourlyRate  Decimal? @db.Decimal(10, 2)
+  
+  total       Decimal  @db.Decimal(12, 2)
+  sortOrder   Int      @default(0)
+  
+  @@index([bomId])
+  @@index([productId])
+  @@map("bom_items")
+}
+
+// ============================================
+// PRODUCTION: PRODUCTION ORDERS
+// ============================================
+
+enum ProductionOrderStatus {
+  PLANNED
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProductionPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model ProductionOrder {
+  id              String   @id @default(cuid())
+  number          String   // WA-2024-0001
+  name            String
+  description     String?
+  
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id])
+  
+  orderId         String?
+  order           Order?   @relation(fields: [orderId], references: [id])
+  
+  bomId           String?
+  bom             BillOfMaterial? @relation(fields: [bomId], references: [id])
+  
+  status          ProductionOrderStatus @default(PLANNED)
+  priority        ProductionPriority @default(MEDIUM)
+  
+  quantity        Int      @default(1)
+  
+  plannedStartDate DateTime
+  plannedEndDate   DateTime?
+  actualStartDate  DateTime?
+  actualEndDate    DateTime?
+  
+  notes           String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  operations      ProductionOperation[]
+  qualityChecks   QualityCheck[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([projectId])
+  @@index([status])
+  @@map("production_orders")
+}
+
+model ProductionOperation {
+  id                  String   @id @default(cuid())
+  productionOrderId   String
+  productionOrder     ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  
+  name                String
+  description         String?
+  workstation         String?  // CNC, Schweissen, Montage, etc.
+  
+  plannedHours        Decimal  @db.Decimal(10, 2)
+  actualHours         Decimal  @default(0) @db.Decimal(10, 2)
+  
+  assignedEmployeeId  String?
+  assignedEmployee    Employee? @relation(fields: [assignedEmployeeId], references: [id])
+  
+  status              String   @default("pending")  // pending, in_progress, completed
+  sortOrder           Int      @default(0)
+  
+  @@index([productionOrderId])
+  @@index([assignedEmployeeId])
+  @@map("production_operations")
+}
+
+// ============================================
+// PRODUCTION: CALCULATIONS
+// ============================================
+
+enum CalculationStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  TRANSFERRED
+}
+
+model Calculation {
+  id              String   @id @default(cuid())
+  number          String   // KA-2024-0001
+  name            String
+  description     String?
+  
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id])
+  
+  bomId           String?
+  bom             BillOfMaterial? @relation(fields: [bomId], references: [id])
+  
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  
+  quoteId         String?  // Link to created quote
+  
+  status          CalculationStatus @default(DRAFT)
+  
+  // Markup percentages (Swiss Metallbau defaults)
+  materialMarkup  Decimal  @default(15) @db.Decimal(5, 2)
+  laborMarkup     Decimal  @default(10) @db.Decimal(5, 2)
+  overheadPercent Decimal  @default(8) @db.Decimal(5, 2)
+  profitMargin    Decimal  @default(12) @db.Decimal(5, 2)
+  riskMargin      Decimal  @default(5) @db.Decimal(5, 2)
+  discount        Decimal  @default(0) @db.Decimal(5, 2)
+  
+  totalCost       Decimal? @db.Decimal(12, 2)
+  totalPrice      Decimal? @db.Decimal(12, 2)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  items           CalculationItem[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([projectId])
+  @@index([customerId])
+  @@map("calculations")
+}
+
+model CalculationItem {
+  id              String   @id @default(cuid())
+  calculationId   String
+  calculation     Calculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+  
+  type            String   // MATERIAL, LABOR, EXTERNAL, OVERHEAD
+  productId       String?
+  description     String
+  quantity        Decimal  @db.Decimal(12, 3)
+  unit            String
+  unitCost        Decimal  @db.Decimal(12, 2)
+  
+  hours           Decimal? @db.Decimal(10, 2)
+  hourlyRate      Decimal? @db.Decimal(10, 2)
+  
+  total           Decimal  @db.Decimal(12, 2)
+  sortOrder       Int      @default(0)
+  
+  @@index([calculationId])
+  @@map("calculation_items")
+}
+
+// ============================================
+// QUALITY CONTROL
+// ============================================
+
+enum QualityCheckType {
+  INCOMING
+  IN_PROCESS
+  FINAL
+}
+
+enum QualityCheckStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  CONDITIONAL
+}
+
+model QualityChecklist {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   @default("FINAL")  // INCOMING, IN_PROCESS, FINAL
+  category    String?  // Schweissnaht, Massgenauigkeit, Oberfläche
+  
+  companyId   String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  items       ChecklistItem[]
+  checks      QualityCheck[]
+  
+  @@index([companyId])
+  @@map("quality_checklists")
+}
+
+model ChecklistItem {
+  id          String   @id @default(cuid())
+  checklistId String
+  checklist   QualityChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String?
+  required    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  
+  // Relations
+  results     CheckResult[]
+  
+  @@index([checklistId])
+  @@map("checklist_items")
+}
+
+model QualityCheck {
+  id                  String   @id @default(cuid())
+  number              String   // QC-2024-0001
+  
+  checklistId         String
+  checklist           QualityChecklist @relation(fields: [checklistId], references: [id])
+  
+  productionOrderId   String?
+  productionOrder     ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+  
+  goodsReceiptId      String?
+  
+  type                String   // INCOMING, IN_PROCESS, FINAL
+  status              String   @default("PENDING")
+  
+  inspectorId         String?
+  inspector           Employee? @relation(fields: [inspectorId], references: [id])
+  
+  notes               String?
+  completedAt         DateTime?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  results             CheckResult[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([checklistId])
+  @@index([productionOrderId])
+  @@index([status])
+  @@map("quality_checks")
+}
+
+model CheckResult {
+  id              String   @id @default(cuid())
+  qualityCheckId  String
+  qualityCheck    QualityCheck @relation(fields: [qualityCheckId], references: [id], onDelete: Cascade)
+  
+  checklistItemId String
+  checklistItem   ChecklistItem @relation(fields: [checklistItemId], references: [id])
+  
+  passed          Boolean
+  notes           String?
+  measuredValue   String?
+  photoUrls       String[] @default([])
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([qualityCheckId, checklistItemId])
+  @@index([qualityCheckId])
+  @@map("check_results")
+}
+
+// ============================================
+// SERVICE TICKETS
+// ============================================
+
+enum ServiceTicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum ServiceTicketPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ServiceType {
+  REPAIR
+  MAINTENANCE
+  INSTALLATION
+  INSPECTION
+  WARRANTY
+}
+
+model ServiceTicket {
+  id                  String   @id @default(cuid())
+  number              String   // ST-2024-0001
+  title               String
+  description         String
+  
+  customerId          String
+  customer            Customer @relation(fields: [customerId], references: [id])
+  
+  contactId           String?
+  contact             Contact? @relation(fields: [contactId], references: [id])
+  
+  projectId           String?
+  project             Project? @relation(fields: [projectId], references: [id])
+  
+  serviceType         ServiceType
+  priority            ServiceTicketPriority @default(MEDIUM)
+  status              ServiceTicketStatus @default(OPEN)
+  
+  assignedTechnicianId String?
+  assignedTechnician   Employee? @relation(fields: [assignedTechnicianId], references: [id])
+  
+  scheduledDate       DateTime?
+  estimatedHours      Decimal? @db.Decimal(6, 2)
+  
+  location            String?
+  equipmentInfo       String?
+  resolution          String?
+  
+  tags                String[] @default([])
+  
+  resolvedAt          DateTime?
+  closedAt            DateTime?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  reports             ServiceReport[]
+  
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  @@index([priority])
+  @@map("service_tickets")
+}
+
+model ServiceReport {
+  id                String   @id @default(cuid())
+  serviceTicketId   String
+  serviceTicket     ServiceTicket @relation(fields: [serviceTicketId], references: [id], onDelete: Cascade)
+  
+  serviceDate       DateTime
+  hoursWorked       Decimal  @db.Decimal(6, 2)
+  travelTime        Decimal  @default(0) @db.Decimal(6, 2)
+  
+  workPerformed     String
+  partsUsed         String?
+  
+  materialCost      Decimal  @default(0) @db.Decimal(12, 2)
+  laborCost         Decimal  @default(0) @db.Decimal(12, 2)
+  totalCost         Decimal  @default(0) @db.Decimal(12, 2)
+  
+  customerSignature String?
+  photoUrls         String[] @default([])
+  followUpNeeded    String?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([serviceTicketId])
+  @@map("service_reports")
 }
