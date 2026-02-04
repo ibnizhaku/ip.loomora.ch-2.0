@@ -120,7 +120,7 @@ export class QuotesService {
         customerId: dto.customerId,
         projectId: dto.projectId,
         status: DocumentStatus.DRAFT,
-        issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+        date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         validUntil: dto.validUntil ? new Date(dto.validUntil) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         subtotal,
         vatAmount,
@@ -130,7 +130,17 @@ export class QuotesService {
         companyId,
         createdById: userId,
         items: {
-          create: items,
+          create: items.map((item, index) => ({
+            position: index + 1,
+            productId: item.productId,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || 'Stk',
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            vatRate: 'STANDARD',
+            total: item.total,
+          })),
         },
       },
       include: {
@@ -171,7 +181,7 @@ export class QuotesService {
           customerId: dto.customerId,
           projectId: dto.projectId,
           status: dto.status,
-          issueDate: dto.issueDate ? new Date(dto.issueDate) : undefined,
+          date: dto.issueDate ? new Date(dto.issueDate) : undefined,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
           subtotal,
           vatAmount,
@@ -179,7 +189,17 @@ export class QuotesService {
           notes: dto.notes,
           internalNotes: dto.internalNotes,
           items: {
-            create: items,
+            create: items.map((item, index) => ({
+              position: index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit || 'Stk',
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              vatRate: 'STANDARD',
+              total: item.total,
+            })),
           },
         },
         include: {
@@ -195,7 +215,7 @@ export class QuotesService {
         customerId: dto.customerId,
         projectId: dto.projectId,
         status: dto.status,
-        issueDate: dto.issueDate ? new Date(dto.issueDate) : undefined,
+        date: dto.issueDate ? new Date(dto.issueDate) : undefined,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
@@ -217,8 +237,8 @@ export class QuotesService {
       throw new NotFoundException('Quote not found');
     }
 
-    if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.ACCEPTED) {
-      throw new BadRequestException('Quote must be sent or accepted to convert to order');
+    if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.CONFIRMED) {
+      throw new BadRequestException('Quote must be sent or confirmed to convert to order');
     }
 
     // Generate order number
@@ -241,7 +261,7 @@ export class QuotesService {
         projectId: quote.projectId,
         quoteId: quote.id,
         status: DocumentStatus.CONFIRMED,
-        orderDate: new Date(),
+        date: new Date(),
         subtotal: quote.subtotal,
         vatAmount: quote.vatAmount,
         total: quote.total,
@@ -249,14 +269,15 @@ export class QuotesService {
         companyId,
         createdById: userId,
         items: {
-          create: quote.items.map((item) => ({
-            position: item.position,
+          create: quote.items.map((item, index) => ({
+            position: item.position || index + 1,
             productId: item.productId,
             description: item.description,
             quantity: item.quantity,
             unit: item.unit,
             unitPrice: item.unitPrice,
             discount: item.discount,
+            vatRate: 'STANDARD',
             total: item.total,
           })),
         },
@@ -267,10 +288,10 @@ export class QuotesService {
       },
     });
 
-    // Update quote status
+    // Update quote status to confirmed (converted)
     await this.prisma.quote.update({
       where: { id },
-      data: { status: DocumentStatus.ACCEPTED },
+      data: { status: DocumentStatus.CONFIRMED },
     });
 
     return order;
