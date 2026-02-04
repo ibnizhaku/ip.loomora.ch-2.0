@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 interface User {
@@ -53,31 +53,5 @@ export function useUser(id: string) {
   });
 }
 
-export function useCreateUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: { email: string; password: string; firstName: string; lastName: string; role: string; employeeId?: string }) =>
-      api.post<User>('/users', data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-export function useUpdateUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<User> }) =>
-      api.put<User>(`/users/${id}`, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
-    },
-  });
-}
-
-export function useDeleteUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => api.delete(`/users/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
+// Note: User management (create/update/delete) is handled via auth endpoints
+// Users are created during company registration or by admin invitation
