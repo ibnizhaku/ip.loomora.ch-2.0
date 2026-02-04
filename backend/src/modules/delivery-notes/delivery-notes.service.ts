@@ -82,7 +82,7 @@ export class DeliveryNotesService {
     const year = new Date().getFullYear();
     const number = `LS-${year}-${String(count + 1).padStart(4, '0')}`;
 
-    return this.prisma.deliveryNote.create({
+    const created = await this.prisma.deliveryNote.create({
       data: {
         companyId,
         customerId: dto.customerId,
@@ -109,6 +109,7 @@ export class DeliveryNotesService {
         items: { include: { product: true } },
       },
     });
+    return mapDeliveryNoteResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateDeliveryNoteDto) {
@@ -121,7 +122,7 @@ export class DeliveryNotesService {
       });
     }
 
-    return this.prisma.deliveryNote.update({
+    const updated = await this.prisma.deliveryNote.update({
       where: { id },
       data: {
         status: dto.status,
@@ -147,6 +148,7 @@ export class DeliveryNotesService {
         items: { include: { product: true } },
       },
     });
+    return mapDeliveryNoteResponse(updated);
   }
 
   async delete(id: string, companyId: string) {

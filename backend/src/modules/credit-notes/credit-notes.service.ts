@@ -110,7 +110,7 @@ export class CreditNotesService {
     const year = new Date().getFullYear();
     const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
 
-    return this.prisma.creditNote.create({
+    const created = await this.prisma.creditNote.create({
       data: {
         companyId,
         customerId: dto.customerId,
@@ -134,6 +134,7 @@ export class CreditNotesService {
         items: { include: { product: true } },
       },
     });
+    return mapCreditNoteResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateCreditNoteDto) {
@@ -193,7 +194,7 @@ export class CreditNotesService {
       updateData.issueDate = new Date();
     }
 
-    return this.prisma.creditNote.update({
+    const updated = await this.prisma.creditNote.update({
       where: { id },
       data: updateData,
       include: {
@@ -201,6 +202,7 @@ export class CreditNotesService {
         items: { include: { product: true } },
       },
     });
+    return mapCreditNoteResponse(updated);
   }
 
   async delete(id: string, companyId: string) {
