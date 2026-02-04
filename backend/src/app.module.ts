@@ -44,6 +44,16 @@ import { GavMetallbauModule } from './modules/gav-metallbau/gav-metallbau.module
 import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.module';
 // Reporting
 import { ReportsModule } from './modules/reports/reports.module';
+// Marketing & Sales
+import { MarketingModule } from './modules/marketing/marketing.module';
+// E-Commerce
+import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
+// Contracts
+import { ContractsModule } from './modules/contracts/contracts.module';
+// Recruiting
+import { RecruitingModule } from './modules/recruiting/recruiting.module';
+// Training
+import { TrainingModule } from './modules/training/training.module';
 
 @Module({
   imports: [
@@ -95,6 +105,16 @@ import { ReportsModule } from './modules/reports/reports.module';
     WithholdingTaxModule,
     // Reporting
     ReportsModule,
+    // Marketing & Sales
+    MarketingModule,
+    // E-Commerce
+    EcommerceModule,
+    // Contracts
+    ContractsModule,
+    // Recruiting
+    RecruitingModule,
+    // Training
+    TrainingModule,
   ],
 })
 export class AppModule {}
