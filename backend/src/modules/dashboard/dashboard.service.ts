@@ -17,16 +17,16 @@ export class DashboardService {
       this.prisma.project.count({ where: { companyId, status: 'ACTIVE' } }),
       this.prisma.invoice.aggregate({
         where: { companyId },
-        _sum: { total: true },
+        _sum: { totalAmount: true },
       }),
       this.prisma.invoice.aggregate({
         where: { companyId, status: 'PAID' },
-        _sum: { total: true },
+        _sum: { totalAmount: true },
       }),
     ]);
 
-    const totalRevenue = Number(paidInvoices._sum.total || 0);
-    const openInvoices = Number(totalInvoices._sum.total || 0) - totalRevenue;
+    const totalRevenue = Number(paidInvoices._sum.totalAmount || 0);
+    const openInvoices = Number(totalInvoices._sum.totalAmount || 0) - totalRevenue;
 
     return {
       totalRevenue,

@@ -43,7 +43,7 @@ export class CustomersService {
       data.map(async (customer) => {
         const invoiceStats = await this.prisma.invoice.aggregate({
           where: { customerId: customer.id },
-          _sum: { total: true },
+          _sum: { totalAmount: true },
         });
 
         const openInvoices = await this.prisma.invoice.count({
@@ -55,7 +55,7 @@ export class CustomersService {
 
         return {
           ...customer,
-          totalRevenue: invoiceStats._sum.total || 0,
+          totalRevenue: invoiceStats._sum.totalAmount || 0,
           openInvoices,
           projectCount: customer._count.projects,
         };
@@ -96,7 +96,7 @@ export class CustomersService {
     // Calculate aggregates
     const invoiceStats = await this.prisma.invoice.aggregate({
       where: { customerId: id },
-      _sum: { total: true, paidAmount: true },
+      _sum: { totalAmount: true, paidAmount: true },
     });
 
     const openInvoices = await this.prisma.invoice.count({
@@ -108,7 +108,7 @@ export class CustomersService {
 
     return {
       ...customer,
-      totalRevenue: invoiceStats._sum.total || 0,
+      totalRevenue: invoiceStats._sum.totalAmount || 0,
       totalPaid: invoiceStats._sum.paidAmount || 0,
       openInvoices,
       projectCount: customer._count.projects,
