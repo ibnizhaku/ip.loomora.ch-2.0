@@ -3088,13 +3088,13 @@ async function main() {
   // =====================================================
   console.log('📦 Erstelle Bank-Transaktionen...');
 
-  const bankAccounts = await prisma.bankAccount.findMany({ where: { companyId: company.id }, take: 1 });
+  const bankAccountsForTransactions = await prisma.bankAccount.findMany({ where: { companyId: company.id }, take: 1 });
 
-  if (bankAccounts.length > 0) {
+  if (bankAccountsForTransactions.length > 0) {
     await Promise.all([
       prisma.bankTransaction.create({
         data: {
-          bankAccountId: bankAccounts[0].id,
+          bankAccountId: bankAccountsForTransactions[0].id,
           entryReference: 'CAMT054-001',
           type: 'CREDIT',
           amount: 4850.50,
@@ -3112,7 +3112,7 @@ async function main() {
       }),
       prisma.bankTransaction.create({
         data: {
-          bankAccountId: bankAccounts[0].id,
+          bankAccountId: bankAccountsForTransactions[0].id,
           entryReference: 'CAMT054-002',
           type: 'CREDIT',
           amount: 12500.00,
@@ -3129,7 +3129,7 @@ async function main() {
       }),
       prisma.bankTransaction.create({
         data: {
-          bankAccountId: bankAccounts[0].id,
+          bankAccountId: bankAccountsForTransactions[0].id,
           entryReference: 'CAMT054-003',
           type: 'DEBIT',
           amount: 3250.80,
@@ -3145,7 +3145,7 @@ async function main() {
       }),
       prisma.bankTransaction.create({
         data: {
-          bankAccountId: bankAccounts[0].id,
+          bankAccountId: bankAccountsForTransactions[0].id,
           entryReference: 'CAMT054-004',
           type: 'CREDIT',
           amount: 868.29,
