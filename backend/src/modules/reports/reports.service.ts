@@ -496,7 +496,7 @@ export class ReportsService {
       },
     });
 
-    const qstEmployees = employees.filter(e => e.qstData?.isSubjectToQst);
+    const qstEmployees = employees.filter(e => e.qstData && e.qstData.status === 'ACTIVE');
     
     const byCanton: Record<string, { count: number; income: number; tax: number }> = {};
     const byTariff: Record<string, { count: number; income: number; tax: number }> = {};
@@ -505,8 +505,8 @@ export class ReportsService {
     let totalTax = 0;
 
     qstEmployees.forEach(emp => {
-      const canton = emp.qstData!.canton;
-      const tariff = emp.qstData!.tariff;
+      const canton = emp.qstData!.kanton;
+      const tariff = emp.qstData!.tarif;
       
       const income = emp.payslips.reduce((sum, ps) => sum + Number(ps.grossSalary || 0), 0);
       const tax = emp.payslips.reduce((sum, ps) => sum + Number(ps.quellensteuer || 0), 0);
@@ -575,7 +575,6 @@ export class ReportsService {
         },
         timeEntries: {
           where: { date: { gte: startDate, lte: endDate } },
-          include: { employee: true },
         },
       },
     });
@@ -587,7 +586,8 @@ export class ReportsService {
       // Calculate labor costs from time entries
       const laborCosts = project.timeEntries.reduce((sum, te) => {
         const hours = Number(te.duration || 0) / 60; // duration is in minutes
-        const hourlyRate = Number((te.employee as any).salary || 0) / 173.33; // Monthly to hourly
+        // Use TimeEntry's hourlyRate if set, otherwise estimate from a default rate
+        const hourlyRate = te.hourlyRate ? Number(te.hourlyRate) : 50; // Default CHF 50/hour
         return sum + (hours * hourlyRate);
       }, 0);
 

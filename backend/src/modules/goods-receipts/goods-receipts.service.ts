@@ -4,9 +4,8 @@ import {
   CreateGoodsReceiptDto, 
   UpdateGoodsReceiptDto, 
   QualityCheckDto,
-  GoodsReceiptStatus,
-  QualityStatus,
 } from './dto/goods-receipt.dto';
+import { GoodsReceiptStatus, QualityStatus } from '@prisma/client';
 
 @Injectable()
 export class GoodsReceiptsService {

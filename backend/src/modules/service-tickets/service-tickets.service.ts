@@ -5,9 +5,8 @@ import {
   UpdateServiceTicketDto, 
   ServiceReportDto,
   ScheduleTechnicianDto,
-  ServiceTicketStatus,
-  ServiceTicketPriority,
 } from './dto/service-ticket.dto';
+import { ServiceTicketStatus, ServiceTicketPriority } from '@prisma/client';
 
 @Injectable()
 export class ServiceTicketsService {

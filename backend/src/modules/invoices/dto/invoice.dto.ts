@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsString, IsOptional, IsNumber, IsDateString, IsEnum, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DocumentStatus } from '@prisma/client';
+import { InvoiceStatus } from '@prisma/client';
 
 export class InvoiceItemDto {
   @ApiProperty()
@@ -86,10 +86,10 @@ export class CreateInvoiceDto {
 }
 
 export class UpdateInvoiceDto extends PartialType(CreateInvoiceDto) {
-  @ApiPropertyOptional({ enum: DocumentStatus })
-  @IsEnum(DocumentStatus)
+  @ApiPropertyOptional({ enum: InvoiceStatus })
+  @IsEnum(InvoiceStatus)
   @IsOptional()
-  status?: DocumentStatus;
+  status?: InvoiceStatus;
 }
 
 export class RecordPaymentDto {
@@ -134,7 +134,7 @@ export class InvoiceResponseDto {
   orderId?: string;
 
   @ApiProperty()
-  status: DocumentStatus;
+  status: InvoiceStatus;
 
   @ApiProperty()
   issueDate: Date;

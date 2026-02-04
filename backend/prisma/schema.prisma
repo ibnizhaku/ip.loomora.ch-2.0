@@ -767,6 +767,9 @@ model Invoice {
   orderId         String?
   order           Order?   @relation(fields: [orderId], references: [id])
   
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id])
+  
   date            DateTime @default(now())
   dueDate         DateTime
   paidAt          DateTime?
@@ -1311,6 +1314,7 @@ model Project {
   tasks           Task[]
   timeEntries     TimeEntry[]
   orders          Order[]
+  invoices        Invoice[]
   purchaseOrders  PurchaseOrder[]
   members         ProjectMember[]
   boms            BillOfMaterial[]
