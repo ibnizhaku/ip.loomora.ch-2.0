@@ -1,0 +1,267 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateCreditNoteDto, UpdateCreditNoteDto, CreditNoteStatus } from './dto/credit-note.dto';
+import { Decimal } from '@prisma/client/runtime/library';
+
+@Injectable()
+export class CreditNotesService {
+  constructor(private prisma: PrismaService) {}
+
+  private readonly VAT_RATE = 8.1; // Swiss standard VAT
+
+  async findAll(companyId: string, params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    customerId?: string;
+    search?: string;
+  }) {
+    const { page = 1, pageSize = 20, status, customerId, search } = params;
+    const skip = (page - 1) * pageSize;
+
+    const where: any = { companyId };
+    if (status) where.status = status;
+    if (customerId) where.customerId = customerId;
+    if (search) {
+      where.OR = [
+        { number: { contains: search, mode: 'insensitive' } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.creditNote.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          customer: { select: { id: true, name: true } },
+          invoice: { select: { id: true, number: true } },
+          items: {
+            include: {
+              product: { select: { id: true, name: true, sku: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.creditNote.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async findOne(id: string, companyId: string) {
+    const creditNote = await this.prisma.creditNote.findFirst({
+      where: { id, companyId },
+      include: {
+        customer: true,
+        invoice: { select: { id: true, number: true } },
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
+    if (!creditNote) {
+      throw new NotFoundException('Gutschrift nicht gefunden');
+    }
+
+    return creditNote;
+  }
+
+  async create(companyId: string, dto: CreateCreditNoteDto) {
+    // Calculate totals
+    let subtotal = 0;
+    const itemsWithTotals = dto.items.map((item, index) => {
+      const vatRate = item.vatRate ?? this.VAT_RATE;
+      const lineTotal = item.quantity * item.unitPrice;
+      const vatAmount = lineTotal * (vatRate / 100);
+      subtotal += lineTotal;
+      
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        unit: item.unit || 'Stk',
+        description: item.description,
+        vatRate,
+        vatAmount,
+        total: lineTotal + vatAmount,
+        position: index + 1,
+      };
+    });
+
+    const vatAmount = subtotal * (this.VAT_RATE / 100);
+    const totalAmount = subtotal + vatAmount;
+
+    // Generate credit note number
+    const count = await this.prisma.creditNote.count({ where: { companyId } });
+    const year = new Date().getFullYear();
+    const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
+
+    return this.prisma.creditNote.create({
+      data: {
+        companyId,
+        customerId: dto.customerId,
+        invoiceId: dto.invoiceId,
+        number,
+        status: CreditNoteStatus.DRAFT,
+        reason: dto.reason,
+        reasonText: dto.reasonText,
+        issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+        subtotal,
+        vatRate: this.VAT_RATE,
+        vatAmount,
+        totalAmount,
+        notes: dto.notes,
+        items: {
+          create: itemsWithTotals,
+        },
+      },
+      include: {
+        customer: true,
+        items: { include: { product: true } },
+      },
+    });
+  }
+
+  async update(id: string, companyId: string, dto: UpdateCreditNoteDto) {
+    const creditNote = await this.findOne(id, companyId);
+
+    if (creditNote.status === CreditNoteStatus.APPLIED) {
+      throw new BadRequestException('Verbuchte Gutschrift kann nicht bearbeitet werden');
+    }
+
+    let updateData: any = {
+      status: dto.status,
+      reason: dto.reason,
+      reasonText: dto.reasonText,
+      notes: dto.notes,
+    };
+
+    // Recalculate if items changed
+    if (dto.items) {
+      await this.prisma.creditNoteItem.deleteMany({
+        where: { creditNoteId: id },
+      });
+
+      let subtotal = 0;
+      const itemsWithTotals = dto.items.map((item, index) => {
+        const vatRate = item.vatRate ?? this.VAT_RATE;
+        const lineTotal = item.quantity * item.unitPrice;
+        const vatAmount = lineTotal * (vatRate / 100);
+        subtotal += lineTotal;
+        
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unit: item.unit || 'Stk',
+          description: item.description,
+          vatRate,
+          vatAmount,
+          total: lineTotal + vatAmount,
+          position: index + 1,
+        };
+      });
+
+      const vatAmount = subtotal * (this.VAT_RATE / 100);
+      const totalAmount = subtotal + vatAmount;
+
+      updateData = {
+        ...updateData,
+        subtotal,
+        vatAmount,
+        totalAmount,
+        items: { create: itemsWithTotals },
+      };
+    }
+
+    // Set issued date when status changes to ISSUED
+    if (dto.status === CreditNoteStatus.ISSUED && creditNote.status === CreditNoteStatus.DRAFT) {
+      updateData.issueDate = new Date();
+    }
+
+    return this.prisma.creditNote.update({
+      where: { id },
+      data: updateData,
+      include: {
+        customer: true,
+        items: { include: { product: true } },
+      },
+    });
+  }
+
+  async delete(id: string, companyId: string) {
+    const creditNote = await this.findOne(id, companyId);
+
+    if (creditNote.status === CreditNoteStatus.APPLIED) {
+      throw new BadRequestException('Verbuchte Gutschrift kann nicht gelöscht werden');
+    }
+
+    await this.prisma.creditNoteItem.deleteMany({
+      where: { creditNoteId: id },
+    });
+
+    return this.prisma.creditNote.delete({ where: { id } });
+  }
+
+  // Create credit note from invoice (for returns/corrections)
+  async createFromInvoice(invoiceId: string, companyId: string, reason: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      include: { items: true, customer: true },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Rechnung nicht gefunden');
+    }
+
+    const count = await this.prisma.creditNote.count({ where: { companyId } });
+    const year = new Date().getFullYear();
+    const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
+
+    return this.prisma.creditNote.create({
+      data: {
+        companyId,
+        customerId: invoice.customerId,
+        invoiceId: invoice.id,
+        number,
+        status: CreditNoteStatus.DRAFT,
+        reason: reason as any,
+        issueDate: new Date(),
+        subtotal: invoice.subtotal,
+        vatRate: Number(invoice.vatRate),
+        vatAmount: invoice.vatAmount,
+        totalAmount: invoice.totalAmount,
+        items: {
+          create: invoice.items.map((item, index) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+            unit: item.unit || 'Stk',
+            description: item.description,
+            vatRate: Number(item.vatRate),
+            vatAmount: Number(item.vatAmount),
+            total: Number(item.total),
+            position: index + 1,
+          })),
+        },
+      },
+      include: {
+        customer: true,
+        invoice: { select: { id: true, number: true } },
+        items: { include: { product: true } },
+      },
+    });
+  }
+}

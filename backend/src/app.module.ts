@@ -19,6 +19,10 @@ import { QuotesModule } from './modules/quotes/quotes.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { DeliveryNotesModule } from './modules/delivery-notes/delivery-notes.module';
+import { CreditNotesModule } from './modules/credit-notes/credit-notes.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -44,6 +48,10 @@ import { FinanceModule } from './modules/finance/finance.module';
     OrdersModule,
     InvoicesModule,
     FinanceModule,
+    DeliveryNotesModule,
+    CreditNotesModule,
+    RemindersModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
