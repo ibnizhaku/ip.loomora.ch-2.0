@@ -15,6 +15,10 @@ import { EmployeesModule } from './modules/employees/employees.module';
 import { AbsencesModule } from './modules/absences/absences.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
+import { QuotesModule } from './modules/quotes/quotes.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { FinanceModule } from './modules/finance/finance.module';
 
 @Module({
   imports: [
@@ -36,6 +40,10 @@ import { HealthModule } from './modules/health/health.module';
     AbsencesModule,
     DashboardModule,
     HealthModule,
+    QuotesModule,
+    OrdersModule,
+    InvoicesModule,
+    FinanceModule,
   ],
 })
 export class AppModule {}

@@ -1,0 +1,84 @@
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ProductsService } from './products.service';
+import { CreateProductDto, UpdateProductDto, AdjustStockDto } from './dto/product.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+
+@ApiTags('Products')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('products')
+export class ProductsController {
+  constructor(private productsService: ProductsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all products' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'sortBy', required: false, type: String })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+  @ApiQuery({ name: 'categoryId', required: false, type: String })
+  @ApiQuery({ name: 'isService', required: false, type: String })
+  findAll(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query() query: PaginationDto & { categoryId?: string; isService?: string },
+  ) {
+    return this.productsService.findAll(user.companyId, query);
+  }
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Get all product categories' })
+  findAllCategories(@CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.findAllCategories(user.companyId);
+  }
+
+  @Post('categories')
+  @ApiOperation({ summary: 'Create product category' })
+  createCategory(
+    @Body() data: { name: string; description?: string },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.productsService.createCategory(user.companyId, data);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get product by ID' })
+  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.findOne(id, user.companyId);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create new product' })
+  create(@Body() dto: CreateProductDto, @CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.create(user.companyId, dto);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update product' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.productsService.update(id, user.companyId, dto);
+  }
+
+  @Post(':id/adjust-stock')
+  @ApiOperation({ summary: 'Adjust product stock' })
+  adjustStock(
+    @Param('id') id: string,
+    @Body() dto: AdjustStockDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.productsService.adjustStock(id, user.companyId, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Deactivate product' })
+  remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.remove(id, user.companyId);
+  }
+}
