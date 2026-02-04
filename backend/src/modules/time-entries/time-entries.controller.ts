@@ -1,0 +1,58 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { TimeEntriesService } from './time-entries.service';
+import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto } from './dto/time-entry.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+
+@ApiTags('Time Entries')
+@Controller('time-entries')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+export class TimeEntriesController {
+  constructor(private timeEntriesService: TimeEntriesService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all time entries for current user' })
+  findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: TimeEntryQueryDto) {
+    return this.timeEntriesService.findAll(user.companyId, user.userId, query);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get time tracking statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.timeEntriesService.getStats(user.companyId, user.userId);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create new time entry' })
+  create(@CurrentUser() user: CurrentUserPayload, @Body() dto: CreateTimeEntryDto) {
+    return this.timeEntriesService.create(user.companyId, user.userId, dto);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update time entry' })
+  update(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateTimeEntryDto,
+  ) {
+    return this.timeEntriesService.update(id, user.companyId, user.userId, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete time entry' })
+  delete(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+    return this.timeEntriesService.delete(id, user.companyId, user.userId);
+  }
+}

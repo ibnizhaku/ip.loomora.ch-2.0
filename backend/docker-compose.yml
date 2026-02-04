@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: loomora-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: loomora
+      POSTGRES_PASSWORD: loomora_secret
+      POSTGRES_DB: loomora
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loomora -d loomora"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: loomora-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://loomora:loomora_secret@postgres:5432/loomora?schema=public
+      PORT: 3001
+      HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-min-32-characters-long}
+      JWT_ACCESS_EXPIRATION: 15m
+      JWT_REFRESH_EXPIRATION: 7d
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    command: >
+      sh -c "npx prisma migrate deploy && npm run start:prod"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  default:
+    name: loomora-network

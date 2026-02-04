@@ -1,0 +1,203 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateProjectDto, UpdateProjectDto, ProjectQueryDto } from './dto/project.dto';
+
+@Injectable()
+export class ProjectsService {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll(companyId: string, query: ProjectQueryDto) {
+    const { page = 1, pageSize = 10, search, sortBy = 'createdAt', sortOrder = 'desc', status, priority } = query;
+    const { skip, take } = this.prisma.getPagination(page, pageSize);
+
+    const where: any = { companyId };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { number: { contains: search, mode: 'insensitive' } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (priority) {
+      where.priority = priority;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.project.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          customer: {
+            select: { id: true, name: true, companyName: true },
+          },
+          manager: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          members: {
+            include: {
+              employee: {
+                select: { id: true, firstName: true, lastName: true },
+              },
+            },
+          },
+          _count: {
+            select: { tasks: true, timeEntries: true },
+          },
+        },
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+
+    // Transform data to match frontend format
+    const transformedData = data.map((p) => ({
+      id: p.id,
+      number: p.number,
+      name: p.name,
+      client: p.customer?.companyName || p.customer?.name || 'Kein Kunde',
+      status: p.status.toLowerCase().replace('_', '-'),
+      priority: p.priority.toLowerCase(),
+      progress: p.progress,
+      budget: Number(p.budget) || 0,
+      spent: Number(p.spent) || 0,
+      startDate: p.startDate?.toISOString().split('T')[0],
+      endDate: p.endDate?.toISOString().split('T')[0],
+      team: p.members.map((m) => 
+        `${m.employee.firstName.charAt(0)}${m.employee.lastName.charAt(0)}`
+      ),
+      taskCount: p._count.tasks,
+      timeEntryCount: p._count.timeEntries,
+    }));
+
+    return this.prisma.createPaginatedResponse(transformedData, total, page, pageSize);
+  }
+
+  async findById(id: string, companyId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id, companyId },
+      include: {
+        customer: true,
+        manager: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+        members: {
+          include: {
+            employee: {
+              select: { id: true, firstName: true, lastName: true, position: true },
+            },
+          },
+        },
+        tasks: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return {
+      ...project,
+      budget: Number(project.budget),
+      spent: Number(project.spent),
+    };
+  }
+
+  async create(companyId: string, userId: string, dto: CreateProjectDto) {
+    // Generate project number
+    const company = await this.prisma.company.update({
+      where: { id: companyId },
+      data: { projectCounter: { increment: 1 } },
+    });
+
+    const number = `PRJ-${new Date().getFullYear()}-${String(company.projectCounter).padStart(4, '0')}`;
+
+    const project = await this.prisma.project.create({
+      data: {
+        number,
+        name: dto.name,
+        description: dto.description,
+        customerId: dto.customerId,
+        status: dto.status || 'PLANNING',
+        priority: dto.priority || 'MEDIUM',
+        startDate: dto.startDate ? new Date(dto.startDate) : null,
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        budget: dto.budget,
+        createdById: userId,
+        managerId: dto.managerId,
+        companyId,
+      },
+      include: {
+        customer: true,
+        manager: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    return project;
+  }
+
+  async update(id: string, companyId: string, dto: UpdateProjectDto) {
+    const project = await this.prisma.project.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return this.prisma.project.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        description: dto.description,
+        customerId: dto.customerId,
+        status: dto.status,
+        priority: dto.priority,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        budget: dto.budget,
+        progress: dto.progress,
+        managerId: dto.managerId,
+      },
+    });
+  }
+
+  async delete(id: string, companyId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    await this.prisma.project.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // Statistics for dashboard
+  async getStats(companyId: string) {
+    const [total, active, completed, paused] = await Promise.all([
+      this.prisma.project.count({ where: { companyId } }),
+      this.prisma.project.count({ where: { companyId, status: 'ACTIVE' } }),
+      this.prisma.project.count({ where: { companyId, status: 'COMPLETED' } }),
+      this.prisma.project.count({ where: { companyId, status: 'PAUSED' } }),
+    ]);
+
+    return { total, active, completed, paused };
+  }
+}
