@@ -1,25 +1,33 @@
-import { PrismaClient, UserRole, ProjectStatus, TaskStatus, TaskPriority, AbsenceType, AbsenceStatus, PaymentTerms, VatRate, DocumentStatus, PaymentStatus, PaymentMethod, AccountType, EntryType, TransactionType, ProductionStatus, QualityStatus, ServiceStatus, ServicePriority, ContractStatus, CampaignStatus, LeadStatus, EmploymentType, PayrollStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Helper to create dates relative to today
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+const daysFromNow = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+const monthStart = (monthsAgo: number = 0) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - monthsAgo);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
 async function main() {
-  console.log('🌱 Starting seed...');
+  console.log('🌱 Loomora ERP - Vollständige Seed-Daten');
+  console.log('========================================\n');
 
-  // Clean existing data
-  await prisma.$executeRaw`TRUNCATE TABLE "AuditLog" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "TimeEntry" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "Task" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "Project" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "Absence" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "Employee" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "CalendarEvent" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "User" CASCADE`;
-  await prisma.$executeRaw`TRUNCATE TABLE "Company" CASCADE`;
+  // =====================================================
+  // 1. COMPANY & USERS
+  // =====================================================
+  console.log('📦 Erstelle Firma und Benutzer...');
 
-  // 1. Create Company
-  const company = await prisma.company.create({
-    data: {
+  const company = await prisma.company.upsert({
+    where: { id: 'loomora-demo' },
+    update: {},
+    create: {
+      id: 'loomora-demo',
       name: 'Loomora Metallbau AG',
       legalName: 'Loomora Metallbau AG',
       street: 'Industriestrasse 42',
@@ -33,178 +41,541 @@ async function main() {
       iban: 'CH93 0076 2011 6238 5295 7',
       bic: 'UBSWCHZH80A',
       bankName: 'UBS Switzerland AG',
-      defaultVatRate: 8.1,
-      defaultPaymentTerms: 30,
-      fiscalYearStart: 1,
-      currency: 'CHF',
+      settings: {
+        currency: 'CHF',
+        locale: 'de-CH',
+        vatRates: { standard: 8.1, reduced: 2.6, special: 3.8 },
+        numberFormat: {
+          invoicePrefix: 'RE-',
+          quotePrefix: 'AN-',
+          orderPrefix: 'AU-',
+          deliveryPrefix: 'LS-',
+          creditNotePrefix: 'GS-',
+          purchasePrefix: 'BE-',
+        },
+      },
     },
   });
-  console.log('✓ Company created');
 
-  // 2. Create Admin User
   const passwordHash = await bcrypt.hash('admin123', 12);
-  const adminUser = await prisma.user.create({
-    data: {
+  
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@loomora.ch' },
+    update: {},
+    create: {
       email: 'admin@loomora.ch',
       passwordHash,
-      firstName: 'Admin',
-      lastName: 'User',
-      role: UserRole.ADMIN,
+      firstName: 'Max',
+      lastName: 'Keller',
+      role: 'ADMIN',
       companyId: company.id,
     },
   });
-  console.log('✓ Admin user created (admin@loomora.ch / admin123)');
 
-  // 3. Create Employees
+  const managerUser = await prisma.user.upsert({
+    where: { email: 'manager@loomora.ch' },
+    update: {},
+    create: {
+      email: 'manager@loomora.ch',
+      passwordHash,
+      firstName: 'Anna',
+      lastName: 'Schmidt',
+      role: 'MANAGER',
+      companyId: company.id,
+    },
+  });
+
+  console.log('  ✓ Firma und 2 Benutzer erstellt');
+
+  // =====================================================
+  // 2. DEPARTMENTS
+  // =====================================================
+  console.log('📦 Erstelle Abteilungen...');
+
+  const departments = await Promise.all([
+    prisma.department.upsert({
+      where: { id: 'dept-management' },
+      update: {},
+      create: { id: 'dept-management', name: 'Geschäftsleitung', description: 'Unternehmensführung', companyId: company.id },
+    }),
+    prisma.department.upsert({
+      where: { id: 'dept-production' },
+      update: {},
+      create: { id: 'dept-production', name: 'Produktion', description: 'Fertigung und Werkstatt', companyId: company.id },
+    }),
+    prisma.department.upsert({
+      where: { id: 'dept-montage' },
+      update: {},
+      create: { id: 'dept-montage', name: 'Montage', description: 'Aussenmontage', companyId: company.id },
+    }),
+    prisma.department.upsert({
+      where: { id: 'dept-admin' },
+      update: {},
+      create: { id: 'dept-admin', name: 'Administration', description: 'Buchhaltung und Verwaltung', companyId: company.id },
+    }),
+  ]);
+
+  console.log('  ✓ 4 Abteilungen erstellt');
+
+  // =====================================================
+  // 3. EMPLOYEES
+  // =====================================================
+  console.log('📦 Erstelle Mitarbeiter...');
+
   const employees = await Promise.all([
-    prisma.employee.create({
-      data: {
-        number: 'EMP-001',
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0001' } },
+      update: {},
+      create: {
+        number: 'MA-0001',
         firstName: 'Thomas',
         lastName: 'Müller',
         email: 'thomas.mueller@loomora.ch',
-        phone: '+41 79 123 45 01',
-        position: 'Projektleiter',
-        department: 'Projekte',
-        employmentType: EmploymentType.FULL_TIME,
-        workloadPercent: 100,
-        hourlyRate: 95,
-        monthlyGrossSalary: 8500,
-        hireDate: new Date('2020-01-15'),
+        phone: '+41 44 123 45 10',
+        mobile: '+41 79 123 45 10',
+        position: 'Geschäftsführer',
+        departmentId: departments[0].id,
+        status: 'ACTIVE',
+        hireDate: new Date('2015-01-01'),
         ahvNumber: '756.1234.5678.90',
-        companyId: company.id,
-      },
-    }),
-    prisma.employee.create({
-      data: {
-        number: 'EMP-002',
-        firstName: 'Sarah',
-        lastName: 'Weber',
-        email: 'sarah.weber@loomora.ch',
-        phone: '+41 79 123 45 02',
-        position: 'Metallbauer',
-        department: 'Produktion',
-        employmentType: EmploymentType.FULL_TIME,
+        dateOfBirth: new Date('1975-03-15'),
+        nationality: 'CH',
+        maritalStatus: 'verheiratet',
+        childrenCount: 2,
+        employmentType: 'Vollzeit',
         workloadPercent: 100,
-        hourlyRate: 75,
-        monthlyGrossSalary: 6200,
-        hireDate: new Date('2021-03-01'),
-        ahvNumber: '756.2345.6789.01',
+        iban: 'CH82 0900 0000 1234 5678 9',
         companyId: company.id,
       },
     }),
-    prisma.employee.create({
-      data: {
-        number: 'EMP-003',
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0002' } },
+      update: {},
+      create: {
+        number: 'MA-0002',
+        firstName: 'Peter',
+        lastName: 'Huber',
+        email: 'peter.huber@loomora.ch',
+        phone: '+41 44 123 45 11',
+        mobile: '+41 79 123 45 11',
+        position: 'Werkstattleiter',
+        departmentId: departments[1].id,
+        status: 'ACTIVE',
+        hireDate: new Date('2018-04-01'),
+        ahvNumber: '756.2345.6789.01',
+        dateOfBirth: new Date('1982-07-22'),
+        nationality: 'CH',
+        maritalStatus: 'ledig',
+        childrenCount: 0,
+        employmentType: 'Vollzeit',
+        workloadPercent: 100,
+        iban: 'CH45 0023 0023 1234 5678 9',
+        companyId: company.id,
+      },
+    }),
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0003' } },
+      update: {},
+      create: {
+        number: 'MA-0003',
         firstName: 'Marco',
         lastName: 'Bernasconi',
         email: 'marco.bernasconi@loomora.ch',
-        phone: '+41 79 123 45 03',
-        position: 'Schweisser',
-        department: 'Produktion',
-        employmentType: EmploymentType.FULL_TIME,
-        workloadPercent: 100,
-        hourlyRate: 70,
-        monthlyGrossSalary: 5800,
-        hireDate: new Date('2019-06-15'),
+        mobile: '+41 79 123 45 12',
+        position: 'Schweisser EFZ',
+        departmentId: departments[1].id,
+        status: 'ACTIVE',
+        hireDate: new Date('2019-08-01'),
         ahvNumber: '756.3456.7890.12',
+        dateOfBirth: new Date('1990-11-05'),
+        nationality: 'IT',
+        maritalStatus: 'verheiratet',
+        childrenCount: 1,
+        employmentType: 'Vollzeit',
+        workloadPercent: 100,
+        iban: 'CH12 0483 5012 3456 7890 0',
         companyId: company.id,
       },
     }),
-    prisma.employee.create({
-      data: {
-        number: 'EMP-004',
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0004' } },
+      update: {},
+      create: {
+        number: 'MA-0004',
+        firstName: 'Sarah',
+        lastName: 'Weber',
+        email: 'sarah.weber@loomora.ch',
+        phone: '+41 44 123 45 13',
+        position: 'Metallbauer EFZ',
+        departmentId: departments[1].id,
+        status: 'ACTIVE',
+        hireDate: new Date('2020-02-01'),
+        ahvNumber: '756.4567.8901.23',
+        dateOfBirth: new Date('1995-02-28'),
+        nationality: 'CH',
+        maritalStatus: 'ledig',
+        childrenCount: 0,
+        employmentType: 'Vollzeit',
+        workloadPercent: 100,
+        iban: 'CH78 0900 0000 8765 4321 0',
+        companyId: company.id,
+      },
+    }),
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0005' } },
+      update: {},
+      create: {
+        number: 'MA-0005',
+        firstName: 'Andreas',
+        lastName: 'Frei',
+        email: 'andreas.frei@loomora.ch',
+        mobile: '+41 79 123 45 14',
+        position: 'Monteur',
+        departmentId: departments[2].id,
+        status: 'ACTIVE',
+        hireDate: new Date('2021-03-15'),
+        ahvNumber: '756.5678.9012.34',
+        dateOfBirth: new Date('1988-09-12'),
+        nationality: 'CH',
+        maritalStatus: 'verheiratet',
+        childrenCount: 3,
+        employmentType: 'Vollzeit',
+        workloadPercent: 100,
+        iban: 'CH34 0076 2011 0987 6543 2',
+        companyId: company.id,
+      },
+    }),
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0006' } },
+      update: {},
+      create: {
+        number: 'MA-0006',
         firstName: 'Lisa',
         lastName: 'Keller',
         email: 'lisa.keller@loomora.ch',
-        phone: '+41 79 123 45 04',
+        phone: '+41 44 123 45 15',
         position: 'Buchhalterin',
-        department: 'Finanzen',
-        employmentType: EmploymentType.PART_TIME,
-        workloadPercent: 60,
-        hourlyRate: 65,
-        monthlyGrossSalary: 3900,
+        departmentId: departments[3].id,
+        status: 'ACTIVE',
         hireDate: new Date('2022-01-01'),
-        ahvNumber: '756.4567.8901.23',
+        ahvNumber: '756.6789.0123.45',
+        dateOfBirth: new Date('1992-05-18'),
+        nationality: 'CH',
+        maritalStatus: 'ledig',
+        childrenCount: 0,
+        employmentType: 'Teilzeit',
+        workloadPercent: 60,
+        iban: 'CH56 0483 5098 7654 3210 0',
+        companyId: company.id,
+      },
+    }),
+    prisma.employee.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'MA-0007' } },
+      update: {},
+      create: {
+        number: 'MA-0007',
+        firstName: 'Yusuf',
+        lastName: 'Özdemir',
+        email: 'yusuf.oezdemir@loomora.ch',
+        mobile: '+41 79 123 45 16',
+        position: 'Metallbauer Anlernling',
+        departmentId: departments[1].id,
+        status: 'ACTIVE',
+        hireDate: new Date('2023-08-01'),
+        ahvNumber: '756.7890.1234.56',
+        dateOfBirth: new Date('1998-12-03'),
+        nationality: 'TR',
+        maritalStatus: 'ledig',
+        childrenCount: 0,
+        employmentType: 'Vollzeit',
+        workloadPercent: 100,
+        iban: 'CH90 0900 0000 5555 6666 7',
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 4 Employees created');
 
-  // 4. Create Customers
-  const customers = await Promise.all([
-    prisma.customer.create({
+  console.log('  ✓ 7 Mitarbeiter erstellt');
+
+  // =====================================================
+  // 4. EMPLOYEE CONTRACTS
+  // =====================================================
+  console.log('📦 Erstelle Arbeitsverträge...');
+
+  await Promise.all([
+    prisma.employeeContract.create({
       data: {
-        number: 'K-001',
-        name: 'Immobilien Zürich AG',
+        employeeId: employees[0].id,
+        contractType: 'Unbefristet',
+        startDate: new Date('2015-01-01'),
+        salaryType: 'Monatslohn',
+        baseSalary: 12500,
+        hourlyRate: 72,
+        wageClass: 'F',
+        workHoursPerWeek: 42.5,
+        vacationDays: 25,
+        noticePeriod: '3 Monate',
+      },
+    }),
+    prisma.employeeContract.create({
+      data: {
+        employeeId: employees[1].id,
+        contractType: 'Unbefristet',
+        startDate: new Date('2018-04-01'),
+        salaryType: 'Monatslohn',
+        baseSalary: 7800,
+        hourlyRate: 45,
+        wageClass: 'E',
+        workHoursPerWeek: 42.5,
+        vacationDays: 25,
+        noticePeriod: '2 Monate',
+      },
+    }),
+    prisma.employeeContract.create({
+      data: {
+        employeeId: employees[2].id,
+        contractType: 'Unbefristet',
+        startDate: new Date('2019-08-01'),
+        salaryType: 'Stundenlohn',
+        baseSalary: 6200,
+        hourlyRate: 35.80,
+        wageClass: 'C',
+        workHoursPerWeek: 42.5,
+        vacationDays: 25,
+        noticePeriod: '2 Monate',
+      },
+    }),
+    prisma.employeeContract.create({
+      data: {
+        employeeId: employees[3].id,
+        contractType: 'Unbefristet',
+        startDate: new Date('2020-02-01'),
+        salaryType: 'Stundenlohn',
+        baseSalary: 5800,
+        hourlyRate: 33.50,
+        wageClass: 'C',
+        workHoursPerWeek: 42.5,
+        vacationDays: 25,
+        noticePeriod: '2 Monate',
+      },
+    }),
+    prisma.employeeContract.create({
+      data: {
+        employeeId: employees[4].id,
+        contractType: 'Unbefristet',
+        startDate: new Date('2021-03-15'),
+        salaryType: 'Stundenlohn',
+        baseSalary: 5500,
+        hourlyRate: 31.80,
+        wageClass: 'C',
+        workHoursPerWeek: 42.5,
+        vacationDays: 25,
+        noticePeriod: '2 Monate',
+      },
+    }),
+    prisma.employeeContract.create({
+      data: {
+        employeeId: employees[5].id,
+        contractType: 'Unbefristet',
+        startDate: new Date('2022-01-01'),
+        salaryType: 'Monatslohn',
+        baseSalary: 3900,
+        hourlyRate: 37.50,
+        wageClass: 'D',
+        workHoursPerWeek: 25.5,
+        vacationDays: 25,
+        noticePeriod: '2 Monate',
+      },
+    }),
+    prisma.employeeContract.create({
+      data: {
+        employeeId: employees[6].id,
+        contractType: 'Befristet',
+        startDate: new Date('2023-08-01'),
+        endDate: new Date('2024-07-31'),
+        salaryType: 'Stundenlohn',
+        baseSalary: 4200,
+        hourlyRate: 24.30,
+        wageClass: 'B',
+        workHoursPerWeek: 42.5,
+        vacationDays: 20,
+        probationEnd: new Date('2023-11-01'),
+        noticePeriod: '1 Monat',
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 7 Arbeitsverträge erstellt');
+
+  // =====================================================
+  // 5. CUSTOMERS
+  // =====================================================
+  console.log('📦 Erstelle Kunden...');
+
+  const customers = await Promise.all([
+    prisma.customer.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'KD-0001' } },
+      update: {},
+      create: {
+        number: 'KD-0001',
+        name: 'Hans Müller',
         companyName: 'Immobilien Zürich AG',
         street: 'Bahnhofstrasse 100',
         zipCode: '8001',
         city: 'Zürich',
         country: 'CH',
-        email: 'kontakt@immo-zh.ch',
+        email: 'h.mueller@immo-zh.ch',
         phone: '+41 44 200 30 40',
         vatNumber: 'CHE-111.222.333 MWST',
         paymentTermDays: 30,
+        creditLimit: 100000,
         companyId: company.id,
       },
     }),
-    prisma.customer.create({
-      data: {
-        number: 'K-002',
-        name: 'Bau Meier GmbH',
+    prisma.customer.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'KD-0002' } },
+      update: {},
+      create: {
+        number: 'KD-0002',
+        name: 'Peter Meier',
         companyName: 'Bau Meier GmbH',
         street: 'Werkstrasse 55',
         zipCode: '8400',
         city: 'Winterthur',
         country: 'CH',
-        email: 'info@bau-meier.ch',
+        email: 'p.meier@bau-meier.ch',
         phone: '+41 52 300 40 50',
         vatNumber: 'CHE-222.333.444 MWST',
         paymentTermDays: 30,
+        creditLimit: 75000,
         companyId: company.id,
       },
     }),
-    prisma.customer.create({
-      data: {
-        number: 'K-003',
-        name: 'Hotel Bellevue',
+    prisma.customer.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'KD-0003' } },
+      update: {},
+      create: {
+        number: 'KD-0003',
+        name: 'Maria Steiner',
         companyName: 'Hotel Bellevue AG',
         street: 'Seestrasse 12',
         zipCode: '6004',
         city: 'Luzern',
         country: 'CH',
-        email: 'empfang@bellevue.ch',
+        email: 'steiner@bellevue.ch',
         phone: '+41 41 400 50 60',
         paymentTermDays: 14,
+        creditLimit: 50000,
         companyId: company.id,
       },
     }),
-    prisma.customer.create({
-      data: {
-        number: 'K-004',
-        name: 'Architektur Studio Bern',
-        companyName: 'Architektur Studio Bern GmbH',
+    prisma.customer.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'KD-0004' } },
+      update: {},
+      create: {
+        number: 'KD-0004',
+        name: 'Sandra Roth',
+        companyName: 'Architektur Studio Bern',
         street: 'Bundesplatz 8',
         zipCode: '3011',
         city: 'Bern',
         country: 'CH',
-        email: 'projekte@arch-bern.ch',
+        email: 's.roth@arch-bern.ch',
         phone: '+41 31 500 60 70',
         paymentTermDays: 30,
+        creditLimit: 60000,
+        companyId: company.id,
+      },
+    }),
+    prisma.customer.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'KD-0005' } },
+      update: {},
+      create: {
+        number: 'KD-0005',
+        name: 'Beat Brunner',
+        companyName: 'Brunner Generalunternehmung AG',
+        street: 'Industrieweg 22',
+        zipCode: '4600',
+        city: 'Olten',
+        country: 'CH',
+        email: 'brunner@brunner-gu.ch',
+        phone: '+41 62 600 70 80',
+        vatNumber: 'CHE-444.555.666 MWST',
+        paymentTermDays: 45,
+        creditLimit: 150000,
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 4 Customers created');
 
-  // 5. Create Suppliers
-  const suppliers = await Promise.all([
-    prisma.supplier.create({
+  console.log('  ✓ 5 Kunden erstellt');
+
+  // =====================================================
+  // 6. CONTACTS
+  // =====================================================
+  console.log('📦 Erstelle Kontakte...');
+
+  await Promise.all([
+    prisma.contact.create({
       data: {
-        number: 'L-001',
-        name: 'Stahl Schweiz AG',
+        firstName: 'Hans',
+        lastName: 'Müller',
+        position: 'Geschäftsführer',
+        email: 'h.mueller@immo-zh.ch',
+        phone: '+41 44 200 30 41',
+        isPrimary: true,
+        customerId: customers[0].id,
+      },
+    }),
+    prisma.contact.create({
+      data: {
+        firstName: 'Claudia',
+        lastName: 'Zurfluh',
+        position: 'Projektleiterin',
+        email: 'c.zurfluh@immo-zh.ch',
+        phone: '+41 44 200 30 42',
+        mobile: '+41 79 200 30 42',
+        customerId: customers[0].id,
+      },
+    }),
+    prisma.contact.create({
+      data: {
+        firstName: 'Peter',
+        lastName: 'Meier',
+        position: 'Inhaber',
+        email: 'p.meier@bau-meier.ch',
+        phone: '+41 52 300 40 51',
+        isPrimary: true,
+        customerId: customers[1].id,
+      },
+    }),
+    prisma.contact.create({
+      data: {
+        firstName: 'Maria',
+        lastName: 'Steiner',
+        position: 'Direktorin',
+        email: 'steiner@bellevue.ch',
+        phone: '+41 41 400 50 61',
+        isPrimary: true,
+        customerId: customers[2].id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 4 Kontakte erstellt');
+
+  // =====================================================
+  // 7. SUPPLIERS
+  // =====================================================
+  console.log('📦 Erstelle Lieferanten...');
+
+  const suppliers = await Promise.all([
+    prisma.supplier.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'LF-0001' } },
+      update: {},
+      create: {
+        number: 'LF-0001',
+        name: 'Franz Hofer',
         companyName: 'Stahl Schweiz AG',
         street: 'Industrieweg 100',
         zipCode: '4600',
@@ -219,10 +590,12 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.supplier.create({
-      data: {
-        number: 'L-002',
-        name: 'Schrauben Express',
+    prisma.supplier.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'LF-0002' } },
+      update: {},
+      create: {
+        number: 'LF-0002',
+        name: 'Kurt Baumann',
         companyName: 'Schrauben Express GmbH',
         street: 'Gewerbepark 22',
         zipCode: '5000',
@@ -236,10 +609,12 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.supplier.create({
-      data: {
-        number: 'L-003',
-        name: 'Farben & Lacke AG',
+    prisma.supplier.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'LF-0003' } },
+      update: {},
+      create: {
+        number: 'LF-0003',
+        name: 'Fabienne Gerber',
         companyName: 'Farben & Lacke AG',
         street: 'Chemiestrasse 8',
         zipCode: '4058',
@@ -247,42 +622,79 @@ async function main() {
         country: 'CH',
         email: 'order@farben-lacke.ch',
         phone: '+41 61 300 40 50',
+        iban: 'CH78 0483 5012 3456 7890 0',
         paymentTermDays: 30,
         rating: 4,
         companyId: company.id,
       },
     }),
+    prisma.supplier.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'LF-0004' } },
+      update: {},
+      create: {
+        number: 'LF-0004',
+        name: 'Reto Ammann',
+        companyName: 'Glaserei Ammann',
+        street: 'Glaserweg 5',
+        zipCode: '8953',
+        city: 'Dietikon',
+        country: 'CH',
+        email: 'info@glaserei-ammann.ch',
+        phone: '+41 44 740 20 30',
+        paymentTermDays: 30,
+        rating: 5,
+        companyId: company.id,
+      },
+    }),
   ]);
-  console.log('✓ 3 Suppliers created');
 
-  // 6. Create Product Categories
+  console.log('  ✓ 4 Lieferanten erstellt');
+
+  // =====================================================
+  // 8. PRODUCT CATEGORIES & PRODUCTS
+  // =====================================================
+  console.log('📦 Erstelle Produkte...');
+
   const categories = await Promise.all([
-    prisma.productCategory.create({
-      data: { name: 'Stahl & Metall', description: 'Rohmaterial Stahl und Metalle', companyId: company.id },
+    prisma.productCategory.upsert({
+      where: { id: 'cat-stahl' },
+      update: {},
+      create: { id: 'cat-stahl', name: 'Stahl & Metall', description: 'Rohmaterial Stahl und Metalle', companyId: company.id },
     }),
-    prisma.productCategory.create({
-      data: { name: 'Befestigungsmaterial', description: 'Schrauben, Muttern, Bolzen', companyId: company.id },
+    prisma.productCategory.upsert({
+      where: { id: 'cat-befestigung' },
+      update: {},
+      create: { id: 'cat-befestigung', name: 'Befestigungsmaterial', description: 'Schrauben, Muttern, Bolzen', companyId: company.id },
     }),
-    prisma.productCategory.create({
-      data: { name: 'Oberflächenbehandlung', description: 'Lacke, Farben, Beschichtungen', companyId: company.id },
+    prisma.productCategory.upsert({
+      where: { id: 'cat-oberflaeche' },
+      update: {},
+      create: { id: 'cat-oberflaeche', name: 'Oberflächenbehandlung', description: 'Lacke, Farben, Beschichtungen', companyId: company.id },
     }),
-    prisma.productCategory.create({
-      data: { name: 'Dienstleistungen', description: 'Arbeitsleistungen und Services', companyId: company.id },
+    prisma.productCategory.upsert({
+      where: { id: 'cat-glas' },
+      update: {},
+      create: { id: 'cat-glas', name: 'Glas', description: 'Sicherheitsglas und Glasfüllungen', companyId: company.id },
+    }),
+    prisma.productCategory.upsert({
+      where: { id: 'cat-service' },
+      update: {},
+      create: { id: 'cat-service', name: 'Dienstleistungen', description: 'Arbeitsleistungen und Services', companyId: company.id },
     }),
   ]);
-  console.log('✓ 4 Product Categories created');
 
-  // 7. Create Products
   const products = await Promise.all([
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'STAHL-001' } },
+      update: {},
+      create: {
         sku: 'STAHL-001',
         name: 'Stahlprofil IPE 200',
-        description: 'I-Profil Träger 200mm',
+        description: 'I-Profil Träger 200mm, S235JR',
         unit: 'lfm',
         purchasePrice: 45.00,
         salePrice: 68.00,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         stockQuantity: 250,
         minStock: 50,
         categoryId: categories[0].id,
@@ -290,15 +702,17 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'STAHL-002' } },
+      update: {},
+      create: {
         sku: 'STAHL-002',
         name: 'Stahlblech 2mm verzinkt',
-        description: 'Verzinktes Stahlblech 2mm Stärke',
+        description: 'Verzinktes Stahlblech 2mm Stärke, 1000x2000mm',
         unit: 'm²',
         purchasePrice: 28.00,
         salePrice: 42.00,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         stockQuantity: 180,
         minStock: 30,
         categoryId: categories[0].id,
@@ -306,15 +720,53 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'STAHL-003' } },
+      update: {},
+      create: {
+        sku: 'STAHL-003',
+        name: 'Quadratrohr 60x60x3',
+        description: 'Stahlquadratrohr 60x60x3mm, S235JR',
+        unit: 'lfm',
+        purchasePrice: 12.50,
+        salePrice: 19.80,
+        vatRate: 'STANDARD',
+        stockQuantity: 420,
+        minStock: 80,
+        categoryId: categories[0].id,
+        supplierId: suppliers[0].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'STAHL-004' } },
+      update: {},
+      create: {
+        sku: 'STAHL-004',
+        name: 'Flachstahl 50x8',
+        description: 'Flachstahl 50x8mm, S235JR',
+        unit: 'lfm',
+        purchasePrice: 4.80,
+        salePrice: 7.50,
+        vatRate: 'STANDARD',
+        stockQuantity: 600,
+        minStock: 100,
+        categoryId: categories[0].id,
+        supplierId: suppliers[0].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'BEF-001' } },
+      update: {},
+      create: {
         sku: 'BEF-001',
         name: 'Sechskantschraube M12x50',
         description: 'DIN 933, verzinkt',
         unit: 'Stk',
         purchasePrice: 0.45,
         salePrice: 0.85,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         stockQuantity: 5000,
         minStock: 1000,
         categoryId: categories[1].id,
@@ -322,15 +774,17 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'BEF-002' } },
+      update: {},
+      create: {
         sku: 'BEF-002',
         name: 'Ankerschraube M10x80',
         description: 'Betonanker mit Dübel',
         unit: 'Stk',
         purchasePrice: 2.80,
         salePrice: 4.50,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         stockQuantity: 800,
         minStock: 200,
         categoryId: categories[1].id,
@@ -338,15 +792,17 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'LACK-001' } },
+      update: {},
+      create: {
         sku: 'LACK-001',
         name: 'Industrielack RAL 7016',
         description: 'Anthrazitgrau, 2K-Lack',
         unit: 'Liter',
         purchasePrice: 32.00,
         salePrice: 48.00,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         stockQuantity: 120,
         minStock: 20,
         categoryId: categories[2].id,
@@ -354,110 +810,183 @@ async function main() {
         companyId: company.id,
       },
     }),
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'GLAS-001' } },
+      update: {},
+      create: {
+        sku: 'GLAS-001',
+        name: 'VSG Sicherheitsglas 10mm',
+        description: 'Verbundsicherheitsglas 10mm, klar',
+        unit: 'm²',
+        purchasePrice: 85.00,
+        salePrice: 125.00,
+        vatRate: 'STANDARD',
+        stockQuantity: 45,
+        minStock: 10,
+        categoryId: categories[3].id,
+        supplierId: suppliers[3].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'SERV-001' } },
+      update: {},
+      create: {
         sku: 'SERV-001',
         name: 'Metallbauarbeiten',
         description: 'Facharbeiter Metallbau',
         unit: 'Std',
         purchasePrice: 0,
         salePrice: 95.00,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         isService: true,
-        categoryId: categories[3].id,
+        categoryId: categories[4].id,
         companyId: company.id,
       },
     }),
-    prisma.product.create({
-      data: {
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'SERV-002' } },
+      update: {},
+      create: {
         sku: 'SERV-002',
         name: 'Schweissarbeiten',
-        description: 'Facharbeiter Schweissen',
+        description: 'Facharbeiter Schweissen WIG/MIG/MAG',
+        unit: 'Std',
+        purchasePrice: 0,
+        salePrice: 115.00,
+        vatRate: 'STANDARD',
+        isService: true,
+        categoryId: categories[4].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: company.id, sku: 'SERV-003' } },
+      update: {},
+      create: {
+        sku: 'SERV-003',
+        name: 'Montagearbeiten',
+        description: 'Montage vor Ort',
         unit: 'Std',
         purchasePrice: 0,
         salePrice: 105.00,
-        vatRate: VatRate.STANDARD,
+        vatRate: 'STANDARD',
         isService: true,
-        categoryId: categories[3].id,
+        categoryId: categories[4].id,
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 7 Products created');
 
-  // 8. Create Projects
+  console.log('  ✓ 5 Kategorien und 11 Produkte erstellt');
+
+  // =====================================================
+  // 9. PROJECTS
+  // =====================================================
+  console.log('📦 Erstelle Projekte...');
+
   const projects = await Promise.all([
-    prisma.project.create({
-      data: {
+    prisma.project.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'P-2024-001' } },
+      update: {},
+      create: {
         number: 'P-2024-001',
         name: 'Geländer Bürogebäude Zürich',
-        description: 'Treppengeländer und Brüstungen für 4-stöckiges Bürogebäude',
-        status: ProjectStatus.IN_PROGRESS,
-        startDate: new Date('2024-01-15'),
-        endDate: new Date('2024-04-30'),
+        description: 'Treppengeländer und Brüstungen für 4-stöckiges Bürogebäude. 12 Stockwerke à 15m Geländer.',
+        status: 'ACTIVE',
+        priority: 'HIGH',
+        startDate: daysAgo(60),
+        endDate: daysFromNow(30),
         budget: 85000,
         customerId: customers[0].id,
-        managerId: employees[0].id,
         companyId: company.id,
       },
     }),
-    prisma.project.create({
-      data: {
+    prisma.project.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'P-2024-002' } },
+      update: {},
+      create: {
         number: 'P-2024-002',
         name: 'Stahltreppe Hotel Bellevue',
-        description: 'Freitragende Stahlwendeltreppe mit Glasgeländer',
-        status: ProjectStatus.IN_PROGRESS,
-        startDate: new Date('2024-02-01'),
-        endDate: new Date('2024-06-15'),
+        description: 'Freitragende Stahlwendeltreppe mit Glasgeländer, 4 Stockwerke',
+        status: 'ACTIVE',
+        priority: 'HIGH',
+        startDate: daysAgo(45),
+        endDate: daysFromNow(60),
         budget: 125000,
         customerId: customers[2].id,
-        managerId: employees[0].id,
         companyId: company.id,
       },
     }),
-    prisma.project.create({
-      data: {
+    prisma.project.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'P-2024-003' } },
+      update: {},
+      create: {
         number: 'P-2024-003',
         name: 'Balkongeländer Wohnüberbauung',
-        description: '48 Balkongeländer für Neubauprojekt',
-        status: ProjectStatus.PLANNING,
-        startDate: new Date('2024-05-01'),
+        description: '48 Balkongeländer für Neubauprojekt Bau Meier',
+        status: 'PLANNING',
+        priority: 'MEDIUM',
+        startDate: daysFromNow(30),
+        endDate: daysFromNow(120),
         budget: 168000,
         customerId: customers[1].id,
-        managerId: employees[0].id,
         companyId: company.id,
       },
     }),
-    prisma.project.create({
-      data: {
+    prisma.project.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'P-2023-015' } },
+      update: {},
+      create: {
         number: 'P-2023-015',
         name: 'Vordach Geschäftshaus Bern',
         description: 'Stahl-Glas Vordach mit integrierter Beleuchtung',
-        status: ProjectStatus.COMPLETED,
-        startDate: new Date('2023-09-01'),
-        endDate: new Date('2023-12-15'),
+        status: 'COMPLETED',
+        priority: 'MEDIUM',
+        startDate: daysAgo(180),
+        endDate: daysAgo(90),
         budget: 45000,
         customerId: customers[3].id,
-        managerId: employees[0].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.project.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'P-2024-004' } },
+      update: {},
+      create: {
+        number: 'P-2024-004',
+        name: 'Brandschutztore Industriehalle',
+        description: '6 Brandschutztore T90 für Brunner GU',
+        status: 'ACTIVE',
+        priority: 'HIGH',
+        startDate: daysAgo(20),
+        endDate: daysFromNow(45),
+        budget: 78000,
+        customerId: customers[4].id,
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 4 Projects created');
 
-  // 9. Create Tasks
+  console.log('  ✓ 5 Projekte erstellt');
+
+  // =====================================================
+  // 10. TASKS
+  // =====================================================
+  console.log('📦 Erstelle Aufgaben...');
+
   const tasks = await Promise.all([
     prisma.task.create({
       data: {
         title: 'Aufmass vor Ort',
         description: 'Detaillierte Vermessung der Treppenanlage',
-        status: TaskStatus.DONE,
-        priority: TaskPriority.HIGH,
-        dueDate: new Date('2024-01-20'),
+        status: 'DONE',
+        priority: 'HIGH',
+        dueDate: daysAgo(50),
         estimatedHours: 4,
-        actualHours: 3.5,
         projectId: projects[0].id,
-        assigneeId: employees[0].id,
+        assigneeId: adminUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
@@ -465,13 +994,13 @@ async function main() {
       data: {
         title: 'Werkstattzeichnungen erstellen',
         description: 'CAD-Zeichnungen für Produktion',
-        status: TaskStatus.DONE,
-        priority: TaskPriority.HIGH,
-        dueDate: new Date('2024-01-30'),
+        status: 'DONE',
+        priority: 'HIGH',
+        dueDate: daysAgo(40),
         estimatedHours: 16,
-        actualHours: 18,
         projectId: projects[0].id,
-        assigneeId: employees[0].id,
+        assigneeId: adminUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
@@ -479,41 +1008,27 @@ async function main() {
       data: {
         title: 'Material bestellen',
         description: 'Stahlprofile und Befestigungsmaterial',
-        status: TaskStatus.DONE,
-        priority: TaskPriority.MEDIUM,
-        dueDate: new Date('2024-02-05'),
+        status: 'DONE',
+        priority: 'MEDIUM',
+        dueDate: daysAgo(35),
         estimatedHours: 2,
-        actualHours: 1.5,
         projectId: projects[0].id,
-        assigneeId: employees[3].id,
+        assigneeId: managerUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
     prisma.task.create({
       data: {
         title: 'Geländer fertigen',
-        description: 'Produktion in der Werkstatt',
-        status: TaskStatus.IN_PROGRESS,
-        priority: TaskPriority.HIGH,
-        dueDate: new Date('2024-03-15'),
+        description: 'Produktion in der Werkstatt - Zuschnitt, Schweissen, Schleifen',
+        status: 'IN_PROGRESS',
+        priority: 'HIGH',
+        dueDate: daysFromNow(10),
         estimatedHours: 80,
-        actualHours: 45,
         projectId: projects[0].id,
-        assigneeId: employees[1].id,
-        companyId: company.id,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        title: 'Schweissarbeiten',
-        description: 'WIG-Schweissen der Verbindungen',
-        status: TaskStatus.IN_PROGRESS,
-        priority: TaskPriority.HIGH,
-        dueDate: new Date('2024-03-20'),
-        estimatedHours: 40,
-        actualHours: 22,
-        projectId: projects[0].id,
-        assigneeId: employees[2].id,
+        assigneeId: managerUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
@@ -521,269 +1036,706 @@ async function main() {
       data: {
         title: 'Oberflächenbehandlung',
         description: 'Pulverbeschichtung RAL 7016',
-        status: TaskStatus.TODO,
-        priority: TaskPriority.MEDIUM,
-        dueDate: new Date('2024-03-25'),
+        status: 'TODO',
+        priority: 'MEDIUM',
+        dueDate: daysFromNow(15),
         estimatedHours: 16,
         projectId: projects[0].id,
-        assigneeId: employees[1].id,
+        assigneeId: managerUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
     prisma.task.create({
       data: {
         title: 'Montage vor Ort',
-        description: 'Installation beim Kunden',
-        status: TaskStatus.TODO,
-        priority: TaskPriority.HIGH,
-        dueDate: new Date('2024-04-10'),
+        description: 'Installation beim Kunden inkl. Endabnahme',
+        status: 'TODO',
+        priority: 'HIGH',
+        dueDate: daysFromNow(25),
         estimatedHours: 24,
         projectId: projects[0].id,
-        assigneeId: employees[1].id,
+        assigneeId: managerUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
-    // Projekt 2 Tasks
     prisma.task.create({
       data: {
-        title: 'Statikberechnung',
-        description: 'Statische Berechnung der Wendeltreppe',
-        status: TaskStatus.DONE,
-        priority: TaskPriority.CRITICAL,
-        dueDate: new Date('2024-02-10'),
+        title: 'Statikberechnung Wendeltreppe',
+        description: 'Statische Berechnung durch Ing.-Büro',
+        status: 'DONE',
+        priority: 'HIGH',
+        dueDate: daysAgo(30),
         estimatedHours: 24,
-        actualHours: 28,
         projectId: projects[1].id,
-        assigneeId: employees[0].id,
+        assigneeId: adminUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
     prisma.task.create({
       data: {
         title: 'Glasbestellung koordinieren',
-        description: 'Sicherheitsglas für Geländerfüllung',
-        status: TaskStatus.IN_PROGRESS,
-        priority: TaskPriority.HIGH,
-        dueDate: new Date('2024-03-01'),
+        description: 'VSG Sicherheitsglas für Geländerfüllung',
+        status: 'IN_PROGRESS',
+        priority: 'HIGH',
+        dueDate: daysFromNow(5),
         estimatedHours: 4,
-        actualHours: 2,
         projectId: projects[1].id,
-        assigneeId: employees[3].id,
+        assigneeId: managerUser.id,
+        createdById: adminUser.id,
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 9 Tasks created');
 
-  // 10. Create Time Entries
-  const today = new Date();
-  const timeEntries = await Promise.all([
+  console.log('  ✓ 8 Aufgaben erstellt');
+
+  // =====================================================
+  // 11. TIME ENTRIES
+  // =====================================================
+  console.log('📦 Erstelle Zeiterfassung...');
+
+  await Promise.all([
     prisma.timeEntry.create({
       data: {
-        date: new Date(today.getTime() - 86400000 * 2),
+        date: daysAgo(2),
+        startTime: new Date(daysAgo(2).setHours(7, 30)),
+        endTime: new Date(daysAgo(2).setHours(16, 30)),
         hours: 8,
         description: 'Geländerfertigung Werkstatt',
         projectId: projects[0].id,
         taskId: tasks[3].id,
-        employeeId: employees[1].id,
+        userId: managerUser.id,
         companyId: company.id,
       },
     }),
     prisma.timeEntry.create({
       data: {
-        date: new Date(today.getTime() - 86400000),
+        date: daysAgo(1),
+        startTime: new Date(daysAgo(1).setHours(7, 0)),
+        endTime: new Date(daysAgo(1).setHours(15, 30)),
         hours: 7.5,
         description: 'Schweissarbeiten Geländer',
         projectId: projects[0].id,
-        taskId: tasks[4].id,
-        employeeId: employees[2].id,
+        taskId: tasks[3].id,
+        userId: managerUser.id,
         companyId: company.id,
       },
     }),
     prisma.timeEntry.create({
       data: {
-        date: today,
+        date: new Date(),
+        startTime: new Date(new Date().setHours(8, 0)),
+        endTime: new Date(new Date().setHours(12, 0)),
         hours: 4,
         description: 'Projektleitung und Koordination',
         projectId: projects[0].id,
-        employeeId: employees[0].id,
+        userId: adminUser.id,
         companyId: company.id,
       },
     }),
     prisma.timeEntry.create({
       data: {
-        date: today,
-        hours: 6,
+        date: daysAgo(3),
+        startTime: new Date(daysAgo(3).setHours(7, 0)),
+        endTime: new Date(daysAgo(3).setHours(16, 0)),
+        hours: 8,
         description: 'Stahltreppe Vormontage',
         projectId: projects[1].id,
-        employeeId: employees[1].id,
+        userId: managerUser.id,
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 4 Time Entries created');
 
-  // 11. Create Absences
-  const absences = await Promise.all([
-    prisma.absence.create({
-      data: {
-        type: AbsenceType.VACATION,
-        startDate: new Date('2024-07-15'),
-        endDate: new Date('2024-07-26'),
-        days: 10,
-        status: AbsenceStatus.APPROVED,
-        reason: 'Sommerferien',
-        employeeId: employees[0].id,
-        companyId: company.id,
-      },
-    }),
-    prisma.absence.create({
-      data: {
-        type: AbsenceType.SICK,
-        startDate: new Date('2024-03-05'),
-        endDate: new Date('2024-03-06'),
-        days: 2,
-        status: AbsenceStatus.APPROVED,
-        reason: 'Grippe',
-        employeeId: employees[2].id,
-        companyId: company.id,
-      },
-    }),
-    prisma.absence.create({
-      data: {
-        type: AbsenceType.VACATION,
-        startDate: new Date('2024-08-12'),
-        endDate: new Date('2024-08-16'),
-        days: 5,
-        status: AbsenceStatus.PENDING,
-        reason: 'Kurzurlaub',
-        employeeId: employees[1].id,
-        companyId: company.id,
-      },
-    }),
-  ]);
-  console.log('✓ 3 Absences created');
+  console.log('  ✓ 4 Zeiteinträge erstellt');
 
-  // 12. Create Calendar Events
-  const calendarEvents = await Promise.all([
-    prisma.calendarEvent.create({
-      data: {
-        title: 'Kundentermin Immobilien Zürich',
-        description: 'Besprechung Projektfortschritt',
-        startTime: new Date('2024-03-20T10:00:00'),
-        endTime: new Date('2024-03-20T11:30:00'),
-        location: 'Bahnhofstrasse 100, Zürich',
-        companyId: company.id,
-        createdById: adminUser.id,
-      },
-    }),
-    prisma.calendarEvent.create({
-      data: {
-        title: 'Team Meeting',
-        description: 'Wöchentliche Projektbesprechung',
-        startTime: new Date('2024-03-18T08:00:00'),
-        endTime: new Date('2024-03-18T09:00:00'),
-        isAllDay: false,
-        companyId: company.id,
-        createdById: adminUser.id,
-      },
-    }),
-    prisma.calendarEvent.create({
-      data: {
-        title: 'Lieferung Stahlprofile',
-        description: 'Materiallieferung für P-2024-001',
-        startTime: new Date('2024-03-19T14:00:00'),
-        endTime: new Date('2024-03-19T15:00:00'),
-        companyId: company.id,
-        createdById: adminUser.id,
-      },
-    }),
-  ]);
-  console.log('✓ 3 Calendar Events created');
+  // =====================================================
+  // 12. QUOTES
+  // =====================================================
+  console.log('📦 Erstelle Angebote...');
 
-  // 13. Create Quotes
   const quotes = await Promise.all([
     prisma.quote.create({
       data: {
-        number: 'OFF-2024-001',
+        number: 'AN-2024-001',
         customerId: customers[3].id,
-        status: DocumentStatus.DRAFT,
-        issueDate: new Date('2024-03-01'),
-        validUntil: new Date('2024-04-01'),
+        date: daysAgo(30),
+        validUntil: daysFromNow(30),
+        status: 'CONFIRMED',
         subtotal: 28500,
         vatAmount: 2308.50,
         total: 30808.50,
         notes: 'Gültig 30 Tage ab Offertdatum',
-        companyId: company.id,
         createdById: adminUser.id,
+        companyId: company.id,
         items: {
           create: [
-            { position: 1, productId: products[0].id, description: 'Stahlprofil IPE 200', quantity: 45, unit: 'lfm', unitPrice: 68, total: 3060 },
-            { position: 2, productId: products[5].id, description: 'Metallbauarbeiten', quantity: 120, unit: 'Std', unitPrice: 95, total: 11400 },
-            { position: 3, productId: products[6].id, description: 'Schweissarbeiten', quantity: 80, unit: 'Std', unitPrice: 105, total: 8400 },
-            { position: 4, productId: products[4].id, description: 'Pulverbeschichtung', quantity: 50, unit: 'Liter', unitPrice: 48, total: 2400 },
+            { position: 1, productId: products[0].id, description: 'Stahlprofil IPE 200', quantity: 45, unit: 'lfm', unitPrice: 68, vatRate: 'STANDARD', total: 3060 },
+            { position: 2, productId: products[8].id, description: 'Metallbauarbeiten', quantity: 120, unit: 'Std', unitPrice: 95, vatRate: 'STANDARD', total: 11400 },
+            { position: 3, productId: products[9].id, description: 'Schweissarbeiten', quantity: 80, unit: 'Std', unitPrice: 105, vatRate: 'STANDARD', total: 8400 },
+            { position: 4, productId: products[6].id, description: 'Pulverbeschichtung', quantity: 50, unit: 'Liter', unitPrice: 48, vatRate: 'STANDARD', total: 2400 },
+            { position: 5, productId: products[10].id, description: 'Montagearbeiten', quantity: 32, unit: 'Std', unitPrice: 105, vatRate: 'STANDARD', total: 3360 },
+          ],
+        },
+      },
+    }),
+    prisma.quote.create({
+      data: {
+        number: 'AN-2024-002',
+        customerId: customers[1].id,
+        date: daysAgo(15),
+        validUntil: daysFromNow(45),
+        status: 'SENT',
+        subtotal: 168000,
+        vatAmount: 13608,
+        total: 181608,
+        notes: 'Inkl. 48 Balkongeländer komplett montiert',
+        createdById: adminUser.id,
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Balkongeländer Typ A (2.5m)', quantity: 24, unit: 'Stk', unitPrice: 2800, vatRate: 'STANDARD', total: 67200 },
+            { position: 2, description: 'Balkongeländer Typ B (3.0m)', quantity: 24, unit: 'Stk', unitPrice: 3200, vatRate: 'STANDARD', total: 76800 },
+            { position: 3, productId: products[10].id, description: 'Montage inkl. Befestigung', quantity: 240, unit: 'Std', unitPrice: 105, vatRate: 'STANDARD', total: 25200 },
+          ],
+        },
+      },
+    }),
+    prisma.quote.create({
+      data: {
+        number: 'AN-2024-003',
+        customerId: customers[4].id,
+        date: daysAgo(5),
+        validUntil: daysFromNow(60),
+        status: 'DRAFT',
+        subtotal: 45000,
+        vatAmount: 3645,
+        total: 48645,
+        notes: 'Entwurf - noch zu prüfen',
+        createdById: adminUser.id,
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Brandschutztor T90 (3x3m)', quantity: 4, unit: 'Stk', unitPrice: 8500, vatRate: 'STANDARD', total: 34000 },
+            { position: 2, description: 'Brandschutztor T90 (2x2.5m)', quantity: 2, unit: 'Stk', unitPrice: 5500, vatRate: 'STANDARD', total: 11000 },
           ],
         },
       },
     }),
   ]);
-  console.log('✓ 1 Quote created');
 
-  // 14. Create Invoices
+  console.log('  ✓ 3 Angebote erstellt');
+
+  // =====================================================
+  // 13. ORDERS
+  // =====================================================
+  console.log('📦 Erstelle Aufträge...');
+
+  const orders = await Promise.all([
+    prisma.order.create({
+      data: {
+        number: 'AU-2024-001',
+        customerId: customers[0].id,
+        projectId: projects[0].id,
+        date: daysAgo(55),
+        deliveryDate: daysFromNow(25),
+        status: 'CONFIRMED',
+        subtotal: 85000,
+        vatAmount: 6885,
+        total: 91885,
+        notes: 'Lieferung in 3 Etappen',
+        createdById: adminUser.id,
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Geländer EG komplett', quantity: 1, unit: 'Pausch', unitPrice: 28000, vatRate: 'STANDARD', total: 28000 },
+            { position: 2, description: 'Geländer 1.OG komplett', quantity: 1, unit: 'Pausch', unitPrice: 28000, vatRate: 'STANDARD', total: 28000 },
+            { position: 3, description: 'Geländer 2.OG komplett', quantity: 1, unit: 'Pausch', unitPrice: 29000, vatRate: 'STANDARD', total: 29000 },
+          ],
+        },
+      },
+    }),
+    prisma.order.create({
+      data: {
+        number: 'AU-2024-002',
+        customerId: customers[2].id,
+        projectId: projects[1].id,
+        date: daysAgo(40),
+        deliveryDate: daysFromNow(55),
+        status: 'CONFIRMED',
+        subtotal: 125000,
+        vatAmount: 10125,
+        total: 135125,
+        notes: 'Wendeltreppe mit Glasgeländer',
+        createdById: adminUser.id,
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Stahlwendeltreppe 4 Stockwerke', quantity: 1, unit: 'Pausch', unitPrice: 85000, vatRate: 'STANDARD', total: 85000 },
+            { position: 2, productId: products[7].id, description: 'VSG Glasfüllung', quantity: 48, unit: 'm²', unitPrice: 125, vatRate: 'STANDARD', total: 6000 },
+            { position: 3, productId: products[10].id, description: 'Montage komplett', quantity: 320, unit: 'Std', unitPrice: 105, vatRate: 'STANDARD', total: 33600 },
+          ],
+        },
+      },
+    }),
+    prisma.order.create({
+      data: {
+        number: 'AU-2023-028',
+        customerId: customers[3].id,
+        projectId: projects[3].id,
+        quoteId: quotes[0].id,
+        date: daysAgo(170),
+        deliveryDate: daysAgo(95),
+        status: 'CONFIRMED',
+        subtotal: 45000,
+        vatAmount: 3645,
+        total: 48645,
+        createdById: adminUser.id,
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Vordach Stahl-Glas komplett', quantity: 1, unit: 'Pausch', unitPrice: 45000, vatRate: 'STANDARD', total: 45000 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Aufträge erstellt');
+
+  // =====================================================
+  // 14. DELIVERY NOTES
+  // =====================================================
+  console.log('📦 Erstelle Lieferscheine...');
+
+  await Promise.all([
+    prisma.deliveryNote.create({
+      data: {
+        number: 'LS-2024-001',
+        customerId: customers[0].id,
+        orderId: orders[0].id,
+        date: daysAgo(10),
+        deliveryDate: daysAgo(10),
+        status: 'DELIVERED',
+        deliveredAt: daysAgo(10),
+        deliveryAddress: 'Bahnhofstrasse 100, 8001 Zürich',
+        notes: 'Lieferung EG - 12 Geländerelemente',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, productId: products[0].id, description: 'Geländer EG Element 1-6', quantity: 6, unit: 'Stk' },
+            { position: 2, productId: products[0].id, description: 'Geländer EG Element 7-12', quantity: 6, unit: 'Stk' },
+          ],
+        },
+      },
+    }),
+    prisma.deliveryNote.create({
+      data: {
+        number: 'LS-2023-045',
+        customerId: customers[3].id,
+        orderId: orders[2].id,
+        date: daysAgo(100),
+        deliveryDate: daysAgo(100),
+        status: 'DELIVERED',
+        deliveredAt: daysAgo(100),
+        deliveryAddress: 'Bundesplatz 8, 3011 Bern',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Vordach komplett', quantity: 1, unit: 'Pausch' },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Lieferscheine erstellt');
+
+  // =====================================================
+  // 15. INVOICES
+  // =====================================================
+  console.log('📦 Erstelle Rechnungen...');
+
   const invoices = await Promise.all([
     prisma.invoice.create({
       data: {
         number: 'RE-2024-001',
-        customerId: customers[3].id,
-        projectId: projects[3].id,
-        status: DocumentStatus.PAID,
-        issueDate: new Date('2023-12-20'),
-        dueDate: new Date('2024-01-20'),
-        paidDate: new Date('2024-01-15'),
-        subtotal: 45000,
-        vatAmount: 3645,
-        total: 48645,
-        paidAmount: 48645,
+        customerId: customers[0].id,
+        orderId: orders[0].id,
+        date: daysAgo(8),
+        dueDate: daysFromNow(22),
+        status: 'SENT',
+        subtotal: 28000,
+        vatAmount: 2268,
+        totalAmount: 30268,
+        paidAmount: 0,
         qrReference: '000000000000000000000000001',
-        companyId: company.id,
+        notes: 'Akonto-Rechnung 1/3 - Geländer EG',
         createdById: adminUser.id,
+        companyId: company.id,
         items: {
           create: [
-            { position: 1, description: 'Vordach Stahl-Glas komplett', quantity: 1, unit: 'Pausch', unitPrice: 45000, total: 45000 },
+            { position: 1, description: 'Akonto Geländer EG', quantity: 1, unit: 'Pausch', unitPrice: 28000, vatRate: 8.1, vatAmount: 2268, total: 30268 },
           ],
         },
       },
     }),
     prisma.invoice.create({
       data: {
-        number: 'RE-2024-002',
-        customerId: customers[0].id,
-        projectId: projects[0].id,
-        status: DocumentStatus.SENT,
-        issueDate: new Date('2024-02-28'),
-        dueDate: new Date('2024-03-30'),
-        subtotal: 25000,
-        vatAmount: 2025,
-        total: 27025,
-        paidAmount: 0,
-        notes: 'Akonto-Rechnung 1 von 3',
-        qrReference: '000000000000000000000000002',
-        companyId: company.id,
+        number: 'RE-2023-048',
+        customerId: customers[3].id,
+        orderId: orders[2].id,
+        date: daysAgo(95),
+        dueDate: daysAgo(65),
+        paidAt: daysAgo(70),
+        status: 'PAID',
+        subtotal: 45000,
+        vatAmount: 3645,
+        totalAmount: 48645,
+        paidAmount: 48645,
+        qrReference: '000000000000000000000000048',
+        notes: 'Schlussrechnung Vordach',
         createdById: adminUser.id,
+        companyId: company.id,
         items: {
           create: [
-            { position: 1, description: 'Akonto Geländer Bürogebäude 30%', quantity: 1, unit: 'Pausch', unitPrice: 25000, total: 25000 },
+            { position: 1, description: 'Vordach Stahl-Glas komplett', quantity: 1, unit: 'Pausch', unitPrice: 45000, vatRate: 8.1, vatAmount: 3645, total: 48645 },
+          ],
+        },
+      },
+    }),
+    prisma.invoice.create({
+      data: {
+        number: 'RE-2023-042',
+        customerId: customers[1].id,
+        date: daysAgo(120),
+        dueDate: daysAgo(90),
+        status: 'OVERDUE',
+        subtotal: 15000,
+        vatAmount: 1215,
+        totalAmount: 16215,
+        paidAmount: 0,
+        qrReference: '000000000000000000000000042',
+        notes: 'Kleinauftrag Reparatur',
+        createdById: adminUser.id,
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, description: 'Reparatur Toranlage', quantity: 1, unit: 'Pausch', unitPrice: 15000, vatRate: 8.1, vatAmount: 1215, total: 16215 },
           ],
         },
       },
     }),
   ]);
-  console.log('✓ 2 Invoices created');
 
-  // 15. Create Bank Accounts
-  const bankAccounts = await Promise.all([
-    prisma.bankAccount.create({
+  console.log('  ✓ 3 Rechnungen erstellt');
+
+  // =====================================================
+  // 16. REMINDERS
+  // =====================================================
+  console.log('📦 Erstelle Mahnungen...');
+
+  await prisma.reminder.create({
+    data: {
+      number: 'MHN-2024-001',
+      invoiceId: invoices[2].id,
+      level: 1,
+      status: 'SENT',
+      sentAt: daysAgo(60),
+      dueDate: daysAgo(45),
+      fee: 20,
+      totalWithFee: 16235,
+      notes: '1. Mahnung',
+      companyId: company.id,
+    },
+  });
+
+  await prisma.reminder.create({
+    data: {
+      number: 'MHN-2024-002',
+      invoiceId: invoices[2].id,
+      level: 2,
+      status: 'SENT',
+      sentAt: daysAgo(30),
+      dueDate: daysAgo(15),
+      fee: 40,
+      totalWithFee: 16255,
+      notes: '2. Mahnung',
+      companyId: company.id,
+    },
+  });
+
+  console.log('  ✓ 2 Mahnungen erstellt');
+
+  // =====================================================
+  // 17. CREDIT NOTES
+  // =====================================================
+  console.log('📦 Erstelle Gutschriften...');
+
+  await prisma.creditNote.create({
+    data: {
+      number: 'GS-2024-001',
+      customerId: customers[0].id,
+      invoiceId: invoices[0].id,
+      status: 'ISSUED',
+      reason: 'PRICE_ADJUSTMENT',
+      reasonText: 'Nachlass wegen Lieferverzögerung',
+      issueDate: daysAgo(5),
+      subtotal: 1000,
+      vatAmount: 81,
+      totalAmount: 1081,
+      companyId: company.id,
+      items: {
+        create: [
+          { position: 1, description: 'Kulanzgutschrift', quantity: 1, unit: 'Pausch', unitPrice: 1000, vatRate: 8.1, vatAmount: 81, total: 1081 },
+        ],
+      },
+    },
+  });
+
+  console.log('  ✓ 1 Gutschrift erstellt');
+
+  // =====================================================
+  // 18. PURCHASE ORDERS
+  // =====================================================
+  console.log('📦 Erstelle Bestellungen...');
+
+  const purchaseOrders = await Promise.all([
+    prisma.purchaseOrder.create({
       data: {
+        number: 'BE-2024-001',
+        supplierId: suppliers[0].id,
+        projectId: projects[0].id,
+        date: daysAgo(50),
+        expectedDate: daysAgo(40),
+        status: 'CONFIRMED',
+        subtotal: 8500,
+        vatAmount: 688.50,
+        total: 9188.50,
+        notes: 'Stahlprofile für Projekt Zürich',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, productId: products[0].id, description: 'Stahlprofil IPE 200', quantity: 80, unit: 'lfm', unitPrice: 45, vatRate: 'STANDARD', total: 3600 },
+            { position: 2, productId: products[2].id, description: 'Quadratrohr 60x60x3', quantity: 200, unit: 'lfm', unitPrice: 12.50, vatRate: 'STANDARD', total: 2500 },
+            { position: 3, productId: products[3].id, description: 'Flachstahl 50x8', quantity: 320, unit: 'lfm', unitPrice: 4.80, vatRate: 'STANDARD', total: 1536 },
+          ],
+        },
+      },
+    }),
+    prisma.purchaseOrder.create({
+      data: {
+        number: 'BE-2024-002',
+        supplierId: suppliers[1].id,
+        date: daysAgo(45),
+        expectedDate: daysAgo(38),
+        status: 'CONFIRMED',
+        subtotal: 1850,
+        vatAmount: 149.85,
+        total: 1999.85,
+        notes: 'Befestigungsmaterial Lager',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, productId: products[4].id, description: 'Sechskantschraube M12x50', quantity: 2000, unit: 'Stk', unitPrice: 0.45, vatRate: 'STANDARD', total: 900 },
+            { position: 2, productId: products[5].id, description: 'Ankerschraube M10x80', quantity: 300, unit: 'Stk', unitPrice: 2.80, vatRate: 'STANDARD', total: 840 },
+          ],
+        },
+      },
+    }),
+    prisma.purchaseOrder.create({
+      data: {
+        number: 'BE-2024-003',
+        supplierId: suppliers[3].id,
+        projectId: projects[1].id,
+        date: daysAgo(20),
+        expectedDate: daysFromNow(10),
+        status: 'SENT',
+        subtotal: 6000,
+        vatAmount: 486,
+        total: 6486,
+        notes: 'Glasfüllung Wendeltreppe',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, productId: products[7].id, description: 'VSG Sicherheitsglas 10mm', quantity: 48, unit: 'm²', unitPrice: 85, vatRate: 'STANDARD', total: 4080 },
+            { position: 2, description: 'Zuschnitt nach Mass', quantity: 48, unit: 'Stk', unitPrice: 40, vatRate: 'STANDARD', total: 1920 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Bestellungen erstellt');
+
+  // =====================================================
+  // 19. GOODS RECEIPTS
+  // =====================================================
+  console.log('📦 Erstelle Wareneingänge...');
+
+  await Promise.all([
+    prisma.goodsReceipt.create({
+      data: {
+        number: 'WE-2024-001',
+        purchaseOrderId: purchaseOrders[0].id,
+        status: 'COMPLETE',
+        receiptDate: daysAgo(42),
+        deliveryNoteNumber: 'LF-55892',
+        carrier: 'Planzer Transport',
+        notes: 'Vollständig geliefert',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, productId: products[0].id, orderedQuantity: 80, receivedQuantity: 80, unit: 'lfm', qualityStatus: 'PASSED' },
+            { position: 2, productId: products[2].id, orderedQuantity: 200, receivedQuantity: 200, unit: 'lfm', qualityStatus: 'PASSED' },
+            { position: 3, productId: products[3].id, orderedQuantity: 320, receivedQuantity: 320, unit: 'lfm', qualityStatus: 'PASSED' },
+          ],
+        },
+      },
+    }),
+    prisma.goodsReceipt.create({
+      data: {
+        number: 'WE-2024-002',
+        purchaseOrderId: purchaseOrders[1].id,
+        status: 'COMPLETE',
+        receiptDate: daysAgo(40),
+        deliveryNoteNumber: 'SE-12456',
+        notes: 'OK',
+        companyId: company.id,
+        items: {
+          create: [
+            { position: 1, productId: products[4].id, orderedQuantity: 2000, receivedQuantity: 2000, unit: 'Stk', qualityStatus: 'PASSED' },
+            { position: 2, productId: products[5].id, orderedQuantity: 300, receivedQuantity: 300, unit: 'Stk', qualityStatus: 'PASSED' },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Wareneingänge erstellt');
+
+  // =====================================================
+  // 20. PURCHASE INVOICES
+  // =====================================================
+  console.log('📦 Erstelle Eingangsrechnungen...');
+
+  const purchaseInvoices = await Promise.all([
+    prisma.purchaseInvoice.create({
+      data: {
+        number: 'STAHL-2024-55892',
+        supplierId: suppliers[0].id,
+        purchaseOrderId: purchaseOrders[0].id,
+        date: daysAgo(40),
+        dueDate: daysAgo(10),
+        status: 'PAID',
+        subtotal: 8500,
+        vatAmount: 688.50,
+        totalAmount: 9188.50,
+        paidAmount: 9188.50,
+        companyId: company.id,
+      },
+    }),
+    prisma.purchaseInvoice.create({
+      data: {
+        number: 'SE-2024-12456',
+        supplierId: suppliers[1].id,
+        purchaseOrderId: purchaseOrders[1].id,
+        date: daysAgo(38),
+        dueDate: daysAgo(24),
+        status: 'PAID',
+        subtotal: 1850,
+        vatAmount: 149.85,
+        totalAmount: 1999.85,
+        paidAmount: 1999.85,
+        companyId: company.id,
+      },
+    }),
+    prisma.purchaseInvoice.create({
+      data: {
+        number: 'FL-2024-8834',
+        supplierId: suppliers[2].id,
+        date: daysAgo(15),
+        dueDate: daysFromNow(15),
+        status: 'DRAFT',
+        subtotal: 2400,
+        vatAmount: 194.40,
+        totalAmount: 2594.40,
+        paidAmount: 0,
+        notes: 'Lacke für Q2',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Eingangsrechnungen erstellt');
+
+  // =====================================================
+  // 21. PAYMENTS
+  // =====================================================
+  console.log('📦 Erstelle Zahlungen...');
+
+  await Promise.all([
+    prisma.payment.create({
+      data: {
+        number: 'ZE-2024-001',
+        type: 'INCOMING',
+        status: 'COMPLETED',
+        invoiceId: invoices[1].id,
+        customerId: customers[3].id,
+        paymentDate: daysAgo(70),
+        amount: 48645,
+        method: 'BANK_TRANSFER',
+        reference: 'QRR 000000000000000000000000048',
+        notes: 'Zahlung via QR-Rechnung',
+        companyId: company.id,
+      },
+    }),
+    prisma.payment.create({
+      data: {
+        number: 'ZA-2024-001',
+        type: 'OUTGOING',
+        status: 'COMPLETED',
+        purchaseInvoiceId: purchaseInvoices[0].id,
+        supplierId: suppliers[0].id,
+        paymentDate: daysAgo(12),
+        amount: 9188.50,
+        method: 'BANK_TRANSFER',
+        reference: 'STAHL-55892',
+        companyId: company.id,
+      },
+    }),
+    prisma.payment.create({
+      data: {
+        number: 'ZA-2024-002',
+        type: 'OUTGOING',
+        status: 'COMPLETED',
+        purchaseInvoiceId: purchaseInvoices[1].id,
+        supplierId: suppliers[1].id,
+        paymentDate: daysAgo(26),
+        amount: 1999.85,
+        method: 'BANK_TRANSFER',
+        reference: 'SE-12456',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 3 Zahlungen erstellt');
+
+  // =====================================================
+  // 22. BANK ACCOUNTS
+  // =====================================================
+  console.log('📦 Erstelle Bankkonten...');
+
+  const bankAccounts = await Promise.all([
+    prisma.bankAccount.upsert({
+      where: { id: 'bank-ubs' },
+      update: {},
+      create: {
+        id: 'bank-ubs',
         name: 'UBS Geschäftskonto',
         bankName: 'UBS Switzerland AG',
         iban: 'CH93 0076 2011 6238 5295 7',
@@ -791,59 +1743,801 @@ async function main() {
         currency: 'CHF',
         balance: 125680.45,
         isDefault: true,
+        qrIban: 'CH44 3199 9123 0008 8901 2',
         companyId: company.id,
       },
     }),
-    prisma.bankAccount.create({
-      data: {
+    prisma.bankAccount.upsert({
+      where: { id: 'bank-postfinance' },
+      update: {},
+      create: {
+        id: 'bank-postfinance',
         name: 'PostFinance',
         bankName: 'PostFinance AG',
         iban: 'CH45 0900 0000 8765 4321 0',
+        bic: 'POFICHBEXXX',
         currency: 'CHF',
         balance: 34520.00,
         companyId: company.id,
       },
     }),
   ]);
-  console.log('✓ 2 Bank Accounts created');
 
-  // 16. Create Chart of Accounts (Swiss SME)
+  console.log('  ✓ 2 Bankkonten erstellt');
+
+  // =====================================================
+  // 23. CHART OF ACCOUNTS (Swiss KMU)
+  // =====================================================
+  console.log('📦 Erstelle Kontenrahmen...');
+
   const accounts = await Promise.all([
-    // Assets
-    prisma.account.create({ data: { number: '1000', name: 'Kasse', type: AccountType.ASSET, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '1020', name: 'Bank UBS', type: AccountType.ASSET, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '1100', name: 'Debitoren', type: AccountType.ASSET, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '1200', name: 'Vorräte Material', type: AccountType.ASSET, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '1500', name: 'Maschinen und Geräte', type: AccountType.ASSET, isActive: true, companyId: company.id } }),
-    // Liabilities
-    prisma.account.create({ data: { number: '2000', name: 'Kreditoren', type: AccountType.LIABILITY, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '2200', name: 'MWST Schuld', type: AccountType.LIABILITY, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '2270', name: 'Vorsteuer', type: AccountType.ASSET, isActive: true, companyId: company.id } }),
-    // Equity
-    prisma.account.create({ data: { number: '2800', name: 'Eigenkapital', type: AccountType.EQUITY, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '2900', name: 'Gewinnvortrag', type: AccountType.EQUITY, isActive: true, companyId: company.id } }),
-    // Revenue
-    prisma.account.create({ data: { number: '3000', name: 'Produktionserlöse', type: AccountType.REVENUE, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '3200', name: 'Dienstleistungserlöse', type: AccountType.REVENUE, isActive: true, companyId: company.id } }),
-    // Expenses
-    prisma.account.create({ data: { number: '4000', name: 'Materialaufwand', type: AccountType.EXPENSE, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '5000', name: 'Lohnaufwand', type: AccountType.EXPENSE, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '5700', name: 'Sozialversicherungen', type: AccountType.EXPENSE, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '6000', name: 'Raumaufwand', type: AccountType.EXPENSE, isActive: true, companyId: company.id } }),
-    prisma.account.create({ data: { number: '6500', name: 'Verwaltungsaufwand', type: AccountType.EXPENSE, isActive: true, companyId: company.id } }),
+    // Aktiven
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1000' } }, update: {}, create: { number: '1000', name: 'Kasse', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1020' } }, update: {}, create: { number: '1020', name: 'Bank UBS', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1021' } }, update: {}, create: { number: '1021', name: 'Bank PostFinance', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1100' } }, update: {}, create: { number: '1100', name: 'Debitoren', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1170' } }, update: {}, create: { number: '1170', name: 'Vorsteuer MWST', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1200' } }, update: {}, create: { number: '1200', name: 'Vorräte Material', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1500' } }, update: {}, create: { number: '1500', name: 'Maschinen und Geräte', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1510' } }, update: {}, create: { number: '1510', name: 'Fahrzeuge', type: 'ASSET', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1520' } }, update: {}, create: { number: '1520', name: 'Werkzeuge', type: 'ASSET', companyId: company.id } }),
+    // Passiven
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2000' } }, update: {}, create: { number: '2000', name: 'Kreditoren', type: 'LIABILITY', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2200' } }, update: {}, create: { number: '2200', name: 'MWST Schuld', type: 'LIABILITY', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2300' } }, update: {}, create: { number: '2300', name: 'Passive Rechnungsabgrenzung', type: 'LIABILITY', companyId: company.id } }),
+    // Eigenkapital
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2800' } }, update: {}, create: { number: '2800', name: 'Aktienkapital', type: 'EQUITY', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2900' } }, update: {}, create: { number: '2900', name: 'Gewinnvortrag', type: 'EQUITY', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2990' } }, update: {}, create: { number: '2990', name: 'Jahresgewinn/-verlust', type: 'EQUITY', companyId: company.id } }),
+    // Ertrag
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3000' } }, update: {}, create: { number: '3000', name: 'Produktionserlöse', type: 'REVENUE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3200' } }, update: {}, create: { number: '3200', name: 'Dienstleistungserlöse', type: 'REVENUE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3800' } }, update: {}, create: { number: '3800', name: 'Sonstige Erlöse', type: 'REVENUE', companyId: company.id } }),
+    // Aufwand
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4000' } }, update: {}, create: { number: '4000', name: 'Materialaufwand', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4400' } }, update: {}, create: { number: '4400', name: 'Fremdleistungen', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5000' } }, update: {}, create: { number: '5000', name: 'Lohnaufwand', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5700' } }, update: {}, create: { number: '5700', name: 'Sozialversicherungen', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6000' } }, update: {}, create: { number: '6000', name: 'Raumaufwand', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6200' } }, update: {}, create: { number: '6200', name: 'Fahrzeugaufwand', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6500' } }, update: {}, create: { number: '6500', name: 'Verwaltungsaufwand', type: 'EXPENSE', companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6800' } }, update: {}, create: { number: '6800', name: 'Abschreibungen', type: 'EXPENSE', companyId: company.id } }),
   ]);
-  console.log('✓ 17 Accounts created (Swiss SME Chart)');
 
-  console.log('\n✅ Seed completed successfully!');
-  console.log('────────────────────────────────────');
-  console.log('Admin Login: admin@loomora.ch');
-  console.log('Password: admin123');
-  console.log('────────────────────────────────────');
+  console.log('  ✓ 26 Konten erstellt');
+
+  // =====================================================
+  // 24. JOURNAL ENTRIES
+  // =====================================================
+  console.log('📦 Erstelle Buchungen...');
+
+  await Promise.all([
+    prisma.journalEntry.create({
+      data: {
+        number: 'BU-2024-001',
+        date: daysAgo(70),
+        description: 'Zahlungseingang RE-2023-048',
+        companyId: company.id,
+        lines: {
+          create: [
+            { accountId: accounts[1].id, description: 'Zahlungseingang Architektur Bern', debit: 48645, credit: 0, position: 1 },
+            { accountId: accounts[3].id, description: 'Debitor ausgeglichen', debit: 0, credit: 48645, position: 2 },
+          ],
+        },
+      },
+    }),
+    prisma.journalEntry.create({
+      data: {
+        number: 'BU-2024-002',
+        date: daysAgo(12),
+        description: 'Zahlung Stahl Schweiz AG',
+        companyId: company.id,
+        lines: {
+          create: [
+            { accountId: accounts[9].id, description: 'Kreditor Stahl', debit: 9188.50, credit: 0, position: 1 },
+            { accountId: accounts[1].id, description: 'Bankbelastung', debit: 0, credit: 9188.50, position: 2 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Buchungen erstellt');
+
+  // =====================================================
+  // 25. ABSENCES
+  // =====================================================
+  console.log('📦 Erstelle Abwesenheiten...');
+
+  await Promise.all([
+    prisma.absence.create({
+      data: {
+        employeeId: employees[0].id,
+        type: 'VACATION',
+        status: 'APPROVED',
+        startDate: daysFromNow(60),
+        endDate: daysFromNow(74),
+        days: 10,
+        reason: 'Sommerferien',
+      },
+    }),
+    prisma.absence.create({
+      data: {
+        employeeId: employees[2].id,
+        type: 'SICK',
+        status: 'APPROVED',
+        startDate: daysAgo(20),
+        endDate: daysAgo(18),
+        days: 2,
+        reason: 'Grippe',
+      },
+    }),
+    prisma.absence.create({
+      data: {
+        employeeId: employees[4].id,
+        type: 'VACATION',
+        status: 'PENDING',
+        startDate: daysFromNow(30),
+        endDate: daysFromNow(34),
+        days: 5,
+        reason: 'Kurzurlaub',
+      },
+    }),
+    prisma.absence.create({
+      data: {
+        employeeId: employees[3].id,
+        type: 'PATERNITY',
+        status: 'APPROVED',
+        startDate: daysAgo(45),
+        endDate: daysAgo(36),
+        days: 10,
+        reason: 'Vaterschaftsurlaub',
+        notes: 'Geburt am 15.01.2024',
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 4 Abwesenheiten erstellt');
+
+  // =====================================================
+  // 26. PAYSLIPS
+  // =====================================================
+  console.log('📦 Erstelle Lohnabrechnungen...');
+
+  for (const emp of employees.slice(0, 5)) {
+    for (let i = 0; i < 3; i++) {
+      const period = monthStart(i);
+      await prisma.payslip.create({
+        data: {
+          employeeId: emp.id,
+          period,
+          grossSalary: emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000,
+          netSalary: emp.number === 'MA-0001' ? 9875 : emp.number === 'MA-0006' ? 3120 : 4740,
+          ahvDeduction: emp.number === 'MA-0001' ? 662.50 : emp.number === 'MA-0006' ? 206.70 : 318,
+          alvDeduction: emp.number === 'MA-0001' ? 137.50 : emp.number === 'MA-0006' ? 42.90 : 66,
+          nbuDeduction: emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.40 : 36,
+          bvgDeduction: emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360,
+          taxDeduction: 0,
+          hoursWorked: emp.workloadPercent === 100 ? 184.5 : 110.7,
+          isPaid: i > 0,
+          paidAt: i > 0 ? new Date(period.getFullYear(), period.getMonth() + 1, 25) : null,
+          items: {
+            create: [
+              { type: 'Grundlohn', description: 'Monatslohn', amount: emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000, isDeduction: false },
+              { type: 'Abzug', description: 'AHV/IV/EO', amount: emp.number === 'MA-0001' ? 662.50 : emp.number === 'MA-0006' ? 206.70 : 318, isDeduction: true },
+              { type: 'Abzug', description: 'ALV', amount: emp.number === 'MA-0001' ? 137.50 : emp.number === 'MA-0006' ? 42.90 : 66, isDeduction: true },
+              { type: 'Abzug', description: 'NBU', amount: emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.40 : 36, isDeduction: true },
+              { type: 'Abzug', description: 'BVG', amount: emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360, isDeduction: true },
+            ],
+          },
+        },
+      });
+    }
+  }
+
+  console.log('  ✓ 15 Lohnabrechnungen erstellt');
+
+  // =====================================================
+  // 27. GAV SETTINGS & EMPLOYEE DATA
+  // =====================================================
+  console.log('📦 Erstelle GAV-Daten...');
+
+  await prisma.gavSettings.upsert({
+    where: { companyId_year: { companyId: company.id, year: 2024 } },
+    update: {},
+    create: {
+      year: 2024,
+      weeklyHours: 42.5,
+      minRateA: 22.75,
+      minRateB: 24.30,
+      minRateC: 28.10,
+      minRateD: 31.50,
+      minRateE: 35.80,
+      minRateF: 42.00,
+      schmutzzulage: 2.50,
+      hoehenzulage: 3.00,
+      nachtzulageProzent: 25,
+      sonntagProzent: 50,
+      ueberZeitProzent: 25,
+      essenszulage: 18.00,
+      unterkunftMax: 120.00,
+      companyId: company.id,
+    },
+  });
+
+  await Promise.all([
+    prisma.gavEmployeeData.create({
+      data: { employeeId: employees[0].id, lohnklasse: 'F', hourlyRate: 72.00, yearsExperience: 20, hasEfz: true, efzProfession: 'Metallbaumeister', efzDate: new Date('2005-07-01') },
+    }),
+    prisma.gavEmployeeData.create({
+      data: { employeeId: employees[1].id, lohnklasse: 'E', hourlyRate: 45.00, yearsExperience: 12, hasEfz: true, efzProfession: 'Metallbauer EFZ', efzDate: new Date('2012-07-01') },
+    }),
+    prisma.gavEmployeeData.create({
+      data: { employeeId: employees[2].id, lohnklasse: 'C', hourlyRate: 35.80, yearsExperience: 8, hasEfz: true, efzProfession: 'Metallbauer EFZ', efzDate: new Date('2016-07-01') },
+    }),
+    prisma.gavEmployeeData.create({
+      data: { employeeId: employees[3].id, lohnklasse: 'C', hourlyRate: 33.50, yearsExperience: 5, hasEfz: true, efzProfession: 'Metallbauer EFZ', efzDate: new Date('2019-07-01') },
+    }),
+    prisma.gavEmployeeData.create({
+      data: { employeeId: employees[4].id, lohnklasse: 'C', hourlyRate: 31.80, yearsExperience: 4, hasEfz: true, efzProfession: 'Metallbauer EFZ', efzDate: new Date('2020-07-01') },
+    }),
+    prisma.gavEmployeeData.create({
+      data: { employeeId: employees[6].id, lohnklasse: 'B', hourlyRate: 24.30, yearsExperience: 1, hasEfz: false },
+    }),
+  ]);
+
+  console.log('  ✓ GAV-Einstellungen und 6 Mitarbeiter-GAV-Daten erstellt');
+
+  // =====================================================
+  // 28. WITHHOLDING TAX (QST)
+  // =====================================================
+  console.log('📦 Erstelle Quellensteuer-Daten...');
+
+  await Promise.all([
+    prisma.qstEmployeeData.create({
+      data: { employeeId: employees[2].id, status: 'ACTIVE', kanton: 'ZH', tarif: 'A', childCount: 1, churchMember: false, nationality: 'IT', permitType: 'B', permitValidUntil: daysFromNow(365) },
+    }),
+    prisma.qstEmployeeData.create({
+      data: { employeeId: employees[6].id, status: 'ACTIVE', kanton: 'ZH', tarif: 'A', childCount: 0, churchMember: false, nationality: 'TR', permitType: 'B', permitValidUntil: daysFromNow(180) },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Quellensteuer-Daten erstellt');
+
+  // =====================================================
+  // 29. COST CENTERS
+  // =====================================================
+  console.log('📦 Erstelle Kostenstellen...');
+
+  const costCenters = await Promise.all([
+    prisma.costCenter.upsert({ where: { companyId_number: { companyId: company.id, number: '100' } }, update: {}, create: { number: '100', name: 'Verwaltung', description: 'Administration und Geschäftsleitung', budgetAmount: 150000, companyId: company.id } }),
+    prisma.costCenter.upsert({ where: { companyId_number: { companyId: company.id, number: '200' } }, update: {}, create: { number: '200', name: 'Produktion', description: 'Werkstatt und Fertigung', budgetAmount: 450000, companyId: company.id } }),
+    prisma.costCenter.upsert({ where: { companyId_number: { companyId: company.id, number: '300' } }, update: {}, create: { number: '300', name: 'Montage', description: 'Aussenmontage', budgetAmount: 280000, companyId: company.id } }),
+    prisma.costCenter.upsert({ where: { companyId_number: { companyId: company.id, number: '400' } }, update: {}, create: { number: '400', name: 'Vertrieb', description: 'Akquise und Kundenbetreuung', budgetAmount: 80000, companyId: company.id } }),
+  ]);
+
+  console.log('  ✓ 4 Kostenstellen erstellt');
+
+  // =====================================================
+  // 30. BUDGETS
+  // =====================================================
+  console.log('📦 Erstelle Budgets...');
+
+  await Promise.all([
+    prisma.budget.create({ data: { name: 'Jahresbudget 2024', year: 2024, totalAmount: 960000, status: 'ACTIVE', companyId: company.id } }),
+    prisma.budget.create({ data: { name: 'Investitionsbudget 2024', year: 2024, totalAmount: 150000, status: 'ACTIVE', notes: 'CNC-Maschine und Fahrzeug', companyId: company.id } }),
+  ]);
+
+  console.log('  ✓ 2 Budgets erstellt');
+
+  // =====================================================
+  // 31. FIXED ASSETS
+  // =====================================================
+  console.log('📦 Erstelle Anlagevermögen...');
+
+  const fixedAssets = await Promise.all([
+    prisma.fixedAsset.create({
+      data: {
+        number: 'ANL-00001',
+        name: 'CNC-Brennschneidanlage',
+        description: 'Messer Cutting Systems MultiTherm',
+        category: 'MACHINERY',
+        acquisitionDate: new Date('2020-03-15'),
+        acquisitionCost: 185000,
+        residualValue: 10000,
+        currentBookValue: 105000,
+        usefulLife: 10,
+        depreciationMethod: 'LINEAR',
+        depreciationRate: 0.1,
+        status: 'ACTIVE',
+        location: 'Werkstatt Halle 1',
+        costCenterId: costCenters[1].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.fixedAsset.create({
+      data: {
+        number: 'ANL-00002',
+        name: 'Schweissroboter',
+        description: 'KUKA KR 16 arc HW',
+        category: 'MACHINERY',
+        acquisitionDate: new Date('2022-06-01'),
+        acquisitionCost: 125000,
+        residualValue: 5000,
+        currentBookValue: 101000,
+        usefulLife: 10,
+        depreciationMethod: 'LINEAR',
+        depreciationRate: 0.1,
+        status: 'ACTIVE',
+        location: 'Werkstatt Halle 1',
+        costCenterId: costCenters[1].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.fixedAsset.create({
+      data: {
+        number: 'ANL-00003',
+        name: 'Mercedes Sprinter',
+        description: '316 CDI Kastenwagen',
+        category: 'VEHICLES',
+        serialNumber: 'WDB9066331S123456',
+        acquisitionDate: new Date('2021-09-01'),
+        acquisitionCost: 52000,
+        residualValue: 8000,
+        currentBookValue: 36800,
+        usefulLife: 6,
+        depreciationMethod: 'LINEAR',
+        depreciationRate: 0.1667,
+        status: 'ACTIVE',
+        costCenterId: costCenters[2].id,
+        companyId: company.id,
+      },
+    }),
+    prisma.fixedAsset.create({
+      data: {
+        number: 'ANL-00004',
+        name: 'IT-Infrastruktur',
+        description: 'Server, Workstations, CAD-Software',
+        category: 'IT_EQUIPMENT',
+        acquisitionDate: new Date('2023-01-15'),
+        acquisitionCost: 28000,
+        residualValue: 0,
+        currentBookValue: 21000,
+        usefulLife: 4,
+        depreciationMethod: 'LINEAR',
+        depreciationRate: 0.25,
+        status: 'ACTIVE',
+        costCenterId: costCenters[0].id,
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  // Create depreciation entries
+  for (const asset of fixedAssets) {
+    const yearsElapsed = Math.floor((Date.now() - asset.acquisitionDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    let bookValue = Number(asset.acquisitionCost);
+    const annualDepreciation = (Number(asset.acquisitionCost) - Number(asset.residualValue)) / asset.usefulLife;
+    
+    for (let year = 0; year < Math.min(yearsElapsed, asset.usefulLife); year++) {
+      const deprecYear = asset.acquisitionDate.getFullYear() + year;
+      await prisma.assetDepreciation.create({
+        data: {
+          fixedAssetId: asset.id,
+          year: deprecYear,
+          amount: annualDepreciation,
+          bookValueBefore: bookValue,
+          bookValueAfter: bookValue - annualDepreciation,
+          isPosted: true,
+        },
+      });
+      bookValue -= annualDepreciation;
+    }
+  }
+
+  console.log('  ✓ 4 Anlagen mit Abschreibungen erstellt');
+
+  // =====================================================
+  // 32. VAT RETURNS
+  // =====================================================
+  console.log('📦 Erstelle MWST-Abrechnungen...');
+
+  await Promise.all([
+    prisma.vatReturn.create({
+      data: {
+        number: 'MWST-2023-Q4',
+        year: 2023,
+        period: 'QUARTERLY',
+        quarter: 4,
+        status: 'SUBMITTED',
+        totalOutputTax: 28500,
+        totalInputTax: 12400,
+        vatPayable: 16100,
+        calculatedAt: daysAgo(45),
+        submittedAt: daysAgo(30),
+        submissionMethod: 'eCH-0217',
+        companyId: company.id,
+      },
+    }),
+    prisma.vatReturn.create({
+      data: {
+        number: 'MWST-2024-Q1',
+        year: 2024,
+        period: 'QUARTERLY',
+        quarter: 1,
+        status: 'CALCULATED',
+        totalOutputTax: 18200,
+        totalInputTax: 8900,
+        vatPayable: 9300,
+        calculatedAt: daysAgo(5),
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 MWST-Abrechnungen erstellt');
+
+  // =====================================================
+  // 33. BILL OF MATERIALS
+  // =====================================================
+  console.log('📦 Erstelle Stücklisten...');
+
+  const boms = await Promise.all([
+    prisma.billOfMaterial.create({
+      data: {
+        name: 'Treppengeländer Standard 3m',
+        description: 'Standard-Treppengeländer für Innenbereich',
+        isTemplate: true,
+        category: 'Geländer',
+        companyId: company.id,
+        items: {
+          create: [
+            { type: 'MATERIAL', productId: products[2].id, description: 'Quadratrohr 60x60x3 Handlauf', quantity: 3.2, unit: 'lfm', unitPrice: 12.50, total: 40, sortOrder: 1 },
+            { type: 'MATERIAL', productId: products[3].id, description: 'Flachstahl Pfosten', quantity: 8, unit: 'lfm', unitPrice: 4.80, total: 38.40, sortOrder: 2 },
+            { type: 'MATERIAL', productId: products[4].id, description: 'Befestigung', quantity: 24, unit: 'Stk', unitPrice: 0.45, total: 10.80, sortOrder: 3 },
+            { type: 'LABOR', description: 'Zuschnitt und Schweissen', quantity: 1, unit: 'Pausch', hours: 6, hourlyRate: 95, unitPrice: 570, total: 570, sortOrder: 4 },
+            { type: 'LABOR', description: 'Oberflächenbehandlung', quantity: 1, unit: 'Pausch', hours: 2, hourlyRate: 95, unitPrice: 190, total: 190, sortOrder: 5 },
+            { type: 'EXTERNAL', description: 'Pulverbeschichtung extern', quantity: 3.5, unit: 'm²', unitPrice: 45, total: 157.50, sortOrder: 6 },
+          ],
+        },
+      },
+    }),
+    prisma.billOfMaterial.create({
+      data: {
+        name: 'Balkongeländer Typ A 2.5m',
+        description: 'Standard-Balkongeländer mit Glasfüllung',
+        isTemplate: true,
+        category: 'Geländer',
+        companyId: company.id,
+        items: {
+          create: [
+            { type: 'MATERIAL', productId: products[2].id, description: 'Quadratrohr Rahmen', quantity: 8, unit: 'lfm', unitPrice: 12.50, total: 100, sortOrder: 1 },
+            { type: 'MATERIAL', productId: products[7].id, description: 'VSG Glasfüllung', quantity: 2, unit: 'm²', unitPrice: 85, total: 170, sortOrder: 2 },
+            { type: 'MATERIAL', productId: products[5].id, description: 'Ankerschrauben', quantity: 8, unit: 'Stk', unitPrice: 2.80, total: 22.40, sortOrder: 3 },
+            { type: 'LABOR', description: 'Fertigung komplett', quantity: 1, unit: 'Pausch', hours: 8, hourlyRate: 95, unitPrice: 760, total: 760, sortOrder: 4 },
+            { type: 'EXTERNAL', description: 'Pulverbeschichtung', quantity: 2.5, unit: 'm²', unitPrice: 45, total: 112.50, sortOrder: 5 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Stücklisten-Vorlagen erstellt');
+
+  // =====================================================
+  // 34. PRODUCTION ORDERS
+  // =====================================================
+  console.log('📦 Erstelle Werkstattaufträge...');
+
+  const productionOrders = await Promise.all([
+    prisma.productionOrder.create({
+      data: {
+        number: 'WA-2024-001',
+        name: 'Geländer Bürogebäude EG',
+        description: '12 Geländerelemente à 2.5m für Erdgeschoss',
+        projectId: projects[0].id,
+        orderId: orders[0].id,
+        bomId: boms[0].id,
+        status: 'IN_PROGRESS',
+        priority: 'HIGH',
+        quantity: 12,
+        plannedStartDate: daysAgo(25),
+        plannedEndDate: daysFromNow(5),
+        actualStartDate: daysAgo(20),
+        companyId: company.id,
+        operations: {
+          create: [
+            { name: 'Zuschnitt', workstation: 'Säge', plannedHours: 8, actualHours: 7.5, status: 'completed', sortOrder: 1 },
+            { name: 'Schweissen', workstation: 'Schweissplatz', plannedHours: 24, actualHours: 18, assignedEmployeeId: employees[2].id, status: 'in_progress', sortOrder: 2 },
+            { name: 'Schleifen', workstation: 'Schleifplatz', plannedHours: 8, status: 'pending', sortOrder: 3 },
+            { name: 'Qualitätskontrolle', workstation: 'QS', plannedHours: 2, status: 'pending', sortOrder: 4 },
+          ],
+        },
+      },
+    }),
+    prisma.productionOrder.create({
+      data: {
+        number: 'WA-2024-002',
+        name: 'Wendeltreppe Hotel',
+        description: 'Freitragende Stahlwendeltreppe 4 Stockwerke',
+        projectId: projects[1].id,
+        orderId: orders[1].id,
+        status: 'PLANNED',
+        priority: 'HIGH',
+        quantity: 1,
+        plannedStartDate: daysFromNow(10),
+        plannedEndDate: daysFromNow(45),
+        companyId: company.id,
+        operations: {
+          create: [
+            { name: 'Zuschnitt Hauptkonstruktion', workstation: 'CNC', plannedHours: 16, status: 'pending', sortOrder: 1 },
+            { name: 'Biegen Wangen', workstation: 'Biegemaschine', plannedHours: 12, status: 'pending', sortOrder: 2 },
+            { name: 'Schweissen Stufen', workstation: 'Roboter', plannedHours: 24, status: 'pending', sortOrder: 3 },
+            { name: 'Schweissen Konstruktion', workstation: 'Schweissplatz', plannedHours: 40, status: 'pending', sortOrder: 4 },
+            { name: 'Montageprobe', workstation: 'Montagehalle', plannedHours: 8, status: 'pending', sortOrder: 5 },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Werkstattaufträge erstellt');
+
+  // =====================================================
+  // 35. CALCULATIONS
+  // =====================================================
+  console.log('📦 Erstelle Kalkulationen...');
+
+  await prisma.calculation.create({
+    data: {
+      number: 'KA-2024-001',
+      name: 'Kalkulation Balkongeländer Projekt',
+      description: '48 Balkongeländer für Bau Meier',
+      projectId: projects[2].id,
+      bomId: boms[1].id,
+      customerId: customers[1].id,
+      status: 'CALCULATED',
+      materialMarkup: 15,
+      laborMarkup: 10,
+      overheadPercent: 8,
+      profitMargin: 12,
+      riskMargin: 5,
+      discount: 3,
+      totalCost: 142500,
+      totalPrice: 181608,
+      companyId: company.id,
+      items: {
+        create: [
+          { type: 'MATERIAL', description: 'Material gesamt', quantity: 48, unit: 'Stk', unitCost: 292.40, total: 14035, sortOrder: 1 },
+          { type: 'LABOR', description: 'Fertigung', quantity: 384, unit: 'Std', hours: 384, hourlyRate: 95, unitCost: 95, total: 36480, sortOrder: 2 },
+          { type: 'LABOR', description: 'Montage', quantity: 240, unit: 'Std', hours: 240, hourlyRate: 105, unitCost: 105, total: 25200, sortOrder: 3 },
+          { type: 'EXTERNAL', description: 'Pulverbeschichtung', quantity: 120, unit: 'm²', unitCost: 45, total: 5400, sortOrder: 4 },
+        ],
+      },
+    },
+  });
+
+  console.log('  ✓ 1 Kalkulation erstellt');
+
+  // =====================================================
+  // 36. QUALITY CHECKLISTS & CHECKS
+  // =====================================================
+  console.log('📦 Erstelle Qualitätsprüfungen...');
+
+  const checklist = await prisma.qualityChecklist.create({
+    data: {
+      name: 'Schweissnaht-Prüfung',
+      description: 'Standard-Prüfprotokoll für Schweissnähte',
+      type: 'IN_PROCESS',
+      category: 'Schweissnaht',
+      companyId: company.id,
+      items: {
+        create: [
+          { name: 'Visuelle Prüfung', description: 'Keine sichtbaren Fehler, Poren, Risse', required: true, sortOrder: 1 },
+          { name: 'Massgenauigkeit', description: 'Toleranz ±2mm', required: true, sortOrder: 2 },
+          { name: 'Nahtbreite', description: 'Gleichmässige Nahtbreite', required: true, sortOrder: 3 },
+          { name: 'Eindringtiefe', description: 'Ausreichende Durchschweissung', required: true, sortOrder: 4 },
+          { name: 'Nachbearbeitung', description: 'Schlacke entfernt, geschliffen', required: false, sortOrder: 5 },
+        ],
+      },
+    },
+  });
+
+  await prisma.qualityCheck.create({
+    data: {
+      number: 'QC-2024-001',
+      checklistId: checklist.id,
+      productionOrderId: productionOrders[0].id,
+      type: 'IN_PROCESS',
+      status: 'PASSED',
+      inspectorId: employees[1].id,
+      checkDate: daysAgo(5),
+      notes: 'Alle Prüfpunkte bestanden',
+      companyId: company.id,
+    },
+  });
+
+  console.log('  ✓ 1 Checkliste und 1 Prüfung erstellt');
+
+  // =====================================================
+  // 37. SERVICE TICKETS
+  // =====================================================
+  console.log('📦 Erstelle Service-Tickets...');
+
+  await Promise.all([
+    prisma.serviceTicket.create({
+      data: {
+        number: 'ST-2024-001',
+        title: 'Geländer Reparatur nach Anprall',
+        description: 'Handlauf verbogen nach LKW-Anfahrt, Dringend',
+        customerId: customers[0].id,
+        priority: 'HIGH',
+        status: 'OPEN',
+        category: 'Reparatur',
+        assignedEmployeeId: employees[4].id,
+        dueDate: daysFromNow(3),
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceTicket.create({
+      data: {
+        number: 'ST-2024-002',
+        title: 'Wartung Toranlage',
+        description: 'Jährliche Wartung gemäss Vertrag',
+        customerId: customers[1].id,
+        priority: 'MEDIUM',
+        status: 'IN_PROGRESS',
+        category: 'Wartung',
+        assignedEmployeeId: employees[4].id,
+        dueDate: daysFromNow(14),
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('  ✓ 2 Service-Tickets erstellt');
+
+  // =====================================================
+  // 38. LEADS
+  // =====================================================
+  console.log('📦 Erstelle Leads...');
+
+  await Promise.all([
+    prisma.lead.create({ data: { name: 'Neue Anfrage Treppengeländer', companyName: 'Wohnbau Basel AG', email: 'anfrage@wohnbau-bs.ch', phone: '+41 61 555 12 34', source: 'Website', status: 'QUALIFIED', value: 45000, companyId: company.id } }),
+    prisma.lead.create({ data: { name: 'Balkongeländer Neubau', companyName: 'Implenia AG', email: 'projekt@implenia.ch', phone: '+41 44 666 23 45', source: 'Empfehlung', status: 'PROPOSAL', value: 120000, companyId: company.id } }),
+    prisma.lead.create({ data: { name: 'Carport Stahlkonstruktion', email: 'privat@gmail.com', phone: '+41 79 777 34 56', source: 'Cold Call', status: 'NEW', value: 8500, companyId: company.id } }),
+  ]);
+
+  console.log('  ✓ 3 Leads erstellt');
+
+  // =====================================================
+  // 39. CAMPAIGNS
+  // =====================================================
+  console.log('📦 Erstelle Kampagnen...');
+
+  await prisma.campaign.create({
+    data: {
+      name: 'Frühlings-Aktion 2024',
+      description: '10% Rabatt auf Balkongeländer',
+      type: 'Email',
+      status: 'active',
+      startDate: daysAgo(30),
+      endDate: daysFromNow(30),
+      budget: 2500,
+      spent: 850,
+      targetAudience: 'Bauunternehmen Region Zürich',
+      companyId: company.id,
+    },
+  });
+
+  console.log('  ✓ 1 Kampagne erstellt');
+
+  // =====================================================
+  // 40. CALENDAR EVENTS
+  // =====================================================
+  console.log('📦 Erstelle Kalendereinträge...');
+
+  await Promise.all([
+    prisma.calendarEvent.create({ data: { title: 'Kundentermin Immobilien Zürich', description: 'Besprechung Projektfortschritt Geländer', startTime: daysFromNow(3), endTime: new Date(daysFromNow(3).getTime() + 2 * 60 * 60 * 1000), location: 'Bahnhofstrasse 100, Zürich', createdById: adminUser.id, companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Team Meeting', description: 'Wöchentliche Projektbesprechung', startTime: daysFromNow(1), endTime: new Date(daysFromNow(1).getTime() + 1 * 60 * 60 * 1000), createdById: adminUser.id, companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Lieferung Glas Hotel', description: 'VSG Glas für Wendeltreppe', startTime: daysFromNow(12), endTime: new Date(daysFromNow(12).getTime() + 2 * 60 * 60 * 1000), createdById: managerUser.id, companyId: company.id } }),
+    prisma.calendarEvent.create({ data: { title: 'Montage EG Geländer', description: 'Installation beim Kunden', startTime: daysFromNow(8), endTime: new Date(daysFromNow(8).getTime() + 8 * 60 * 60 * 1000), location: 'Bahnhofstrasse 100, Zürich', createdById: adminUser.id, companyId: company.id } }),
+  ]);
+
+  console.log('  ✓ 4 Kalendereinträge erstellt');
+
+  // =====================================================
+  // 41. SWISSDEC SUBMISSIONS
+  // =====================================================
+  console.log('📦 Erstelle Swissdec-Meldungen...');
+
+  await prisma.swissdecSubmission.create({
+    data: {
+      reference: 'ELM-2024-001',
+      messageType: 'SALARY_DECLARATION',
+      year: 2024,
+      month: 1,
+      recipients: ['AHV', 'FAK', 'UVG', 'KTG'],
+      status: 'PROCESSED',
+      employeeCount: 7,
+      validatedAt: daysAgo(25),
+      submittedAt: daysAgo(24),
+      transmissionId: 'TX-2024-001-ABC123',
+      companyId: company.id,
+      declarations: {
+        create: employees.slice(0, 5).map(emp => ({
+          employeeId: emp.id,
+          year: 2024,
+          month: 1,
+          data: { grossSalary: 6000, ahv: 318, alv: 66, nbu: 36, bvg: 360 },
+        })),
+      },
+    },
+  });
+
+  console.log('  ✓ 1 Swissdec-Meldung erstellt');
+
+  // =====================================================
+  // 42. TRAININGS
+  // =====================================================
+  console.log('📦 Erstelle Schulungen...');
+
+  const training = await prisma.training.create({
+    data: {
+      title: 'Schweisszertifizierung EN 1090',
+      description: 'Rezertifizierung für alle Schweisser',
+      category: 'Fachlich',
+      startDate: daysFromNow(30),
+      endDate: daysFromNow(31),
+      location: 'SVS Schweissfachschule, Dietikon',
+      trainer: 'Dr. Hans Schmid',
+      maxParticipants: 8,
+      budget: 4500,
+      status: 'planned',
+    },
+  });
+
+  await Promise.all([
+    prisma.trainingParticipant.create({ data: { trainingId: training.id, employeeId: employees[2].id, status: 'registered' } }),
+    prisma.trainingParticipant.create({ data: { trainingId: training.id, employeeId: employees[3].id, status: 'registered' } }),
+  ]);
+
+  console.log('  ✓ 1 Schulung mit 2 Teilnehmern erstellt');
+
+  // =====================================================
+  // SUMMARY
+  // =====================================================
+  console.log('\n========================================');
+  console.log('✅ Seed erfolgreich abgeschlossen!');
+  console.log('========================================\n');
+  console.log('📊 Erstellte Datensätze:');
+  console.log('   - 1 Firma, 2 Benutzer');
+  console.log('   - 4 Abteilungen, 7 Mitarbeiter');
+  console.log('   - 5 Kunden, 4 Kontakte, 4 Lieferanten');
+  console.log('   - 11 Produkte in 5 Kategorien');
+  console.log('   - 5 Projekte, 8 Aufgaben');
+  console.log('   - 3 Angebote, 3 Aufträge, 2 Lieferscheine');
+  console.log('   - 3 Rechnungen, 2 Mahnungen, 1 Gutschrift');
+  console.log('   - 3 Bestellungen, 2 Wareneingänge, 3 Eingangsrechnungen');
+  console.log('   - 3 Zahlungen, 2 Bankkonten');
+  console.log('   - 26 Konten, 2 Buchungen');
+  console.log('   - 15 Lohnabrechnungen, 4 Abwesenheiten');
+  console.log('   - GAV-Einstellungen, 6 GAV-Daten, 2 QST-Daten');
+  console.log('   - 4 Kostenstellen, 2 Budgets, 4 Anlagen');
+  console.log('   - 2 MWST-Abrechnungen');
+  console.log('   - 2 Stücklisten, 2 Werkstattaufträge, 1 Kalkulation');
+  console.log('   - 1 QS-Checkliste, 1 Prüfung, 2 Service-Tickets');
+  console.log('   - 3 Leads, 1 Kampagne, 4 Kalendereinträge');
+  console.log('   - 1 Swissdec-Meldung, 1 Schulung');
+  console.log('\n────────────────────────────────────');
+  console.log('🔐 Admin Login: admin@loomora.ch');
+  console.log('🔐 Passwort: admin123');
+  console.log('────────────────────────────────────\n');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
+    console.error('❌ Seed fehlgeschlagen:', e);
     process.exit(1);
   })
   .finally(async () => {
