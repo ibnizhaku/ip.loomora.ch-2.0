@@ -54,6 +54,12 @@ import { ContractsModule } from './modules/contracts/contracts.module';
 import { RecruitingModule } from './modules/recruiting/recruiting.module';
 // Training
 import { TrainingModule } from './modules/training/training.module';
+// Bank Import (camt.054)
+import { BankImportModule } from './modules/bank-import/bank-import.module';
+// Documents (DMS)
+import { DocumentsModule } from './modules/documents/documents.module';
+// Audit Log
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -115,6 +121,12 @@ import { TrainingModule } from './modules/training/training.module';
     RecruitingModule,
     // Training
     TrainingModule,
+    // Bank Import (camt.054)
+    BankImportModule,
+    // Documents (DMS)
+    DocumentsModule,
+    // Audit Log (Global)
+    AuditLogModule,
   ],
 })
 export class AppModule {}
