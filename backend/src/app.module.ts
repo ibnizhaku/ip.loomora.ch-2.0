@@ -26,6 +26,11 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
 import { PurchaseInvoicesModule } from './modules/purchase-invoices/purchase-invoices.module';
 import { GoodsReceiptsModule } from './modules/goods-receipts/goods-receipts.module';
+import { BomModule } from './modules/bom/bom.module';
+import { ProductionOrdersModule } from './modules/production-orders/production-orders.module';
+import { CalculationsModule } from './modules/calculations/calculations.module';
+import { QualityControlModule } from './modules/quality-control/quality-control.module';
+import { ServiceTicketsModule } from './modules/service-tickets/service-tickets.module';
 
 @Module({
   imports: [
@@ -58,6 +63,12 @@ import { GoodsReceiptsModule } from './modules/goods-receipts/goods-receipts.mod
     PurchaseOrdersModule,
     PurchaseInvoicesModule,
     GoodsReceiptsModule,
+    // Production & Service
+    BomModule,
+    ProductionOrdersModule,
+    CalculationsModule,
+    QualityControlModule,
+    ServiceTicketsModule,
   ],
 })
 export class AppModule {}
