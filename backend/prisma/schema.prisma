@@ -151,6 +151,7 @@ model Company {
   
   // Settings as JSON
   settings      Json     @default("{}")
+  shopSettings  Json?    // E-Commerce settings
   
   // Numbering (current counters)
   invoiceCounter    Int  @default(0)
@@ -224,6 +225,9 @@ model User {
   createdProjects   Project[]  @relation("ProjectCreator")
   managedProjects   Project[]  @relation("ProjectManager")
   eventAttendances  EventAttendee[]
+  assignedLeads     Lead[]     @relation("LeadAssignee")
+  assignedContracts Contract[] @relation("ContractResponsible")
+  conductedInterviews Interview[] @relation("Interviewer")
   
   @@index([companyId])
   @@index([email])
@@ -303,6 +307,9 @@ model Customer {
   projects        Project[]
   calculations    Calculation[]
   serviceTickets  ServiceTicket[]
+  leads           Lead[]
+  shopOrders      ShopOrder[]
+  contracts       Contract[]
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -382,9 +389,27 @@ model Lead {
   companyName     String?
   email           String?
   phone           String?
-  source          String?    // Website, Referral, Cold Call, etc.
+  position        String?
+  source          String?    // WEBSITE, REFERRAL, COLD_CALL, TRADE_SHOW, SOCIAL_MEDIA, ADVERTISEMENT, OTHER
   status          LeadStatus @default(NEW)
-  value           Decimal?   @db.Decimal(12, 2)
+  priority        String?    // LOW, MEDIUM, HIGH, URGENT
+  estimatedValue  Decimal?   @db.Decimal(12, 2)
+  score           Int?       @default(0)  // Lead scoring 0-100
+  
+  // Assignment
+  assignedToId    String?
+  assignedTo      User?      @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  
+  // Campaign relation
+  campaignId      String?
+  campaign        Campaign?  @relation(fields: [campaignId], references: [id])
+  
+  // Conversion
+  customerId      String?
+  customer        Customer?  @relation(fields: [customerId], references: [id])
+  convertedAt     DateTime?
+  
+  nextFollowUp    DateTime?
   notes           String?
   
   companyId       String
@@ -393,8 +418,13 @@ model Lead {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+  // Relations
+  activities      LeadActivity[]
+  
   @@index([companyId])
   @@index([status])
+  @@index([assignedToId])
+  @@index([campaignId])
   @@map("leads")
 }
 
@@ -471,6 +501,8 @@ model Product {
   goodsReceiptItems GoodsReceiptItem[]
   inventoryMovements InventoryMovement[]
   bomItems        BomItem[]
+  shopOrderItems  ShopOrderItem[]
+  reviews         Review[]
   
   @@unique([companyId, sku])
   @@index([companyId])
@@ -1284,6 +1316,7 @@ model Project {
   productionOrders ProductionOrder[]
   calculations    Calculation[]
   serviceTickets  ServiceTicket[]
+  contracts       Contract[]
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -1542,6 +1575,7 @@ model Employee {
   absences        Absence[]
   payslips        Payslip[]
   trainingParticipations TrainingParticipant[]
+  trainingsInstructed Training[] @relation("TrainingInstructor")
   travelExpenses  TravelExpense[]
   projectMemberships ProjectMember[]
   productionOperations ProductionOperation[]
@@ -1551,6 +1585,7 @@ model Employee {
   swissdecDeclarations SwissdecDeclaration[]
   gavData         GavEmployeeData?
   qstData         QstEmployeeData?
+  jobContactPerson JobPosting[] @relation("JobContactPerson")
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -1678,21 +1713,38 @@ model PayslipItem {
 
 model Training {
   id              String   @id @default(cuid())
-  title           String
+  name            String
   description     String?
   
-  category        String?  // Sicherheit, Fachlich, Soft Skills
+  type            String   // INTERNAL, EXTERNAL, ONLINE, WORKSHOP, CERTIFICATION, SAFETY, COMPLIANCE
+  status          String   @default("DRAFT") // DRAFT, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
   
   startDate       DateTime
   endDate         DateTime?
+  durationHours   Decimal? @db.Decimal(6, 2)
   
   location        String?
-  trainer         String?
+  isOnline        Boolean  @default(false)
+  meetingUrl      String?
   
   maxParticipants Int?
-  budget          Decimal? @db.Decimal(12, 2)
+  costPerPerson   Decimal? @db.Decimal(10, 2)
+  totalBudget     Decimal? @db.Decimal(12, 2)
   
-  status          String   @default("planned") // planned, ongoing, completed, cancelled
+  provider        String?
+  instructorId    String?
+  instructor      Employee? @relation("TrainingInstructor", fields: [instructorId], references: [id])
+  instructorName  String?
+  
+  targetDepartments String[] @default([])
+  prerequisites   String[] @default([])
+  certificationType String?
+  isMandatory     Boolean  @default(false)
+  
+  notes           String?
+  completedAt     DateTime?
+  
+  companyId       String
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1700,23 +1752,35 @@ model Training {
   // Relations
   participants    TrainingParticipant[]
   
+  @@index([companyId])
+  @@index([status])
   @@map("trainings")
 }
 
 model TrainingParticipant {
-  id          String   @id @default(cuid())
-  trainingId  String
-  training    Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  id                    String   @id @default(cuid())
+  trainingId            String
+  training              Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
+  employeeId            String
+  employee              Employee @relation(fields: [employeeId], references: [id])
   
-  status      String   @default("registered") // registered, waitlist, attended, cancelled
+  status                String   @default("REGISTERED") // REGISTERED, CONFIRMED, ATTENDED, NO_SHOW, CANCELLED, WAITLIST
+  attended              Boolean  @default(false)
   
-  createdAt   DateTime @default(now())
+  rating                Int?     // 1-5
+  feedback              String?
+  
+  certificateIssued     Boolean  @default(false)
+  certificateExpiryDate DateTime?
+  
+  notes                 String?
+  
+  createdAt             DateTime @default(now())
   
   @@unique([trainingId, employeeId])
   @@index([trainingId])
+  @@index([status])
   @@map("training_participants")
 }
 
@@ -1766,16 +1830,19 @@ model Campaign {
   name            String
   description     String?
   
-  type            String   // Email, Social, Event
-  status          String   @default("draft") // draft, active, paused, completed
+  type            String   // EMAIL, SOCIAL, PRINT, EVENT, DIGITAL, OTHER
+  status          String   @default("DRAFT") // DRAFT, SCHEDULED, ACTIVE, PAUSED, COMPLETED, CANCELLED
   
-  startDate       DateTime?
+  startDate       DateTime
   endDate         DateTime?
   
-  budget          Decimal? @db.Decimal(12, 2)
+  budget          Decimal  @default(0) @db.Decimal(12, 2)
   spent           Decimal  @default(0) @db.Decimal(12, 2)
   
   targetAudience  String?
+  expectedReach   Int?
+  actualReach     Int?
+  conversions     Int?     @default(0)
   
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1783,7 +1850,11 @@ model Campaign {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+  // Relations
+  leads           Lead[]
+  
   @@index([companyId])
+  @@index([status])
   @@map("campaigns")
 }
 
@@ -2839,5 +2910,429 @@ model QstEmployeeData {
   @@index([kanton])
   @@index([status])
   @@map("qst_employee_data")
+}
+
+// ============================================
+// MARKETING: LEAD ACTIVITIES
+// ============================================
+
+model LeadActivity {
+  id              String   @id @default(cuid())
+  
+  leadId          String
+  lead            Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  type            String   // CALL, EMAIL, MEETING, NOTE, TASK
+  description     String
+  activityDate    DateTime @default(now())
+  durationMinutes Int?
+  outcome         String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([leadId])
+  @@index([activityDate])
+  @@map("lead_activities")
+}
+
+// ============================================
+// MARKETING: EMAIL CAMPAIGNS
+// ============================================
+
+model EmailCampaign {
+  id              String   @id @default(cuid())
+  name            String
+  subject         String
+  content         String   @db.Text
+  
+  templateId      String?
+  status          String   @default("DRAFT") // DRAFT, SCHEDULED, SENDING, SENT, CANCELLED
+  
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  
+  recipientListIds String[] @default([])
+  
+  senderName      String?
+  senderEmail     String?
+  replyToEmail    String?
+  
+  // Stats
+  sentCount       Int      @default(0)
+  openCount       Int      @default(0)
+  clickCount      Int      @default(0)
+  bounceCount     Int      @default(0)
+  unsubscribeCount Int     @default(0)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([companyId])
+  @@index([status])
+  @@map("email_campaigns")
+}
+
+// ============================================
+// E-COMMERCE: SHOP ORDERS
+// ============================================
+
+model ShopOrder {
+  id              String   @id @default(cuid())
+  orderNumber     String   // WEB-00001
+  
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  
+  customerEmail   String
+  billingAddress  Json
+  shippingAddress Json?
+  
+  status          String   @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED
+  paymentMethod   String?  // TWINT, CREDIT_CARD, PAYPAL, INVOICE, BANK_TRANSFER
+  paymentStatus   String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  
+  subtotal        Decimal  @db.Decimal(12, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  shippingCost    Decimal  @default(0) @db.Decimal(10, 2)
+  vatAmount       Decimal  @db.Decimal(12, 2)
+  total           Decimal  @db.Decimal(12, 2)
+  
+  discountId      String?
+  discount        Discount? @relation(fields: [discountId], references: [id])
+  
+  trackingNumber  String?
+  trackingUrl     String?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  
+  notes           String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  items           ShopOrderItem[]
+  reviews         Review[]
+  
+  @@unique([companyId, orderNumber])
+  @@index([companyId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@map("shop_orders")
+}
+
+model ShopOrderItem {
+  id              String   @id @default(cuid())
+  
+  shopOrderId     String
+  shopOrder       ShopOrder @relation(fields: [shopOrderId], references: [id], onDelete: Cascade)
+  
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  
+  quantity        Int
+  unitPrice       Decimal  @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(10, 2)
+  total           Decimal  @db.Decimal(12, 2)
+  
+  @@index([shopOrderId])
+  @@index([productId])
+  @@map("shop_order_items")
+}
+
+// ============================================
+// E-COMMERCE: DISCOUNTS
+// ============================================
+
+model Discount {
+  id                  String   @id @default(cuid())
+  code                String   // SUMMER2024
+  name                String
+  description         String?
+  
+  type                String   // PERCENTAGE, FIXED_AMOUNT, FREE_SHIPPING
+  value               Decimal  @db.Decimal(10, 2)
+  
+  minimumOrderValue   Decimal? @db.Decimal(12, 2)
+  maximumDiscount     Decimal? @db.Decimal(12, 2)
+  
+  usageLimit          Int?
+  usageLimitPerCustomer Int?
+  usageCount          Int      @default(0)
+  
+  validFrom           DateTime
+  validUntil          DateTime?
+  
+  isActive            Boolean  @default(true)
+  
+  applicableProductIds String[] @default([])
+  applicableCategoryIds String[] @default([])
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  shopOrders          ShopOrder[]
+  
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([isActive])
+  @@map("discounts")
+}
+
+// ============================================
+// E-COMMERCE: REVIEWS
+// ============================================
+
+model Review {
+  id                  String   @id @default(cuid())
+  
+  productId           String
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  shopOrderId         String?
+  shopOrder           ShopOrder? @relation(fields: [shopOrderId], references: [id])
+  
+  customerName        String
+  customerEmail       String?
+  
+  rating              Int      // 1-5
+  title               String?
+  content             String   @db.Text
+  
+  isVerifiedPurchase  Boolean  @default(false)
+  status              String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  moderatorNote       String?
+  moderatedAt         DateTime?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([status])
+  @@index([companyId])
+  @@map("reviews")
+}
+
+// ============================================
+// CONTRACTS
+// ============================================
+
+model Contract {
+  id                  String   @id @default(cuid())
+  contractNumber      String   // V-0001-2024
+  name                String
+  description         String?
+  
+  type                String   // SERVICE, MAINTENANCE, SUPPORT, LICENSE, FRAMEWORK, OTHER
+  status              String   @default("DRAFT") // DRAFT, ACTIVE, SUSPENDED, TERMINATED, EXPIRED
+  
+  customerId          String
+  customer            Customer @relation(fields: [customerId], references: [id])
+  
+  projectId           String?
+  project             Project? @relation(fields: [projectId], references: [id])
+  
+  startDate           DateTime
+  endDate             DateTime?
+  durationMonths      Int?
+  
+  autoRenew           Boolean  @default(false)
+  renewalPeriodMonths Int?
+  noticePeriodDays    Int?
+  renewalCount        Int      @default(0)
+  
+  value               Decimal  @db.Decimal(14, 2)
+  billingCycle        String?  // MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL, ONE_TIME
+  paymentTerms        String?
+  
+  terms               String?  @db.Text
+  notes               String?
+  
+  responsibleId       String?
+  responsible         User?    @relation("ContractResponsible", fields: [responsibleId], references: [id])
+  
+  terminatedAt        DateTime?
+  terminationReason   String?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  renewalHistory      ContractRenewal[]
+  
+  @@unique([companyId, contractNumber])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  @@map("contracts")
+}
+
+model ContractRenewal {
+  id              String   @id @default(cuid())
+  
+  contractId      String
+  contract        Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  previousEndDate DateTime?
+  newEndDate      DateTime
+  
+  previousValue   Decimal  @db.Decimal(14, 2)
+  newValue        Decimal  @db.Decimal(14, 2)
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([contractId])
+  @@map("contract_renewals")
+}
+
+// ============================================
+// RECRUITING: JOB POSTINGS
+// ============================================
+
+model JobPosting {
+  id                  String   @id @default(cuid())
+  title               String
+  description         String   @db.Text
+  requirements        String?  @db.Text
+  benefits            String?  @db.Text
+  
+  department          String?
+  location            String?
+  remoteAllowed       Boolean  @default(false)
+  
+  employmentType      String   // FULL_TIME, PART_TIME, TEMPORARY, CONTRACT, INTERNSHIP, APPRENTICESHIP
+  status              String   @default("DRAFT") // DRAFT, PUBLISHED, PAUSED, CLOSED, FILLED
+  
+  salaryMin           Decimal? @db.Decimal(12, 2)
+  salaryMax           Decimal? @db.Decimal(12, 2)
+  workloadPercent     Int?
+  
+  startDate           DateTime?
+  applicationDeadline DateTime?
+  publishedAt         DateTime?
+  
+  contactPersonId     String?
+  contactPerson       Employee? @relation("JobContactPerson", fields: [contactPersonId], references: [id])
+  
+  requiredSkills      String[] @default([])
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  candidates          Candidate[]
+  
+  @@index([companyId])
+  @@index([status])
+  @@map("job_postings")
+}
+
+// ============================================
+// RECRUITING: CANDIDATES
+// ============================================
+
+model Candidate {
+  id                  String   @id @default(cuid())
+  firstName           String
+  lastName            String
+  email               String
+  phone               String?
+  
+  street              String?
+  zipCode             String?
+  city                String?
+  country             String?
+  
+  dateOfBirth         DateTime?
+  nationality         String?
+  
+  linkedinUrl         String?
+  portfolioUrl        String?
+  resumeUrl           String?
+  coverLetterUrl      String?
+  
+  jobPostingId        String
+  jobPosting          JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  
+  status              String   @default("NEW") // NEW, SCREENING, INTERVIEW, ASSESSMENT, OFFER, HIRED, REJECTED, WITHDRAWN
+  source              String?  // WEBSITE, JOB_PORTAL, LINKEDIN, REFERRAL, AGENCY, DIRECT, OTHER
+  
+  expectedSalary      Decimal? @db.Decimal(12, 2)
+  availableFrom       DateTime?
+  
+  rating              Int?     // 1-5
+  notes               String?  @db.Text
+  skills              String[] @default([])
+  
+  hiredAt             DateTime?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  interviews          Interview[]
+  
+  @@index([companyId])
+  @@index([jobPostingId])
+  @@index([status])
+  @@map("candidates")
+}
+
+// ============================================
+// RECRUITING: INTERVIEWS
+// ============================================
+
+model Interview {
+  id              String   @id @default(cuid())
+  
+  candidateId     String
+  candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  type            String   // PHONE, VIDEO, ONSITE, TECHNICAL, HR, FINAL
+  status          String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED, NO_SHOW
+  
+  scheduledAt     DateTime
+  durationMinutes Int?
+  
+  location        String?
+  meetingUrl      String?
+  
+  feedback        String?  @db.Text
+  rating          Int?     // 1-5
+  recommendHire   Boolean?
+  
+  notes           String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  interviewers    User[]   @relation("Interviewer")
+  
+  @@index([candidateId])
+  @@index([status])
+  @@index([companyId])
+  @@map("interviews")
 }
 
