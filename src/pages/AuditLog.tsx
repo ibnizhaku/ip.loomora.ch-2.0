@@ -6,9 +6,9 @@ import {
   FileText,
   Settings,
   Download,
-  Filter,
   Calendar,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,132 +21,75 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useAuditLogs, useAuditLogStats, AuditLog as AuditLogType } from "@/hooks/use-audit-log";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  user: string;
-  action: "create" | "update" | "delete" | "login" | "logout" | "export" | "view";
-  module: string;
-  entity: string;
-  entityId?: string;
-  changes?: { field: string; oldValue: string; newValue: string }[];
-  ipAddress: string;
-}
-
-const auditEntries: AuditEntry[] = [
-  {
-    id: "1",
-    timestamp: "31.01.2024 16:45:23",
-    user: "Max Keller",
-    action: "update",
-    module: "Rechnungen",
-    entity: "Rechnung",
-    entityId: "RE-2024-0156",
-    changes: [
-      { field: "Status", oldValue: "Offen", newValue: "Bezahlt" },
-    ],
-    ipAddress: "192.168.1.105",
-  },
-  {
-    id: "2",
-    timestamp: "31.01.2024 16:30:12",
-    user: "Anna Meier",
-    action: "create",
-    module: "Angebote",
-    entity: "Angebot",
-    entityId: "AN-2024-0089",
-    ipAddress: "192.168.1.112",
-  },
-  {
-    id: "3",
-    timestamp: "31.01.2024 15:22:45",
-    user: "Thomas Brunner",
-    action: "export",
-    module: "Berichte",
-    entity: "Umsatzbericht Q4/2023",
-    ipAddress: "192.168.1.108",
-  },
-  {
-    id: "4",
-    timestamp: "31.01.2024 14:15:33",
-    user: "Max Keller",
-    action: "update",
-    module: "Mitarbeiter",
-    entity: "Mitarbeiter",
-    entityId: "EMP-005",
-    changes: [
-      { field: "Lohnklasse", oldValue: "F", newValue: "E" },
-      { field: "Bruttolohn", oldValue: "850", newValue: "5100" },
-    ],
-    ipAddress: "192.168.1.105",
-  },
-  {
-    id: "5",
-    timestamp: "31.01.2024 09:45:00",
-    user: "System",
-    action: "create",
-    module: "Swissdec",
-    entity: "Lohnmeldung Januar 2024",
-    ipAddress: "127.0.0.1",
-  },
-  {
-    id: "6",
-    timestamp: "31.01.2024 08:30:15",
-    user: "Max Keller",
-    action: "login",
-    module: "System",
-    entity: "Anmeldung",
-    ipAddress: "192.168.1.105",
-  },
-  {
-    id: "7",
-    timestamp: "30.01.2024 17:55:42",
-    user: "Lisa Weber",
-    action: "delete",
-    module: "Dokumente",
-    entity: "Dokument",
-    entityId: "DOC-2023-456",
-    ipAddress: "192.168.1.115",
-  },
-];
-
-const actionStyles = {
-  create: "bg-success/10 text-success",
-  update: "bg-info/10 text-info",
-  delete: "bg-destructive/10 text-destructive",
-  login: "bg-primary/10 text-primary",
-  logout: "bg-muted text-muted-foreground",
-  export: "bg-warning/10 text-warning",
-  view: "bg-secondary text-secondary-foreground",
+const actionStyles: Record<string, string> = {
+  CREATE: "bg-success/10 text-success",
+  UPDATE: "bg-info/10 text-info",
+  DELETE: "bg-destructive/10 text-destructive",
+  LOGIN: "bg-primary/10 text-primary",
+  LOGOUT: "bg-muted text-muted-foreground",
+  EXPORT: "bg-warning/10 text-warning",
+  VIEW: "bg-secondary text-secondary-foreground",
+  APPROVE: "bg-success/10 text-success",
+  REJECT: "bg-destructive/10 text-destructive",
+  SEND: "bg-info/10 text-info",
+  LOCK: "bg-warning/10 text-warning",
+  UNLOCK: "bg-primary/10 text-primary",
+  PRINT: "bg-secondary text-secondary-foreground",
 };
 
-const actionLabels = {
-  create: "Erstellt",
-  update: "Geändert",
-  delete: "Gelöscht",
-  login: "Anmeldung",
-  logout: "Abmeldung",
-  export: "Export",
-  view: "Angesehen",
+const actionLabels: Record<string, string> = {
+  CREATE: "Erstellt",
+  UPDATE: "Geändert",
+  DELETE: "Gelöscht",
+  LOGIN: "Anmeldung",
+  LOGOUT: "Abmeldung",
+  EXPORT: "Export",
+  VIEW: "Angesehen",
+  APPROVE: "Genehmigt",
+  REJECT: "Abgelehnt",
+  SEND: "Gesendet",
+  LOCK: "Gesperrt",
+  UNLOCK: "Entsperrt",
+  PRINT: "Gedruckt",
 };
 
 export default function AuditLog() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [actionFilter, setActionFilter] = useState("all");
-  const [moduleFilter, setModuleFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
 
-  const modules = [...new Set(auditEntries.map((e) => e.module))];
-
-  const filteredEntries = auditEntries.filter((entry) => {
-    const matchesSearch =
-      entry.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.entity.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (entry.entityId?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    const matchesAction = actionFilter === "all" || entry.action === actionFilter;
-    const matchesModule = moduleFilter === "all" || entry.module === moduleFilter;
-    return matchesSearch && matchesAction && matchesModule;
+  const { data: logsData, isLoading } = useAuditLogs({
+    page,
+    pageSize: 20,
+    search: searchQuery || undefined,
+    action: actionFilter !== "all" ? actionFilter : undefined,
   });
+
+  const { data: stats } = useAuditLogStats(30);
+
+  const logs = logsData?.data || [];
+
+  const formatTimestamp = (timestamp: string) => {
+    try {
+      return format(new Date(timestamp), "dd.MM.yyyy HH:mm:ss", { locale: de });
+    } catch {
+      return timestamp;
+    }
+  };
+
+  const getUserInitials = (user?: AuditLogType["user"]) => {
+    if (!user) return "?";
+    return `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "?";
+  };
+
+  const getUserName = (user?: AuditLogType["user"]) => {
+    if (!user) return "System";
+    return `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email;
+  };
 
   return (
     <div className="space-y-6">
@@ -179,8 +122,8 @@ export default function AuditLog() {
               <History className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Einträge (Heute)</p>
-              <p className="text-2xl font-bold">{auditEntries.length}</p>
+              <p className="text-sm text-muted-foreground">Einträge (Gesamt)</p>
+              <p className="text-2xl font-bold">{stats?.totalEntries || 0}</p>
             </div>
           </div>
         </div>
@@ -190,10 +133,8 @@ export default function AuditLog() {
               <FileText className="h-6 w-6 text-success" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Erstellt</p>
-              <p className="text-2xl font-bold">
-                {auditEntries.filter((e) => e.action === "create").length}
-              </p>
+              <p className="text-sm text-muted-foreground">Heute</p>
+              <p className="text-2xl font-bold">{stats?.todayEntries || 0}</p>
             </div>
           </div>
         </div>
@@ -203,9 +144,9 @@ export default function AuditLog() {
               <Settings className="h-6 w-6 text-info" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Geändert</p>
+              <p className="text-sm text-muted-foreground">Top Aktion</p>
               <p className="text-2xl font-bold">
-                {auditEntries.filter((e) => e.action === "update").length}
+                {stats?.topActions?.[0]?.action || "-"}
               </p>
             </div>
           </div>
@@ -218,7 +159,7 @@ export default function AuditLog() {
             <div>
               <p className="text-sm text-muted-foreground">Aktive Benutzer</p>
               <p className="text-2xl font-bold">
-                {new Set(auditEntries.map((e) => e.user)).size}
+                {stats?.topUsers?.length || 0}
               </p>
             </div>
           </div>
@@ -242,22 +183,12 @@ export default function AuditLog() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Aktionen</SelectItem>
-            <SelectItem value="create">Erstellt</SelectItem>
-            <SelectItem value="update">Geändert</SelectItem>
-            <SelectItem value="delete">Gelöscht</SelectItem>
-            <SelectItem value="login">Anmeldung</SelectItem>
-            <SelectItem value="export">Export</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={moduleFilter} onValueChange={setModuleFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Modul" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alle Module</SelectItem>
-            {modules.map((m) => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
-            ))}
+            <SelectItem value="CREATE">Erstellt</SelectItem>
+            <SelectItem value="UPDATE">Geändert</SelectItem>
+            <SelectItem value="DELETE">Gelöscht</SelectItem>
+            <SelectItem value="LOGIN">Anmeldung</SelectItem>
+            <SelectItem value="EXPORT">Export</SelectItem>
+            <SelectItem value="VIEW">Angesehen</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -265,64 +196,103 @@ export default function AuditLog() {
       {/* Audit Log Table */}
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="bg-muted/50 px-4 py-3 border-b border-border">
-          <div className="grid grid-cols-6 gap-4 text-sm font-medium text-muted-foreground">
+          <div className="grid grid-cols-5 gap-4 text-sm font-medium text-muted-foreground">
             <span>Zeitstempel</span>
             <span>Benutzer</span>
             <span>Aktion</span>
-            <span>Modul</span>
             <span>Entität</span>
             <span>Details</span>
           </div>
         </div>
 
-        {filteredEntries.map((entry, index) => (
-          <div
-            key={entry.id}
-            className="px-4 py-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors animate-fade-in"
-            style={{ animationDelay: `${index * 30}ms` }}
-          >
-            <div className="grid grid-cols-6 gap-4 items-start">
-              <span className="font-mono text-sm">{entry.timestamp}</span>
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                  {entry.user.split(" ").map((n) => n[0]).join("")}
-                </div>
-                <span className="text-sm">{entry.user}</span>
-              </div>
-              <Badge className={actionStyles[entry.action]}>
-                {actionLabels[entry.action]}
-              </Badge>
-              <span className="text-sm">{entry.module}</span>
-              <div>
-                <span className="text-sm">{entry.entity}</span>
-                {entry.entityId && (
-                  <span className="text-xs text-muted-foreground ml-1 font-mono">
-                    ({entry.entityId})
-                  </span>
-                )}
-              </div>
-              <div>
-                {entry.changes ? (
-                  <div className="space-y-1">
-                    {entry.changes.map((change, i) => (
-                      <div key={i} className="text-xs">
-                        <span className="text-muted-foreground">{change.field}: </span>
-                        <span className="line-through text-destructive/70">{change.oldValue}</span>
-                        <span className="mx-1">→</span>
-                        <span className="text-success">{change.newValue}</span>
-                      </div>
-                    ))}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <History className="h-12 w-12 mb-4" />
+            <p>Keine Audit-Einträge gefunden</p>
+          </div>
+        ) : (
+          logs.map((entry, index) => (
+            <div
+              key={entry.id}
+              className="px-4 py-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors animate-fade-in"
+              style={{ animationDelay: `${index * 30}ms` }}
+            >
+              <div className="grid grid-cols-5 gap-4 items-start">
+                <span className="font-mono text-sm">{formatTimestamp(entry.timestamp)}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                    {getUserInitials(entry.user)}
                   </div>
-                ) : (
-                  <Button size="sm" variant="ghost">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
+                  <span className="text-sm">{getUserName(entry.user)}</span>
+                </div>
+                <Badge className={actionStyles[entry.action] || "bg-muted text-muted-foreground"}>
+                  {actionLabels[entry.action] || entry.action}
+                </Badge>
+                <div>
+                  <span className="text-sm">{entry.entityType}</span>
+                  {entry.entityId && (
+                    <span className="text-xs text-muted-foreground ml-1 font-mono">
+                      ({entry.entityId})
+                    </span>
+                  )}
+                  {entry.entityName && (
+                    <p className="text-xs text-muted-foreground">{entry.entityName}</p>
+                  )}
+                </div>
+                <div>
+                  {entry.changes && Object.keys(entry.changes).length > 0 ? (
+                    <div className="space-y-1">
+                      {Object.entries(entry.changes).slice(0, 3).map(([field, change]) => (
+                        <div key={field} className="text-xs">
+                          <span className="text-muted-foreground">{field}: </span>
+                          <span className="line-through text-destructive/70">{String(change.old)}</span>
+                          <span className="mx-1">→</span>
+                          <span className="text-success">{String(change.new)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
+      {/* Pagination */}
+      {logsData && logsData.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Seite {logsData.page} von {logsData.totalPages} ({logsData.total} Einträge)
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              Zurück
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= logsData.totalPages}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Weiter
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
