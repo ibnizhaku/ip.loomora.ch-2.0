@@ -228,7 +228,7 @@ export default function Inventory() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Lagerwert</p>
-              <p className="text-2xl font-bold">€{totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalValue.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -330,7 +330,7 @@ export default function Inventory() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  €{product.price.toLocaleString()}
+                  CHF {product.price.toLocaleString("de-CH")}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

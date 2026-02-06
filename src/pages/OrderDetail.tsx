@@ -340,15 +340,15 @@ const OrderDetail = () => {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Auftragswert</span>
-                <span className="font-semibold">€{orderData.total.toLocaleString()}</span>
+                <span className="font-semibold">CHF {orderData.total.toLocaleString("de-CH")}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Bezahlt</span>
-                <span className="font-medium text-success">€{orderData.paid.toLocaleString()}</span>
+                <span className="font-medium text-success">CHF {orderData.paid.toLocaleString("de-CH")}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Offen</span>
-                <span className="font-medium text-warning">€{(orderData.total - orderData.paid).toLocaleString()}</span>
+                <span className="font-medium text-warning">CHF {(orderData.total - orderData.paid).toLocaleString("de-CH")}</span>
               </div>
               <Separator />
               <Progress value={(orderData.paid / orderData.total) * 100} className="h-2" />

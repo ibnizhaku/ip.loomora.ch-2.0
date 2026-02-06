@@ -107,15 +107,15 @@ export function PaymentDialog({
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Gesamtbetrag</span>
-              <span className="font-medium">€{invoiceTotal.toFixed(2)}</span>
+              <span className="font-medium">CHF {invoiceTotal.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Bereits bezahlt</span>
-              <span className="font-medium text-success">€{alreadyPaid.toFixed(2)}</span>
+              <span className="font-medium text-success">CHF {alreadyPaid.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-sm font-semibold border-t pt-2">
               <span>Offener Betrag</span>
-              <span className="text-warning">€{outstanding.toFixed(2)}</span>
+              <span className="text-warning">CHF {outstanding.toFixed(2)}</span>
             </div>
           </div>
 

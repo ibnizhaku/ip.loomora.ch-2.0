@@ -484,11 +484,11 @@ const EmployeeDetail = () => {
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
                   <p className="text-sm text-muted-foreground mb-1">Bruttojahresgehalt</p>
-                  <p className="text-3xl font-bold">€{employeeData.salary.gross.toLocaleString()}</p>
+                  <p className="text-3xl font-bold">CHF {employeeData.salary.gross.toLocaleString("de-CH")}</p>
                 </div>
                 <div className="p-6 rounded-xl bg-success/5 border border-success/20">
                   <p className="text-sm text-muted-foreground mb-1">Nettojahresgehalt (ca.)</p>
-                  <p className="text-3xl font-bold text-success">€{employeeData.salary.net.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-success">CHF {employeeData.salary.net.toLocaleString("de-CH")}</p>
                 </div>
               </div>
             </CardContent>

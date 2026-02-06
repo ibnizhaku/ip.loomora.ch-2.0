@@ -179,7 +179,7 @@ export default function Invoices() {
             <div>
               <p className="text-sm text-muted-foreground">Gesamt</p>
               <p className="text-2xl font-bold">
-                €{invoices.reduce((acc, i) => acc + i.amount, 0).toLocaleString()}
+                CHF {invoices.reduce((acc, i) => acc + i.amount, 0).toLocaleString("de-CH")}
               </p>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function Invoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bezahlt</p>
-              <p className="text-2xl font-bold">€{totalPaid.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalPaid.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function Invoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Ausstehend</p>
-              <p className="text-2xl font-bold">€{totalPending.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalPending.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -213,7 +213,7 @@ export default function Invoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Überfällig</p>
-              <p className="text-2xl font-bold">€{totalOverdue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {totalOverdue.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -278,7 +278,7 @@ export default function Invoices() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    €{invoice.amount.toLocaleString()}
+                    CHF {invoice.amount.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {invoice.dueDate}

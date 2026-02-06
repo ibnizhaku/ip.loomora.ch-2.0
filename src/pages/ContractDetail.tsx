@@ -229,7 +229,7 @@ const ContractDetail = () => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">€{payment.amount.toLocaleString()}</p>
+                          <p className="font-semibold">CHF {payment.amount.toLocaleString("de-CH")}</p>
                           <Badge className="bg-success/10 text-success">{payment.status}</Badge>
                         </div>
                       </div>
@@ -330,11 +330,11 @@ const ContractDetail = () => {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Monatlich</span>
-                <span className="font-semibold">€{contractData.value.monthly.toLocaleString()}</span>
+                <span className="font-semibold">CHF {contractData.value.monthly.toLocaleString("de-CH")}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Jährlich</span>
-                <span className="font-semibold text-primary">€{contractData.value.annual.toLocaleString()}</span>
+                <span className="font-semibold text-primary">CHF {contractData.value.annual.toLocaleString("de-CH")}</span>
               </div>
             </CardContent>
           </Card>
