@@ -7,26 +7,28 @@ interface Project {
   name: string;
   description?: string;
   customerId?: string;
-  customer?: { id: string; name: string };
+  customer?: { id: string; name: string; companyName?: string };
+  client?: string;
   managerId?: string;
   manager?: { id: string; firstName: string; lastName: string };
-  status: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  status: string;
+  priority?: string;
+  progress?: number;
   startDate?: string;
   endDate?: string;
-  budgetAmount?: number;
-  actualCost?: number;
-  completionPercentage?: number;
-  tags?: string[];
-  createdAt: string;
+  budget?: number;
+  spent?: number;
+  team?: string[];
+  taskCount?: number;
+  timeEntryCount?: number;
+  createdAt?: string;
 }
 
 interface ProjectStats {
-  totalProjects: number;
-  activeProjects: number;
-  completedProjects: number;
-  totalBudget: number;
-  actualSpent: number;
+  total: number;
+  active: number;
+  completed: number;
+  paused: number;
 }
 
 interface PaginatedResponse<T> {
@@ -43,8 +45,11 @@ export function useProjects(params?: {
   pageSize?: number;
   search?: string;
   status?: string;
+  priority?: string;
   customerId?: string;
   managerId?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }) {
   return useQuery({
     queryKey: [QUERY_KEY, params],
@@ -54,8 +59,11 @@ export function useProjects(params?: {
       if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
       if (params?.search) searchParams.set('search', params.search);
       if (params?.status) searchParams.set('status', params.status);
+      if (params?.priority) searchParams.set('priority', params.priority);
       if (params?.customerId) searchParams.set('customerId', params.customerId);
       if (params?.managerId) searchParams.set('managerId', params.managerId);
+      if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
+      if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
       const query = searchParams.toString();
       return api.get<PaginatedResponse<Project>>(`/projects${query ? `?${query}` : ''}`);
     },

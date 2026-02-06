@@ -3,51 +3,64 @@ import {
   Users,
   FolderKanban,
   Banknote,
+  Loader2,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ProjectsOverview } from "@/components/dashboard/ProjectsOverview";
 import { CalendarWidget } from "@/components/dashboard/CalendarWidget";
-
-const stats = [
-  {
-    title: "Gesamtumsatz",
-    value: "CHF 124'580",
-    change: "+12.5%",
-    changeType: "positive" as const,
-    icon: Banknote,
-  },
-  {
-    title: "Aktive Projekte",
-    value: "23",
-    change: "+3",
-    changeType: "positive" as const,
-    icon: FolderKanban,
-  },
-  {
-    title: "Kunden",
-    value: "156",
-    change: "+8",
-    changeType: "positive" as const,
-    icon: Users,
-  },
-  {
-    title: "Auslastung",
-    value: "87%",
-    change: "-2.3%",
-    changeType: "negative" as const,
-    icon: TrendingUp,
-  },
-];
+import { useDashboardStats } from "@/hooks/use-dashboard";
 
 const Index = () => {
+  const { data: stats, isLoading } = useDashboardStats();
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('de-CH', {
+      style: 'currency',
+      currency: 'CHF',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value).replace('CHF', "CHF ");
+  };
+
+  const statsCards = [
+    {
+      title: "Gesamtumsatz",
+      value: stats ? formatCurrency(stats.totalRevenue) : "CHF 0",
+      change: stats?.revenueChange || "+0%",
+      changeType: stats?.revenueChange?.startsWith('+') ? "positive" as const : "negative" as const,
+      icon: Banknote,
+    },
+    {
+      title: "Aktive Projekte",
+      value: stats?.activeProjects?.toString() || "0",
+      change: stats?.activeProjects ? `${stats.activeProjects} aktiv` : "0 aktiv",
+      changeType: "positive" as const,
+      icon: FolderKanban,
+    },
+    {
+      title: "Kunden",
+      value: stats?.customerCount?.toString() || "0",
+      change: stats?.customerCount ? `${stats.customerCount} gesamt` : "0 gesamt",
+      changeType: "positive" as const,
+      icon: Users,
+    },
+    {
+      title: "Auslastung",
+      value: stats ? `${stats.utilizationRate}%` : "0%",
+      change: stats?.utilizationRate && stats.utilizationRate >= 80 ? "Gut" : "Optimierbar",
+      changeType: stats?.utilizationRate && stats.utilizationRate >= 80 ? "positive" as const : "neutral" as const,
+      icon: TrendingUp,
+    },
+  ];
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-3xl font-bold tracking-tight">
-          Willkommen zurück, Max
+          Willkommen zurück
         </h1>
         <p className="text-muted-foreground">
           Hier ist ein Überblick über Ihre aktuellen Aktivitäten und Projekte.
@@ -56,15 +69,21 @@ const Index = () => {
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
-          <div
-            key={stat.title}
-            className="animate-fade-in"
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <StatsCard {...stat} />
+        {isLoading ? (
+          <div className="col-span-4 flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ))}
+        ) : (
+          statsCards.map((stat, index) => (
+            <div
+              key={stat.title}
+              className="animate-fade-in"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <StatsCard {...stat} />
+            </div>
+          ))
+        )}
       </div>
 
       {/* Main Content Grid */}

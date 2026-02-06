@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,135 +11,110 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CalendarDays, Clock, MapPin, Users, MoreHorizontal, Edit, Trash2, Copy, Bell } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Users, MoreHorizontal, Edit, Trash2, Copy, Bell, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useCalendarEvents, useDeleteCalendarEvent, useCreateCalendarEvent } from "@/hooks/use-calendar";
 
-interface Event {
-  id: string;
-  title: string;
-  date: Date;
-  time: string;
-  type: "meeting" | "deadline" | "reminder" | "appointment";
-  location?: string;
-  attendees?: number;
-}
-
-const events: Event[] = [
-  {
-    id: "1",
-    title: "Projektbesprechung E-Commerce",
-    date: new Date(2026, 1, 1),
-    time: "09:00",
-    type: "meeting",
-    location: "Konferenzraum A",
-    attendees: 5,
-  },
-  {
-    id: "2",
-    title: "Kundenpräsentation",
-    date: new Date(2026, 1, 1),
-    time: "14:00",
-    type: "appointment",
-    location: "Zoom",
-    attendees: 3,
-  },
-  {
-    id: "3",
-    title: "Rechnung RE-2024-089 fällig",
-    date: new Date(2026, 1, 3),
-    time: "23:59",
-    type: "deadline",
-  },
-  {
-    id: "4",
-    title: "Sprint Review",
-    date: new Date(2026, 1, 5),
-    time: "10:00",
-    type: "meeting",
-    location: "Konferenzraum B",
-    attendees: 8,
-  },
-  {
-    id: "5",
-    title: "Lieferantentermin",
-    date: new Date(2026, 1, 7),
-    time: "11:30",
-    type: "appointment",
-    location: "Büro",
-    attendees: 2,
-  },
-  {
-    id: "6",
-    title: "MwSt-Abgabe Q4",
-    date: new Date(2026, 1, 10),
-    time: "23:59",
-    type: "deadline",
-  },
-  {
-    id: "7",
-    title: "Team-Meeting",
-    date: new Date(2026, 1, 12),
-    time: "09:30",
-    type: "meeting",
-    location: "Konferenzraum A",
-    attendees: 12,
-  },
-];
-
-const typeConfig = {
+const typeConfig: Record<string, { label: string; color: string }> = {
   meeting: { label: "Meeting", color: "bg-info/10 text-info border-info/20" },
   deadline: { label: "Frist", color: "bg-destructive/10 text-destructive border-destructive/20" },
   reminder: { label: "Erinnerung", color: "bg-warning/10 text-warning border-warning/20" },
   appointment: { label: "Termin", color: "bg-success/10 text-success border-success/20" },
+  task: { label: "Aufgabe", color: "bg-primary/10 text-primary border-primary/20" },
+  other: { label: "Sonstiges", color: "bg-muted text-muted-foreground border-muted" },
 };
 
 export function CalendarWidget() {
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [eventsList, setEventsList] = useState<Event[]>(events);
 
-  const eventDates = eventsList.map((e) => e.date);
+  // Calculate date range for current view
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    return {
+      startDate: startOfMonth(now).toISOString(),
+      endDate: endOfMonth(new Date(now.getFullYear(), now.getMonth() + 2, 0)).toISOString(),
+    };
+  }, []);
+
+  const { data, isLoading } = useCalendarEvents(dateRange);
+  const deleteEvent = useDeleteCalendarEvent();
+  const duplicateEvent = useCreateCalendarEvent();
+
+  const events = useMemo(() => {
+    return (data?.data || []).map(event => ({
+      ...event,
+      date: parseISO(event.startDate),
+      time: format(parseISO(event.startDate), 'HH:mm'),
+      type: (event.type?.toLowerCase() || 'other') as keyof typeof typeConfig,
+    }));
+  }, [data]);
+
+  const eventDates = events.map((e) => e.date);
   
   const selectedDayEvents = selectedDate
-    ? eventsList.filter((e) => isSameDay(e.date, selectedDate))
+    ? events.filter((e) => isSameDay(e.date, selectedDate))
     : [];
 
-  const upcomingEvents = eventsList
+  const upcomingEvents = events
     .filter((e) => e.date >= new Date())
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 5);
 
-  const handleEditEvent = (event: Event) => {
-    toast.info(`Termin "${event.title}" bearbeiten`);
+  const handleEditEvent = (eventId: string) => {
+    navigate(`/calendar?edit=${eventId}`);
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    setEventsList(prev => prev.filter(e => e.id !== eventId));
-    toast.success("Termin wurde gelöscht");
+    deleteEvent.mutate(eventId, {
+      onSuccess: () => toast.success("Termin wurde gelöscht"),
+      onError: () => toast.error("Fehler beim Löschen"),
+    });
   };
 
-  const handleDuplicateEvent = (event: Event) => {
-    const newEvent: Event = {
-      ...event,
-      id: `${event.id}-copy-${Date.now()}`,
+  const handleDuplicateEvent = (event: typeof events[0]) => {
+    duplicateEvent.mutate({
       title: `${event.title} (Kopie)`,
-    };
-    setEventsList(prev => [...prev, newEvent]);
-    toast.success("Termin wurde dupliziert");
+      description: event.description,
+      type: event.type,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      allDay: event.allDay,
+      location: event.location,
+    }, {
+      onSuccess: () => toast.success("Termin wurde dupliziert"),
+      onError: () => toast.error("Fehler beim Duplizieren"),
+    });
   };
 
-  const handleSetReminder = (event: Event) => {
+  const handleSetReminder = (event: typeof events[0]) => {
     toast.success(`Erinnerung für "${event.title}" gesetzt`);
+  };
+
+  const getTypeConfig = (type: string) => {
+    return typeConfig[type] || typeConfig.other;
   };
 
   return (
     <Card className="animate-fade-in">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarDays className="h-5 w-5" />
-          Kalender
+        <CardTitle className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-base">
+            <CalendarDays className="h-5 w-5" />
+            Kalender
+          </span>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => navigate('/calendar')}
+            className="text-xs text-primary"
+          >
+            Alle anzeigen
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -161,8 +136,14 @@ export function CalendarWidget() {
           }}
         />
 
+        {isLoading && (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
         {/* Selected Day Events */}
-        {selectedDate && selectedDayEvents.length > 0 && (
+        {!isLoading && selectedDate && selectedDayEvents.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">
               {format(selectedDate, "EEEE, d. MMMM", { locale: de })}
@@ -171,9 +152,10 @@ export function CalendarWidget() {
               {selectedDayEvents.map((event) => (
                 <div
                   key={event.id}
+                  onClick={() => navigate(`/calendar?event=${event.id}`)}
                   className={cn(
                     "group p-3 rounded-lg border transition-all hover:scale-[1.02] cursor-pointer",
-                    typeConfig[event.type].color
+                    getTypeConfig(event.type).color
                   )}
                 >
                   <div className="flex items-start justify-between">
@@ -190,12 +172,6 @@ export function CalendarWidget() {
                             {event.location}
                           </span>
                         )}
-                        {event.attendees && (
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {event.attendees}
-                          </span>
-                        )}
                       </div>
                     </div>
                     <DropdownMenu>
@@ -210,7 +186,7 @@ export function CalendarWidget() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => handleEditEvent(event)}>
+                        <DropdownMenuItem onClick={() => handleEditEvent(event.id)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
@@ -239,72 +215,81 @@ export function CalendarWidget() {
           </div>
         )}
 
-        {selectedDate && selectedDayEvents.length === 0 && (
+        {!isLoading && selectedDate && selectedDayEvents.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-2">
             Keine Termine am {format(selectedDate, "d. MMMM", { locale: de })}
           </p>
         )}
 
         {/* Upcoming Events */}
-        <div className="pt-2 border-t">
-          <h4 className="text-sm font-medium mb-3">Kommende Termine</h4>
-          <ScrollArea className="h-[180px]">
-            <div className="space-y-2 pr-4">
-              {upcomingEvents.map((event, index) => (
-                <div
-                  key={event.id}
-                  className="group flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className={cn("h-2 w-2 rounded-full shrink-0", typeConfig[event.type].color.split(" ")[0].replace("/10", ""))} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{event.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(event.date, "EEE, d. MMM", { locale: de })} · {event.time}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-xs shrink-0">
-                    {typeConfig[event.type].label}
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-3.5 w-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => handleEditEvent(event)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicateEvent(event)}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Duplizieren
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleSetReminder(event)}>
-                        <Bell className="h-4 w-4 mr-2" />
-                        Erinnerung setzen
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+        {!isLoading && (
+          <div className="pt-2 border-t">
+            <h4 className="text-sm font-medium mb-3">Kommende Termine</h4>
+            {upcomingEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Keine anstehenden Termine
+              </p>
+            ) : (
+              <ScrollArea className="h-[180px]">
+                <div className="space-y-2 pr-4">
+                  {upcomingEvents.map((event, index) => (
+                    <div
+                      key={event.id}
+                      onClick={() => navigate(`/calendar?event=${event.id}`)}
+                      className="group flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className={cn("h-2 w-2 rounded-full shrink-0", getTypeConfig(event.type).color.split(" ")[0].replace("/10", ""))} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{event.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(event.date, "EEE, d. MMM", { locale: de })} · {event.time}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {getTypeConfig(event.type).label}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => handleEditEvent(event.id)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Bearbeiten
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicateEvent(event)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplizieren
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSetReminder(event)}>
+                            <Bell className="h-4 w-4 mr-2" />
+                            Erinnerung setzen
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteEvent(event.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Löschen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
+              </ScrollArea>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -2,39 +2,35 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 interface DashboardStats {
-  revenue: {
-    current: number;
-    previous: number;
-    change: number;
-  };
-  openInvoices: {
-    count: number;
-    amount: number;
-  };
-  overdueInvoices: {
-    count: number;
-    amount: number;
-  };
-  projects: {
-    active: number;
-    completed: number;
-  };
-  orders: {
-    pending: number;
-    completed: number;
-  };
-  cashPosition: number;
+  totalRevenue: number;
+  openInvoices: number;
+  activeProjects: number;
+  customerCount: number;
+  revenueChange: string;
+  utilizationRate: number;
 }
 
-interface RecentActivity {
-  id: string;
-  type: string;
-  description: string;
-  entityType: string;
-  entityId?: string;
-  userId?: string;
-  userName?: string;
-  createdAt: string;
+interface RecentActivityData {
+  invoices: Array<{
+    id: string;
+    number: string;
+    status: string;
+    createdAt: string;
+    customer?: { name: string };
+  }>;
+  projects: Array<{
+    id: string;
+    name: string;
+    status: string;
+    updatedAt: string;
+  }>;
+  tasks: Array<{
+    id: string;
+    title?: string;
+    name?: string;
+    status: string;
+    updatedAt: string;
+  }>;
 }
 
 const QUERY_KEY = 'dashboard';
@@ -49,6 +45,6 @@ export function useDashboardStats() {
 export function useRecentActivity() {
   return useQuery({
     queryKey: [QUERY_KEY, 'activity'],
-    queryFn: () => api.get<RecentActivity[]>('/dashboard/activity'),
+    queryFn: () => api.get<RecentActivityData>('/dashboard/activity'),
   });
 }
