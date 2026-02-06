@@ -10,7 +10,7 @@ import { Header } from "@/components/layout/Header";
 // Pages
 import Index from "./pages/Index";
 import Projects from "./pages/Projects";
-import MyProjects from "./pages/MyProjects";
+import MyWork from "./pages/MyWork";
 import ProjectDetail from "./pages/ProjectDetail";
 import ProjectEdit from "./pages/ProjectEdit";
 import ProjectCreate from "./pages/ProjectCreate";
@@ -194,7 +194,7 @@ const App = () => (
                   
                   {/* Projekte */}
                   <Route path="/projects" element={<Projects />} />
-                  <Route path="/my-projects" element={<MyProjects />} />
+                  <Route path="/my-work" element={<MyWork />} />
                   <Route path="/projects/new" element={<ProjectCreate />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/projects/:id/edit" element={<ProjectEdit />} />

@@ -91,16 +91,16 @@ const dailyOperationsItems: NavItem[] = [
     keywords: ["übersicht", "home", "start", "cockpit"],
   },
   {
+    title: "Meine Arbeit",
+    url: "/my-work",
+    icon: ClipboardCheck,
+    keywords: ["aufgaben", "tätigkeiten", "fertigungsschritte", "zuweisung"],
+  },
+  {
     title: "Betriebszeit erfassen",
     url: "/time-tracking",
     icon: Clock,
     keywords: ["zeit", "stunden", "erfassung", "stempeln"],
-  },
-  {
-    title: "Meine Aufträge",
-    url: "/my-projects",
-    icon: FolderKanban,
-    keywords: ["projekt", "auftrag", "baustelle", "meine"],
   },
   {
     title: "Kalender",
