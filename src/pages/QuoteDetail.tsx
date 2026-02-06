@@ -1,11 +1,9 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   ArrowLeft, 
   FileText, 
-  Calendar, 
-  Euro, 
   Building2, 
-  User,
   Mail,
   Phone,
   CheckCircle2,
@@ -16,12 +14,13 @@ import {
   MoreHorizontal,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  Download,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -37,6 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
+import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
 const quoteData = {
   id: "ANG-2024-0042",
@@ -78,8 +80,55 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const QuoteDetail = () => {
   const { id } = useParams();
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  
   const status = statusConfig[quoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
+
+  // Prepare PDF data
+  const pdfData: SalesDocumentData = {
+    type: 'quote',
+    number: quoteData.id,
+    date: quoteData.createdAt,
+    validUntil: quoteData.validUntil,
+    projectNumber: quoteData.project,
+    company: {
+      name: "Loomora Metallbau AG",
+      street: "Industriestrasse 15",
+      postalCode: "8005",
+      city: "Zürich",
+      phone: "+41 44 123 45 67",
+      email: "info@loomora.ch",
+      vatNumber: "CHE-123.456.789",
+    },
+    customer: {
+      name: quoteData.customer.name,
+      contact: quoteData.customer.contact,
+      street: quoteData.customer.address.split(',')[0],
+      postalCode: quoteData.customer.address.split(',')[1]?.trim().split(' ')[0] || '',
+      city: quoteData.customer.address.split(',')[1]?.trim().split(' ').slice(1).join(' ') || '',
+      email: quoteData.customer.email,
+      phone: quoteData.customer.phone,
+    },
+    positions: quoteData.positions.map((pos, idx) => ({
+      position: idx + 1,
+      description: pos.description,
+      quantity: pos.quantity,
+      unit: pos.unit,
+      unitPrice: pos.price,
+      total: pos.total,
+    })),
+    subtotal: quoteData.subtotal,
+    vatRate: 8.1,
+    vatAmount: quoteData.tax,
+    total: quoteData.total,
+    notes: quoteData.notes,
+  };
+
+  const handleDownloadPDF = () => {
+    downloadSalesDocumentPDF(pdfData);
+    toast.success("PDF heruntergeladen");
+  };
 
   return (
     <div className="space-y-6">
@@ -104,6 +153,14 @@ const QuoteDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowPDFPreview(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            Vorschau
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
           <Button variant="outline" size="sm">
             <Copy className="h-4 w-4 mr-2" />
             Duplizieren
@@ -169,8 +226,8 @@ const QuoteDetail = () => {
                       <TableCell className="font-medium">{pos.description}</TableCell>
                       <TableCell className="text-right">{pos.quantity}</TableCell>
                       <TableCell>{pos.unit}</TableCell>
-                      <TableCell className="text-right">€{pos.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">€{pos.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">CHF {pos.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">CHF {pos.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -181,16 +238,16 @@ const QuoteDetail = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Zwischensumme (netto)</span>
-                  <span>€{quoteData.subtotal.toFixed(2)}</span>
+                  <span>CHF {quoteData.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">MwSt. (19%)</span>
-                  <span>€{quoteData.tax.toFixed(2)}</span>
+                  <span className="text-muted-foreground">MwSt. (8.1%)</span>
+                  <span>CHF {quoteData.tax.toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Gesamtbetrag (brutto)</span>
-                  <span className="text-primary">€{quoteData.total.toFixed(2)}</span>
+                  <span className="text-primary">CHF {quoteData.total.toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
@@ -289,12 +346,20 @@ const QuoteDetail = () => {
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Nettobetrag</span>
-                <span className="text-sm font-semibold">€{quoteData.subtotal.toFixed(2)}</span>
+                <span className="text-sm font-semibold">CHF {quoteData.subtotal.toFixed(2)}</span>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <PDFPreviewDialog
+        open={showPDFPreview}
+        onOpenChange={setShowPDFPreview}
+        documentData={pdfData}
+        title={`Angebot ${quoteData.id}`}
+      />
     </div>
   );
 };
