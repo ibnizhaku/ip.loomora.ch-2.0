@@ -465,7 +465,7 @@ export default function EmployeeContracts() {
                       <Eye className="h-4 w-4 mr-2" />
                       Vertrag anzeigen
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/employee-contracts/${contract.id}/edit`); }}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/employee-contracts/${contract.id}?edit=true`); }}>
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
