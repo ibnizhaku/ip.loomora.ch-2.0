@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +25,6 @@ interface NewFolderDialogProps {
 }
 
 export function NewFolderDialog({ onFolderCreated, trigger }: NewFolderDialogProps) {
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -44,13 +42,10 @@ export function NewFolderDialog({ onFolderCreated, trigger }: NewFolderDialogPro
     };
 
     onFolderCreated(newFolder);
-    toast.success("Ordner erstellt");
+    toast.success(`Ordner "${newFolder.name}" erstellt`);
     setOpen(false);
     setName("");
     setDescription("");
-    
-    // Navigate to the new folder detail page
-    navigate(`/documents/${newFolder.id}`);
   };
 
   return (
