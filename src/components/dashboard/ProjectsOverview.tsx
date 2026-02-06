@@ -5,12 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { useProjects } from "@/hooks/use-projects";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  active: { label: "Aktiv", color: "bg-success text-success-foreground" },
+  active: { label: "In Arbeit", color: "bg-success text-success-foreground" },
   planning: { label: "Planung", color: "bg-info text-info-foreground" },
   "on-hold": { label: "Pausiert", color: "bg-muted text-muted-foreground" },
-  completed: { label: "Fertig", color: "bg-primary text-primary-foreground" },
-  cancelled: { label: "Abgebrochen", color: "bg-destructive text-destructive-foreground" },
-  review: { label: "Review", color: "bg-warning text-warning-foreground" },
+  completed: { label: "Abgeschlossen", color: "bg-primary text-primary-foreground" },
+  cancelled: { label: "Storniert", color: "bg-destructive text-destructive-foreground" },
+  review: { label: "Abnahme", color: "bg-warning text-warning-foreground" },
   paused: { label: "Pausiert", color: "bg-muted text-muted-foreground" },
 };
 
@@ -31,7 +31,7 @@ export function ProjectsOverview() {
     return (
       <div className="rounded-2xl bg-card border border-border p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display font-semibold text-lg">Aktive Projekte</h3>
+          <h3 className="font-display font-semibold text-lg">Laufende Aufträge</h3>
         </div>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -44,21 +44,21 @@ export function ProjectsOverview() {
     return (
       <div className="rounded-2xl bg-card border border-border p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display font-semibold text-lg">Aktive Projekte</h3>
+          <h3 className="font-display font-semibold text-lg">Laufende Aufträge</h3>
           <button 
             onClick={() => navigate('/projects')}
             className="text-sm text-primary hover:underline"
           >
-            Alle Projekte
+            Alle Aufträge
           </button>
         </div>
         <div className="text-center py-8 text-muted-foreground">
-          <p>Keine aktiven Projekte vorhanden.</p>
+          <p>Keine aktiven Aufträge vorhanden.</p>
           <button 
             onClick={() => navigate('/projects/new')}
             className="mt-2 text-primary hover:underline text-sm"
           >
-            Erstes Projekt erstellen
+            Ersten Auftrag anlegen
           </button>
         </div>
       </div>
@@ -68,12 +68,12 @@ export function ProjectsOverview() {
   return (
     <div className="rounded-2xl bg-card border border-border p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="font-display font-semibold text-lg">Aktive Projekte</h3>
+        <h3 className="font-display font-semibold text-lg">Laufende Aufträge</h3>
         <button 
           onClick={() => navigate('/projects')}
           className="text-sm text-primary hover:underline"
         >
-          Alle Projekte
+          Alle Aufträge
         </button>
       </div>
 

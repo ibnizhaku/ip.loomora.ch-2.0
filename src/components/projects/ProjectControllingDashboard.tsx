@@ -16,9 +16,16 @@ import {
   BarChart3,
   CheckCircle2,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import { useProjectControlling, CostType, ProjectPhaseType } from "@/hooks/use-metallbau";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ProjectControllingDashboardProps {
   projectId: string;
@@ -31,19 +38,46 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+// Metallbau-spezifische Phasen-Labels
 const PHASE_TYPE_LABELS: Record<ProjectPhaseType, string> = {
-  [ProjectPhaseType.PLANUNG]: 'Planung',
-  [ProjectPhaseType.FERTIGUNG]: 'Fertigung',
-  [ProjectPhaseType.MONTAGE]: 'Montage',
-  [ProjectPhaseType.ABSCHLUSS]: 'Abschluss',
+  [ProjectPhaseType.PLANUNG]: 'Planung & Konstruktion',
+  [ProjectPhaseType.FERTIGUNG]: 'Werkstattfertigung',
+  [ProjectPhaseType.MONTAGE]: 'Baustellenmontage',
+  [ProjectPhaseType.ABSCHLUSS]: 'Abnahme & Abschluss',
 };
 
-const COST_TYPE_CONFIG: Record<CostType, { label: string; icon: React.ElementType; color: string }> = {
-  [CostType.LABOR]: { label: 'Personalkosten', icon: Users, color: 'text-blue-500' },
-  [CostType.MACHINE]: { label: 'Maschinenkosten', icon: Wrench, color: 'text-orange-500' },
-  [CostType.MATERIAL]: { label: 'Materialkosten', icon: Package, color: 'text-green-500' },
-  [CostType.EXTERNAL]: { label: 'Fremdleistungen', icon: Building2, color: 'text-purple-500' },
-  [CostType.OVERHEAD]: { label: 'Gemeinkosten', icon: BarChart3, color: 'text-gray-500' },
+// Metallbau-spezifische Kostenart-Labels
+const COST_TYPE_CONFIG: Record<CostType, { label: string; icon: React.ElementType; color: string; hint: string }> = {
+  [CostType.LABOR]: { 
+    label: 'Lohnkosten', 
+    icon: Users, 
+    color: 'text-blue-500',
+    hint: 'Erfasste Betriebszeit × Stundensatz + Zuschläge'
+  },
+  [CostType.MACHINE]: { 
+    label: 'Maschinenkosten', 
+    icon: Wrench, 
+    color: 'text-orange-500',
+    hint: 'Maschinenstunden × Maschinensatz'
+  },
+  [CostType.MATERIAL]: { 
+    label: 'Materialkosten', 
+    icon: Package, 
+    color: 'text-green-500',
+    hint: 'Materialentnahmen aus Lager'
+  },
+  [CostType.EXTERNAL]: { 
+    label: 'Fremdleistungen', 
+    icon: Building2, 
+    color: 'text-purple-500',
+    hint: 'Externe Dienstleister, Subunternehmer'
+  },
+  [CostType.OVERHEAD]: { 
+    label: 'Gemeinkosten-Umlage', 
+    icon: BarChart3, 
+    color: 'text-gray-500',
+    hint: 'Anteilige Werkstattzeit (GENERAL) nach Projektstunden'
+  },
 };
 
 export function ProjectControllingDashboard({ projectId }: ProjectControllingDashboardProps) {
@@ -235,41 +269,69 @@ export function ProjectControllingDashboard({ projectId }: ProjectControllingDas
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Kostenaufschlüsselung</CardTitle>
-          <CardDescription>Verteilung der Projektkosten nach Kategorien</CardDescription>
+          <CardDescription>
+            Verteilung der Auftragskosten nach Kategorien
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {costBreakdown.map(({ type, amount }) => {
-              const config = COST_TYPE_CONFIG[type];
-              const Icon = config.icon;
-              const percent = actualCostTotal > 0 ? (amount / actualCostTotal) * 100 : 0;
-              
-              return (
-                <div key={type} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon className={cn("h-4 w-4", config.color)} />
-                      <span className="font-medium">{config.label}</span>
+            <TooltipProvider>
+              {costBreakdown.map(({ type, amount }) => {
+                const config = COST_TYPE_CONFIG[type];
+                const Icon = config.icon;
+                const percent = actualCostTotal > 0 ? (amount / actualCostTotal) * 100 : 0;
+                
+                return (
+                  <div key={type} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className={cn("h-4 w-4", config.color)} />
+                        <span className="font-medium">{config.label}</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-sm">{config.hint}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono">{formatCurrency(amount)}</span>
+                        <span className="text-muted-foreground ml-2 text-sm">
+                          ({percent.toFixed(1)}%)
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="font-mono">{formatCurrency(amount)}</span>
-                      <span className="text-muted-foreground ml-2 text-sm">
-                        ({percent.toFixed(1)}%)
-                      </span>
-                    </div>
+                    <Progress value={percent} className="h-2" />
                   </div>
-                  <Progress value={percent} className="h-2" />
-                </div>
-              );
-            })}
+                );
+              })}
+            </TooltipProvider>
           </div>
 
           <Separator className="my-4" />
 
           <div className="flex items-center justify-between text-lg font-semibold">
-            <span>Gesamtkosten</span>
+            <span>Auftragskosten Total</span>
             <span className="font-mono">{formatCurrency(actualCostTotal)}</span>
           </div>
+          
+          {/* Info über Gemeinkosten-Umlage */}
+          {overheadCosts > 0 && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Gemeinkosten-Umlage</p>
+                  <p className="text-muted-foreground">
+                    Die Werkstattzeit (Rüsten, Aufräumen, Instandhaltung) wird monatlich auf aktive Aufträge 
+                    umgelegt – proportional zu den produktiven Stunden dieses Auftrags.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

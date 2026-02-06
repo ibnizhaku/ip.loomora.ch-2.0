@@ -178,15 +178,15 @@ export default function Tasks() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            Aufgaben
+            Fertigungsschritte
           </h1>
           <p className="text-muted-foreground">
-            Verwalten Sie Ihre Aufgaben und Projekte
+            Verwalten Sie die Arbeitsschritte Ihrer Aufträge
           </p>
         </div>
         <Button className="gap-2" onClick={() => navigate("/tasks/new")}>
           <Plus className="h-4 w-4" />
-          Neue Aufgabe
+          Neuer Schritt
         </Button>
       </div>
 
@@ -222,7 +222,7 @@ export default function Tasks() {
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Aufgaben suchen..."
+            placeholder="Fertigungsschritte suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"

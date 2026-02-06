@@ -13,7 +13,6 @@ import {
   CreditCard,
   Building2,
   UserCog,
-  CheckSquare,
   UsersRound,
   CalendarDays,
   FileBox,
@@ -26,7 +25,6 @@ import {
   Euro,
   Palmtree,
   GraduationCap,
-  UserPlus,
   Network,
   BookOpen,
   Calculator,
@@ -37,19 +35,15 @@ import {
   Target,
   Plane,
   Box,
-  Megaphone,
-  Mail,
-  Store,
-  Percent,
-  Star,
-  UserCheck,
-  UserMinus,
-  UserPlus2,
   Search,
   Layers,
   Factory,
   ClipboardCheck,
   Wrench,
+  Cog,
+  Settings,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   Sidebar,
@@ -79,142 +73,216 @@ interface NavItem {
   title: string;
   url: string;
   icon: any;
-  keywords?: string[]; // Additional search terms
+  keywords?: string[];
   subItems?: { title: string; url: string; icon?: any }[];
+  hidden?: boolean; // Module visibility control
 }
 
-const mainNavItems: NavItem[] = [
+// ============================================
+// METALLBAU-ERP NAVIGATION STRUCTURE
+// ============================================
+
+// TAGESGESCHÄFT - Core daily operations
+const dailyOperationsItems: NavItem[] = [
   {
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
-    keywords: ["übersicht", "home", "start"],
+    keywords: ["übersicht", "home", "start", "cockpit"],
   },
   {
-    title: "Projekte",
+    title: "Betriebszeit erfassen",
+    url: "/time-tracking",
+    icon: Clock,
+    keywords: ["zeit", "stunden", "erfassung", "stempeln"],
+  },
+  {
+    title: "Meine Aufträge",
     url: "/projects",
     icon: FolderKanban,
-    keywords: ["project", "vorhaben"],
-  },
-  {
-    title: "Aufgaben",
-    url: "/tasks",
-    icon: CheckSquare,
-    keywords: ["task", "todo", "pendenz"],
+    keywords: ["projekt", "auftrag", "baustelle"],
   },
   {
     title: "Kalender",
     url: "/calendar",
     icon: CalendarDays,
-    keywords: ["termine", "calendar", "datum"],
+    keywords: ["termine", "planung", "datum"],
   },
 ];
 
-const crmItems: NavItem[] = [
+// AUFTRÄGE & VERKAUF
+const ordersItems: NavItem[] = [
   {
-    title: "Kunden",
-    url: "/customers",
-    icon: Users,
-    keywords: ["customer", "client", "debitor"],
+    title: "Projekte & Aufträge",
+    url: "/projects",
+    icon: FolderKanban,
+    keywords: ["projekt", "auftrag", "baustelle", "montage"],
   },
   {
-    title: "Lieferanten",
-    url: "/suppliers",
-    icon: Handshake,
-    keywords: ["supplier", "kreditor", "zulieferer"],
-  },
-];
-
-const salesItems: NavItem[] = [
-  {
-    title: "Angebote",
+    title: "Angebote / Offerten",
     url: "/quotes",
     icon: FileText,
-    keywords: ["offerte", "quote", "kostenvoranschlag"],
+    keywords: ["offerte", "kostenvoranschlag", "kv"],
   },
   {
-    title: "Aufträge",
+    title: "Kundenaufträge",
     url: "/orders",
     icon: ShoppingCart,
-    keywords: ["order", "bestellung"],
+    keywords: ["bestellung", "order", "auftrag"],
   },
   {
     title: "Lieferscheine",
     url: "/delivery-notes",
     icon: Truck,
-    keywords: ["delivery", "versand"],
+    keywords: ["lieferung", "versand"],
   },
   {
     title: "Rechnungen",
     url: "/invoices",
     icon: Receipt,
-    keywords: ["invoice", "faktura", "rechnung"],
-  },
-  {
-    title: "Gutschriften",
-    url: "/credit-notes",
-    icon: FileBox,
-    keywords: ["credit", "storno"],
+    keywords: ["faktura", "abrechnung", "rechnung"],
   },
   {
     title: "Mahnwesen",
     url: "/reminders",
     icon: FileText,
-    keywords: ["mahnung", "reminder", "inkasso"],
+    keywords: ["mahnung", "inkasso"],
   },
 ];
 
-const managementItems: NavItem[] = [
-  { title: "Zeiterfassung", url: "/time-tracking", icon: Clock, keywords: ["time", "stunden"] },
-  { title: "Einkauf", url: "/purchase-orders", icon: ShoppingCart },
-  { title: "Einkaufsrechnungen", url: "/purchase-invoices", icon: Receipt, keywords: ["kreditor", "lieferant"] },
-  { title: "Lager", url: "/inventory", icon: Package, keywords: ["inventory", "bestand"] },
-  { title: "Produkte", url: "/products", icon: Box, keywords: ["artikel", "material"] },
-  { title: "Stücklisten", url: "/bom", icon: Layers, keywords: ["bom", "material"] },
-  { title: "Kalkulation", url: "/calculation", icon: Calculator, keywords: ["kalk", "preis"] },
-  { title: "Produktion", url: "/production", icon: Factory, keywords: ["werkstatt", "fertigung"] },
-  { title: "QS-Prüfung", url: "/quality", icon: ClipboardCheck, keywords: ["qualität", "prüfung"] },
-  { title: "Service", url: "/service", icon: Wrench, keywords: ["wartung", "reparatur"] },
-  { title: "Verträge", url: "/contracts", icon: FileSignature },
-  { title: "Dokumente", url: "/documents", icon: Folder },
-  { title: "Berichte", url: "/reports", icon: BarChart3 },
+// WERKSTATT & PRODUKTION
+const workshopItems: NavItem[] = [
+  {
+    title: "Fertigungsaufträge",
+    url: "/production",
+    icon: Factory,
+    keywords: ["werkstatt", "fertigung", "produktion"],
+  },
+  {
+    title: "Stücklisten (BOM)",
+    url: "/bom",
+    icon: Layers,
+    keywords: ["material", "teile", "komponenten"],
+  },
+  {
+    title: "Kalkulation",
+    url: "/calculation",
+    icon: Calculator,
+    keywords: ["preis", "kosten", "berechnung"],
+  },
+  {
+    title: "Maschinen",
+    url: "/production", // Links to production for now, machine management embedded
+    icon: Cog,
+    keywords: ["geräte", "anlagen", "cnc", "laser"],
+  },
+  {
+    title: "Materialien & Lager",
+    url: "/inventory",
+    icon: Package,
+    keywords: ["bestand", "artikel", "waren"],
+  },
+  {
+    title: "Produkte / Artikel",
+    url: "/products",
+    icon: Box,
+    keywords: ["artikel", "waren", "teile"],
+  },
+  {
+    title: "QS-Prüfung",
+    url: "/quality",
+    icon: ClipboardCheck,
+    keywords: ["qualität", "kontrolle", "prüfung"],
+  },
 ];
 
-const accountingItems: NavItem[] = [
+// KUNDEN & LIEFERANTEN
+const partnersItems: NavItem[] = [
   {
-    title: "Controlling",
+    title: "Kunden",
+    url: "/customers",
+    icon: Users,
+    keywords: ["kunde", "auftraggeber", "debitor"],
+  },
+  {
+    title: "Lieferanten",
+    url: "/suppliers",
+    icon: Handshake,
+    keywords: ["zulieferer", "kreditor", "bezugsquelle"],
+  },
+];
+
+// CONTROLLING
+const controllingItems: NavItem[] = [
+  {
+    title: "Finanz-Übersicht",
     url: "/finance",
     icon: CreditCard,
-    keywords: ["finanzen", "übersicht", "dashboard"],
-    subItems: [
-      { title: "Kassenbuch", url: "/cash-book", icon: Wallet },
-      { title: "Kostenstellen", url: "/cost-centers", icon: Target },
-      { title: "Budgets", url: "/budgets", icon: PiggyBank },
-    ],
+    keywords: ["dashboard", "kennzahlen", "kpi"],
   },
+  {
+    title: "Kostenstellen",
+    url: "/cost-centers",
+    icon: Target,
+    keywords: ["kostenrechnung", "umlage"],
+  },
+  {
+    title: "Budgets",
+    url: "/budgets",
+    icon: PiggyBank,
+    keywords: ["planung", "soll"],
+  },
+  {
+    title: "Kassenbuch",
+    url: "/cash-book",
+    icon: Wallet,
+    keywords: ["bar", "kasse"],
+  },
+  {
+    title: "Berichte",
+    url: "/reports",
+    icon: BarChart3,
+    keywords: ["auswertung", "report", "analyse"],
+  },
+];
+
+// BUCHHALTUNG
+const accountingItems: NavItem[] = [
   {
     title: "Debitoren",
     url: "/debtors",
-    icon: UserPlus2,
-    keywords: ["forderungen", "kunden", "offene posten"],
+    icon: Users,
+    keywords: ["forderungen", "offene posten"],
   },
   {
     title: "Kreditoren",
     url: "/creditors",
-    icon: UserMinus,
-    keywords: ["verbindlichkeiten", "lieferanten", "offene posten"],
+    icon: Handshake,
+    keywords: ["verbindlichkeiten", "lieferanten"],
+  },
+  {
+    title: "Einkauf",
+    url: "/purchase-orders",
+    icon: ShoppingCart,
+    keywords: ["bestellung", "beschaffung"],
+  },
+  {
+    title: "Einkaufsrechnungen",
+    url: "/purchase-invoices",
+    icon: Receipt,
+    keywords: ["lieferantenrechnung"],
   },
   {
     title: "Zahlungsverkehr",
     url: "/bank-accounts",
     icon: Landmark,
-    keywords: ["bank", "konto", "sepa", "camt", "iso20022"],
+    keywords: ["bank", "sepa", "iso20022", "qr"],
   },
   {
     title: "Finanzbuchhaltung",
     url: "/chart-of-accounts",
     icon: BookOpen,
-    keywords: ["fibu", "buchhaltung"],
+    keywords: ["fibu", "konten"],
     subItems: [
       { title: "Kontenplan", url: "/chart-of-accounts", icon: BookOpen },
       { title: "Buchungsjournal", url: "/journal-entries", icon: FileText },
@@ -225,106 +293,108 @@ const accountingItems: NavItem[] = [
     title: "Abschlüsse",
     url: "/balance-sheet",
     icon: Scale,
-    keywords: ["bilanz", "guv", "jahresabschluss"],
+    keywords: ["bilanz", "guv", "erfolgsrechnung"],
     subItems: [
-      { title: "Bilanz & GuV", url: "/balance-sheet", icon: Scale },
+      { title: "Bilanz & Erfolgsrechnung", url: "/balance-sheet", icon: Scale },
       { title: "MWST-Abrechnung", url: "/vat-returns", icon: Calculator },
       { title: "Anlagenbuchhaltung", url: "/fixed-assets", icon: PiggyBank },
     ],
   },
 ];
 
+// PERSONAL (HR) - Metallbau-fokussiert
 const hrItems: NavItem[] = [
   {
     title: "Mitarbeiter",
     url: "/hr",
     icon: UsersRound,
+    keywords: ["personal", "angestellte"],
   },
   {
-    title: "Arbeitsverträge",
-    url: "/employee-contracts",
+    title: "GAV & Lohnklassen",
+    url: "/hr", // GAV settings embedded in HR
     icon: FileSignature,
+    keywords: ["gav", "metallbau", "tarif", "lohnklasse"],
   },
   {
-    title: "Lohnabrechnung CHF",
+    title: "Lohnabrechnung",
     url: "/payroll",
     icon: Euro,
+    keywords: ["lohn", "gehalt", "salär"],
   },
   {
     title: "Abwesenheiten",
     url: "/absences",
     icon: Palmtree,
-  },
-  {
-    title: "Reisekosten",
-    url: "/travel-expenses",
-    icon: Plane,
-  },
-  {
-    title: "Recruiting",
-    url: "/recruiting",
-    icon: UserPlus,
+    keywords: ["ferien", "krank", "urlaub"],
   },
   {
     title: "Schulungen",
     url: "/training",
     icon: GraduationCap,
+    keywords: ["weiterbildung", "kurs", "qualifikation"],
+  },
+  {
+    title: "Reisekosten",
+    url: "/travel-expenses",
+    icon: Plane,
+    keywords: ["spesen", "fahrkosten"],
   },
   {
     title: "Organigramm",
     url: "/orgchart",
     icon: Network,
+    keywords: ["struktur", "hierarchie"],
   },
 ];
 
-const marketingItems: NavItem[] = [
+// SONSTIGES - Versteckt standardmäßig
+const additionalItems: NavItem[] = [
   {
-    title: "Kampagnen",
-    url: "/campaigns",
-    icon: Megaphone,
+    title: "Service & Wartung",
+    url: "/service",
+    icon: Wrench,
+    keywords: ["reparatur", "instandhaltung"],
   },
   {
-    title: "Leads",
-    url: "/leads",
-    icon: UserCheck,
+    title: "Verträge",
+    url: "/contracts",
+    icon: FileSignature,
+    keywords: ["vertrag", "vereinbarung"],
   },
   {
-    title: "E-Mail Marketing",
-    url: "/email-marketing",
-    icon: Mail,
-  },
-];
-
-const ecommerceItems: NavItem[] = [
-  {
-    title: "Online-Shop",
-    url: "/shop",
-    icon: Store,
+    title: "Dokumente",
+    url: "/documents",
+    icon: Folder,
+    keywords: ["datei", "ablage"],
   },
   {
-    title: "Rabatte",
-    url: "/discounts",
-    icon: Percent,
-  },
-  {
-    title: "Bewertungen",
-    url: "/reviews",
-    icon: Star,
+    title: "Gutschriften",
+    url: "/credit-notes",
+    icon: FileBox,
+    keywords: ["storno", "rückerstattung"],
   },
 ];
 
+// ADMINISTRATION
 const adminItems: NavItem[] = [
   {
     title: "Benutzer",
     url: "/users",
     icon: UserCog,
+    keywords: ["user", "zugang"],
   },
   {
     title: "Unternehmen",
     url: "/company",
     icon: Building2,
+    keywords: ["firma", "einstellungen"],
   },
 ];
+
+// ============================================
+// NAVIGATION COMPONENTS
+// ============================================
 
 interface NavGroupProps {
   label: string;
@@ -336,9 +406,10 @@ interface NavGroupProps {
 }
 
 function filterItems(items: NavItem[], query: string): NavItem[] {
-  if (!query.trim()) return items;
+  if (!query.trim()) return items.filter(item => !item.hidden);
   const lowerQuery = query.toLowerCase();
   return items.filter((item) => {
+    if (item.hidden) return false;
     const titleMatch = item.title.toLowerCase().includes(lowerQuery);
     const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
     const subItemMatch = item.subItems?.some((sub) => sub.title.toLowerCase().includes(lowerQuery));
@@ -351,11 +422,14 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const filteredItems = filterItems(items, searchQuery);
   
-  // Force open when searching and has results
   const shouldBeOpen = searchQuery ? filteredItems.length > 0 : isOpen;
 
-  // Don't render if no items match search
   if (searchQuery && filteredItems.length === 0) {
+    return null;
+  }
+
+  // Don't render empty groups
+  if (filteredItems.length === 0) {
     return null;
   }
 
@@ -376,7 +450,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
           <SidebarGroupLabel className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest px-3 py-2 flex items-center justify-between cursor-pointer hover:text-muted-foreground transition-colors duration-200">
             <span className="flex items-center gap-2">
               {label}
-              {filteredItems.length !== items.length && searchQuery && (
+              {filteredItems.length !== items.filter(i => !i.hidden).length && searchQuery && (
                 <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">
                   {filteredItems.length}
                 </span>
@@ -400,7 +474,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                   item.subItems?.some(sub => location.pathname === sub.url);
                 
                 return (
-                  <SidebarMenuItem key={item.url}>
+                  <SidebarMenuItem key={item.url + item.title}>
                     {item.subItems && useSubmenus ? (
                       <Collapsible open={isSubmenuOpen(item)} onOpenChange={() => toggleSubmenu(item.url)}>
                         <CollapsibleTrigger asChild>
@@ -493,12 +567,28 @@ export function AppSidebar() {
   const location = useLocation();
   const [sidebarSearch, setSidebarSearch] = useState("");
 
+  // Combine all items for search result count
+  const allItems = [
+    ...dailyOperationsItems,
+    ...ordersItems,
+    ...workshopItems,
+    ...partnersItems,
+    ...controllingItems,
+    ...accountingItems,
+    ...hrItems,
+    ...additionalItems,
+    ...adminItems,
+  ];
+
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar-background">
       <SidebarHeader className="p-4 space-y-4">
         <NavLink to="/" className="flex items-center gap-3 px-1 hover:opacity-80 transition-opacity">
           <img src={loomoraLogo} alt="Loomora" className="h-10" />
         </NavLink>
+        <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider px-1 -mt-2">
+          ERP für Metallbau
+        </p>
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary" />
           <Input
@@ -519,20 +609,71 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-3 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
-        <NavGroup label="Hauptmenü" items={mainNavItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="CRM" items={crmItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Verkauf" items={salesItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Verwaltung" items={managementItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} searchQuery={sidebarSearch} useSubmenus={true} />
-        <NavGroup label="Marketing" items={marketingItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="E-Commerce" items={ecommerceItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Personal (HR)" items={hrItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Administration" items={adminItems} location={location} searchQuery={sidebarSearch} />
+        {/* METALLBAU-OPTIMIERTE NAVIGATION */}
+        <NavGroup 
+          label="Tagesgeschäft" 
+          items={dailyOperationsItems} 
+          location={location} 
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Aufträge & Verkauf" 
+          items={ordersItems} 
+          location={location} 
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Werkstatt" 
+          items={workshopItems} 
+          location={location} 
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Kunden & Lieferanten" 
+          items={partnersItems} 
+          location={location} 
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Controlling" 
+          items={controllingItems} 
+          location={location} 
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Buchhaltung" 
+          items={accountingItems} 
+          location={location} 
+          defaultOpen={false} 
+          searchQuery={sidebarSearch} 
+          useSubmenus={true} 
+        />
+        <NavGroup 
+          label="Personal" 
+          items={hrItems} 
+          location={location} 
+          defaultOpen={false}
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Sonstiges" 
+          items={additionalItems} 
+          location={location} 
+          defaultOpen={false}
+          searchQuery={sidebarSearch} 
+        />
+        <NavGroup 
+          label="Administration" 
+          items={adminItems} 
+          location={location} 
+          defaultOpen={false}
+          searchQuery={sidebarSearch} 
+        />
         
         {sidebarSearch && (
           <div className="px-3 py-6 text-center">
             <p className="text-xs text-muted-foreground/60">
-              {filterItems([...mainNavItems, ...crmItems, ...salesItems, ...managementItems, ...accountingItems, ...marketingItems, ...ecommerceItems, ...hrItems, ...adminItems], sidebarSearch).length} Ergebnisse für "{sidebarSearch}"
+              {filterItems(allItems, sidebarSearch).length} Ergebnisse für "{sidebarSearch}"
             </p>
           </div>
         )}

@@ -234,16 +234,16 @@ export default function Production() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            Produktionsplanung
+            Werkstatt
           </h1>
           <p className="text-muted-foreground">
-            Werkstattaufträge und Kapazitätsplanung
+            Fertigungsaufträge und Kapazitätsplanung
           </p>
         </div>
         <div className="flex gap-2">
           <Button className="gap-2" onClick={() => navigate("/production/new")}>
             <Plus className="h-4 w-4" />
-            Werkstattauftrag
+            Fertigungsauftrag
           </Button>
         </div>
       </div>
