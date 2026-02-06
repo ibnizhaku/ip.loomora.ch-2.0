@@ -442,6 +442,203 @@ export const mockProjectControlling: Record<string, any> = {
   },
 };
 
+// Mock Products für Artikelstamm
+export const mockProductCategories = [
+  { id: "cat1", name: "Stahl", description: "Stahlprodukte und Halbzeuge", productCount: 12 },
+  { id: "cat2", name: "Aluminium", description: "Aluminiumprodukte", productCount: 8 },
+  { id: "cat3", name: "Edelstahl", description: "Rostfreie Stähle", productCount: 6 },
+  { id: "cat4", name: "Zubehör", description: "Verbindungselemente und Kleinteile", productCount: 24 },
+  { id: "cat5", name: "Dienstleistungen", description: "Arbeits- und Serviceleistungen", productCount: 5 },
+];
+
+export const mockProducts = {
+  data: [
+    {
+      id: "prod1",
+      sku: "ST-FL-10x100",
+      name: "Stahlflachstahl 10x100mm",
+      description: "Warmgewalzter Flachstahl S235JR",
+      categoryId: "cat1",
+      category: { id: "cat1", name: "Stahl" },
+      unit: "m",
+      purchasePrice: 12.50,
+      salePrice: 18.75,
+      vatRate: "STANDARD",
+      stockQuantity: 250,
+      minStock: 50,
+      maxStock: 500,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-15",
+    },
+    {
+      id: "prod2",
+      sku: "ST-RR-40x40",
+      name: "Stahlrohr quadratisch 40x40mm",
+      description: "Quadratrohr S235JR, Wandstärke 3mm",
+      categoryId: "cat1",
+      category: { id: "cat1", name: "Stahl" },
+      unit: "m",
+      purchasePrice: 8.90,
+      salePrice: 13.35,
+      vatRate: "STANDARD",
+      stockQuantity: 180,
+      minStock: 40,
+      maxStock: 300,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-15",
+    },
+    {
+      id: "prod3",
+      sku: "AL-PR-50x50",
+      name: "Aluminium Profil 50x50mm",
+      description: "Aluminium Vierkantprofil EN AW-6060",
+      categoryId: "cat2",
+      category: { id: "cat2", name: "Aluminium" },
+      unit: "m",
+      purchasePrice: 15.20,
+      salePrice: 22.80,
+      vatRate: "STANDARD",
+      stockQuantity: 120,
+      minStock: 30,
+      maxStock: 200,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-20",
+    },
+    {
+      id: "prod4",
+      sku: "ES-BL-2x1000",
+      name: "Edelstahlblech 2mm 1000x2000",
+      description: "Edelstahlblech 1.4301, geschliffen K240",
+      categoryId: "cat3",
+      category: { id: "cat3", name: "Edelstahl" },
+      unit: "Stk",
+      purchasePrice: 185.00,
+      salePrice: 259.00,
+      vatRate: "STANDARD",
+      stockQuantity: 25,
+      minStock: 10,
+      maxStock: 50,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-22",
+    },
+    {
+      id: "prod5",
+      sku: "ZUB-SCH-M10",
+      name: "Sechskantschraube M10x30 verzinkt",
+      description: "DIN 933, Festigkeitsklasse 8.8",
+      categoryId: "cat4",
+      category: { id: "cat4", name: "Zubehör" },
+      unit: "Stk",
+      purchasePrice: 0.25,
+      salePrice: 0.45,
+      vatRate: "STANDARD",
+      stockQuantity: 2500,
+      minStock: 500,
+      maxStock: 5000,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-10",
+    },
+    {
+      id: "prod6",
+      sku: "DL-SCHW-STD",
+      name: "Schweissarbeiten Standardstahl",
+      description: "Schweissarbeiten MIG/MAG pro Stunde",
+      categoryId: "cat5",
+      category: { id: "cat5", name: "Dienstleistungen" },
+      unit: "Std",
+      purchasePrice: 0,
+      salePrice: 95.00,
+      vatRate: "STANDARD",
+      stockQuantity: 0,
+      minStock: 0,
+      maxStock: 0,
+      isActive: true,
+      isService: true,
+      createdAt: "2024-01-05",
+    },
+    {
+      id: "prod7",
+      sku: "DL-MONT-AUS",
+      name: "Montage Ausseneinsatz",
+      description: "Montagearbeiten vor Ort, pro Stunde",
+      categoryId: "cat5",
+      category: { id: "cat5", name: "Dienstleistungen" },
+      unit: "Std",
+      purchasePrice: 0,
+      salePrice: 125.00,
+      vatRate: "STANDARD",
+      stockQuantity: 0,
+      minStock: 0,
+      maxStock: 0,
+      isActive: true,
+      isService: true,
+      createdAt: "2024-01-05",
+    },
+    {
+      id: "prod8",
+      sku: "ST-WIN-60x60",
+      name: "Winkelstahl 60x60x6mm",
+      description: "Gleichschenkliger Winkelstahl S235JR",
+      categoryId: "cat1",
+      category: { id: "cat1", name: "Stahl" },
+      unit: "m",
+      purchasePrice: 9.80,
+      salePrice: 14.70,
+      vatRate: "STANDARD",
+      stockQuantity: 85,
+      minStock: 30,
+      maxStock: 150,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-02-01",
+    },
+    {
+      id: "prod9",
+      sku: "ZUB-MUT-M10",
+      name: "Sechskantmutter M10 verzinkt",
+      description: "DIN 934, Festigkeitsklasse 8",
+      categoryId: "cat4",
+      category: { id: "cat4", name: "Zubehör" },
+      unit: "Stk",
+      purchasePrice: 0.08,
+      salePrice: 0.15,
+      vatRate: "STANDARD",
+      stockQuantity: 3200,
+      minStock: 1000,
+      maxStock: 8000,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-10",
+    },
+    {
+      id: "prod10",
+      sku: "AL-RR-30x30",
+      name: "Aluminium Rohr quadratisch 30x30mm",
+      description: "Aluminiumrohr EN AW-6060, Wandstärke 2mm",
+      categoryId: "cat2",
+      category: { id: "cat2", name: "Aluminium" },
+      unit: "m",
+      purchasePrice: 6.50,
+      salePrice: 9.75,
+      vatRate: "STANDARD",
+      stockQuantity: 15,
+      minStock: 25,
+      maxStock: 100,
+      isActive: true,
+      isService: false,
+      createdAt: "2024-01-25",
+    },
+  ],
+  total: 10,
+  page: 1,
+  pageSize: 100,
+};
+
 // Mock Data Router - gibt passende Mock-Daten für Endpunkte zurück
 export function getMockData(endpoint: string): any {
   // Normalisiere den Endpunkt
@@ -487,6 +684,46 @@ export function getMockData(endpoint: string): any {
   // Cost Centers
   if (normalizedEndpoint === '/cost-centers' || normalizedEndpoint.startsWith('/cost-centers?')) {
     return mockCostCenters;
+  }
+  
+  // Products
+  if (normalizedEndpoint === '/products/categories') {
+    return mockProductCategories;
+  }
+  if (normalizedEndpoint === '/products' || normalizedEndpoint.startsWith('/products?')) {
+    // Parse query parameters for filtering
+    const queryString = endpoint.split('?')[1];
+    const params = new URLSearchParams(queryString || '');
+    const categoryId = params.get('categoryId');
+    const isService = params.get('isService');
+    const search = params.get('search');
+    
+    let filteredData = mockProducts.data;
+    
+    if (categoryId) {
+      filteredData = filteredData.filter(p => p.categoryId === categoryId);
+    }
+    if (isService !== null && isService !== undefined) {
+      filteredData = filteredData.filter(p => p.isService === (isService === 'true'));
+    }
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredData = filteredData.filter(p => 
+        p.name.toLowerCase().includes(searchLower) || 
+        p.sku.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return {
+      data: filteredData,
+      total: filteredData.length,
+      page: 1,
+      pageSize: 100,
+    };
+  }
+  if (normalizedEndpoint.match(/^\/products\/[^/]+$/)) {
+    const id = normalizedEndpoint.split('/')[2];
+    return mockProducts.data.find(p => p.id === id) || null;
   }
   
   // Employees
