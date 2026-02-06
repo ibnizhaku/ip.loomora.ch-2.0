@@ -222,7 +222,7 @@ export default function SepaPayments() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Ausstehend</p>
-              <p className="text-2xl font-bold text-warning">€{pendingTotal.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-warning">CHF {pendingTotal.toLocaleString("de-CH")}</p>
             </div>
           </div>
         </div>
@@ -328,7 +328,7 @@ export default function SepaPayments() {
                       </TableCell>
                       <TableCell>{payment.executionDate}</TableCell>
                       <TableCell className="text-right font-mono font-bold text-destructive">
-                        -€{payment.amount.toLocaleString()}
+                        -CHF {payment.amount.toLocaleString("de-CH")}
                       </TableCell>
                       <TableCell>
                         <Badge className={cn("gap-1", statusStyles[payment.status])}>
@@ -421,7 +421,7 @@ export default function SepaPayments() {
                       </TableCell>
                       <TableCell>{payment.executionDate}</TableCell>
                       <TableCell className="text-right font-mono font-bold text-success">
-                        +€{payment.amount.toLocaleString()}
+                        +CHF {payment.amount.toLocaleString("de-CH")}
                       </TableCell>
                       <TableCell>
                         <Badge className={cn("gap-1", statusStyles[payment.status])}>

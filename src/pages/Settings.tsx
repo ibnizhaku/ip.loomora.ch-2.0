@@ -1266,7 +1266,7 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">Aktueller Plan</p>
                     <p className="text-2xl font-bold">Business Pro</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      €99/Monat • Wird am 15.02.2024 verlängert
+                      CHF 99/Monat • Wird am 15.02.2024 verlängert
                     </p>
                   </div>
                   <Button>Plan upgraden</Button>
