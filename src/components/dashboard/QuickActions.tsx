@@ -1,4 +1,4 @@
-import { Plus, FileText, Users, FolderPlus, Clock } from "lucide-react";
+import { Plus, FileText, Users, FolderPlus, Clock, Factory } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -13,12 +13,20 @@ interface QuickAction {
 
 const actions: QuickAction[] = [
   {
-    title: "Neues Projekt",
-    description: "Projekt erstellen",
+    title: "Neuer Auftrag",
+    description: "Kundenauftrag anlegen",
     icon: FolderPlus,
     color: "text-primary",
     bgColor: "bg-primary/10 group-hover:bg-primary/20",
     path: "/projects/new",
+  },
+  {
+    title: "Betriebszeit",
+    description: "Zeit erfassen",
+    icon: Clock,
+    color: "text-warning",
+    bgColor: "bg-warning/10 group-hover:bg-warning/20",
+    path: "/time-tracking",
   },
   {
     title: "Neue Rechnung",
@@ -29,20 +37,12 @@ const actions: QuickAction[] = [
     path: "/invoices/new",
   },
   {
-    title: "Neuer Kunde",
-    description: "Kunde anlegen",
-    icon: Users,
+    title: "Werkstatt",
+    description: "Fertigungsauftrag",
+    icon: Factory,
     color: "text-info",
     bgColor: "bg-info/10 group-hover:bg-info/20",
-    path: "/customers/new",
-  },
-  {
-    title: "Zeit erfassen",
-    description: "Stunden buchen",
-    icon: Clock,
-    color: "text-warning",
-    bgColor: "bg-warning/10 group-hover:bg-warning/20",
-    path: "/time-tracking",
+    path: "/production",
   },
 ];
 

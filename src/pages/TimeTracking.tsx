@@ -489,10 +489,10 @@ export default function TimeTracking() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            Zeiterfassung
+            Betriebszeit
           </h1>
           <p className="text-muted-foreground">
-            Erfassen und verwalten Sie Ihre Arbeitszeit
+            Erfassen Sie Ihre Arbeitszeit – Werkstatt, Baustelle oder Büro
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -537,15 +537,14 @@ export default function TimeTracking() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Metallbau Zeit erfassen */}
+          {/* Betriebszeit erfassen - Hauptaktion */}
           <Button 
-            variant="outline" 
             size="sm" 
             className="gap-2"
             onClick={() => setMetallbauDialogOpen(true)}
           >
-            <Wrench className="h-4 w-4" />
-            Metallbau
+            <Clock className="h-4 w-4" />
+            Zeit erfassen
           </Button>
 
           {/* PDF Export Dropdown */}

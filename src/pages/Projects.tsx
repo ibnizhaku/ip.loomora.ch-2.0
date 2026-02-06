@@ -98,15 +98,15 @@ export default function Projects() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            Projekte
+            Aufträge & Projekte
           </h1>
           <p className="text-muted-foreground">
-            Verwalten Sie alle Ihre Projekte an einem Ort
+            Verwalten Sie alle Ihre Kundenaufträge an einem Ort
           </p>
         </div>
         <Button className="gap-2" onClick={() => navigate("/projects/new")}>
           <Plus className="h-4 w-4" />
-          Neues Projekt
+          Neuer Auftrag
         </Button>
       </div>
 
@@ -115,7 +115,7 @@ export default function Projects() {
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Projekte suchen..."
+            placeholder="Aufträge suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"

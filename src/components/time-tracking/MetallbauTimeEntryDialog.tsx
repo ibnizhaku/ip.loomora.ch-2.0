@@ -21,7 +21,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Clock, Building2, Wrench, AlertTriangle } from "lucide-react";
+import { Clock, Building2, Wrench, AlertTriangle, Info } from "lucide-react";
 import {
   useTimeTypes,
   useActivityTypes,
@@ -43,23 +43,45 @@ interface MetallbauTimeEntryDialogProps {
   onSuccess?: () => void;
 }
 
-const TIME_TYPE_LABELS: Record<TimeTypeCode, string> = {
-  [TimeTypeCode.PROJECT]: 'Projektzeit',
-  [TimeTypeCode.ORDER]: 'Auftragszeit',
-  [TimeTypeCode.GENERAL]: 'Allgemeine Tätigkeit',
-  [TimeTypeCode.ADMIN]: 'Administration',
-  [TimeTypeCode.TRAINING]: 'Weiterbildung',
-  [TimeTypeCode.ABSENCE]: 'Abwesenheit',
+// ============================================
+// METALLBAU-SPEZIFISCHE LABELS
+// ============================================
+
+const TIME_TYPE_LABELS: Record<TimeTypeCode, { label: string; description: string }> = {
+  [TimeTypeCode.PROJECT]: { 
+    label: 'Projektarbeit', 
+    description: 'Direkte Arbeit an Kundenaufträgen' 
+  },
+  [TimeTypeCode.ORDER]: { 
+    label: 'Auftragsarbeit', 
+    description: 'Spezifische Bestellungsarbeit' 
+  },
+  [TimeTypeCode.GENERAL]: { 
+    label: 'Werkstattzeit', 
+    description: 'Rüsten, Aufräumen, Instandhaltung' 
+  },
+  [TimeTypeCode.ADMIN]: { 
+    label: 'Bürozeit', 
+    description: 'Verwaltung, Offerten, Planung' 
+  },
+  [TimeTypeCode.TRAINING]: { 
+    label: 'Qualifikation', 
+    description: 'Weiterbildung, Lehrlingsbetreuung' 
+  },
+  [TimeTypeCode.ABSENCE]: { 
+    label: 'Abwesenheit', 
+    description: 'Ferien, Krankheit, Militär' 
+  },
 };
 
 const SURCHARGE_LABELS: Record<SurchargeType, { label: string; hint: string }> = {
-  [SurchargeType.MONTAGE]: { label: 'Montagezuschlag', hint: '+15%' },
+  [SurchargeType.MONTAGE]: { label: 'Baustellenzuschlag', hint: '+15%' },
   [SurchargeType.NACHT]: { label: 'Nachtarbeit', hint: '+25%' },
   [SurchargeType.SAMSTAG]: { label: 'Samstagsarbeit', hint: '+25%' },
   [SurchargeType.SONNTAG]: { label: 'Sonntagsarbeit', hint: '+50%' },
   [SurchargeType.FEIERTAG]: { label: 'Feiertagsarbeit', hint: '+100%' },
-  [SurchargeType.HOEHE]: { label: 'Höhenzuschlag', hint: '+3 CHF/h' },
-  [SurchargeType.SCHMUTZ]: { label: 'Schmutzzuschlag', hint: '+2 CHF/h' },
+  [SurchargeType.HOEHE]: { label: 'Höhenarbeit (>5m)', hint: '+CHF 2.50/h' },
+  [SurchargeType.SCHMUTZ]: { label: 'Schmutzarbeit', hint: '+CHF 1.50/h' },
 };
 
 export function MetallbauTimeEntryDialog({
@@ -113,7 +135,7 @@ export function MetallbauTimeEntryDialog({
     setProjectPhaseId("");
   }, [projectId]);
 
-  // Auto-add Montagezuschlag when Baustelle selected
+  // Auto-add Baustellenzuschlag when Baustelle selected
   useEffect(() => {
     if (workLocation === WorkLocation.BAUSTELLE && !selectedSurcharges.includes(SurchargeType.MONTAGE)) {
       setSelectedSurcharges(prev => [...prev, SurchargeType.MONTAGE]);
@@ -142,7 +164,7 @@ export function MetallbauTimeEntryDialog({
     }
 
     if (isProjectRelevant && !projectId) {
-      toast.error("Bitte Projekt auswählen (erforderlich für diesen Zeittyp)");
+      toast.error("Bitte Auftrag/Projekt auswählen (erforderlich für diesen Zeittyp)");
       return;
     }
 
@@ -162,8 +184,8 @@ export function MetallbauTimeEntryDialog({
         surcharges: selectedSurcharges.length > 0 ? selectedSurcharges : undefined,
       });
 
-      toast.success("Zeiteintrag erstellt", {
-        description: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min - ${TIME_TYPE_LABELS[timeTypeCode]}`,
+      toast.success("Betriebszeit erfasst", {
+        description: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min - ${TIME_TYPE_LABELS[timeTypeCode].label}`,
       });
 
       // Reset form
@@ -176,7 +198,7 @@ export function MetallbauTimeEntryDialog({
       onSuccess?.();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error("Fehler beim Erstellen", {
+      toast.error("Fehler beim Erfassen", {
         description: error?.message || "Bitte versuchen Sie es erneut",
       });
     }
@@ -188,40 +210,43 @@ export function MetallbauTimeEntryDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Zeit erfassen (Metallbau)
+            Betriebszeit erfassen
           </DialogTitle>
           <DialogDescription>
-            Duale Zeiterfassung mit automatischer Projektkostenbuchung
+            Was hast du heute im Betrieb gemacht?
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Zeittyp - Kernauswahl */}
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Zeittyp *</Label>
+            <Label className="text-base font-semibold">Was hast du gemacht? *</Label>
             <Select value={timeTypeCode} onValueChange={(v) => setTimeTypeCode(v as TimeTypeCode)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Zeittyp wählen" />
+              <SelectTrigger className="h-12">
+                <SelectValue placeholder="Art der Tätigkeit wählen" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(TIME_TYPE_LABELS).map(([code, label]) => (
+                {Object.entries(TIME_TYPE_LABELS).map(([code, { label, description }]) => (
                   <SelectItem key={code} value={code}>
-                    <div className="flex items-center gap-2">
-                      {label}
-                      {(code === TimeTypeCode.PROJECT || code === TimeTypeCode.ORDER) && (
-                        <Badge variant="outline" className="text-xs">
-                          Projektwirksam
-                        </Badge>
-                      )}
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center gap-2">
+                        {label}
+                        {(code === TimeTypeCode.PROJECT || code === TimeTypeCode.ORDER) && (
+                          <Badge variant="outline" className="text-xs bg-primary/10 text-primary">
+                            Auftragswirksam
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{description}</span>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {isProjectRelevant && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                Diese Zeit wird automatisch auf das Projekt gebucht
+              <p className="text-xs text-primary flex items-center gap-1 bg-primary/5 p-2 rounded">
+                <Info className="h-3 w-3" />
+                Diese Zeit wird automatisch auf den Auftrag gebucht (Projektkosten)
               </p>
             )}
           </div>
@@ -276,20 +301,20 @@ export function MetallbauTimeEntryDialog({
             </Select>
           </div>
 
-          {/* Projekt - nur wenn projektwirksam */}
+          {/* Projekt/Auftrag - nur wenn projektwirksam */}
           {isProjectRelevant && (
             <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Building2 className="h-4 w-4" />
-                Projektzuordnung
+                Auftragszuordnung
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Projekt *</Label>
+                  <Label>Auftrag / Projekt *</Label>
                   <Select value={projectId} onValueChange={setProjectId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Projekt wählen" />
+                      <SelectValue placeholder="Auftrag wählen" />
                     </SelectTrigger>
                     <SelectContent>
                       {projects.filter((p: any) => p.status !== 'completed' && p.status !== 'cancelled').map((project: any) => (
@@ -302,10 +327,10 @@ export function MetallbauTimeEntryDialog({
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Projektphase</Label>
+                  <Label>Fertigungsphase</Label>
                   <Select value={projectPhaseId} onValueChange={setProjectPhaseId} disabled={!projectId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={projectId ? "Phase wählen" : "Erst Projekt wählen"} />
+                      <SelectValue placeholder={projectId ? "Phase wählen" : "Erst Auftrag wählen"} />
                     </SelectTrigger>
                     <SelectContent>
                       {projectPhases?.map((phase) => (
@@ -326,11 +351,21 @@ export function MetallbauTimeEntryDialog({
               <Label>Arbeitsort</Label>
               <Select value={workLocation} onValueChange={(v) => setWorkLocation(v as WorkLocation)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
+                  <SelectValue placeholder="Wo gearbeitet?" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={WorkLocation.WERKSTATT}>Werkstatt</SelectItem>
-                  <SelectItem value={WorkLocation.BAUSTELLE}>Baustelle</SelectItem>
+                  <SelectItem value={WorkLocation.WERKSTATT}>
+                    <div className="flex flex-col items-start">
+                      <span>Werkstatt</span>
+                      <span className="text-xs text-muted-foreground">Ohne Zuschlag</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={WorkLocation.BAUSTELLE}>
+                    <div className="flex flex-col items-start">
+                      <span>Baustelle / Montage</span>
+                      <span className="text-xs text-muted-foreground">+15% Baustellenzuschlag</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -339,7 +374,7 @@ export function MetallbauTimeEntryDialog({
               <Label>Tätigkeit</Label>
               <Select value={activityTypeId} onValueChange={setActivityTypeId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
+                  <SelectValue placeholder="Art der Arbeit" />
                 </SelectTrigger>
                 <SelectContent>
                   {activityTypes?.map((activity) => (
@@ -370,16 +405,23 @@ export function MetallbauTimeEntryDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Maschinenstunden werden separat auf den Auftrag gebucht
+            </p>
           </div>
 
           {/* Zuschläge */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Zuschläge (GAV Metallbau)</Label>
+            <Label className="text-base font-semibold">Zuschläge (GAV Metallbau Schweiz)</Label>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(SURCHARGE_LABELS).map(([key, { label, hint }]) => (
                 <div
                   key={key}
-                  className="flex items-center space-x-2 p-2 rounded border hover:bg-muted/50 cursor-pointer"
+                  className={`flex items-center space-x-2 p-3 rounded border cursor-pointer transition-colors ${
+                    selectedSurcharges.includes(key as SurchargeType)
+                      ? 'bg-primary/10 border-primary/30'
+                      : 'hover:bg-muted/50'
+                  }`}
                   onClick={() => handleSurchargeToggle(key as SurchargeType)}
                 >
                   <Checkbox
@@ -387,8 +429,8 @@ export function MetallbauTimeEntryDialog({
                     onCheckedChange={() => handleSurchargeToggle(key as SurchargeType)}
                   />
                   <div className="flex-1 text-sm">
-                    <span>{label}</span>
-                    <span className="text-muted-foreground ml-1">({hint})</span>
+                    <span className="font-medium">{label}</span>
+                    <span className="text-primary ml-2 font-semibold">{hint}</span>
                   </div>
                 </div>
               ))}
@@ -400,14 +442,14 @@ export function MetallbauTimeEntryDialog({
             <Label>Stundensatz (CHF, optional)</Label>
             <Input
               type="number"
-              placeholder="Standard aus Mitarbeiterprofil"
+              placeholder="Standard aus GAV-Lohnklasse"
               min="0"
               step="0.01"
               value={baseHourlyRate}
               onChange={(e) => setBaseHourlyRate(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Leer lassen für automatische Ermittlung aus Qualifikation/Projekt
+              Leer lassen für automatische Ermittlung aus Lohnklasse/Qualifikation
             </p>
           </div>
 
@@ -415,7 +457,7 @@ export function MetallbauTimeEntryDialog({
           <div className="space-y-2">
             <Label>Beschreibung</Label>
             <Textarea
-              placeholder="Beschreiben Sie die durchgeführte Arbeit..."
+              placeholder="Was wurde gemacht? (z.B. Geländer geschweisst, Treppe montiert...)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -428,7 +470,7 @@ export function MetallbauTimeEntryDialog({
             Abbrechen
           </Button>
           <Button onClick={handleSubmit} disabled={createTimeEntry.isPending}>
-            {createTimeEntry.isPending ? "Wird gespeichert..." : "Speichern"}
+            {createTimeEntry.isPending ? "Wird gespeichert..." : "Betriebszeit speichern"}
           </Button>
         </DialogFooter>
       </DialogContent>
