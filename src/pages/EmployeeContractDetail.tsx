@@ -1,16 +1,20 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit, Download, Save, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const vertragData = {
+const initialVertragData = {
   id: "AV-2024-0089",
   mitarbeiter: "Marco Brunner",
   personalNr: "MA-0045",
@@ -19,25 +23,20 @@ const vertragData = {
   vorgesetzter: "Thomas Meier",
   vertragsart: "Unbefristet",
   status: "aktiv",
-  eintrittsdatum: "01.03.2022",
+  eintrittsdatum: "2022-03-01",
   probezeit: "3 Monate (bis 31.05.2022)",
   kündigungsfrist: "2 Monate",
   arbeitsort: "Werkstatt Zürich",
-  // GAV Metallbau Schweiz
   gav: "GAV Metallbau Schweiz",
   lohnklasse: "C",
   lohnklasseBeschreibung: "Facharbeiter mit EFZ",
-  // Arbeitszeit gemäss GAV
   wochenarbeitszeit: 42.5,
   jahresarbeitszeit: 2212,
-  // Lohn
   monatslohn: 5400,
   stundenlohn: 30.42,
   tage13: true,
-  // Ferien & Feiertage
   ferienanspruch: 25,
   feiertage: 9,
-  // Sozialversicherungen CH
   ahvNr: "756.1234.5678.90",
 };
 
@@ -66,24 +65,53 @@ const statusColors: Record<string, string> = {
   entwurf: "bg-info/10 text-info",
 };
 
-const lohnklassenBeschreibung: Record<string, string> = {
-  A: "Angelernte Mitarbeiter",
-  B: "Anlernpersonal mit Erfahrung",
-  C: "Facharbeiter mit EFZ",
-  D: "Facharbeiter mit Spezialausbildung",
-  E: "Gruppenleiter / Vorarbeiter",
-  F: "Werkstattleiter / Polier",
-};
+const lohnklassen = [
+  { value: "A", label: "Klasse A - Angelernte Mitarbeiter" },
+  { value: "B", label: "Klasse B - Anlernpersonal mit Erfahrung" },
+  { value: "C", label: "Klasse C - Facharbeiter mit EFZ" },
+  { value: "D", label: "Klasse D - Facharbeiter mit Spezialausbildung" },
+  { value: "E", label: "Klasse E - Gruppenleiter / Vorarbeiter" },
+  { value: "F", label: "Klasse F - Werkstattleiter / Polier" },
+];
+
+const vertragsarten = ["Unbefristet", "Befristet", "Temporär", "Praktikum", "Lehrvertrag"];
+const statusOptions = ["aktiv", "gekündigt", "beendet", "entwurf"];
 
 export default function EmployeeContractDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [vertragData, setVertragData] = useState(initialVertragData);
+  const [editData, setEditData] = useState(initialVertragData);
+
+  // Check for edit mode from URL param
+  useEffect(() => {
+    if (searchParams.get("edit") === "true") {
+      setIsEditMode(true);
+      setEditData(vertragData);
+      // Clean up URL
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, vertragData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
       style: "currency",
       currency: "CHF",
     }).format(value);
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("de-CH");
+    } catch {
+      return dateStr;
+    }
   };
 
   const jahreslohn = vertragData.monatslohn * (vertragData.tage13 ? 13 : 12);
@@ -111,7 +139,7 @@ export default function EmployeeContractDetail() {
     doc.text("Vertragsdaten", 14, 82);
     doc.setFontSize(10);
     doc.text(`Vertragsart: ${vertragData.vertragsart}`, 14, 90);
-    doc.text(`Eintrittsdatum: ${vertragData.eintrittsdatum}`, 14, 96);
+    doc.text(`Eintrittsdatum: ${formatDate(vertragData.eintrittsdatum)}`, 14, 96);
     doc.text(`Arbeitsort: ${vertragData.arbeitsort}`, 14, 102);
     doc.text(`Kündigungsfrist: ${vertragData.kündigungsfrist}`, 14, 108);
     
@@ -141,9 +169,37 @@ export default function EmployeeContractDetail() {
     toast.success("PDF wurde exportiert");
   };
 
-  const handleEdit = () => {
-    toast.info("Bearbeitungsmodus wird geladen...");
-    navigate(`/employee-contracts/${id}/edit`);
+  const handleEditToggle = () => {
+    if (!isEditMode) {
+      setEditData(vertragData);
+    }
+    setIsEditMode(!isEditMode);
+  };
+
+  const handleCancel = () => {
+    setEditData(vertragData);
+    setIsEditMode(false);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Update local data
+      setVertragData(editData);
+      setIsEditMode(false);
+      toast.success("Vertrag wurde erfolgreich aktualisiert");
+    } catch (error) {
+      toast.error("Fehler beim Speichern des Vertrags");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateField = (field: string, value: string | number | boolean) => {
+    setEditData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -158,22 +214,47 @@ export default function EmployeeContractDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">Arbeitsvertrag</h1>
-            <Badge className={statusColors[vertragData.status]}>
-              {vertragData.status.charAt(0).toUpperCase() + vertragData.status.slice(1)}
-            </Badge>
-            <Badge variant="outline">{vertragData.vertragsart}</Badge>
+            {isEditMode ? (
+              <Badge className="bg-info/10 text-info">Bearbeitungsmodus</Badge>
+            ) : (
+              <>
+                <Badge className={statusColors[vertragData.status]}>
+                  {vertragData.status.charAt(0).toUpperCase() + vertragData.status.slice(1)}
+                </Badge>
+                <Badge variant="outline">{vertragData.vertragsart}</Badge>
+              </>
+            )}
           </div>
           <p className="text-muted-foreground">{vertragData.id}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePdfExport}>
-            <Download className="mr-2 h-4 w-4" />
-            PDF Export
-          </Button>
-          <Button onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Bearbeiten
-          </Button>
+          {isEditMode ? (
+            <>
+              <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                <X className="mr-2 h-4 w-4" />
+                Abbrechen
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handlePdfExport}>
+                <Download className="mr-2 h-4 w-4" />
+                PDF Export
+              </Button>
+              <Button onClick={handleEditToggle}>
+                <Edit className="mr-2 h-4 w-4" />
+                Bearbeiten
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -193,58 +274,166 @@ export default function EmployeeContractDetail() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <Link to={`/hr/${vertragData.personalNr}`} className="text-xl font-bold text-primary hover:underline">
-                {vertragData.mitarbeiter}
-              </Link>
-              <p className="text-muted-foreground">{vertragData.personalNr}</p>
+              {isEditMode ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="position">Position</Label>
+                      <Input
+                        id="position"
+                        value={editData.position}
+                        onChange={(e) => updateField("position", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="abteilung">Abteilung</Label>
+                      <Input
+                        id="abteilung"
+                        value={editData.abteilung}
+                        onChange={(e) => updateField("abteilung", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Link to={`/hr/${vertragData.personalNr}`} className="text-xl font-bold text-primary hover:underline">
+                    {vertragData.mitarbeiter}
+                  </Link>
+                  <p className="text-muted-foreground">{vertragData.personalNr}</p>
+                </>
+              )}
             </div>
-            <div className="text-right">
-              <p className="font-medium">{vertragData.position}</p>
-              <p className="text-sm text-muted-foreground">{vertragData.abteilung}</p>
-            </div>
+            {!isEditMode && (
+              <div className="text-right">
+                <p className="font-medium">{vertragData.position}</p>
+                <p className="text-sm text-muted-foreground">{vertragData.abteilung}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Vertragsdaten */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {isEditMode ? (
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Eintrittsdatum
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Vertragsdaten</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{vertragData.eintrittsdatum}</p>
-            <p className="text-sm text-muted-foreground">Probezeit: {vertragData.probezeit}</p>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="vertragsart">Vertragsart</Label>
+                <Select
+                  value={editData.vertragsart}
+                  onValueChange={(value) => updateField("vertragsart", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vertragsarten.map((art) => (
+                      <SelectItem key={art} value={art}>{art}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editData.status}
+                  onValueChange={(value) => updateField("status", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="eintrittsdatum">Eintrittsdatum</Label>
+                <Input
+                  id="eintrittsdatum"
+                  type="date"
+                  value={editData.eintrittsdatum}
+                  onChange={(e) => updateField("eintrittsdatum", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="arbeitsort">Arbeitsort</Label>
+                <Input
+                  id="arbeitsort"
+                  value={editData.arbeitsort}
+                  onChange={(e) => updateField("arbeitsort", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="kündigungsfrist">Kündigungsfrist</Label>
+                <Input
+                  id="kündigungsfrist"
+                  value={editData.kündigungsfrist}
+                  onChange={(e) => updateField("kündigungsfrist", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wochenarbeitszeit">Wochenarbeitszeit (Std.)</Label>
+                <Input
+                  id="wochenarbeitszeit"
+                  type="number"
+                  step="0.5"
+                  value={editData.wochenarbeitszeit}
+                  onChange={(e) => updateField("wochenarbeitszeit", parseFloat(e.target.value))}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Arbeitszeit
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{vertragData.wochenarbeitszeit} Std./Woche</p>
-            <p className="text-sm text-muted-foreground">{vertragData.jahresarbeitszeit.toLocaleString("de-CH")} Std./Jahr</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Arbeitsort
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold">{vertragData.arbeitsort}</p>
-            <p className="text-sm text-muted-foreground">Kündigungsfrist: {vertragData.kündigungsfrist}</p>
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Eintrittsdatum
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{formatDate(vertragData.eintrittsdatum)}</p>
+              <p className="text-sm text-muted-foreground">Probezeit: {vertragData.probezeit}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Arbeitszeit
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{vertragData.wochenarbeitszeit} Std./Woche</p>
+              <p className="text-sm text-muted-foreground">{vertragData.jahresarbeitszeit.toLocaleString("de-CH")} Std./Jahr</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Arbeitsort
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-bold">{vertragData.arbeitsort}</p>
+              <p className="text-sm text-muted-foreground">Kündigungsfrist: {vertragData.kündigungsfrist}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* GAV & Lohn */}
       <Card>
@@ -255,58 +444,131 @@ export default function EmployeeContractDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Lohnklasse</p>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-primary/10 text-primary text-lg px-3">
-                    Klasse {vertragData.lohnklasse}
-                  </Badge>
-                  <span>{vertragData.lohnklasseBeschreibung}</span>
+          {isEditMode ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Lohnklasse</Label>
+                  <Select
+                    value={editData.lohnklasse}
+                    onValueChange={(value) => updateField("lohnklasse", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lohnklassen.map((lk) => (
+                        <SelectItem key={lk.value} value={lk.value}>{lk.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="monatslohn">Monatslohn (CHF)</Label>
+                    <Input
+                      id="monatslohn"
+                      type="number"
+                      value={editData.monatslohn}
+                      onChange={(e) => updateField("monatslohn", parseFloat(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="stundenlohn">Stundenlohn (CHF)</Label>
+                    <Input
+                      id="stundenlohn"
+                      type="number"
+                      step="0.01"
+                      value={editData.stundenlohn}
+                      onChange={(e) => updateField("stundenlohn", parseFloat(e.target.value))}
+                    />
+                  </div>
                 </div>
               </div>
-              <Separator />
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Monatslohn (brutto)</p>
-                  <p className="text-2xl font-bold">{formatCurrency(vertragData.monatslohn)}</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ferienanspruch">Ferienanspruch (Tage)</Label>
+                  <Input
+                    id="ferienanspruch"
+                    type="number"
+                    value={editData.ferienanspruch}
+                    onChange={(e) => updateField("ferienanspruch", parseInt(e.target.value))}
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Stundenlohn</p>
-                  <p className="text-2xl font-bold">{formatCurrency(vertragData.stundenlohn)}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="feiertage">Bezahlte Feiertage (Tage)</Label>
+                  <Input
+                    id="feiertage"
+                    type="number"
+                    value={editData.feiertage}
+                    onChange={(e) => updateField("feiertage", parseInt(e.target.value))}
+                  />
                 </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Jahreslohn</p>
-                <p className="text-xl font-bold">
-                  {formatCurrency(jahreslohn)}
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                    ({vertragData.tage13 ? "13 Monatslöhne" : "12 Monatslöhne"})
-                  </span>
-                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="ahvNr">AHV-Nummer</Label>
+                  <Input
+                    id="ahvNr"
+                    value={editData.ahvNr}
+                    onChange={(e) => updateField("ahvNr", e.target.value)}
+                    placeholder="756.XXXX.XXXX.XX"
+                  />
+                </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Ferienanspruch</p>
-                <p className="text-xl font-bold">{vertragData.ferienanspruch} Tage</p>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Lohnklasse</p>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-primary/10 text-primary text-lg px-3">
+                      Klasse {vertragData.lohnklasse}
+                    </Badge>
+                    <span>{vertragData.lohnklasseBeschreibung}</span>
+                  </div>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Monatslohn (brutto)</p>
+                    <p className="text-2xl font-bold">{formatCurrency(vertragData.monatslohn)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Stundenlohn</p>
+                    <p className="text-2xl font-bold">{formatCurrency(vertragData.stundenlohn)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Jahreslohn</p>
+                  <p className="text-xl font-bold">
+                    {formatCurrency(jahreslohn)}
+                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                      ({vertragData.tage13 ? "13 Monatslöhne" : "12 Monatslöhne"})
+                    </span>
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Bezahlte Feiertage</p>
-                <p className="text-xl font-bold">{vertragData.feiertage} Tage</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm text-muted-foreground">AHV-Nummer</p>
-                <p className="font-mono">{vertragData.ahvNr}</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Ferienanspruch</p>
+                  <p className="text-xl font-bold">{vertragData.ferienanspruch} Tage</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Bezahlte Feiertage</p>
+                  <p className="text-xl font-bold">{vertragData.feiertage} Tage</p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground">AHV-Nummer</p>
+                  <p className="font-mono">{vertragData.ahvNr}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Sozialversicherungen */}
+      {/* Sozialversicherungen - Read-only */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -344,7 +606,7 @@ export default function EmployeeContractDetail() {
         </CardContent>
       </Card>
 
-      {/* Spesen */}
+      {/* Spesen - Read-only */}
       <Card>
         <CardHeader>
           <CardTitle>Spesenregelung (GAV Metallbau)</CardTitle>
