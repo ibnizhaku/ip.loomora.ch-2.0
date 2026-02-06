@@ -63,6 +63,7 @@ import { toast } from "sonner";
 import SocialInsuranceSettings from "@/components/settings/SocialInsuranceSettings";
 import ExpenseRulesSettings from "@/components/settings/ExpenseRulesSettings";
 import ExpenseWorkflowSettings from "@/components/settings/ExpenseWorkflowSettings";
+import AbsenceWorkflowSettings from "@/components/settings/AbsenceWorkflowSettings";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
@@ -73,6 +74,7 @@ const settingsSections = [
   { id: "documents", label: "Dokumente", icon: FileText },
   { id: "socialinsurance", label: "Sozialversicherungen", icon: Shield },
   { id: "expenses", label: "Spesenregelungen", icon: Receipt },
+  { id: "absences", label: "Abwesenheiten", icon: Calendar },
   { id: "shop", label: "Shop", icon: Store },
   { id: "automation", label: "Automatisierung", icon: Zap },
   { id: "backup", label: "Backup & Export", icon: Download },
@@ -2284,6 +2286,10 @@ export default function Settings() {
                 <ExpenseWorkflowSettings />
               </TabsContent>
             </Tabs>
+          )}
+
+          {activeSection === "absences" && (
+            <AbsenceWorkflowSettings />
           )}
 
           {activeSection === "automation" && (
