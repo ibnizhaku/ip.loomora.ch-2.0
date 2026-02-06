@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit, Download, Save, X, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit, Download, Save, X, Loader2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SocialInsuranceEditor, { EmployeeSocialInsurance } from "@/components/contracts/SocialInsuranceEditor";
 import { DEFAULT_SOCIAL_INSURANCE_RATES, SocialInsuranceRates, loadSocialInsuranceRates } from "@/components/settings/SocialInsuranceSettings";
+import { loadExpenseRules, ExpenseRules } from "@/components/settings/ExpenseRulesSettings";
 
 const initialVertragData = {
   id: "AV-2024-0089",
@@ -48,11 +49,13 @@ const initialSocialInsurance: EmployeeSocialInsurance = {
   overrides: {}
 };
 
-const spesen = [
-  { bezeichnung: "Kilometerentschädigung", betrag: "CHF 0.70/km", bemerkung: "Privatfahrzeug für Geschäftsfahrten" },
-  { bezeichnung: "Mittagessen (auswärts)", betrag: "CHF 32.00/Tag", bemerkung: "bei Montagearbeiten" },
-  { bezeichnung: "Übernachtung", betrag: "effektiv bis CHF 150.00", bemerkung: "mit Beleg" },
-  { bezeichnung: "Werkzeugentschädigung", betrag: "CHF 50.00/Monat", bemerkung: "gemäss GAV" },
+// Dynamic expense rules - will be loaded from settings
+const getExpenseRulesDisplay = (rules: ExpenseRules) => [
+  { bezeichnung: "Kilometerentschädigung", betrag: `CHF ${rules.mileage.rate.toFixed(2)}/km`, bemerkung: rules.mileage.description },
+  { bezeichnung: "Mittagessen (auswärts)", betrag: `CHF ${rules.meals.lunch.toFixed(2)}/Tag`, bemerkung: "bei Montagearbeiten" },
+  { bezeichnung: "Ganztag-Verpflegung", betrag: `CHF ${rules.meals.fullDay.toFixed(2)}/Tag`, bemerkung: "Frühstück, Mittag, Abend" },
+  { bezeichnung: "Übernachtung", betrag: `effektiv bis CHF ${rules.accommodation.maxPerNight.toFixed(2)}`, bemerkung: rules.accommodation.requiresReceipt ? "mit Beleg" : "ohne Beleg" },
+  { bezeichnung: "Werkzeugentschädigung", betrag: `CHF ${rules.toolAllowance.monthlyRate.toFixed(2)}/Monat`, bemerkung: rules.toolAllowance.gavReference },
 ];
 
 const statusColors: Record<string, string> = {
@@ -86,8 +89,9 @@ export default function EmployeeContractDetail() {
   const [companyRates, setCompanyRates] = useState<SocialInsuranceRates>(DEFAULT_SOCIAL_INSURANCE_RATES);
   const [socialInsurance, setSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
   const [editSocialInsurance, setEditSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
+  const [expenseRules, setExpenseRules] = useState<ExpenseRules | null>(null);
 
-  // Load company rates on mount
+  // Load company rates and expense rules on mount
   useEffect(() => {
     const rates = loadSocialInsuranceRates();
     setCompanyRates(rates);
@@ -98,7 +102,14 @@ export default function EmployeeContractDetail() {
       ) } as SocialInsuranceRates,
       overrides: prev.overrides
     }));
+    
+    // Load expense rules
+    const expRules = loadExpenseRules();
+    setExpenseRules(expRules);
   }, []);
+
+  // Get display data for expense table
+  const spesen = expenseRules ? getExpenseRulesDisplay(expenseRules) : [];
 
   // Check for edit mode from URL param
   useEffect(() => {
@@ -605,7 +616,10 @@ export default function EmployeeContractDetail() {
       {/* Spesen - Read-only */}
       <Card>
         <CardHeader>
-          <CardTitle>Spesenregelung (GAV Metallbau)</CardTitle>
+          <div className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Spesenregelung (GAV Metallbau)</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -21,6 +21,7 @@ import {
   X,
   Trash2,
   Copy,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,8 +45,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { loadExpenseRules, validateExpenseReport, ExpenseRules } from "@/components/settings/ExpenseRulesSettings";
 
 interface TravelExpense {
   id: string;
@@ -198,6 +202,25 @@ export default function TravelExpenses() {
   const [expenses, setExpenses] = useState<TravelExpense[]>(initialExpenses);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterDestination, setFilterDestination] = useState<string[]>([]);
+  const [expenseRules, setExpenseRules] = useState<ExpenseRules | null>(null);
+
+  // Load expense rules on mount
+  useEffect(() => {
+    const rules = loadExpenseRules();
+    setExpenseRules(rules);
+  }, []);
+
+  // Validate expenses against GAV rules
+  const getExpenseValidation = (expense: TravelExpense) => {
+    if (!expenseRules) return { isCompliant: true, warnings: [], totalExcess: 0 };
+    return validateExpenseReport(expense.items, expenseRules);
+  };
+
+  // Count non-compliant expenses
+  const nonCompliantExpenses = expenses.filter(e => {
+    const validation = getExpenseValidation(e);
+    return !validation.isCompliant;
+  });
 
   const totalExpenses = expenses.reduce((acc, e) => acc + e.totalAmount, 0);
   const pendingExpenses = expenses.filter((e) => e.status === "submitted");
@@ -364,6 +387,32 @@ export default function TravelExpenses() {
         </div>
       </div>
 
+      {/* GAV Compliance Warning */}
+      {nonCompliantExpenses.length > 0 && expenseRules?.validation.warnOnExceed && (
+        <Card className="bg-warning/5 border-warning/30">
+          <CardContent className="flex items-center gap-3 py-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-warning">GAV-Überschreitungen festgestellt</p>
+              <p className="text-sm text-muted-foreground">
+                {nonCompliantExpenses.length} Abrechnung(en) überschreiten die GAV Metallbau Limiten. 
+                Bitte prüfen Sie diese vor der Genehmigung.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate("/settings")}
+              className="border-warning/30 text-warning hover:bg-warning/10"
+            >
+              Limiten anpassen
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -459,11 +508,16 @@ export default function TravelExpenses() {
           <TableBody>
             {filteredExpenses.map((expense, index) => {
               const StatusIcon = statusIcons[expense.status];
+              const validation = getExpenseValidation(expense);
+              const hasWarning = !validation.isCompliant && expenseRules?.validation.warnOnExceed;
               
               return (
                 <TableRow
                   key={expense.id}
-                  className="cursor-pointer hover:bg-muted/50 animate-fade-in"
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50 animate-fade-in",
+                    hasWarning && "bg-warning/5"
+                  )}
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => navigate(`/travel-expenses/${expense.id}`)}
                 >
@@ -516,10 +570,32 @@ export default function TravelExpenses() {
                     CHF {formatCHF(expense.totalAmount)}
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", statusStyles[expense.status])}>
-                      <StatusIcon className="h-3 w-3" />
-                      {statusLabels[expense.status]}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn("gap-1", statusStyles[expense.status])}>
+                        <StatusIcon className="h-3 w-3" />
+                        {statusLabels[expense.status]}
+                      </Badge>
+                      {hasWarning && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-warning/10">
+                                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="font-medium">GAV-Überschreitung</p>
+                              <p className="text-xs text-muted-foreground">
+                                {validation.warnings.length} Position(en) über Limite
+                                {validation.totalExcess > 0 && (
+                                  <span> (CHF {formatCHF(validation.totalExcess)} zu viel)</span>
+                                )}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
