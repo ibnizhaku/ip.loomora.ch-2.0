@@ -40,6 +40,7 @@ import {
   Upload,
   FolderSync,
   Contact,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import SocialInsuranceSettings from "@/components/settings/SocialInsuranceSettings";
+import ExpenseRulesSettings from "@/components/settings/ExpenseRulesSettings";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
@@ -69,6 +71,7 @@ const settingsSections = [
   { id: "api", label: "API & Webhooks", icon: Webhook },
   { id: "documents", label: "Dokumente", icon: FileText },
   { id: "socialinsurance", label: "Sozialversicherungen", icon: Shield },
+  { id: "expenses", label: "Spesenregelungen", icon: Receipt },
   { id: "shop", label: "Shop", icon: Store },
   { id: "automation", label: "Automatisierung", icon: Zap },
   { id: "backup", label: "Backup & Export", icon: Download },
@@ -2265,6 +2268,10 @@ export default function Settings() {
 
           {activeSection === "socialinsurance" && (
             <SocialInsuranceSettings />
+          )}
+
+          {activeSection === "expenses" && (
+            <ExpenseRulesSettings />
           )}
 
           {activeSection === "automation" && (
