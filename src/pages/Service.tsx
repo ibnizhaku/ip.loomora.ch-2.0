@@ -14,6 +14,11 @@ import {
   FileText,
   Trash2,
   Copy,
+  Timer,
+  RotateCcw,
+  UserPlus,
+  Printer,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +34,29 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { UpcomingMaintenanceDialog } from "@/components/service/UpcomingMaintenanceDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -63,6 +89,7 @@ const initialTickets: ServiceTicket[] = [
     assignedTo: "T. Brunner",
     scheduledDate: "01.02.2024",
     estimatedHours: 3,
+    actualHours: 1.5,
     description: "Stufe 12 der Metalltreppe hat sich gelöst",
   },
   {
@@ -104,6 +131,13 @@ const initialTickets: ServiceTicket[] = [
     actualHours: 1,
     description: "Endabnahme und Übergabe",
   },
+];
+
+const technicians = [
+  { id: "1", name: "T. Brunner", kürzel: "TB" },
+  { id: "2", name: "A. Meier", kürzel: "AM" },
+  { id: "3", name: "M. Keller", kürzel: "MK" },
+  { id: "4", name: "P. Schmidt", kürzel: "PS" },
 ];
 
 const typeStyles = {
@@ -155,6 +189,21 @@ export default function Service() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ticketList, setTicketList] = useState<ServiceTicket[]>(initialTickets);
+  
+  // Dialog states
+  const [timeTrackingOpen, setTimeTrackingOpen] = useState(false);
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false);
+  const [assignTechnicianOpen, setAssignTechnicianOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
+  
+  // Form states
+  const [timeHours, setTimeHours] = useState("");
+  const [timeMinutes, setTimeMinutes] = useState("");
+  const [timeDate, setTimeDate] = useState(new Date().toISOString().split("T")[0]);
+  const [timeNotes, setTimeNotes] = useState("");
+  const [newStatus, setNewStatus] = useState("");
+  const [selectedTechnician, setSelectedTechnician] = useState("");
 
   const openTickets = ticketList.filter((t) => t.status === "open" || t.status === "in_progress" || t.status === "waiting").length;
   const completedTickets = ticketList.filter((t) => t.status === "completed").length;
@@ -168,10 +217,108 @@ export default function Service() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDelete = (e: React.MouseEvent, ticketId: string) => {
+  // Zeit erfassen
+  const openTimeTracking = (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
-    setTicketList(ticketList.filter(t => t.id !== ticketId));
+    setSelectedTicket(ticket);
+    setTimeHours("");
+    setTimeMinutes("");
+    setTimeNotes("");
+    setTimeTrackingOpen(true);
+  };
+
+  const handleTimeTracking = () => {
+    if (!selectedTicket || (!timeHours && !timeMinutes)) {
+      toast.error("Bitte Zeit eingeben");
+      return;
+    }
+    
+    const totalHours = (parseFloat(timeHours || "0")) + (parseFloat(timeMinutes || "0") / 60);
+    
+    setTicketList(prev => prev.map(t => {
+      if (t.id === selectedTicket.id) {
+        return {
+          ...t,
+          actualHours: (t.actualHours || 0) + totalHours,
+          status: t.status === "open" ? "in_progress" : t.status,
+        };
+      }
+      return t;
+    }));
+    
+    toast.success(`${totalHours.toFixed(2)} Std. auf ${selectedTicket.number} erfasst`);
+    setTimeTrackingOpen(false);
+    setSelectedTicket(null);
+  };
+
+  // Status ändern
+  const openStatusChange = (e: React.MouseEvent, ticket: ServiceTicket) => {
+    e.stopPropagation();
+    setSelectedTicket(ticket);
+    setNewStatus(ticket.status);
+    setStatusChangeOpen(true);
+  };
+
+  const handleStatusChange = () => {
+    if (!selectedTicket) return;
+    
+    setTicketList(prev => prev.map(t => {
+      if (t.id === selectedTicket.id) {
+        return {
+          ...t,
+          status: newStatus as ServiceTicket["status"],
+          completedDate: newStatus === "completed" ? new Date().toLocaleDateString("de-CH") : t.completedDate,
+        };
+      }
+      return t;
+    }));
+    
+    toast.success(`Status von ${selectedTicket.number} geändert`);
+    setStatusChangeOpen(false);
+    setSelectedTicket(null);
+  };
+
+  // Techniker zuweisen
+  const openAssignTechnician = (e: React.MouseEvent, ticket: ServiceTicket) => {
+    e.stopPropagation();
+    setSelectedTicket(ticket);
+    setSelectedTechnician(ticket.assignedTo ? technicians.find(t => t.name === ticket.assignedTo)?.id || "" : "");
+    setAssignTechnicianOpen(true);
+  };
+
+  const handleAssignTechnician = () => {
+    if (!selectedTicket || !selectedTechnician) {
+      toast.error("Bitte Techniker auswählen");
+      return;
+    }
+    
+    const tech = technicians.find(t => t.id === selectedTechnician);
+    
+    setTicketList(prev => prev.map(t => {
+      if (t.id === selectedTicket.id) {
+        return { ...t, assignedTo: tech?.name };
+      }
+      return t;
+    }));
+    
+    toast.success(`${tech?.name} zu ${selectedTicket.number} zugewiesen`);
+    setAssignTechnicianOpen(false);
+    setSelectedTicket(null);
+  };
+
+  // Löschen
+  const openDelete = (e: React.MouseEvent, ticket: ServiceTicket) => {
+    e.stopPropagation();
+    setSelectedTicket(ticket);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!selectedTicket) return;
+    setTicketList(ticketList.filter(t => t.id !== selectedTicket.id));
     toast.success("Ticket gelöscht");
+    setDeleteOpen(false);
+    setSelectedTicket(null);
   };
 
   const handleDuplicate = (e: React.MouseEvent, ticket: ServiceTicket) => {
@@ -191,6 +338,12 @@ export default function Service() {
   const handleCreateReport = (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
     toast.success(`Rapport für ${ticket.number} wird erstellt...`);
+  };
+
+  const handlePrint = (e: React.MouseEvent, ticket: ServiceTicket) => {
+    e.stopPropagation();
+    toast.info(`Drucke ${ticket.number}...`);
+    window.print();
   };
 
   return (
@@ -294,7 +447,7 @@ export default function Service() {
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             <SelectItem value="all">Alle Status</SelectItem>
             <SelectItem value="open">Offen</SelectItem>
             <SelectItem value="in_progress">In Bearbeitung</SelectItem>
@@ -383,28 +536,46 @@ export default function Service() {
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-56 bg-popover">
                     <DropdownMenuItem onClick={() => navigate(`/service/${ticket.id}`)}>
                       <Eye className="h-4 w-4 mr-2" />
-                      Details
+                      Details anzeigen
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate(`/service/${ticket.id}`)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={(e) => openTimeTracking(e, ticket)}>
+                      <Timer className="h-4 w-4 mr-2" />
+                      Zeit erfassen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => openStatusChange(e, ticket)}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Status ändern
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => openAssignTechnician(e, ticket)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Techniker zuweisen
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={(e) => handleDuplicate(e, ticket)}>
                       <Copy className="h-4 w-4 mr-2" />
                       Duplizieren
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/time-tracking")}>
-                      <Clock className="h-4 w-4 mr-2" />
-                      Zeit erfassen
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => handleCreateReport(e, ticket)}>
                       <FileText className="h-4 w-4 mr-2" />
                       Rapport erstellen
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, ticket.id)}>
+                    <DropdownMenuItem onClick={(e) => handlePrint(e, ticket)}>
+                      <Printer className="h-4 w-4 mr-2" />
+                      Drucken
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive" 
+                      onClick={(e) => openDelete(e, ticket)}
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Löschen
                     </DropdownMenuItem>
@@ -423,6 +594,180 @@ export default function Service() {
           </div>
         )}
       </div>
+
+      {/* Zeit erfassen Dialog */}
+      <Dialog open={timeTrackingOpen} onOpenChange={setTimeTrackingOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5" />
+              Zeit erfassen
+            </DialogTitle>
+            <DialogDescription>
+              Arbeitszeit auf {selectedTicket?.number} buchen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg border bg-muted/50">
+              <p className="font-medium">{selectedTicket?.title}</p>
+              <p className="text-sm text-muted-foreground">{selectedTicket?.customer}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Stunden</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="24"
+                  placeholder="0"
+                  value={timeHours}
+                  onChange={(e) => setTimeHours(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Minuten</Label>
+                <Select value={timeMinutes} onValueChange={setTimeMinutes}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="0" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="0">0 min</SelectItem>
+                    <SelectItem value="15">15 min</SelectItem>
+                    <SelectItem value="30">30 min</SelectItem>
+                    <SelectItem value="45">45 min</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Datum</Label>
+              <Input
+                type="date"
+                value={timeDate}
+                onChange={(e) => setTimeDate(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Bemerkungen</Label>
+              <Textarea
+                placeholder="Was wurde gemacht..."
+                value={timeNotes}
+                onChange={(e) => setTimeNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTimeTrackingOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleTimeTracking}>
+              <Timer className="mr-2 h-4 w-4" />
+              Zeit buchen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status ändern Dialog */}
+      <Dialog open={statusChangeOpen} onOpenChange={setStatusChangeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Status ändern</DialogTitle>
+            <DialogDescription>
+              Neuen Status für {selectedTicket?.number} festlegen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2">
+            <Label>Neuer Status</Label>
+            <Select value={newStatus} onValueChange={setNewStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="open">Offen</SelectItem>
+                <SelectItem value="in_progress">In Bearbeitung</SelectItem>
+                <SelectItem value="waiting">Wartend</SelectItem>
+                <SelectItem value="completed">Abgeschlossen</SelectItem>
+                <SelectItem value="cancelled">Storniert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusChangeOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleStatusChange}>
+              Status ändern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Techniker zuweisen Dialog */}
+      <Dialog open={assignTechnicianOpen} onOpenChange={setAssignTechnicianOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Techniker zuweisen
+            </DialogTitle>
+            <DialogDescription>
+              Techniker für {selectedTicket?.number} auswählen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2">
+            <Label>Techniker</Label>
+            <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
+              <SelectTrigger>
+                <SelectValue placeholder="Techniker wählen" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {technicians.map(tech => (
+                  <SelectItem key={tech.id} value={tech.id}>
+                    {tech.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignTechnicianOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleAssignTechnician}>
+              Zuweisen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Löschen AlertDialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ticket löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie das Ticket "{selectedTicket?.number}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

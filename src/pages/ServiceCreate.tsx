@@ -59,8 +59,11 @@ export default function ServiceCreate() {
       toast.error("Bitte füllen Sie die Pflichtfelder aus");
       return;
     }
+    // Generate a new ticket ID (in real app would come from backend)
+    const newTicketId = Date.now().toString();
     toast.success("Service-Ticket erstellt");
-    navigate("/service");
+    // Navigate to the new ticket's detail page for further actions
+    navigate(`/service/${newTicketId}`);
   };
 
   return (
