@@ -1,18 +1,24 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Wrench, Clock, User, MessageSquare, CheckCircle2, AlertTriangle, FileText, Calendar } from "lucide-react";
+import { ArrowLeft, Wrench, Clock, User, MessageSquare, CheckCircle2, AlertTriangle, FileText, Calendar, MoreHorizontal, Timer, Edit, Trash2, Printer, RotateCcw, UserPlus, Copy, Ban, Phone, Mail, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MaintenancePlanDialog } from "@/components/service/MaintenancePlanDialog";
 import { ServiceReportDialog } from "@/components/service/ServiceReportDialog";
 import { ServiceCompleteDialog } from "@/components/service/ServiceCompleteDialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-const serviceData = {
+const initialServiceData = {
   id: "TKT-2024-0456",
   titel: "Reparatur Schweissnaht Halle 3",
   beschreibung: "Schweissnaht am Hauptträger zeigt Risse. Dringende Inspektion und Reparatur erforderlich.",
@@ -20,6 +26,7 @@ const serviceData = {
   kundenNr: "KD-2024-0015",
   kontakt: "Hans Müller",
   telefon: "+41 44 567 89 00",
+  email: "h.mueller@mueller-industrie.ch",
   standort: "Industriestrasse 45, 8005 Zürich",
   status: "in-bearbeitung",
   priorität: "hoch",
@@ -32,11 +39,18 @@ const serviceData = {
   materialkosten: 185.00,
 };
 
-const aktivitäten = [
+const initialAktivitäten = [
   { zeit: "28.01.2024 14:30", user: "MB", typ: "Notiz", text: "Vor-Ort-Besichtigung abgeschlossen. Riss ist ca. 15cm lang, oberflächlich. Kann geschweisst werden." },
   { zeit: "28.01.2024 11:00", user: "MB", typ: "Status", text: "Status geändert zu 'In Bearbeitung'" },
   { zeit: "28.01.2024 09:30", user: "PS", typ: "Zuweisung", text: "Ticket zugewiesen an Marco Brunner" },
   { zeit: "28.01.2024 09:15", user: "System", typ: "Erstellt", text: "Ticket erstellt via Kundenportal" },
+];
+
+const technicians = [
+  { id: "1", name: "Marco Brunner", kürzel: "MB" },
+  { id: "2", name: "Thomas Müller", kürzel: "TM" },
+  { id: "3", name: "Peter Schmidt", kürzel: "PS" },
+  { id: "4", name: "Michael Weber", kürzel: "MW" },
 ];
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -44,6 +58,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   "in-bearbeitung": { label: "In Bearbeitung", color: "bg-warning/10 text-warning" },
   "warten": { label: "Warten auf Kunde", color: "bg-muted text-muted-foreground" },
   "erledigt": { label: "Erledigt", color: "bg-success/10 text-success" },
+  "storniert": { label: "Storniert", color: "bg-destructive/10 text-destructive" },
 };
 
 const prioritätConfig: Record<string, { label: string; color: string }> = {
@@ -57,6 +72,29 @@ export default function ServiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [comment, setComment] = useState("");
+  const [serviceData, setServiceData] = useState(initialServiceData);
+  const [aktivitäten, setAktivitäten] = useState(initialAktivitäten);
+  
+  // Dialog states
+  const [timeTrackingOpen, setTimeTrackingOpen] = useState(false);
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [assignTechnicianOpen, setAssignTechnicianOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  
+  // Form states
+  const [timeHours, setTimeHours] = useState("");
+  const [timeMinutes, setTimeMinutes] = useState("");
+  const [timeDate, setTimeDate] = useState(new Date().toISOString().split("T")[0]);
+  const [timeNotes, setTimeNotes] = useState("");
+  const [newStatus, setNewStatus] = useState(serviceData.status);
+  const [selectedTechnician, setSelectedTechnician] = useState("");
+  
+  // Edit form states
+  const [editTitle, setEditTitle] = useState(serviceData.titel);
+  const [editDescription, setEditDescription] = useState(serviceData.beschreibung);
+  const [editPriority, setEditPriority] = useState(serviceData.priorität);
+  const [editCategory, setEditCategory] = useState(serviceData.kategorie);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -65,17 +103,108 @@ export default function ServiceDetail() {
     }).format(value);
   };
 
+  const addActivity = (typ: string, text: string) => {
+    const newActivity = {
+      zeit: new Date().toLocaleString("de-CH"),
+      user: "Ich",
+      typ,
+      text,
+    };
+    setAktivitäten([newActivity, ...aktivitäten]);
+  };
+
   const handleAddComment = () => {
     if (!comment.trim()) {
       toast.error("Bitte geben Sie einen Kommentar ein");
       return;
     }
+    addActivity("Notiz", comment);
     toast.success("Kommentar hinzugefügt");
     setComment("");
   };
 
-  const handleComplete = () => {
+  // Zeit erfassen
+  const handleTimeTracking = () => {
+    if (!timeHours && !timeMinutes) {
+      toast.error("Bitte Zeit eingeben");
+      return;
+    }
+    
+    const totalHours = (parseFloat(timeHours || "0")) + (parseFloat(timeMinutes || "0") / 60);
+    
+    setServiceData(prev => ({
+      ...prev,
+      effektiveZeit: prev.effektiveZeit + totalHours,
+      status: prev.status === "offen" ? "in-bearbeitung" : prev.status,
+    }));
+    
+    addActivity("Zeit", `${totalHours.toFixed(2)} Stunden erfasst${timeNotes ? `: ${timeNotes}` : ""}`);
+    toast.success(`${totalHours.toFixed(2)} Std. erfasst`);
+    
+    setTimeHours("");
+    setTimeMinutes("");
+    setTimeNotes("");
+    setTimeTrackingOpen(false);
+  };
+
+  // Status ändern
+  const handleStatusChange = () => {
+    setServiceData(prev => ({ ...prev, status: newStatus }));
+    addActivity("Status", `Status geändert zu "${statusConfig[newStatus]?.label || newStatus}"`);
+    toast.success("Status geändert");
+    setStatusChangeOpen(false);
+  };
+
+  // Bearbeiten
+  const handleEdit = () => {
+    setServiceData(prev => ({
+      ...prev,
+      titel: editTitle,
+      beschreibung: editDescription,
+      priorität: editPriority,
+      kategorie: editCategory,
+    }));
+    addActivity("Bearbeitet", "Ticket-Details aktualisiert");
+    toast.success("Ticket aktualisiert");
+    setEditOpen(false);
+  };
+
+  // Techniker zuweisen
+  const handleAssignTechnician = () => {
+    if (!selectedTechnician) {
+      toast.error("Bitte Techniker auswählen");
+      return;
+    }
+    
+    const tech = technicians.find(t => t.id === selectedTechnician);
+    setServiceData(prev => ({ ...prev, zugewiesen: tech?.name || "" }));
+    addActivity("Zuweisung", `Ticket zugewiesen an ${tech?.name}`);
+    toast.success(`${tech?.name} zugewiesen`);
+    setAssignTechnicianOpen(false);
+  };
+
+  // Löschen
+  const handleDelete = () => {
+    toast.success("Ticket gelöscht");
     navigate("/service");
+  };
+
+  // Drucken
+  const handlePrint = () => {
+    toast.info("Ticket wird gedruckt...");
+    window.print();
+  };
+
+  // Duplizieren
+  const handleDuplicate = () => {
+    toast.success("Ticket dupliziert - neues Ticket erstellt");
+    navigate("/service");
+  };
+
+  const handleComplete = () => {
+    setServiceData(prev => ({ ...prev, status: "erledigt" }));
+    addActivity("Status", "Ticket abgeschlossen");
+    toast.success("Ticket abgeschlossen");
   };
 
   return (
@@ -90,16 +219,20 @@ export default function ServiceDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">{serviceData.id}</h1>
-            <Badge className={statusConfig[serviceData.status].color}>
-              {statusConfig[serviceData.status].label}
+            <Badge className={statusConfig[serviceData.status]?.color}>
+              {statusConfig[serviceData.status]?.label}
             </Badge>
-            <Badge className={prioritätConfig[serviceData.priorität].color}>
-              {prioritätConfig[serviceData.priorität].label}
+            <Badge className={prioritätConfig[serviceData.priorität]?.color}>
+              {prioritätConfig[serviceData.priorität]?.label}
             </Badge>
           </div>
           <p className="text-muted-foreground">{serviceData.titel}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setTimeTrackingOpen(true)}>
+            <Timer className="mr-2 h-4 w-4" />
+            Zeit erfassen
+          </Button>
           <MaintenancePlanDialog 
             ticketId={serviceData.id}
             customerName={serviceData.kunde}
@@ -115,6 +248,64 @@ export default function ServiceDetail() {
             ticketTitle={serviceData.titel}
             onComplete={handleComplete}
           />
+          
+          {/* 3-Punkt-Menü */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-popover">
+              <DropdownMenuItem onClick={() => setTimeTrackingOpen(true)}>
+                <Timer className="mr-2 h-4 w-4" />
+                Zeit erfassen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusChangeOpen(true)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Status ändern
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                setSelectedTechnician(technicians.find(t => t.name === serviceData.zugewiesen)?.id || "");
+                setAssignTechnicianOpen(true);
+              }}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Techniker zuweisen
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => {
+                setEditTitle(serviceData.titel);
+                setEditDescription(serviceData.beschreibung);
+                setEditPriority(serviceData.priorität);
+                setEditCategory(serviceData.kategorie);
+                setEditOpen(true);
+              }}>
+                <Edit className="mr-2 h-4 w-4" />
+                Bearbeiten
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="mr-2 h-4 w-4" />
+                Duplizieren
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrint}>
+                <Printer className="mr-2 h-4 w-4" />
+                Drucken
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("PDF wird generiert...")}>
+                <FileText className="mr-2 h-4 w-4" />
+                PDF exportieren
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Löschen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -140,7 +331,7 @@ export default function ServiceDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-bold">{serviceData.effektiveZeit} / {serviceData.geschätzteZeit} Std.</p>
+            <p className="text-xl font-bold">{serviceData.effektiveZeit.toFixed(1)} / {serviceData.geschätzteZeit} Std.</p>
             <p className="text-sm text-muted-foreground">erfasst / geplant</p>
           </CardContent>
         </Card>
@@ -166,7 +357,7 @@ export default function ServiceDetail() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback>MB</AvatarFallback>
+                <AvatarFallback>{serviceData.zugewiesen.split(" ").map(n => n[0]).join("")}</AvatarFallback>
               </Avatar>
               <span className="font-medium">{serviceData.zugewiesen}</span>
             </div>
@@ -212,12 +403,18 @@ export default function ServiceDetail() {
               <p className="text-muted-foreground text-sm">Ansprechpartner</p>
               <p className="font-medium">{serviceData.kontakt}</p>
             </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Telefon</p>
-              <p>{serviceData.telefon}</p>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <a href={`tel:${serviceData.telefon}`} className="hover:underline">{serviceData.telefon}</a>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <a href={`mailto:${serviceData.email}`} className="hover:underline">{serviceData.email}</a>
+              </div>
             </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Standort</p>
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
               <p>{serviceData.standort}</p>
             </div>
           </CardContent>
@@ -261,6 +458,251 @@ export default function ServiceDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Zeit erfassen Dialog */}
+      <Dialog open={timeTrackingOpen} onOpenChange={setTimeTrackingOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5" />
+              Zeit erfassen
+            </DialogTitle>
+            <DialogDescription>
+              Arbeitszeit auf dieses Ticket buchen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg border bg-muted/50">
+              <p className="font-medium">{serviceData.titel}</p>
+              <p className="text-sm text-muted-foreground">{serviceData.kunde}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Stunden</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="24"
+                  placeholder="0"
+                  value={timeHours}
+                  onChange={(e) => setTimeHours(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Minuten</Label>
+                <Select value={timeMinutes} onValueChange={setTimeMinutes}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="0" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="0">0 min</SelectItem>
+                    <SelectItem value="15">15 min</SelectItem>
+                    <SelectItem value="30">30 min</SelectItem>
+                    <SelectItem value="45">45 min</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Datum</Label>
+              <Input
+                type="date"
+                value={timeDate}
+                onChange={(e) => setTimeDate(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Bemerkungen</Label>
+              <Textarea
+                placeholder="Was wurde gemacht..."
+                value={timeNotes}
+                onChange={(e) => setTimeNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTimeTrackingOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleTimeTracking}>
+              <Timer className="mr-2 h-4 w-4" />
+              Zeit buchen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status ändern Dialog */}
+      <Dialog open={statusChangeOpen} onOpenChange={setStatusChangeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Status ändern</DialogTitle>
+            <DialogDescription>
+              Neuen Status für dieses Ticket festlegen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2">
+            <Label>Neuer Status</Label>
+            <Select value={newStatus} onValueChange={setNewStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="offen">Offen</SelectItem>
+                <SelectItem value="in-bearbeitung">In Bearbeitung</SelectItem>
+                <SelectItem value="warten">Warten auf Kunde</SelectItem>
+                <SelectItem value="erledigt">Erledigt</SelectItem>
+                <SelectItem value="storniert">Storniert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusChangeOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleStatusChange}>
+              Status ändern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bearbeiten Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ticket bearbeiten</DialogTitle>
+            <DialogDescription>
+              Ticket-Details anpassen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Titel</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Beschreibung</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Priorität</Label>
+                <Select value={editPriority} onValueChange={setEditPriority}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="niedrig">Niedrig</SelectItem>
+                    <SelectItem value="mittel">Mittel</SelectItem>
+                    <SelectItem value="hoch">Hoch</SelectItem>
+                    <SelectItem value="kritisch">Kritisch</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Kategorie</Label>
+                <Select value={editCategory} onValueChange={setEditCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="Reparatur">Reparatur</SelectItem>
+                    <SelectItem value="Wartung">Wartung</SelectItem>
+                    <SelectItem value="Installation">Installation</SelectItem>
+                    <SelectItem value="Reklamation">Reklamation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleEdit}>
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Techniker zuweisen Dialog */}
+      <Dialog open={assignTechnicianOpen} onOpenChange={setAssignTechnicianOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Techniker zuweisen
+            </DialogTitle>
+            <DialogDescription>
+              Techniker für dieses Ticket auswählen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2">
+            <Label>Techniker</Label>
+            <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
+              <SelectTrigger>
+                <SelectValue placeholder="Techniker wählen" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {technicians.map(tech => (
+                  <SelectItem key={tech.id} value={tech.id}>
+                    {tech.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignTechnicianOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleAssignTechnician}>
+              Zuweisen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Löschen AlertDialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ticket löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie das Ticket "{serviceData.id}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
