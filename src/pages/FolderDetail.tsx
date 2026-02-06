@@ -7,8 +7,6 @@ import {
   FileText,
   Image,
   File,
-  Upload,
-  FolderPlus,
   MoreHorizontal,
   Download,
   Share,
@@ -17,10 +15,11 @@ import {
   Grid3X3,
   List,
   Search,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -40,47 +39,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { DocumentUploadDialog } from "@/components/documents/DocumentUploadDialog";
-
-interface FolderItem {
-  id: string;
-  name: string;
-  type: "pdf" | "doc" | "image" | "spreadsheet" | "folder";
-  size?: string;
-  modifiedDate: string;
-  modifiedBy: string;
-  items?: number;
-}
-
-// Mock folder data based on folder ID
-const folderContents: Record<string, { name: string; items: FolderItem[] }> = {
-  "1": {
-    name: "Projektverträge",
-    items: [
-      { id: "1-1", name: "Vertrag_Müller_AG.pdf", type: "pdf", size: "1.2 MB", modifiedDate: "vor 2 Tagen", modifiedBy: "Max Keller" },
-      { id: "1-2", name: "Vertrag_Schmidt_GmbH.pdf", type: "pdf", size: "890 KB", modifiedDate: "vor 1 Woche", modifiedBy: "Anna Schmidt" },
-      { id: "1-3", name: "Rahmenvertrag_2024.docx", type: "doc", size: "245 KB", modifiedDate: "vor 2 Wochen", modifiedBy: "Max Keller" },
-      { id: "1-4", name: "Archiv", type: "folder", modifiedDate: "vor 1 Monat", modifiedBy: "System", items: 8 },
-    ],
-  },
-  "4": {
-    name: "Marketingmaterial",
-    items: [
-      { id: "4-1", name: "Broschüre_2024.pdf", type: "pdf", size: "5.4 MB", modifiedDate: "vor 3 Tagen", modifiedBy: "Lisa Weber" },
-      { id: "4-2", name: "Banner_Homepage.png", type: "image", size: "2.1 MB", modifiedDate: "vor 1 Woche", modifiedBy: "Lisa Weber" },
-      { id: "4-3", name: "Social Media", type: "folder", modifiedDate: "vor 2 Wochen", modifiedBy: "Sarah Koch", items: 45 },
-      { id: "4-4", name: "Präsentationen", type: "folder", modifiedDate: "vor 3 Wochen", modifiedBy: "Max Keller", items: 12 },
-    ],
-  },
-  "6": {
-    name: "Produktfotos",
-    items: [
-      { id: "6-1", name: "Produkt_A_Front.jpg", type: "image", size: "3.2 MB", modifiedDate: "vor 1 Tag", modifiedBy: "Lisa Weber" },
-      { id: "6-2", name: "Produkt_A_Back.jpg", type: "image", size: "2.8 MB", modifiedDate: "vor 1 Tag", modifiedBy: "Lisa Weber" },
-      { id: "6-3", name: "Produkt_B_Front.jpg", type: "image", size: "3.5 MB", modifiedDate: "vor 2 Tagen", modifiedBy: "Lisa Weber" },
-      { id: "6-4", name: "Katalog_2024", type: "folder", modifiedDate: "vor 1 Woche", modifiedBy: "Sarah Koch", items: 89 },
-    ],
-  },
-};
+import { useDocuments } from "@/contexts/DocumentsContext";
 
 const typeConfig = {
   pdf: { color: "text-destructive bg-destructive/10", icon: FileText },
@@ -93,16 +52,35 @@ const typeConfig = {
 export default function FolderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { getFolder, getDocumentsByParent, getFolderPath, addFolder, addDocument, updateDocument, deleteDocument } = useDocuments();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  // Get folder data or use default for new folders
-  const folderData = folderContents[id || ""] || {
-    name: "Neuer Ordner",
-    items: [],
-  };
+  // Get folder data
+  const folder = getFolder(id || "");
+  const folderPath = getFolderPath(id || "");
+  const items = getDocumentsByParent(id || null);
 
-  const [items, setItems] = useState<FolderItem[]>(folderData.items);
+  // If folder not found, show error
+  if (!folder) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/documents")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-bold">Ordner nicht gefunden</h1>
+            <p className="text-muted-foreground">Der angeforderte Ordner existiert nicht.</p>
+          </div>
+        </div>
+        <Button onClick={() => navigate("/documents")}>
+          Zurück zu Dokumente
+        </Button>
+      </div>
+    );
+  }
 
   const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -113,16 +91,22 @@ export default function FolderDetail() {
 
   const handleDelete = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
-    setItems(items.filter((i) => i.id !== itemId));
+    deleteDocument(itemId);
     toast.success("Element gelöscht");
   };
 
-  const handleDownload = (e: React.MouseEvent, item: FolderItem) => {
+  const handleDownload = (e: React.MouseEvent, name: string) => {
     e.stopPropagation();
-    toast.success(`${item.name} wird heruntergeladen...`);
+    toast.success(`${name} wird heruntergeladen...`);
   };
 
-  const handleItemClick = (item: FolderItem) => {
+  const handleShare = (e: React.MouseEvent, itemId: string, currentShared: boolean) => {
+    e.stopPropagation();
+    updateDocument(itemId, { shared: !currentShared });
+    toast.success(currentShared ? "Freigabe aufgehoben" : "Element freigegeben");
+  };
+
+  const handleItemClick = (item: typeof items[0]) => {
     if (item.type === "folder") {
       navigate(`/folders/${item.id}`);
     } else {
@@ -130,35 +114,36 @@ export default function FolderDetail() {
     }
   };
 
-  const handleFolderCreated = (folder: { id: string; name: string }) => {
-    const newFolder: FolderItem = {
-      id: folder.id,
-      name: folder.name,
-      type: "folder",
-      modifiedDate: "gerade eben",
-      modifiedBy: "Max Keller",
-      items: 0,
-    };
-    setItems([newFolder, ...items]);
+  const handleFolderCreated = (newFolder: { name: string }) => {
+    addFolder(newFolder.name, id || null);
   };
 
-  const handleFilesUploaded = (uploadedFiles: { id: string; name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[]) => {
-    const newItems: FolderItem[] = uploadedFiles.map((f) => ({
-      id: f.id,
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      modifiedDate: "gerade eben",
-      modifiedBy: "Max Keller",
-    }));
-    setItems([...newItems, ...items]);
+  const handleFilesUploaded = (uploadedFiles: { name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[]) => {
+    uploadedFiles.forEach(f => {
+      addDocument({
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        modifiedDate: "gerade eben",
+        modifiedBy: "Max Keller",
+        shared: false,
+        parentId: id || null,
+      });
+    });
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/documents")}>
+        <Button variant="ghost" size="icon" onClick={() => {
+          // Navigate to parent folder or documents root
+          if (folder.parentId) {
+            navigate(`/folders/${folder.parentId}`);
+          } else {
+            navigate("/documents");
+          }
+        }}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
@@ -169,15 +154,25 @@ export default function FolderDetail() {
                   <Link to="/documents">Dokumente</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
+              {folderPath.slice(0, -1).map((pathFolder) => (
+                <span key={pathFolder.id} className="contents">
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to={`/folders/${pathFolder.id}`}>{pathFolder.name}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </span>
+              ))}
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{folderData.name}</BreadcrumbPage>
+                <BreadcrumbPage>{folder.name}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
           <div className="flex items-center gap-3 mt-2">
             <FolderOpen className="h-8 w-8 text-primary" />
-            <h1 className="font-display text-2xl font-bold">{folderData.name}</h1>
+            <h1 className="font-display text-2xl font-bold">{folder.name}</h1>
             <Badge variant="outline">{items.length} Elemente</Badge>
           </div>
         </div>
@@ -247,20 +242,20 @@ export default function FolderDetail() {
               view === "grid" ? "sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
             )}
           >
-            {folders.map((folder, index) => (
+            {folders.map((subfolder, index) => (
               <div
-                key={folder.id}
+                key={subfolder.id}
                 className="group flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => handleItemClick(folder)}
+                onClick={() => handleItemClick(subfolder)}
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <Folder className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{folder.name}</p>
+                  <p className="font-medium truncate">{subfolder.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {folder.items} Elemente
+                    {subfolder.items || 0} Elemente
                   </p>
                 </div>
                 <DropdownMenu>
@@ -274,7 +269,7 @@ export default function FolderDetail() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleItemClick(folder)}>
+                    <DropdownMenuItem onClick={() => handleItemClick(subfolder)}>
                       <FolderOpen className="h-4 w-4 mr-2" />
                       Öffnen
                     </DropdownMenuItem>
@@ -282,7 +277,11 @@ export default function FolderDetail() {
                       <Edit className="h-4 w-4 mr-2" />
                       Umbenennen
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, folder.id)}>
+                    <DropdownMenuItem onClick={(e) => handleShare(e, subfolder.id, subfolder.shared)}>
+                      <Share className="h-4 w-4 mr-2" />
+                      {subfolder.shared ? "Freigabe aufheben" : "Teilen"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, subfolder.id)}>
                       <Trash className="h-4 w-4 mr-2" />
                       Löschen
                     </DropdownMenuItem>
@@ -334,6 +333,11 @@ export default function FolderDetail() {
                         {file.size} • {file.modifiedDate}
                       </p>
                     </div>
+                    {view === "list" && (
+                      <span className="text-sm text-muted-foreground">
+                        {file.modifiedBy}
+                      </span>
+                    )}
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -346,13 +350,17 @@ export default function FolderDetail() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => handleDownload(e, file)}>
+                      <DropdownMenuItem onClick={() => handleItemClick(file)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Vorschau
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleDownload(e, file.name)}>
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleShare(e, file.id, file.shared)}>
                         <Share className="h-4 w-4 mr-2" />
-                        Teilen
+                        {file.shared ? "Freigabe aufheben" : "Teilen"}
                       </DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
                         <Trash className="h-4 w-4 mr-2" />

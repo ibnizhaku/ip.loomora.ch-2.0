@@ -172,6 +172,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+import { DocumentsProvider } from "./contexts/DocumentsContext";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -179,15 +180,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SidebarProvider>
-          <div className="flex min-h-screen w-full">
-            <AppSidebar />
-            <SidebarInset>
-              <Header />
-              <main className="flex-1 p-6">
-                <Routes>
-                  {/* Dashboard */}
-                  <Route path="/" element={<Index />} />
+        <DocumentsProvider>
+          <SidebarProvider>
+            <div className="flex min-h-screen w-full">
+              <AppSidebar />
+              <SidebarInset>
+                <Header />
+                <main className="flex-1 p-6">
+                  <Routes>
+                    {/* Dashboard */}
+                    <Route path="/" element={<Index />} />
                   
                   {/* Projekte */}
                   <Route path="/projects" element={<Projects />} />
@@ -386,6 +388,7 @@ const App = () => (
             </SidebarInset>
           </div>
         </SidebarProvider>
+        </DocumentsProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
