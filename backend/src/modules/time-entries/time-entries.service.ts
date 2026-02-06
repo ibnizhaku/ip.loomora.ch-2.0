@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto } from './dto/time-entry.dto';
+import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto, ApproveTimeEntriesDto, ApprovalStatus } from './dto/time-entry.dto';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, addDays } from 'date-fns';
 
 @Injectable()
@@ -8,7 +8,7 @@ export class TimeEntriesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, userId: string, query: TimeEntryQueryDto) {
-    const { page = 1, pageSize = 50, startDate, endDate, projectId } = query;
+    const { page = 1, pageSize = 50, startDate, endDate, projectId, approvalStatus } = query;
     const { skip, take } = this.prisma.getPagination(page, pageSize);
 
     const where: any = { companyId, userId };
@@ -21,6 +21,7 @@ export class TimeEntriesService {
     }
 
     if (projectId) where.projectId = projectId;
+    if (approvalStatus) where.approvalStatus = approvalStatus;
 
     const [data, total] = await Promise.all([
       this.prisma.timeEntry.findMany({
@@ -31,6 +32,7 @@ export class TimeEntriesService {
         include: {
           project: { select: { id: true, name: true } },
           task: { select: { id: true, title: true } },
+          user: { select: { id: true, firstName: true, lastName: true } },
         },
       }),
       this.prisma.timeEntry.count({ where }),
@@ -44,6 +46,56 @@ export class TimeEntriesService {
       duration: e.duration,
       date: format(e.date, 'yyyy-MM-dd'),
       status: 'completed',
+      approvalStatus: (e as any).approvalStatus || 'pending',
+      employeeName: e.user ? `${e.user.firstName} ${e.user.lastName}` : undefined,
+      employeeId: e.userId,
+    }));
+
+    return this.prisma.createPaginatedResponse(transformedData, total, page, pageSize);
+  }
+
+  async findAllEmployees(companyId: string, query: TimeEntryQueryDto) {
+    const { page = 1, pageSize = 50, startDate, endDate, projectId, approvalStatus, employeeId } = query;
+    const { skip, take } = this.prisma.getPagination(page, pageSize);
+
+    const where: any = { companyId };
+
+    if (startDate && endDate) {
+      where.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
+    if (projectId) where.projectId = projectId;
+    if (approvalStatus) where.approvalStatus = approvalStatus;
+    if (employeeId) where.userId = employeeId;
+
+    const [data, total] = await Promise.all([
+      this.prisma.timeEntry.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { date: 'desc' },
+        include: {
+          project: { select: { id: true, name: true } },
+          task: { select: { id: true, title: true } },
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      this.prisma.timeEntry.count({ where }),
+    ]);
+
+    const transformedData = data.map((e) => ({
+      id: e.id,
+      project: e.project?.name || 'Keine Zuordnung',
+      task: e.task?.title || e.description || 'Keine Beschreibung',
+      duration: e.duration,
+      date: format(e.date, 'yyyy-MM-dd'),
+      status: 'completed',
+      approvalStatus: (e as any).approvalStatus || 'pending',
+      employeeName: e.user ? `${e.user.firstName} ${e.user.lastName}` : undefined,
+      employeeId: e.userId,
     }));
 
     return this.prisma.createPaginatedResponse(transformedData, total, page, pageSize);
@@ -61,7 +113,8 @@ export class TimeEntriesService {
         isBillable: dto.isBillable ?? true,
         hourlyRate: dto.hourlyRate,
         companyId,
-      },
+        // approvalStatus will default to 'pending' if column exists
+      } as any,
       include: {
         project: { select: { id: true, name: true } },
         task: { select: { id: true, title: true } },
@@ -105,6 +158,56 @@ export class TimeEntriesService {
 
     await this.prisma.timeEntry.delete({ where: { id } });
     return { success: true };
+  }
+
+  async approveEntries(companyId: string, adminUserId: string, dto: ApproveTimeEntriesDto) {
+    // Verify all entries belong to the company
+    const entries = await this.prisma.timeEntry.findMany({
+      where: {
+        id: { in: dto.ids },
+        companyId,
+      },
+    });
+
+    if (entries.length !== dto.ids.length) {
+      throw new NotFoundException('Some time entries not found');
+    }
+
+    // Update approval status
+    await this.prisma.timeEntry.updateMany({
+      where: {
+        id: { in: dto.ids },
+        companyId,
+      },
+      data: {
+        approvalStatus: dto.status,
+        approvedBy: dto.status === ApprovalStatus.APPROVED ? adminUserId : undefined,
+        approvedAt: dto.status === ApprovalStatus.APPROVED ? new Date() : undefined,
+        rejectionReason: dto.status === ApprovalStatus.REJECTED ? dto.reason : undefined,
+      } as any,
+    });
+
+    return {
+      success: true,
+      updatedCount: entries.length,
+      status: dto.status,
+    };
+  }
+
+  async getApprovalStats(companyId: string) {
+    const [pending, approved, rejected] = await Promise.all([
+      this.prisma.timeEntry.count({
+        where: { companyId, approvalStatus: 'pending' as any },
+      }),
+      this.prisma.timeEntry.count({
+        where: { companyId, approvalStatus: 'approved' as any },
+      }),
+      this.prisma.timeEntry.count({
+        where: { companyId, approvalStatus: 'rejected' as any },
+      }),
+    ]);
+
+    return { pending, approved, rejected };
   }
 
   // Statistics

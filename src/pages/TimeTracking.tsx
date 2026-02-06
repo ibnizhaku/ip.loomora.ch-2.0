@@ -9,15 +9,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  Edit,
   Save,
-  X,
+  FileText,
+  Eye,
+  Users,
+  User,
+  Download,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -32,18 +37,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format, startOfWeek, addDays, subWeeks, addWeeks, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, addDays, subWeeks, addWeeks, isSameDay, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { de } from "date-fns/locale";
+import { TimeEntriesTable, type TimeEntryRow, type ApprovalStatus } from "@/components/time-tracking/TimeEntriesTable";
+import { TimeEntriesPDFPreview } from "@/components/time-tracking/TimeEntriesPDFPreview";
+import { TimeEntriesPDFData, downloadTimeEntriesPDF } from "@/lib/pdf/time-entries";
 
 interface TimeEntry {
   id: string;
   project: string;
   task: string;
-  duration: number; // in minutes
+  duration: number;
   date: string;
   status: "running" | "completed";
+  approvalStatus: ApprovalStatus;
+  employeeName?: string;
+  employeeId?: string;
 }
 
 const projects = [
@@ -54,6 +70,13 @@ const projects = [
   { id: "internal", name: "Interne Aufgaben" },
 ];
 
+const employees = [
+  { id: "1", name: "Max Mustermann" },
+  { id: "2", name: "Anna Schmidt" },
+  { id: "3", name: "Thomas Meier" },
+  { id: "4", name: "Julia Weber" },
+];
+
 const initialEntries: TimeEntry[] = [
   {
     id: "1",
@@ -62,6 +85,9 @@ const initialEntries: TimeEntry[] = [
     duration: 240,
     date: format(new Date(), "yyyy-MM-dd"),
     status: "completed",
+    approvalStatus: "pending",
+    employeeName: "Max Mustermann",
+    employeeId: "1",
   },
   {
     id: "2",
@@ -70,6 +96,9 @@ const initialEntries: TimeEntry[] = [
     duration: 180,
     date: format(new Date(), "yyyy-MM-dd"),
     status: "completed",
+    approvalStatus: "approved",
+    employeeName: "Anna Schmidt",
+    employeeId: "2",
   },
   {
     id: "3",
@@ -78,6 +107,9 @@ const initialEntries: TimeEntry[] = [
     duration: 300,
     date: format(addDays(new Date(), -1), "yyyy-MM-dd"),
     status: "completed",
+    approvalStatus: "approved",
+    employeeName: "Max Mustermann",
+    employeeId: "1",
   },
   {
     id: "4",
@@ -86,6 +118,9 @@ const initialEntries: TimeEntry[] = [
     duration: 120,
     date: format(addDays(new Date(), -1), "yyyy-MM-dd"),
     status: "completed",
+    approvalStatus: "rejected",
+    employeeName: "Thomas Meier",
+    employeeId: "3",
   },
   {
     id: "5",
@@ -94,6 +129,20 @@ const initialEntries: TimeEntry[] = [
     duration: 90,
     date: format(addDays(new Date(), -2), "yyyy-MM-dd"),
     status: "completed",
+    approvalStatus: "pending",
+    employeeName: "Julia Weber",
+    employeeId: "4",
+  },
+  {
+    id: "6",
+    project: "Mobile Banking App",
+    task: "Security Audit",
+    duration: 360,
+    date: format(addDays(new Date(), -3), "yyyy-MM-dd"),
+    status: "completed",
+    approvalStatus: "pending",
+    employeeName: "Anna Schmidt",
+    employeeId: "2",
   },
 ];
 
@@ -118,6 +167,10 @@ export default function TimeTracking() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [weekOffset, setWeekOffset] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("my-entries");
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [manualEntry, setManualEntry] = useState({
     task: "",
     project: "",
@@ -128,6 +181,28 @@ export default function TimeTracking() {
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
+
+  // Simulated current user (would come from auth context)
+  const currentUserId = "1";
+  const isAdmin = true; // Would be determined by user role
+
+  // Filter entries
+  const myEntries = entries.filter(e => e.employeeId === currentUserId);
+  const allEntries = entries;
+
+  const getFilteredEntries = (entriesList: TimeEntry[]) => {
+    let filtered = entriesList;
+    
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(e => e.approvalStatus === statusFilter);
+    }
+    
+    if (employeeFilter !== "all") {
+      filtered = filtered.filter(e => e.employeeId === employeeFilter);
+    }
+    
+    return filtered;
+  };
 
   // Timer effect
   useEffect(() => {
@@ -155,9 +230,9 @@ export default function TimeTracking() {
 
   const handleStartStop = () => {
     if (isTracking) {
-      // Stop tracking and save entry
       if (elapsedSeconds >= 60 && currentTask && currentProject) {
         const projectName = projects.find((p) => p.id === currentProject)?.name || currentProject;
+        const currentEmployee = employees.find(e => e.id === currentUserId);
         const newEntry: TimeEntry = {
           id: Date.now().toString(),
           project: projectName,
@@ -165,10 +240,13 @@ export default function TimeTracking() {
           duration: Math.floor(elapsedSeconds / 60),
           date: format(new Date(), "yyyy-MM-dd"),
           status: "completed",
+          approvalStatus: "pending",
+          employeeName: currentEmployee?.name,
+          employeeId: currentUserId,
         };
         setEntries((prev) => [newEntry, ...prev]);
         toast.success("Zeiteintrag gespeichert", {
-          description: `${currentTask} - ${formatDuration(Math.floor(elapsedSeconds / 60))}`,
+          description: `${currentTask} - ${formatDuration(Math.floor(elapsedSeconds / 60))} (Genehmigung ausstehend)`,
         });
         setCurrentTask("");
         setCurrentProject("");
@@ -181,7 +259,6 @@ export default function TimeTracking() {
         return;
       }
     } else {
-      // Start tracking
       if (!currentTask || !currentProject) {
         toast.error("Bitte Aufgabe und Projekt angeben");
         return;
@@ -205,6 +282,7 @@ export default function TimeTracking() {
     }
 
     const projectName = projects.find((p) => p.id === manualEntry.project)?.name || manualEntry.project;
+    const currentEmployee = employees.find(e => e.id === currentUserId);
     const newEntry: TimeEntry = {
       id: Date.now().toString(),
       project: projectName,
@@ -212,6 +290,9 @@ export default function TimeTracking() {
       duration: totalMinutes,
       date: manualEntry.date,
       status: "completed",
+      approvalStatus: "pending",
+      employeeName: currentEmployee?.name,
+      employeeId: currentUserId,
     };
 
     setEntries((prev) => [newEntry, ...prev.filter((e) => e.id !== newEntry.id)].sort((a, b) => 
@@ -219,7 +300,7 @@ export default function TimeTracking() {
     ));
 
     toast.success("Eintrag hinzugefügt", {
-      description: `${manualEntry.task} - ${formatDuration(totalMinutes)}`,
+      description: `${manualEntry.task} - ${formatDuration(totalMinutes)} (Genehmigung ausstehend)`,
     });
 
     setManualEntry({
@@ -234,22 +315,32 @@ export default function TimeTracking() {
 
   const handleDeleteEntry = (id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    toast.success("Eintrag gelöscht");
+  };
+
+  const handleApproveEntries = (ids: string[]) => {
+    setEntries(prev => prev.map(e => 
+      ids.includes(e.id) ? { ...e, approvalStatus: 'approved' as ApprovalStatus } : e
+    ));
+  };
+
+  const handleRejectEntries = (ids: string[]) => {
+    setEntries(prev => prev.map(e => 
+      ids.includes(e.id) ? { ...e, approvalStatus: 'rejected' as ApprovalStatus } : e
+    ));
   };
 
   // Calculate stats
   const today = format(new Date(), "yyyy-MM-dd");
-  const todayTotal = entries
+  const todayTotal = myEntries
     .filter((e) => e.date === today)
     .reduce((acc, e) => acc + e.duration, 0);
 
-  // Week calculation
   const currentWeekStart = startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   
   const weekHours = weekDays.map((day) => {
     const dayStr = format(day, "yyyy-MM-dd");
-    const dayMinutes = entries
+    const dayMinutes = myEntries
       .filter((e) => e.date === dayStr)
       .reduce((acc, e) => acc + e.duration, 0);
     return Math.round((dayMinutes / 60) * 10) / 10;
@@ -257,8 +348,7 @@ export default function TimeTracking() {
 
   const weekTotal = weekHours.reduce((acc, h) => acc + h, 0);
 
-  // Monthly overtime (simplified calculation)
-  const monthTotal = entries
+  const monthTotal = myEntries
     .filter((e) => {
       const entryDate = parseISO(e.date);
       const now = new Date();
@@ -266,9 +356,69 @@ export default function TimeTracking() {
     })
     .reduce((acc, e) => acc + e.duration, 0);
   
-  const workingDaysThisMonth = 22; // Simplified
+  const workingDaysThisMonth = 22;
   const expectedHours = workingDaysThisMonth * 8;
   const overtime = Math.round(((monthTotal / 60) - expectedHours) * 10) / 10;
+
+  // Approval stats for admin
+  const pendingCount = allEntries.filter(e => e.approvalStatus === 'pending').length;
+  const approvedCount = allEntries.filter(e => e.approvalStatus === 'approved').length;
+  const rejectedCount = allEntries.filter(e => e.approvalStatus === 'rejected').length;
+
+  // PDF Data preparation
+  const preparePDFData = (entriesForPdf: TimeEntry[], showEmployee: boolean): TimeEntriesPDFData => {
+    const monthStart = startOfMonth(new Date());
+    const monthEnd = endOfMonth(new Date());
+    
+    const totalMinutes = entriesForPdf.reduce((acc, e) => acc + e.duration, 0);
+    const approvedMinutes = entriesForPdf.filter(e => e.approvalStatus === 'approved').reduce((acc, e) => acc + e.duration, 0);
+    const pendingMinutes = entriesForPdf.filter(e => e.approvalStatus === 'pending').reduce((acc, e) => acc + e.duration, 0);
+    const rejectedMinutes = entriesForPdf.filter(e => e.approvalStatus === 'rejected').reduce((acc, e) => acc + e.duration, 0);
+
+    return {
+      title: showEmployee ? "Zeiterfassung - Alle Mitarbeiter" : "Meine Zeiterfassung",
+      subtitle: showEmployee ? `${entriesForPdf.length} Einträge` : undefined,
+      dateRange: {
+        start: format(monthStart, 'yyyy-MM-dd'),
+        end: format(monthEnd, 'yyyy-MM-dd'),
+      },
+      entries: entriesForPdf.map(e => ({
+        id: e.id,
+        date: e.date,
+        project: e.project,
+        task: e.task,
+        duration: e.duration,
+        approvalStatus: e.approvalStatus,
+        employeeName: e.employeeName,
+      })),
+      totalMinutes,
+      approvedMinutes,
+      pendingMinutes,
+      rejectedMinutes,
+      company: {
+        name: "Loomora GmbH",
+        address: "Musterstrasse 123, 8001 Zürich",
+      },
+      generatedBy: "Admin",
+      showEmployee,
+    };
+  };
+
+  const handleDownloadPDF = () => {
+    const entriesForPdf = activeTab === "all-entries" ? getFilteredEntries(allEntries) : getFilteredEntries(myEntries);
+    const pdfData = preparePDFData(entriesForPdf, activeTab === "all-entries");
+    downloadTimeEntriesPDF(pdfData);
+    toast.success("PDF heruntergeladen");
+  };
+
+  const handlePreviewPDF = () => {
+    setPdfPreviewOpen(true);
+  };
+
+  const currentPDFData = preparePDFData(
+    activeTab === "all-entries" ? getFilteredEntries(allEntries) : getFilteredEntries(myEntries),
+    activeTab === "all-entries"
+  );
 
   return (
     <div className="space-y-6">
@@ -282,88 +432,98 @@ export default function TimeTracking() {
             Erfassen und verwalten Sie Ihre Arbeitszeit
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Eintrag hinzufügen
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Zeiteintrag hinzufügen</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Aufgabe</Label>
-                <Input
-                  placeholder="Was hast du gearbeitet?"
-                  value={manualEntry.task}
-                  onChange={(e) => setManualEntry({ ...manualEntry, task: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Projekt</Label>
-                <Select
-                  value={manualEntry.project}
-                  onValueChange={(value) => setManualEntry({ ...manualEntry, project: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Projekt wählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handlePreviewPDF} className="gap-2">
+            <Eye className="h-4 w-4" />
+            Vorschau
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-2">
+            <Download className="h-4 w-4" />
+            PDF Export
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Eintrag hinzufügen
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Zeiteintrag hinzufügen</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Stunden</Label>
+                  <Label>Aufgabe</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    max="24"
-                    placeholder="0"
-                    value={manualEntry.hours}
-                    onChange={(e) => setManualEntry({ ...manualEntry, hours: e.target.value })}
+                    placeholder="Was hast du gearbeitet?"
+                    value={manualEntry.task}
+                    onChange={(e) => setManualEntry({ ...manualEntry, task: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Minuten</Label>
+                  <Label>Projekt</Label>
+                  <Select
+                    value={manualEntry.project}
+                    onValueChange={(value) => setManualEntry({ ...manualEntry, project: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Projekt wählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Stunden</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="24"
+                      placeholder="0"
+                      value={manualEntry.hours}
+                      onChange={(e) => setManualEntry({ ...manualEntry, hours: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Minuten</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="0"
+                      value={manualEntry.minutes}
+                      onChange={(e) => setManualEntry({ ...manualEntry, minutes: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Datum</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    max="59"
-                    placeholder="0"
-                    value={manualEntry.minutes}
-                    onChange={(e) => setManualEntry({ ...manualEntry, minutes: e.target.value })}
+                    type="date"
+                    value={manualEntry.date}
+                    onChange={(e) => setManualEntry({ ...manualEntry, date: e.target.value })}
                   />
                 </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Abbrechen
+                  </Button>
+                  <Button onClick={handleAddManualEntry} className="gap-2">
+                    <Save className="h-4 w-4" />
+                    Speichern
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Datum</Label>
-                <Input
-                  type="date"
-                  value={manualEntry.date}
-                  onChange={(e) => setManualEntry({ ...manualEntry, date: e.target.value })}
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Abbrechen
-                </Button>
-                <Button onClick={handleAddManualEntry} className="gap-2">
-                  <Save className="h-4 w-4" />
-                  Speichern
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Timer Card */}
@@ -548,76 +708,175 @@ export default function TimeTracking() {
         </div>
       </div>
 
-      {/* Recent Entries */}
+      {/* Entries with Tabs */}
       <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="font-display font-semibold text-lg mb-4">
-          Letzte Einträge
-        </h3>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <TabsList>
+              <TabsTrigger value="my-entries" className="gap-2">
+                <User className="h-4 w-4" />
+                Meine Einträge
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="all-entries" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Alle Mitarbeiter
+                  {pendingCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-warning/20 text-warning">
+                      {pendingCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-        {entries.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>Noch keine Einträge vorhanden</p>
-            <p className="text-sm">Starte den Timer oder füge einen Eintrag hinzu</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {entries.slice(0, 10).map((entry, index) => (
-              <div
-                key={entry.id}
-                className={cn(
-                  "flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in group"
-                )}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg",
-                      entry.status === "running" ? "bg-success/10" : "bg-muted"
+            {/* Filters */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                    {(statusFilter !== "all" || employeeFilter !== "all") && (
+                      <Badge variant="secondary" className="ml-1">
+                        {[statusFilter !== "all", employeeFilter !== "all"].filter(Boolean).length}
+                      </Badge>
                     )}
-                  >
-                    <Clock
-                      className={cn(
-                        "h-5 w-5",
-                        entry.status === "running" ? "text-success" : "text-muted-foreground"
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium">{entry.task}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {entry.project} • {format(parseISO(entry.date), "d. MMM yyyy", { locale: de })}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <Badge
-                    variant={entry.status === "running" ? "default" : "secondary"}
-                    className={
-                      entry.status === "running" ? "bg-success text-success-foreground" : ""
-                    }
-                  >
-                    {entry.status === "running" ? "Läuft" : "Abgeschlossen"}
-                  </Badge>
-                  <p className="font-display font-semibold tabular-nums min-w-[80px] text-right">
-                    {formatDuration(entry.duration)}
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteEntry(entry.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
                   </Button>
-                </div>
-              </div>
-            ))}
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Status</Label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Alle Status</SelectItem>
+                          <SelectItem value="pending">Ausstehend</SelectItem>
+                          <SelectItem value="approved">Genehmigt</SelectItem>
+                          <SelectItem value="rejected">Abgelehnt</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {activeTab === "all-entries" && (
+                      <div className="space-y-2">
+                        <Label className="text-sm">Mitarbeiter</Label>
+                        <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                            {employees.map(emp => (
+                              <SelectItem key={emp.id} value={emp.id}>
+                                {emp.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setEmployeeFilter("all");
+                      }}
+                    >
+                      Filter zurücksetzen
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        )}
+
+          {/* Admin Stats */}
+          {isAdmin && activeTab === "all-entries" && (
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div 
+                className={cn(
+                  "p-4 rounded-lg border cursor-pointer transition-colors",
+                  statusFilter === "pending" ? "border-warning bg-warning/10" : "border-border hover:border-warning/50"
+                )}
+                onClick={() => setStatusFilter(statusFilter === "pending" ? "all" : "pending")}
+              >
+                <p className="text-sm text-muted-foreground">Ausstehend</p>
+                <p className="text-2xl font-bold text-warning">{pendingCount}</p>
+              </div>
+              <div 
+                className={cn(
+                  "p-4 rounded-lg border cursor-pointer transition-colors",
+                  statusFilter === "approved" ? "border-success bg-success/10" : "border-border hover:border-success/50"
+                )}
+                onClick={() => setStatusFilter(statusFilter === "approved" ? "all" : "approved")}
+              >
+                <p className="text-sm text-muted-foreground">Genehmigt</p>
+                <p className="text-2xl font-bold text-success">{approvedCount}</p>
+              </div>
+              <div 
+                className={cn(
+                  "p-4 rounded-lg border cursor-pointer transition-colors",
+                  statusFilter === "rejected" ? "border-destructive bg-destructive/10" : "border-border hover:border-destructive/50"
+                )}
+                onClick={() => setStatusFilter(statusFilter === "rejected" ? "all" : "rejected")}
+              >
+                <p className="text-sm text-muted-foreground">Abgelehnt</p>
+                <p className="text-2xl font-bold text-destructive">{rejectedCount}</p>
+              </div>
+            </div>
+          )}
+
+          <TabsContent value="my-entries" className="mt-0">
+            <TimeEntriesTable
+              entries={getFilteredEntries(myEntries).map(e => ({
+                id: e.id,
+                date: e.date,
+                project: e.project,
+                task: e.task,
+                duration: e.duration,
+                approvalStatus: e.approvalStatus,
+              }))}
+              showEmployee={false}
+              isAdmin={false}
+              onDelete={handleDeleteEntry}
+            />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="all-entries" className="mt-0">
+              <TimeEntriesTable
+                entries={getFilteredEntries(allEntries).map(e => ({
+                  id: e.id,
+                  date: e.date,
+                  project: e.project,
+                  task: e.task,
+                  duration: e.duration,
+                  approvalStatus: e.approvalStatus,
+                  employeeName: e.employeeName,
+                  employeeId: e.employeeId,
+                }))}
+                showEmployee={true}
+                isAdmin={true}
+                onApprove={handleApproveEntries}
+                onReject={handleRejectEntries}
+                onDelete={handleDeleteEntry}
+              />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <TimeEntriesPDFPreview
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        pdfData={currentPDFData}
+      />
     </div>
   );
 }
