@@ -120,6 +120,8 @@ export const mockProjects = {
       description: "Konstruktion und Montage einer Stahltreppe für das neue Bürogebäude",
       customerId: "c1",
       customer: { id: "c1", name: "Müller Stahlbau AG", companyName: "Müller Stahlbau AG" },
+      managerId: "1",
+      manager: { id: "1", firstName: "Max", lastName: "Müller" },
       status: "ACTIVE",
       priority: "HIGH",
       progress: 65,
@@ -143,6 +145,8 @@ export const mockProjects = {
       description: "Sicherheitsgeländer für das Parkhaus",
       customerId: "c2",
       customer: { id: "c2", name: "Weber Metallbau GmbH", companyName: "Weber Metallbau GmbH" },
+      managerId: "2",
+      manager: { id: "2", firstName: "Anna", lastName: "Schmidt" },
       status: "ACTIVE",
       priority: "MEDIUM",
       progress: 30,
@@ -165,6 +169,8 @@ export const mockProjects = {
       description: "Grosses Industrietor mit elektrischem Antrieb",
       customerId: "c3",
       customer: { id: "c3", name: "Schmidt Bau AG", companyName: "Schmidt Bau AG" },
+      managerId: "1",
+      manager: { id: "1", firstName: "Max", lastName: "Müller" },
       status: "PLANNING",
       priority: "LOW",
       progress: 10,
@@ -185,6 +191,8 @@ export const mockProjects = {
       description: "120 Meter Balkongeländer in Edelstahl",
       customerId: "c4",
       customer: { id: "c4", name: "Huber Konstruktion", companyName: "Huber Konstruktion" },
+      managerId: "1",
+      manager: { id: "1", firstName: "Max", lastName: "Müller" },
       status: "COMPLETED",
       priority: "HIGH",
       progress: 100,
@@ -198,8 +206,55 @@ export const mockProjects = {
       ],
       createdAt: "2023-09-15",
     },
+    {
+      id: "p5",
+      number: "PRJ-2024-005",
+      name: "Fassadenverkleidung Hotel",
+      description: "Aluminium-Fassadenelemente für Hotelneubau",
+      customerId: "c1",
+      customer: { id: "c1", name: "Müller Stahlbau AG", companyName: "Müller Stahlbau AG" },
+      managerId: "1",
+      manager: { id: "1", firstName: "Max", lastName: "Müller" },
+      status: "ACTIVE",
+      priority: "HIGH",
+      progress: 45,
+      startDate: "2024-01-20",
+      endDate: "2024-06-30",
+      budget: 220000,
+      spent: 98000,
+      team: ["Max Müller", "Lisa Weber"],
+      tasks: [
+        { id: "t10", title: "Materialbestellung", status: "DONE" },
+        { id: "t11", title: "Zuschnitt", status: "IN_PROGRESS" },
+        { id: "t12", title: "Oberflächenbehandlung", status: "PENDING" },
+      ],
+      createdAt: "2024-01-15",
+    },
+    {
+      id: "p6",
+      number: "PRJ-2024-006",
+      name: "Carport Überdachung",
+      description: "Stahlkonstruktion für 10 Stellplätze",
+      customerId: "c5",
+      customer: { id: "c5", name: "Keller Engineering", companyName: "Keller Engineering" },
+      managerId: "3",
+      manager: { id: "3", firstName: "Peter", lastName: "Fischer" },
+      status: "PAUSED",
+      priority: "LOW",
+      progress: 20,
+      startDate: "2024-02-15",
+      endDate: "2024-05-15",
+      budget: 35000,
+      spent: 7000,
+      team: ["Peter Fischer"],
+      tasks: [
+        { id: "t13", title: "Statikberechnung", status: "DONE" },
+        { id: "t14", title: "Bewilligung einholen", status: "IN_PROGRESS" },
+      ],
+      createdAt: "2024-02-10",
+    },
   ],
-  total: 4,
+  total: 6,
   page: 1,
   pageSize: 50,
 };
@@ -403,7 +458,23 @@ export function getMockData(endpoint: string): any {
   
   // Projects
   if (normalizedEndpoint === '/projects' || normalizedEndpoint.startsWith('/projects?')) {
-    return mockProjects;
+    // Parse query parameters for filtering
+    const queryString = endpoint.split('?')[1];
+    const params = new URLSearchParams(queryString || '');
+    const managerId = params.get('managerId');
+    
+    let filteredData = mockProjects.data;
+    
+    if (managerId) {
+      filteredData = filteredData.filter(p => p.managerId === managerId);
+    }
+    
+    return {
+      data: filteredData,
+      total: filteredData.length,
+      page: 1,
+      pageSize: 50,
+    };
   }
   if (normalizedEndpoint === '/projects/stats') {
     return mockProjectStats;
