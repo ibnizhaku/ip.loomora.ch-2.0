@@ -62,6 +62,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import SocialInsuranceSettings from "@/components/settings/SocialInsuranceSettings";
 import ExpenseRulesSettings from "@/components/settings/ExpenseRulesSettings";
+import ExpenseWorkflowSettings from "@/components/settings/ExpenseWorkflowSettings";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
@@ -2271,7 +2272,18 @@ export default function Settings() {
           )}
 
           {activeSection === "expenses" && (
-            <ExpenseRulesSettings />
+            <Tabs defaultValue="rules" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsTrigger value="rules">Spesenlimiten</TabsTrigger>
+                <TabsTrigger value="workflow">Genehmigungsworkflow</TabsTrigger>
+              </TabsList>
+              <TabsContent value="rules">
+                <ExpenseRulesSettings />
+              </TabsContent>
+              <TabsContent value="workflow">
+                <ExpenseWorkflowSettings />
+              </TabsContent>
+            </Tabs>
           )}
 
           {activeSection === "automation" && (
