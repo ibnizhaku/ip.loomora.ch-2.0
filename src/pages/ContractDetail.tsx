@@ -1,10 +1,10 @@
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   FileSignature,
   Building2,
   Calendar,
-  Euro,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -13,8 +13,13 @@ import {
   MoreHorizontal,
   Bell,
   FileText,
-  User,
-  History
+  History,
+  RefreshCw,
+  Ban,
+  Receipt,
+  Copy,
+  Printer,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,14 +27,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
-const contractData = {
+const initialContractData = {
   id: "VT-2024-0012",
   title: "Wartungsvertrag Server-Infrastruktur",
   type: "Servicevertrag",
@@ -47,7 +82,7 @@ const contractData = {
     monthly: 2500,
     annual: 30000
   },
-  progress: 8, // 8% des Jahres
+  progress: 8,
   daysRemaining: 337,
   services: [
     { name: "24/7 Monitoring", included: true },
@@ -83,8 +118,139 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const ContractDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  
+  const [contractData, setContractData] = useState(initialContractData);
+  const [historyEntries, setHistoryEntries] = useState(initialContractData.history);
+  
+  // Dialog states
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [terminateOpen, setTerminateOpen] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  
+  // Renewal form
+  const [renewDuration, setRenewDuration] = useState("12");
+  const [renewStartDate, setRenewStartDate] = useState("2025-01-01");
+  const [renewAdjustPrice, setRenewAdjustPrice] = useState(false);
+  const [renewNewPrice, setRenewNewPrice] = useState(contractData.value.monthly.toString());
+  
+  // Termination form
+  const [terminationDate, setTerminationDate] = useState("");
+  const [terminationReason, setTerminationReason] = useState("");
+  const [terminationNotes, setTerminationNotes] = useState("");
+  
+  // Invoice form
+  const [invoicePeriod, setInvoicePeriod] = useState("monthly");
+  const [invoiceMonth, setInvoiceMonth] = useState("01");
+  const [invoiceYear, setInvoiceYear] = useState("2024");
+  
+  // Edit form
+  const [editTitle, setEditTitle] = useState(contractData.title);
+  const [editType, setEditType] = useState(contractData.type);
+  const [editNotes, setEditNotes] = useState(contractData.notes);
+
   const status = statusConfig[contractData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
+
+  const addHistoryEntry = (action: string) => {
+    const newEntry = {
+      date: new Date().toLocaleDateString("de-CH"),
+      action,
+      user: "Aktueller Benutzer",
+    };
+    setHistoryEntries([newEntry, ...historyEntries]);
+  };
+
+  // Vertrag verlängern
+  const handleRenew = () => {
+    const duration = parseInt(renewDuration);
+    const newEndDate = new Date(renewStartDate);
+    newEndDate.setMonth(newEndDate.getMonth() + duration);
+    
+    setContractData(prev => ({
+      ...prev,
+      endDate: newEndDate.toLocaleDateString("de-CH"),
+      value: renewAdjustPrice ? {
+        monthly: parseFloat(renewNewPrice),
+        annual: parseFloat(renewNewPrice) * 12,
+      } : prev.value,
+      daysRemaining: Math.floor((newEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+      progress: 0,
+    }));
+    
+    addHistoryEntry(`Vertrag verlängert um ${duration} Monate bis ${newEndDate.toLocaleDateString("de-CH")}`);
+    toast.success("Vertrag wurde verlängert");
+    setRenewOpen(false);
+  };
+
+  // Vertrag kündigen
+  const handleTerminate = () => {
+    if (!terminationReason) {
+      toast.error("Bitte Kündigungsgrund angeben");
+      return;
+    }
+    
+    setContractData(prev => ({
+      ...prev,
+      status: "Gekündigt",
+      endDate: terminationDate || prev.endDate,
+    }));
+    
+    addHistoryEntry(`Vertrag gekündigt: ${terminationReason}`);
+    toast.warning("Vertrag wurde gekündigt");
+    setTerminateOpen(false);
+  };
+
+  // Rechnung erstellen
+  const handleCreateInvoice = () => {
+    const amount = invoicePeriod === "monthly" 
+      ? contractData.value.monthly 
+      : invoicePeriod === "quarterly" 
+        ? contractData.value.monthly * 3
+        : contractData.value.annual;
+    
+    const periodLabel = invoicePeriod === "monthly" 
+      ? `${invoiceMonth}/${invoiceYear}`
+      : invoicePeriod === "quarterly"
+        ? `Q${Math.ceil(parseInt(invoiceMonth) / 3)}/${invoiceYear}`
+        : invoiceYear;
+    
+    addHistoryEntry(`Rechnung erstellt für Periode ${periodLabel}: CHF ${amount.toLocaleString("de-CH")}`);
+    toast.success(`Rechnung für CHF ${amount.toLocaleString("de-CH")} erstellt`);
+    setCreateInvoiceOpen(false);
+    
+    // Optional: Navigate to invoice
+    // navigate(`/invoices/new?contractId=${contractData.id}`);
+  };
+
+  // Bearbeiten
+  const handleEdit = () => {
+    setContractData(prev => ({
+      ...prev,
+      title: editTitle,
+      type: editType,
+      notes: editNotes,
+    }));
+    
+    addHistoryEntry("Vertragsdaten aktualisiert");
+    toast.success("Vertrag aktualisiert");
+    setEditOpen(false);
+  };
+
+  // Duplizieren
+  const handleDuplicate = () => {
+    addHistoryEntry("Vertrag dupliziert");
+    toast.success("Vertrag wurde dupliziert");
+    // navigate('/contracts/new?from=' + contractData.id);
+  };
+
+  // Löschen
+  const handleDelete = () => {
+    toast.success("Vertrag gelöscht");
+    navigate("/contracts");
+  };
 
   return (
     <div className="space-y-6">
@@ -112,15 +278,15 @@ const ContractDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Bell className="h-4 w-4 mr-2" />
-            Erinnerung
+          <Button variant="outline" size="sm" onClick={() => setCreateInvoiceOpen(true)}>
+            <Receipt className="h-4 w-4 mr-2" />
+            Rechnung erstellen
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            PDF
+          <Button variant="outline" size="sm" onClick={() => setRenewOpen(true)} disabled={contractData.status === "Gekündigt"}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Verlängern
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
@@ -130,10 +296,48 @@ const ContractDetail = () => {
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Verlängern</DropdownMenuItem>
-              <DropdownMenuItem>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Kündigen</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56 bg-popover">
+              <DropdownMenuItem onClick={() => setRenewOpen(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Verlängern
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCreateInvoiceOpen(true)}>
+                <Receipt className="h-4 w-4 mr-2" />
+                Rechnung erstellen
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplizieren
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("PDF wird generiert...")}>
+                <Download className="h-4 w-4 mr-2" />
+                PDF Export
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-2" />
+                Drucken
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Erinnerung wird erstellt...")}>
+                <Bell className="h-4 w-4 mr-2" />
+                Erinnerung setzen
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setTerminateOpen(true)}
+                className="text-warning focus:text-warning"
+                disabled={contractData.status === "Gekündigt"}
+              >
+                <Ban className="h-4 w-4 mr-2" />
+                Kündigen
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Löschen
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -212,8 +416,12 @@ const ContractDetail = () => {
 
             <TabsContent value="payments">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Zahlungsübersicht</CardTitle>
+                  <Button size="sm" onClick={() => setCreateInvoiceOpen(true)}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Neue Rechnung
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -221,7 +429,7 @@ const ContractDetail = () => {
                       <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
-                            <Euro className="h-5 w-5 text-success" />
+                            <Receipt className="h-5 w-5 text-success" />
                           </div>
                           <div>
                             <p className="font-medium">Monatliche Zahlung</p>
@@ -272,13 +480,13 @@ const ContractDetail = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {contractData.history.map((entry, index) => (
+                    {historyEntries.map((entry, index) => (
                       <div key={index} className="flex gap-4">
                         <div className="flex flex-col items-center">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                             <History className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          {index < contractData.history.length - 1 && (
+                          {index < historyEntries.length - 1 && (
                             <div className="w-px h-8 bg-border" />
                           )}
                         </div>
@@ -370,6 +578,317 @@ const ContractDetail = () => {
           </Card>
         </div>
       </div>
+
+      {/* Verlängern Dialog */}
+      <Dialog open={renewOpen} onOpenChange={setRenewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              Vertrag verlängern
+            </DialogTitle>
+            <DialogDescription>
+              Laufzeit des Vertrags {contractData.id} verlängern
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg border bg-muted/50">
+              <p className="font-medium">{contractData.title}</p>
+              <p className="text-sm text-muted-foreground">Aktuell gültig bis: {contractData.endDate}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Verlängerungsdauer</Label>
+              <Select value={renewDuration} onValueChange={setRenewDuration}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="6">6 Monate</SelectItem>
+                  <SelectItem value="12">12 Monate</SelectItem>
+                  <SelectItem value="24">24 Monate</SelectItem>
+                  <SelectItem value="36">36 Monate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Neues Startdatum</Label>
+              <Input
+                type="date"
+                value={renewStartDate}
+                onChange={(e) => setRenewStartDate(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="adjustPrice"
+                checked={renewAdjustPrice}
+                onChange={(e) => setRenewAdjustPrice(e.target.checked)}
+                className="rounded"
+              />
+              <Label htmlFor="adjustPrice">Preis anpassen</Label>
+            </div>
+            
+            {renewAdjustPrice && (
+              <div className="space-y-2">
+                <Label>Neuer Monatspreis (CHF)</Label>
+                <Input
+                  type="number"
+                  value={renewNewPrice}
+                  onChange={(e) => setRenewNewPrice(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Jahreswert: CHF {(parseFloat(renewNewPrice || "0") * 12).toLocaleString("de-CH")}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenewOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleRenew}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Verlängern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Kündigen Dialog */}
+      <Dialog open={terminateOpen} onOpenChange={setTerminateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <Ban className="h-5 w-5" />
+              Vertrag kündigen
+            </DialogTitle>
+            <DialogDescription>
+              Kündigung für Vertrag {contractData.id} einleiten
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg border border-warning/20 bg-warning/5">
+              <p className="font-medium">{contractData.title}</p>
+              <p className="text-sm text-muted-foreground">
+                Kündigungsfrist: {contractData.renewalNotice}
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Kündigungsgrund *</Label>
+              <Select value={terminationReason} onValueChange={setTerminationReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Grund auswählen" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="Kundenwunsch">Kundenwunsch</SelectItem>
+                  <SelectItem value="Vertragsverletzung">Vertragsverletzung</SelectItem>
+                  <SelectItem value="Projektabschluss">Projektabschluss</SelectItem>
+                  <SelectItem value="Insolvenz">Insolvenz</SelectItem>
+                  <SelectItem value="Sonstiges">Sonstiges</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Kündigungsdatum</Label>
+              <Input
+                type="date"
+                value={terminationDate}
+                onChange={(e) => setTerminationDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leer lassen für Vertragsende ({contractData.endDate})
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Bemerkungen</Label>
+              <Textarea
+                placeholder="Zusätzliche Informationen zur Kündigung..."
+                value={terminationNotes}
+                onChange={(e) => setTerminationNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTerminateOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={handleTerminate}>
+              <Ban className="mr-2 h-4 w-4" />
+              Kündigung bestätigen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rechnung erstellen Dialog */}
+      <Dialog open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Rechnung erstellen
+            </DialogTitle>
+            <DialogDescription>
+              Neue Rechnung für Vertrag {contractData.id} erstellen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Abrechnungszeitraum</Label>
+              <Select value={invoicePeriod} onValueChange={setInvoicePeriod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="monthly">Monatlich</SelectItem>
+                  <SelectItem value="quarterly">Quartalsweise</SelectItem>
+                  <SelectItem value="yearly">Jährlich</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Monat</Label>
+                <Select value={invoiceMonth} onValueChange={setInvoiceMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map(m => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Jahr</Label>
+                <Select value={invoiceYear} onValueChange={setInvoiceYear}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="p-4 rounded-lg border bg-muted/50">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Rechnungsbetrag</span>
+                <span className="text-xl font-bold">
+                  CHF {(
+                    invoicePeriod === "monthly" 
+                      ? contractData.value.monthly 
+                      : invoicePeriod === "quarterly"
+                        ? contractData.value.monthly * 3
+                        : contractData.value.annual
+                  ).toLocaleString("de-CH")}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateInvoiceOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleCreateInvoice}>
+              <Receipt className="mr-2 h-4 w-4" />
+              Rechnung erstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bearbeiten Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Vertrag bearbeiten</DialogTitle>
+            <DialogDescription>
+              Vertragsdaten aktualisieren
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Bezeichnung</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Vertragsart</Label>
+              <Select value={editType} onValueChange={setEditType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="Servicevertrag">Servicevertrag</SelectItem>
+                  <SelectItem value="Wartungsvertrag">Wartungsvertrag</SelectItem>
+                  <SelectItem value="Lizenzvertrag">Lizenzvertrag</SelectItem>
+                  <SelectItem value="Rahmenvertrag">Rahmenvertrag</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Notizen</Label>
+              <Textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleEdit}>
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Löschen AlertDialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vertrag löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie den Vertrag "{contractData.id}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

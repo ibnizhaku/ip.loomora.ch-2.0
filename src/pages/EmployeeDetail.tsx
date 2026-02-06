@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -6,7 +7,6 @@ import {
   Phone,
   MapPin,
   Calendar,
-  Euro,
   Clock,
   FileText,
   Edit,
@@ -16,9 +16,19 @@ import {
   Award,
   Building2,
   CalendarDays,
-  Trash2,
   Download,
   UserX,
+  CheckCircle2,
+  Circle,
+  ClipboardList,
+  Laptop,
+  Key,
+  Shield,
+  Users,
+  BookOpen,
+  Coffee,
+  Printer,
+  Car,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +44,52 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+
+// Onboarding checklist items
+interface OnboardingItem {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  icon: any;
+  completed: boolean;
+  completedDate?: string;
+  completedBy?: string;
+}
+
+const initialOnboardingItems: OnboardingItem[] = [
+  // IT & Ausstattung
+  { id: "it-1", category: "IT & Ausstattung", title: "Laptop/PC einrichten", description: "Hardware bereitstellen und konfigurieren", icon: Laptop, completed: true, completedDate: "01.04.2021", completedBy: "IT-Support" },
+  { id: "it-2", category: "IT & Ausstattung", title: "E-Mail-Konto erstellen", description: "Firmen-E-Mail und Kalender einrichten", icon: Mail, completed: true, completedDate: "01.04.2021", completedBy: "IT-Support" },
+  { id: "it-3", category: "IT & Ausstattung", title: "Software-Zugänge", description: "Zugriff auf benötigte Tools und Systeme", icon: Key, completed: true, completedDate: "02.04.2021", completedBy: "IT-Support" },
+  { id: "it-4", category: "IT & Ausstattung", title: "Drucker/Scanner", description: "Netzwerkdrucker einrichten", icon: Printer, completed: true, completedDate: "02.04.2021", completedBy: "IT-Support" },
+  
+  // Dokumente
+  { id: "doc-1", category: "Dokumente", title: "Arbeitsvertrag unterzeichnet", description: "Unterschriebener Vertrag archiviert", icon: FileText, completed: true, completedDate: "28.03.2021", completedBy: "HR" },
+  { id: "doc-2", category: "Dokumente", title: "Personalfragebogen", description: "Stammdaten erfasst", icon: ClipboardList, completed: true, completedDate: "28.03.2021", completedBy: "HR" },
+  { id: "doc-3", category: "Dokumente", title: "Bankverbindung hinterlegt", description: "Für Gehaltsüberweisung", icon: Building2, completed: true, completedDate: "28.03.2021", completedBy: "HR" },
+  { id: "doc-4", category: "Dokumente", title: "Sozialversicherung", description: "AHV/Pensionskasse angemeldet", icon: Shield, completed: true, completedDate: "01.04.2021", completedBy: "HR" },
+  
+  // Einarbeitung
+  { id: "train-1", category: "Einarbeitung", title: "Firmenrundgang", description: "Räumlichkeiten und Kollegen vorstellen", icon: Building2, completed: true, completedDate: "01.04.2021", completedBy: "Vorgesetzter" },
+  { id: "train-2", category: "Einarbeitung", title: "Team-Vorstellung", description: "Alle Teammitglieder kennenlernen", icon: Users, completed: true, completedDate: "01.04.2021", completedBy: "Vorgesetzter" },
+  { id: "train-3", category: "Einarbeitung", title: "Mentor zugewiesen", description: "Ansprechpartner für Fragen", icon: User, completed: true, completedDate: "01.04.2021", completedBy: "Vorgesetzter" },
+  { id: "train-4", category: "Einarbeitung", title: "Einführungsschulung", description: "Unternehmensprozesse und Tools", icon: BookOpen, completed: true, completedDate: "05.04.2021", completedBy: "HR" },
+  
+  // Zusätzliches
+  { id: "extra-1", category: "Zusätzliches", title: "Schlüssel/Badge erhalten", description: "Gebäudezugang", icon: Key, completed: true, completedDate: "01.04.2021", completedBy: "Empfang" },
+  { id: "extra-2", category: "Zusätzliches", title: "Parkplatz zugewiesen", description: "Falls benötigt", icon: Car, completed: false },
+  { id: "extra-3", category: "Zusätzliches", title: "Willkommens-Lunch", description: "Teamessen am ersten Tag", icon: Coffee, completed: true, completedDate: "01.04.2021", completedBy: "Team" },
+];
 
 const employeeData = {
   id: "MA-001",
