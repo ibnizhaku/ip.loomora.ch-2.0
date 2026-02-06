@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   FileText, 
@@ -16,12 +16,21 @@ import {
   Trash2,
   Edit,
   Download,
-  Eye
+  Eye,
+  ShoppingCart,
+  ArrowRight,
+  Package,
+  Receipt,
+  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -34,13 +43,39 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
-const quoteData = {
+const initialQuoteData = {
   id: "ANG-2024-0042",
   status: "Gesendet",
   customer: {
@@ -61,8 +96,8 @@ const quoteData = {
     { id: 5, description: "Testing & QA", quantity: 30, unit: "Stunden", price: 95, total: 2850 },
   ],
   subtotal: 26650,
-  tax: 5063.50,
-  total: 31713.50,
+  tax: 2158.65,
+  total: 28808.65,
   notes: "Zahlungsziel: 14 Tage nach Rechnungsstellung. Bei Auftragserteilung innerhalb der Gültigkeitsfrist gewähren wir 3% Skonto.",
   history: [
     { date: "15.01.2024 14:30", action: "Angebot erstellt", user: "Max Keller" },
@@ -75,12 +110,28 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground", icon: FileText },
   "Gesendet": { color: "bg-info/10 text-info", icon: Send },
   "Angenommen": { color: "bg-success/10 text-success", icon: CheckCircle2 },
-  "Abgelehnt": { color: "bg-destructive/10 text-destructive", icon: Clock },
+  "Abgelehnt": { color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
 };
 
 const QuoteDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [quoteData, setQuoteData] = useState(initialQuoteData);
+  const [historyEntries, setHistoryEntries] = useState(initialQuoteData.history);
+  
+  // Dialog states
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [convertStep, setConvertStep] = useState(1);
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  
+  // Conversion form
+  const [orderDeliveryDate, setOrderDeliveryDate] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
+  const [createDeliveryNote, setCreateDeliveryNote] = useState(false);
+  const [createInvoice, setCreateInvoice] = useState(false);
+  const [newStatus, setNewStatus] = useState(quoteData.status);
   
   const status = statusConfig[quoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
@@ -125,9 +176,77 @@ const QuoteDetail = () => {
     notes: quoteData.notes,
   };
 
+  const addHistoryEntry = (action: string) => {
+    const newEntry = {
+      date: new Date().toLocaleString("de-CH"),
+      action,
+      user: "Aktueller Benutzer",
+    };
+    setHistoryEntries([newEntry, ...historyEntries]);
+  };
+
   const handleDownloadPDF = () => {
     downloadSalesDocumentPDF(pdfData);
     toast.success("PDF heruntergeladen");
+  };
+
+  // Konvertierung starten
+  const handleStartConversion = () => {
+    setConvertStep(1);
+    setOrderDeliveryDate("");
+    setOrderNotes("");
+    setCreateDeliveryNote(false);
+    setCreateInvoice(false);
+    setConvertDialogOpen(true);
+  };
+
+  // Konvertierung durchführen
+  const handleConvert = () => {
+    // Generate new order number
+    const orderNumber = `AUF-2024-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`;
+    
+    // Update quote status
+    setQuoteData(prev => ({ ...prev, status: "Angenommen" }));
+    addHistoryEntry(`In Auftrag ${orderNumber} umgewandelt`);
+    
+    toast.success(`Auftrag ${orderNumber} wurde erstellt`);
+    
+    if (createDeliveryNote) {
+      const lsNumber = `LS-2024-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`;
+      addHistoryEntry(`Lieferschein ${lsNumber} erstellt`);
+      toast.success(`Lieferschein ${lsNumber} wurde erstellt`);
+    }
+    
+    if (createInvoice) {
+      const invoiceNumber = `RE-2024-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`;
+      addHistoryEntry(`Rechnung ${invoiceNumber} erstellt`);
+      toast.success(`Rechnung ${invoiceNumber} wurde erstellt`);
+    }
+    
+    setConvertDialogOpen(false);
+    
+    // Optional: Navigate to order
+    // navigate(`/orders/${orderNumber}`);
+  };
+
+  // Status ändern
+  const handleStatusChange = () => {
+    setQuoteData(prev => ({ ...prev, status: newStatus }));
+    addHistoryEntry(`Status geändert zu "${newStatus}"`);
+    toast.success("Status aktualisiert");
+    setStatusChangeOpen(false);
+  };
+
+  // Duplizieren
+  const handleDuplicate = () => {
+    addHistoryEntry("Angebot dupliziert");
+    toast.success("Angebot wurde dupliziert");
+  };
+
+  // Löschen
+  const handleDelete = () => {
+    toast.success("Angebot gelöscht");
+    navigate("/quotes");
   };
 
   return (
@@ -161,16 +280,12 @@ const QuoteDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm">
-            <Copy className="h-4 w-4 mr-2" />
-            Duplizieren
-          </Button>
-          <Button variant="outline" size="sm">
-            <Printer className="h-4 w-4 mr-2" />
-            Drucken
-          </Button>
-          <Button size="sm">
-            <CheckCircle2 className="h-4 w-4 mr-2" />
+          <Button 
+            size="sm" 
+            onClick={handleStartConversion}
+            disabled={quoteData.status === "Angenommen" || quoteData.status === "Abgelehnt"}
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
             In Auftrag umwandeln
           </Button>
           <DropdownMenu>
@@ -179,16 +294,37 @@ const QuoteDetail = () => {
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56 bg-popover">
+              <DropdownMenuItem onClick={handleStartConversion} disabled={quoteData.status === "Angenommen"}>
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                In Auftrag umwandeln
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusChangeOpen(true)}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Status ändern
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => toast.info("E-Mail wird vorbereitet...")}>
                 <Mail className="h-4 w-4 mr-2" />
                 Per E-Mail senden
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplizieren
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-2" />
+                Drucken
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/quotes/${id}/edit`)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Bearbeiten
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Löschen
               </DropdownMenuItem>
@@ -270,7 +406,7 @@ const QuoteDetail = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {quoteData.history.map((entry, index) => (
+                {historyEntries.map((entry, index) => (
                   <div key={index} className="flex items-start gap-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -350,8 +486,277 @@ const QuoteDetail = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Quick Actions */}
+          {quoteData.status !== "Angenommen" && quoteData.status !== "Abgelehnt" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Schnellaktionen</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button className="w-full justify-start" onClick={handleStartConversion}>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  In Auftrag umwandeln
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => toast.info("E-Mail wird vorbereitet...")}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Nachfassen per E-Mail
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* Konvertierungs-Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Angebot in Auftrag umwandeln
+            </DialogTitle>
+            <DialogDescription>
+              {convertStep === 1 && "Schritt 1: Auftragsdaten festlegen"}
+              {convertStep === 2 && "Schritt 2: Zusätzliche Belege erstellen"}
+              {convertStep === 3 && "Schritt 3: Zusammenfassung"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Step Indicator */}
+          <div className="flex items-center justify-center gap-2 py-2">
+            {[1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                  step === convertStep
+                    ? "bg-primary text-primary-foreground"
+                    : step < convertStep
+                    ? "bg-success text-success-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {step < convertStep ? <CheckCircle2 className="h-4 w-4" /> : step}
+              </div>
+            ))}
+          </div>
+          
+          <div className="space-y-4">
+            {/* Step 1: Order Details */}
+            {convertStep === 1 && (
+              <>
+                <div className="p-3 rounded-lg border bg-muted/50">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="font-medium">{quoteData.project}</p>
+                      <p className="text-sm text-muted-foreground">{quoteData.customer.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">CHF {quoteData.total.toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground">{quoteData.positions.length} Positionen</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Gewünschtes Lieferdatum</Label>
+                  <Input
+                    type="date"
+                    value={orderDeliveryDate}
+                    onChange={(e) => setOrderDeliveryDate(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Auftragsnotizen</Label>
+                  <Textarea
+                    placeholder="Besondere Anforderungen oder Hinweise..."
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Additional Documents */}
+            {convertStep === 2 && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Wählen Sie aus, welche zusätzlichen Belege automatisch erstellt werden sollen:
+                </p>
+                
+                <div className="space-y-3">
+                  <div 
+                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
+                      createDeliveryNote ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => setCreateDeliveryNote(!createDeliveryNote)}
+                  >
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                      createDeliveryNote ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}>
+                      <Package className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Lieferschein erstellen</p>
+                      <p className="text-sm text-muted-foreground">
+                        Lieferschein direkt aus dem Auftrag generieren
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={createDeliveryNote}
+                      onChange={() => {}}
+                      className="h-5 w-5 rounded"
+                    />
+                  </div>
+                  
+                  <div 
+                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
+                      createInvoice ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => setCreateInvoice(!createInvoice)}
+                  >
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                      createInvoice ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}>
+                      <Receipt className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Rechnung erstellen</p>
+                      <p className="text-sm text-muted-foreground">
+                        Rechnung direkt aus dem Auftrag generieren
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={createInvoice}
+                      onChange={() => {}}
+                      className="h-5 w-5 rounded"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Step 3: Summary */}
+            {convertStep === 3 && (
+              <>
+                <div className="space-y-3">
+                  <div className="p-4 rounded-lg border bg-success/5 border-success/20">
+                    <div className="flex items-center gap-2 text-success mb-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="font-medium">Auftrag wird erstellt</span>
+                    </div>
+                    <p className="text-sm">
+                      Basierend auf Angebot {quoteData.id} mit {quoteData.positions.length} Positionen
+                    </p>
+                  </div>
+                  
+                  {createDeliveryNote && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg border">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                      <span>Lieferschein wird erstellt</span>
+                    </div>
+                  )}
+                  
+                  {createInvoice && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg border">
+                      <Receipt className="h-5 w-5 text-muted-foreground" />
+                      <span>Rechnung wird erstellt</span>
+                    </div>
+                  )}
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Auftragswert</span>
+                    <span className="text-xl font-bold">CHF {quoteData.total.toFixed(2)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            {convertStep > 1 && (
+              <Button variant="outline" onClick={() => setConvertStep(convertStep - 1)}>
+                Zurück
+              </Button>
+            )}
+            {convertStep < 3 ? (
+              <Button onClick={() => setConvertStep(convertStep + 1)}>
+                Weiter
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={handleConvert}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Auftrag erstellen
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status ändern Dialog */}
+      <Dialog open={statusChangeOpen} onOpenChange={setStatusChangeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Status ändern</DialogTitle>
+            <DialogDescription>
+              Neuen Status für das Angebot festlegen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2">
+            <Label>Neuer Status</Label>
+            <Select value={newStatus} onValueChange={setNewStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="Entwurf">Entwurf</SelectItem>
+                <SelectItem value="Gesendet">Gesendet</SelectItem>
+                <SelectItem value="Angenommen">Angenommen</SelectItem>
+                <SelectItem value="Abgelehnt">Abgelehnt</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusChangeOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleStatusChange}>
+              Status ändern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Löschen AlertDialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Angebot löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie das Angebot "{quoteData.id}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* PDF Preview Dialog */}
       <PDFPreviewDialog
