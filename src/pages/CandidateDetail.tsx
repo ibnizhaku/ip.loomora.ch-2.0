@@ -1,11 +1,17 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, User, Mail, Phone, MapPin, Briefcase, GraduationCap, FileText, Star, Calendar, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, User, Mail, Phone, MapPin, Briefcase, GraduationCap, FileText, Star, Calendar, MessageSquare, UserPlus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 const kandidatData = {
   id: "BEW-2024-0034",
@@ -52,7 +58,40 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 export default function CandidateDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [showHireDialog, setShowHireDialog] = useState(false);
+  const [showOfferDialog, setShowOfferDialog] = useState(false);
+  const [hireData, setHireData] = useState({
+    startDate: "",
+    department: "Produktion",
+    salary: "5800",
+    manager: "Thomas Meier",
+  });
 
+  const handleSendOffer = () => {
+    setShowOfferDialog(false);
+    toast.success(`Angebot an ${kandidatData.name} gesendet`, {
+      description: "Die E-Mail mit dem Vertragsangebot wurde verschickt."
+    });
+  };
+
+  const handleHire = () => {
+    if (!hireData.startDate) {
+      toast.error("Bitte geben Sie ein Eintrittsdatum ein");
+      return;
+    }
+    setShowHireDialog(false);
+    toast.success(`${kandidatData.name} wurde eingestellt!`, {
+      description: `Startdatum: ${new Date(hireData.startDate).toLocaleDateString('de-CH')}`
+    });
+    setTimeout(() => {
+      navigate("/hr");
+    }, 1500);
+  };
+
+  const handleReject = () => {
+    toast.info(`Absage an ${kandidatData.name} gesendet`);
+  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -80,16 +119,16 @@ export default function CandidateDetail() {
           <p className="text-muted-foreground">{kandidatData.id} • Bewerbung für {kandidatData.stelle}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Notiz
+          <Button variant="outline" onClick={handleReject}>
+            Absage
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setShowOfferDialog(true)}>
             <Mail className="mr-2 h-4 w-4" />
-            E-Mail
+            Angebot senden
           </Button>
-          <Button>
-            Angebot erstellen
+          <Button onClick={() => setShowHireDialog(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Einstellen
           </Button>
         </div>
       </div>
@@ -276,6 +315,129 @@ export default function CandidateDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Offer Dialog */}
+      <Dialog open={showOfferDialog} onOpenChange={setShowOfferDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vertragsangebot senden</DialogTitle>
+            <DialogDescription>
+              Senden Sie ein Vertragsangebot an {kandidatData.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border p-4 bg-muted/50">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Stelle</p>
+                  <p className="font-medium">{kandidatData.stelle}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Lohnvorstellung</p>
+                  <p className="font-medium">{kandidatData.lohnvorstellung}</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Das Angebot wird per E-Mail an {kandidatData.email} gesendet.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOfferDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSendOffer}>
+              <Mail className="h-4 w-4 mr-2" />
+              Angebot senden
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hire Dialog */}
+      <Dialog open={showHireDialog} onOpenChange={setShowHireDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Kandidat einstellen</DialogTitle>
+            <DialogDescription>
+              {kandidatData.name} als Mitarbeiter anlegen
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-success/10 border border-success/20">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+              <div>
+                <p className="font-medium">{kandidatData.name}</p>
+                <p className="text-sm text-muted-foreground">{kandidatData.stelle}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Eintrittsdatum *</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={hireData.startDate}
+                onChange={(e) => setHireData({ ...hireData, startDate: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="department">Abteilung</Label>
+              <Select
+                value={hireData.department}
+                onValueChange={(value) => setHireData({ ...hireData, department: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Produktion">Produktion</SelectItem>
+                  <SelectItem value="Montage">Montage</SelectItem>
+                  <SelectItem value="Konstruktion">Konstruktion</SelectItem>
+                  <SelectItem value="Administration">Administration</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="salary">Monatslohn (CHF)</Label>
+              <Input
+                id="salary"
+                type="number"
+                value={hireData.salary}
+                onChange={(e) => setHireData({ ...hireData, salary: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="manager">Vorgesetzter</Label>
+              <Select
+                value={hireData.manager}
+                onValueChange={(value) => setHireData({ ...hireData, manager: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Thomas Meier">Thomas Meier</SelectItem>
+                  <SelectItem value="Hans Keller">Hans Keller</SelectItem>
+                  <SelectItem value="Marco Brunner">Marco Brunner</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowHireDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleHire} className="bg-success hover:bg-success/90">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Jetzt einstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
