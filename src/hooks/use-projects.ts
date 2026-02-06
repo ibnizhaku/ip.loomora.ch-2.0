@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
+interface ProjectMember {
+  employee: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    position?: string;
+  };
+}
+
+interface ProjectTask {
+  id: string;
+  title?: string;
+  name?: string;
+  status: string;
+  assignee?: string;
+}
+
 interface Project {
   id: string;
   number: string;
@@ -19,6 +36,8 @@ interface Project {
   budget?: number;
   spent?: number;
   team?: string[];
+  members?: ProjectMember[];
+  tasks?: ProjectTask[];
   taskCount?: number;
   timeEntryCount?: number;
   createdAt?: string;

@@ -1,73 +1,219 @@
-import { useParams, Link } from "react-router-dom";
+import { useState, useCallback } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Edit,
   MoreHorizontal,
   Calendar,
   Clock,
-  Euro,
   Users,
   CheckCircle,
   FileText,
   MessageSquare,
   Paperclip,
   Plus,
+  Trash2,
+  Copy,
+  Pause,
+  Play,
+  Archive,
+  Upload,
+  File,
+  FileImage,
+  FileType,
+  Loader2,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { ProjectChat } from "@/components/project/ProjectChat";
+import { useProject, useDeleteProject, useUpdateProject } from "@/hooks/use-projects";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useDropzone } from "react-dropzone";
 
-// Mock project data
-const project = {
-  id: "1",
-  name: "E-Commerce Platform",
-  client: "Fashion Store GmbH",
-  description:
-    "Entwicklung einer modernen E-Commerce-Plattform mit Produktkatalog, Warenkorb, Checkout und Kundenkonto. Integration von Zahlungsanbietern und Versanddienstleistern.",
-  status: "active",
-  progress: 75,
-  budget: 45000,
-  spent: 33750,
-  startDate: "15.01.2024",
-  endDate: "15.03.2024",
-  priority: "high",
-  team: [
-    { initials: "AS", name: "Anna Schmidt", role: "Lead Developer" },
-    { initials: "TM", name: "Thomas Müller", role: "Backend Developer" },
-    { initials: "LW", name: "Lisa Weber", role: "UI Designer" },
-  ],
-  tasks: [
-    { id: "1", title: "Produktkatalog implementieren", status: "done", assignee: "AS" },
-    { id: "2", title: "Warenkorb-Logik", status: "done", assignee: "TM" },
-    { id: "3", title: "Checkout-Prozess", status: "in-progress", assignee: "AS" },
-    { id: "4", title: "Payment Integration", status: "in-progress", assignee: "TM" },
-    { id: "5", title: "UI Polishing", status: "todo", assignee: "LW" },
-    { id: "6", title: "Testing & QA", status: "todo", assignee: "AS" },
-  ],
-  milestones: [
-    { id: "1", title: "Phase 1: Grundfunktionen", date: "31.01.2024", completed: true },
-    { id: "2", title: "Phase 2: E-Commerce Core", date: "28.02.2024", completed: false },
-    { id: "3", title: "Phase 3: Launch", date: "15.03.2024", completed: false },
-  ],
-  activities: [
-    { id: "1", user: "Anna Schmidt", action: "hat Task abgeschlossen", target: "Warenkorb UI", time: "vor 2 Std." },
-    { id: "2", user: "Thomas Müller", action: "hat Kommentar hinzugefügt", target: "Payment Integration", time: "vor 4 Std." },
-    { id: "3", user: "Lisa Weber", action: "hat Datei hochgeladen", target: "Design_Final.fig", time: "vor 1 Tag" },
-  ],
+const statusConfig: Record<string, { label: string; color: string }> = {
+  PLANNING: { label: "Planung", color: "bg-muted text-muted-foreground" },
+  ACTIVE: { label: "Aktiv", color: "bg-success/10 text-success" },
+  ON_HOLD: { label: "Pausiert", color: "bg-warning/10 text-warning" },
+  COMPLETED: { label: "Abgeschlossen", color: "bg-info/10 text-info" },
+  CANCELLED: { label: "Abgebrochen", color: "bg-destructive/10 text-destructive" },
 };
 
 const taskStatusConfig = {
   todo: { label: "Offen", color: "bg-muted text-muted-foreground" },
   "in-progress": { label: "In Bearbeitung", color: "bg-warning/10 text-warning" },
   done: { label: "Erledigt", color: "bg-success/10 text-success" },
+  PENDING: { label: "Offen", color: "bg-muted text-muted-foreground" },
+  IN_PROGRESS: { label: "In Bearbeitung", color: "bg-warning/10 text-warning" },
+  DONE: { label: "Erledigt", color: "bg-success/10 text-success" },
 };
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  uploadedAt: Date;
+}
+
 export default function ProjectDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { data: project, isLoading } = useProject(id || '');
+  const deleteProject = useDeleteProject();
+  const updateProject = useUpdateProject();
+  
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
+  // File upload handling
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newFiles: UploadedFile[] = acceptedFiles.map(file => ({
+      id: `${Date.now()}-${file.name}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      uploadedAt: new Date(),
+    }));
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    toast.success(`${acceptedFiles.length} Datei(en) hochgeladen`);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif'],
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    },
+  });
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteProject.mutateAsync(id);
+      toast.success('Projekt erfolgreich gelöscht');
+      navigate('/projects');
+    } catch (error) {
+      toast.error('Fehler beim Löschen des Projekts');
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id || !project) return;
+    try {
+      await updateProject.mutateAsync({ id, data: { status: newStatus } });
+      toast.success(`Status auf "${statusConfig[newStatus]?.label || newStatus}" geändert`);
+    } catch (error) {
+      toast.error('Fehler beim Ändern des Status');
+    }
+  };
+
+  const handleDuplicate = () => {
+    toast.info('Projekt duplizieren wird implementiert');
+  };
+
+  const removeFile = (fileId: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+    toast.success('Datei entfernt');
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return FileImage;
+    if (fileType === 'application/pdf') return FileType;
+    return File;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('de-CH');
+  };
+
+  const formatCurrency = (value?: number) => {
+    if (value === undefined) return 'CHF 0';
+    return new Intl.NumberFormat('de-CH', {
+      style: 'currency',
+      currency: 'CHF',
+      minimumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Calculate progress based on tasks
+  const calculateProgress = () => {
+    if (!project?.tasks?.length) return project?.progress || 0;
+    const completedTasks = project.tasks.filter((t: any) => t.status === 'DONE' || t.status === 'done').length;
+    return Math.round((completedTasks / project.tasks.length) * 100);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="text-center py-24">
+        <p className="text-muted-foreground">Projekt nicht gefunden</p>
+        <Button variant="link" onClick={() => navigate('/projects')}>
+          Zurück zur Übersicht
+        </Button>
+      </div>
+    );
+  }
+
+  const progress = calculateProgress();
+  const status = project.status?.toUpperCase().replace('-', '_') || 'PLANNING';
+  const statusInfo = statusConfig[status] || statusConfig.PLANNING;
+
+  // Mock data for team and tasks if not available from backend
+  const team = project.members?.map((m: any) => ({
+    initials: `${m.employee?.firstName?.[0] || ''}${m.employee?.lastName?.[0] || ''}`,
+    name: `${m.employee?.firstName || ''} ${m.employee?.lastName || ''}`,
+    role: m.employee?.position || 'Mitarbeiter',
+  })) || [];
+
+  const tasks = project.tasks || [];
+
+  const milestones = [
+    { id: "1", title: "Phase 1: Grundfunktionen", date: formatDate(project.startDate), completed: progress >= 33 },
+    { id: "2", title: "Phase 2: Kernfunktionen", date: formatDate(project.endDate), completed: progress >= 66 },
+    { id: "3", title: "Phase 3: Launch", date: formatDate(project.endDate), completed: progress >= 100 },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -82,17 +228,60 @@ export default function ProjectDetail() {
             <h1 className="font-display text-3xl font-bold tracking-tight">
               {project.name}
             </h1>
-            <Badge className="bg-success/10 text-success">Aktiv</Badge>
+            <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
           </div>
-          <p className="text-muted-foreground">{project.client}</p>
+          <p className="text-muted-foreground">
+            {project.client || project.customer?.name || project.customer?.companyName || 'Kein Kunde zugewiesen'}
+          </p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2" onClick={() => navigate(`/projects/${id}/edit`)}>
           <Edit className="h-4 w-4" />
           Bearbeiten
         </Button>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={handleDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplizieren
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {status !== 'ACTIVE' && (
+              <DropdownMenuItem onClick={() => handleStatusChange('ACTIVE')}>
+                <Play className="h-4 w-4 mr-2" />
+                Aktivieren
+              </DropdownMenuItem>
+            )}
+            {status === 'ACTIVE' && (
+              <DropdownMenuItem onClick={() => handleStatusChange('ON_HOLD')}>
+                <Pause className="h-4 w-4 mr-2" />
+                Pausieren
+              </DropdownMenuItem>
+            )}
+            {status !== 'COMPLETED' && (
+              <DropdownMenuItem onClick={() => handleStatusChange('COMPLETED')}>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Abschliessen
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => handleStatusChange('CANCELLED')}>
+              <Archive className="h-4 w-4 mr-2" />
+              Archivieren
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setShowDeleteDialog(true)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Löschen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Stats */}
@@ -105,7 +294,7 @@ export default function ProjectDetail() {
             <div>
               <p className="text-sm text-muted-foreground">Zeitraum</p>
               <p className="font-medium">
-                {project.startDate} - {project.endDate}
+                {formatDate(project.startDate)} - {formatDate(project.endDate)}
               </p>
             </div>
           </div>
@@ -113,12 +302,12 @@ export default function ProjectDetail() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-              <Euro className="h-5 w-5 text-success" />
+              <Banknote className="h-5 w-5 text-success" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Budget</p>
               <p className="font-medium">
-                €{project.spent.toLocaleString()} / €{project.budget.toLocaleString()}
+                {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
               </p>
             </div>
           </div>
@@ -130,7 +319,7 @@ export default function ProjectDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Team</p>
-              <p className="font-medium">{project.team.length} Mitglieder</p>
+              <p className="font-medium">{team.length} Mitglieder</p>
             </div>
           </div>
         </div>
@@ -141,28 +330,33 @@ export default function ProjectDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Fortschritt</p>
-              <p className="font-medium">{project.progress}%</p>
+              <p className="font-medium">{progress}%</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar - Gesamtfortschritt Erklärung */}
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Gesamtfortschritt</h3>
-          <span className="text-2xl font-bold">{project.progress}%</span>
+          <div>
+            <h3 className="font-semibold">Gesamtfortschritt</h3>
+            <p className="text-sm text-muted-foreground">
+              Berechnet aus erledigten Aufgaben ({tasks.filter((t: any) => t.status === 'DONE' || t.status === 'done').length} von {tasks.length})
+            </p>
+          </div>
+          <span className="text-2xl font-bold">{progress}%</span>
         </div>
-        <Progress value={project.progress} className="h-3" />
+        <Progress value={progress} className="h-3" />
 
         <div className="flex justify-between mt-6">
-          {project.milestones.map((milestone, index) => (
+          {milestones.map((milestone, index) => (
             <div
               key={milestone.id}
               className={cn(
                 "text-center",
                 index === 0 && "text-left",
-                index === project.milestones.length - 1 && "text-right"
+                index === milestones.length - 1 && "text-right"
               )}
             >
               <div
@@ -199,45 +393,67 @@ export default function ProjectDetail() {
 
         <TabsContent value="tasks" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Aufgaben ({project.tasks.length})</h3>
-            <Button size="sm" className="gap-2">
+            <h3 className="font-semibold">Aufgaben ({tasks.length})</h3>
+            <Button size="sm" className="gap-2" onClick={() => navigate('/tasks/new')}>
               <Plus className="h-4 w-4" />
               Neue Aufgabe
             </Button>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card divide-y divide-border">
-            {project.tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+          {tasks.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center">
+              <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Keine Aufgaben vorhanden</p>
+              <Button 
+                variant="link" 
+                onClick={() => navigate('/tasks/new')}
+                className="mt-2"
               >
-                <div className="flex items-center gap-4">
+                Erste Aufgabe erstellen
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border bg-card divide-y divide-border">
+              {tasks.map((task: any) => {
+                const taskStatus = (task.status || 'PENDING').toUpperCase().replace('-', '_');
+                const taskConfig = taskStatusConfig[taskStatus as keyof typeof taskStatusConfig] || taskStatusConfig.PENDING;
+                
+                return (
                   <div
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      task.status === "done" && "bg-success",
-                      task.status === "in-progress" && "bg-warning",
-                      task.status === "todo" && "bg-muted-foreground"
-                    )}
-                  />
-                  <span className={cn(task.status === "done" && "line-through text-muted-foreground")}>
-                    {task.title}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className={taskStatusConfig[task.status as keyof typeof taskStatusConfig].color}>
-                    {taskStatusConfig[task.status as keyof typeof taskStatusConfig].label}
-                  </Badge>
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-xs bg-secondary">
-                      {task.assignee}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              </div>
-            ))}
-          </div>
+                    key={task.id}
+                    className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/tasks/${task.id}`)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          taskStatus === "DONE" && "bg-success",
+                          taskStatus === "IN_PROGRESS" && "bg-warning",
+                          taskStatus === "PENDING" && "bg-muted-foreground"
+                        )}
+                      />
+                      <span className={cn(taskStatus === "DONE" && "line-through text-muted-foreground")}>
+                        {task.title || task.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge className={taskConfig.color}>
+                        {taskConfig.label}
+                      </Badge>
+                      {task.assignee && (
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className="text-xs bg-secondary">
+                            {task.assignee.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="chat" className="space-y-4">
@@ -245,85 +461,142 @@ export default function ProjectDetail() {
             <h3 className="font-semibold">Projekt-Chat</h3>
             <Badge variant="outline" className="gap-1">
               <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              {project.team.length} online
+              {team.length} online
             </Badge>
           </div>
-          <ProjectChat team={project.team} />
+          <ProjectChat team={team} />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Teammitglieder ({project.team.length})</h3>
+            <h3 className="font-semibold">Teammitglieder ({team.length})</h3>
             <Button size="sm" variant="outline" className="gap-2">
               <Plus className="h-4 w-4" />
               Mitglied hinzufügen
             </Button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            {project.team.map((member) => (
-              <div
-                key={member.initials}
-                className="rounded-xl border border-border bg-card p-4 flex items-center gap-4"
-              >
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                    {member.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{member.name}</p>
-                  <p className="text-sm text-muted-foreground">{member.role}</p>
+          {team.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Noch keine Teammitglieder zugewiesen</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              {team.map((member: any) => (
+                <div
+                  key={member.initials}
+                  className="rounded-xl border border-border bg-card p-4 flex items-center gap-4"
+                >
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                      {member.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{member.name}</p>
+                    <p className="text-sm text-muted-foreground">{member.role}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="files" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Dateien</h3>
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Hochladen
-            </Button>
+            <h3 className="font-semibold">Dateien ({uploadedFiles.length})</h3>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-8 text-center">
-            <Paperclip className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              Dateien hier ablegen oder klicken zum Hochladen
-            </p>
+          {/* Upload Zone */}
+          <div
+            {...getRootProps()}
+            className={cn(
+              "rounded-2xl border-2 border-dashed bg-card p-8 text-center cursor-pointer transition-colors",
+              isDragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+            )}
+          >
+            <input {...getInputProps()} />
+            <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            {isDragActive ? (
+              <p className="text-primary font-medium">Dateien hier ablegen...</p>
+            ) : (
+              <>
+                <p className="font-medium">Dateien hier ablegen</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  oder klicken zum Auswählen (Bilder, PDF, Word, Excel)
+                </p>
+              </>
+            )}
           </div>
+
+          {/* Uploaded Files List */}
+          {uploadedFiles.length > 0 && (
+            <div className="space-y-2">
+              {uploadedFiles.map((file) => {
+                const FileIcon = getFileIcon(file.type);
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card group"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <FileIcon className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{file.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatFileSize(file.size)} · {file.uploadedAt.toLocaleDateString('de-CH')}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeFile(file.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
           <h3 className="font-semibold">Letzte Aktivitäten</h3>
 
           <div className="space-y-4">
-            {project.activities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-4">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs bg-secondary">
-                    {activity.user
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-sm">
-                    <span className="font-medium">{activity.user}</span>{" "}
-                    <span className="text-muted-foreground">{activity.action}</span>{" "}
-                    <span className="font-medium">{activity.target}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
-                </div>
-              </div>
-            ))}
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Aktivitäten werden geladen...</p>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Projekt löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sind Sie sicher, dass Sie das Projekt "{project.name}" löschen möchten? 
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
