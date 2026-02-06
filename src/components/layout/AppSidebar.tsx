@@ -110,83 +110,56 @@ const dailyOperationsItems: NavItem[] = [
   },
 ];
 
-// AUFTRÄGE & VERKAUF
-const ordersItems: NavItem[] = [
+// AUFTRÄGE & PROJEKTE - Zentrales Modul
+const projectsItems: NavItem[] = [
   {
-    title: "Projekte & Aufträge",
+    title: "Aufträge & Projekte",
     url: "/projects",
     icon: FolderKanban,
-    keywords: ["projekt", "auftrag", "baustelle", "montage"],
+    keywords: ["projekt", "auftrag", "baustelle", "montage", "order"],
+    subItems: [
+      { title: "Übersicht", url: "/projects", icon: FolderKanban },
+      { title: "Kundenaufträge", url: "/orders", icon: ShoppingCart },
+      { title: "Angebote / Offerten", url: "/quotes", icon: FileText },
+    ],
   },
   {
-    title: "Angebote / Offerten",
-    url: "/quotes",
-    icon: FileText,
-    keywords: ["offerte", "kostenvoranschlag", "kv"],
+    title: "Werkstatt",
+    url: "/production",
+    icon: Factory,
+    keywords: ["werkstatt", "fertigung", "produktion", "maschinen"],
+    subItems: [
+      { title: "Fertigungsaufträge", url: "/production", icon: Factory },
+      { title: "Stücklisten (BOM)", url: "/bom", icon: Layers },
+      { title: "Kalkulation", url: "/calculation", icon: Calculator },
+    ],
   },
   {
-    title: "Kundenaufträge",
-    url: "/orders",
-    icon: ShoppingCart,
-    keywords: ["bestellung", "order", "auftrag"],
-  },
-  {
-    title: "Lieferscheine",
+    title: "Lieferung & Abrechnung",
     url: "/delivery-notes",
     icon: Truck,
-    keywords: ["lieferung", "versand"],
-  },
-  {
-    title: "Rechnungen",
-    url: "/invoices",
-    icon: Receipt,
-    keywords: ["faktura", "abrechnung", "rechnung"],
-  },
-  {
-    title: "Mahnwesen",
-    url: "/reminders",
-    icon: FileText,
-    keywords: ["mahnung", "inkasso"],
+    keywords: ["lieferung", "rechnung", "faktura", "versand"],
+    subItems: [
+      { title: "Lieferscheine", url: "/delivery-notes", icon: Truck },
+      { title: "Rechnungen", url: "/invoices", icon: Receipt },
+      { title: "Mahnwesen", url: "/reminders", icon: FileText },
+    ],
   },
 ];
 
-// WERKSTATT & PRODUKTION
-const workshopItems: NavItem[] = [
-  {
-    title: "Fertigungsaufträge",
-    url: "/production",
-    icon: Factory,
-    keywords: ["werkstatt", "fertigung", "produktion"],
-  },
-  {
-    title: "Stücklisten (BOM)",
-    url: "/bom",
-    icon: Layers,
-    keywords: ["material", "teile", "komponenten"],
-  },
-  {
-    title: "Kalkulation",
-    url: "/calculation",
-    icon: Calculator,
-    keywords: ["preis", "kosten", "berechnung"],
-  },
-  {
-    title: "Maschinen",
-    url: "/production", // Links to production for now, machine management embedded
-    icon: Cog,
-    keywords: ["geräte", "anlagen", "cnc", "laser"],
-  },
+// LAGER & MATERIAL
+const inventoryItems: NavItem[] = [
   {
     title: "Materialien & Lager",
     url: "/inventory",
     icon: Package,
-    keywords: ["bestand", "artikel", "waren"],
+    keywords: ["bestand", "artikel", "waren", "lager"],
   },
   {
     title: "Produkte / Artikel",
     url: "/products",
     icon: Box,
-    keywords: ["artikel", "waren", "teile"],
+    keywords: ["artikel", "waren", "teile", "stammdaten"],
   },
   {
     title: "QS-Prüfung",
@@ -570,8 +543,8 @@ export function AppSidebar() {
   // Combine all items for search result count
   const allItems = [
     ...dailyOperationsItems,
-    ...ordersItems,
-    ...workshopItems,
+    ...projectsItems,
+    ...inventoryItems,
     ...partnersItems,
     ...controllingItems,
     ...accountingItems,
@@ -617,14 +590,15 @@ export function AppSidebar() {
           searchQuery={sidebarSearch} 
         />
         <NavGroup 
-          label="Aufträge & Verkauf" 
-          items={ordersItems} 
+          label="Aufträge & Projekte" 
+          items={projectsItems} 
           location={location} 
-          searchQuery={sidebarSearch} 
+          searchQuery={sidebarSearch}
+          useSubmenus={true}
         />
         <NavGroup 
-          label="Werkstatt" 
-          items={workshopItems} 
+          label="Lager & Material" 
+          items={inventoryItems} 
           location={location} 
           searchQuery={sidebarSearch} 
         />
