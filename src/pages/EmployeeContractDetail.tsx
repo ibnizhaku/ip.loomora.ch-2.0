@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SocialInsuranceEditor, { EmployeeSocialInsurance } from "@/components/contracts/SocialInsuranceEditor";
-import { DEFAULT_SOCIAL_INSURANCE_RATES, SocialInsuranceRates } from "@/components/settings/SocialInsuranceSettings";
+import { DEFAULT_SOCIAL_INSURANCE_RATES, SocialInsuranceRates, loadSocialInsuranceRates } from "@/components/settings/SocialInsuranceSettings";
 
 const initialVertragData = {
   id: "AV-2024-0089",
@@ -83,8 +83,22 @@ export default function EmployeeContractDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [vertragData, setVertragData] = useState(initialVertragData);
   const [editData, setEditData] = useState(initialVertragData);
+  const [companyRates, setCompanyRates] = useState<SocialInsuranceRates>(DEFAULT_SOCIAL_INSURANCE_RATES);
   const [socialInsurance, setSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
   const [editSocialInsurance, setEditSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
+
+  // Load company rates on mount
+  useEffect(() => {
+    const rates = loadSocialInsuranceRates();
+    setCompanyRates(rates);
+    // Update social insurance with company rates (keeping any overrides)
+    setSocialInsurance(prev => ({
+      rates: { ...rates, ...Object.fromEntries(
+        Object.entries(prev.rates).filter(([key]) => prev.overrides[key as keyof SocialInsuranceRates])
+      ) } as SocialInsuranceRates,
+      overrides: prev.overrides
+    }));
+  }, []);
 
   // Check for edit mode from URL param
   useEffect(() => {
@@ -582,7 +596,7 @@ export default function EmployeeContractDetail() {
           <SocialInsuranceEditor
             value={isEditMode ? editSocialInsurance : socialInsurance}
             onChange={setEditSocialInsurance}
-            companyRates={DEFAULT_SOCIAL_INSURANCE_RATES}
+            companyRates={companyRates}
             isEditMode={isEditMode}
           />
         </CardContent>

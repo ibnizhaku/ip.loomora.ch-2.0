@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save, Info, RotateCcw, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+
+const STORAGE_KEY = "loomora_social_insurance_rates";
 
 // Default Swiss social insurance rates for 2024
 export const DEFAULT_SOCIAL_INSURANCE_RATES = {
@@ -24,18 +26,42 @@ export const DEFAULT_SOCIAL_INSURANCE_RATES = {
 
 export type SocialInsuranceRates = typeof DEFAULT_SOCIAL_INSURANCE_RATES;
 
+// Helper to load rates from localStorage
+export const loadSocialInsuranceRates = (): SocialInsuranceRates => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error("Error loading social insurance rates:", error);
+  }
+  return DEFAULT_SOCIAL_INSURANCE_RATES;
+};
+
+// Helper to save rates to localStorage
+const saveSocialInsuranceRates = (rates: SocialInsuranceRates): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rates));
+  } catch (error) {
+    console.error("Error saving social insurance rates:", error);
+  }
+};
+
 interface SocialInsuranceSettingsProps {
-  initialRates?: SocialInsuranceRates;
   onSave?: (rates: SocialInsuranceRates) => void;
 }
 
-export default function SocialInsuranceSettings({ 
-  initialRates = DEFAULT_SOCIAL_INSURANCE_RATES,
-  onSave 
-}: SocialInsuranceSettingsProps) {
-  const [rates, setRates] = useState<SocialInsuranceRates>(initialRates);
+export default function SocialInsuranceSettings({ onSave }: SocialInsuranceSettingsProps) {
+  const [rates, setRates] = useState<SocialInsuranceRates>(DEFAULT_SOCIAL_INSURANCE_RATES);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Load saved rates on mount
+  useEffect(() => {
+    const savedRates = loadSocialInsuranceRates();
+    setRates(savedRates);
+  }, []);
 
   const updateRate = (
     key: keyof SocialInsuranceRates, 
@@ -55,8 +81,8 @@ export default function SocialInsuranceSettings({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Save to localStorage
+      saveSocialInsuranceRates(rates);
       onSave?.(rates);
       setHasChanges(false);
       toast.success("Sozialversicherungssätze gespeichert", {
