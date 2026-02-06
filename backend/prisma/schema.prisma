@@ -516,6 +516,9 @@ model Product {
   shopOrderItems  ShopOrderItem[]
   reviews         Review[]
   
+  // Metallbau-Erweiterung
+  materialConsumptions MaterialConsumption[]
+  
   @@unique([companyId, sku])
   @@index([companyId])
   @@index([categoryId])
@@ -1287,16 +1290,26 @@ model Project {
   customerId      String?
   customer        Customer? @relation(fields: [customerId], references: [id])
   
+  // Metallbau-Erweiterung: Projekttyp
+  projectType     ProjectType @default(KOMBINIERT)
+  
   status          ProjectStatus @default(PLANNING)
   priority        ProjectPriority @default(MEDIUM)
   
   startDate       DateTime?
   endDate         DateTime?
   
+  // Budget & Kosten
   budget          Decimal? @db.Decimal(12, 2)
   spent           Decimal  @default(0) @db.Decimal(12, 2)
+  actualCostTotal Decimal  @default(0) @db.Decimal(12, 2)  // Aus ProjectCostEntry
+  revenueTotal    Decimal  @default(0) @db.Decimal(12, 2)  // Aus Rechnungen
   
   progress        Int      @default(0)  // 0-100
+  
+  // Kostenstelle für Projekt
+  costCenterId    String?
+  costCenter      CostCenter? @relation("ProjectCostCenter", fields: [costCenterId], references: [id])
   
   createdById     String
   createdBy       User     @relation("ProjectCreator", fields: [createdById], references: [id])
@@ -1311,17 +1324,24 @@ model Project {
   updatedAt       DateTime @updatedAt
   
   // Relations
-  tasks           Task[]
-  timeEntries     TimeEntry[]
-  orders          Order[]
-  invoices        Invoice[]
-  purchaseOrders  PurchaseOrder[]
-  members         ProjectMember[]
-  boms            BillOfMaterial[]
-  productionOrders ProductionOrder[]
-  calculations    Calculation[]
-  serviceTickets  ServiceTicket[]
-  contracts       Contract[]
+  tasks               Task[]
+  timeEntries         TimeEntry[]
+  orders              Order[]
+  invoices            Invoice[]
+  purchaseOrders      PurchaseOrder[]
+  members             ProjectMember[]
+  boms                BillOfMaterial[]
+  productionOrders    ProductionOrder[]
+  calculations        Calculation[]
+  serviceTickets      ServiceTicket[]
+  contracts           Contract[]
+  
+  // Metallbau-Erweiterungen
+  phases              ProjectPhase[]
+  machineBookings     MachineBooking[]
+  materialConsumptions MaterialConsumption[]
+  costEntries         ProjectCostEntry[]
+  budgetLines         ProjectBudgetLine[]
   
   // DMS relations
   folders         Folder[]      @relation("ProjectFolders")
@@ -1331,6 +1351,7 @@ model Project {
   @@index([companyId])
   @@index([customerId])
   @@index([status])
+  @@index([projectType])
   @@map("projects")
 }
 
@@ -1419,7 +1440,7 @@ model Subtask {
 }
 
 // ============================================
-// TIME TRACKING
+// TIME TRACKING (Erweitert für Metallbau)
 // ============================================
 
 model TimeEntry {
@@ -1428,18 +1449,55 @@ model TimeEntry {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   
+  // Zeitdaten
+  date        DateTime @default(now())
+  startTime   DateTime?
+  endTime     DateTime?
+  duration    Int      // in minutes
+  
+  // Zeittyp-Klassifizierung (Metallbau-Erweiterung)
+  timeTypeId  String?
+  timeType    TimeType? @relation("TimeEntryTimeType", fields: [timeTypeId], references: [id])
+  
+  // Tätigkeitsart
+  activityTypeId String?
+  activityType   ActivityType? @relation("TimeEntryActivityType", fields: [activityTypeId], references: [id])
+  
+  // Projekt-/Auftrags-Zuordnung (optional je nach Zeittyp)
   projectId   String?
   project     Project? @relation(fields: [projectId], references: [id])
+  
+  projectPhaseId String?
+  projectPhase   ProjectPhase? @relation("TimeEntryPhase", fields: [projectPhaseId], references: [id])
   
   taskId      String?
   task        Task?    @relation(fields: [taskId], references: [id])
   
-  description String?
-  date        DateTime @default(now())
-  duration    Int      // in minutes
+  // Kostenstelle (immer erforderlich)
+  costCenterId String?
+  costCenter   CostCenter? @relation("TimeEntryCostCenter", fields: [costCenterId], references: [id])
   
+  // Metallbau-spezifisch
+  workLocation WorkLocation?
+  machineId    String?
+  machine      Machine? @relation("TimeEntryMachine", fields: [machineId], references: [id])
+  
+  // Bewertung
+  baseHourlyRate    Decimal? @db.Decimal(10, 2)
+  surchargeTotal    Decimal  @default(0) @db.Decimal(10, 2)
+  effectiveHourlyRate Decimal? @db.Decimal(10, 2)
+  totalCost         Decimal? @db.Decimal(12, 2)
+  
+  // Legacy-Felder (Kompatibilität)
+  description String?
   isBillable  Boolean  @default(true)
-  hourlyRate  Decimal? @db.Decimal(10, 2)
+  hourlyRate  Decimal? @db.Decimal(10, 2)  // Deprecated, use baseHourlyRate
+  
+  // Genehmigung
+  approvalStatus String  @default("pending")  // pending, approved, rejected
+  approvedBy     String?
+  approvedAt     DateTime?
+  rejectionReason String?
   
   companyId   String
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1447,10 +1505,17 @@ model TimeEntry {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // Relations
+  surcharges  TimeEntrySurcharge[]
+  costEntry   ProjectCostEntry? @relation("TimeEntryCostEntry")
+  
   @@index([companyId])
   @@index([userId])
   @@index([projectId])
+  @@index([projectPhaseId])
+  @@index([timeTypeId])
   @@index([date])
+  @@index([approvalStatus])
   @@map("time_entries")
 }
 
@@ -2448,6 +2513,11 @@ model CostCenter {
   budgetLines     BudgetLine[]
   cashTransactions CashTransaction[]
   fixedAssets     FixedAsset[]
+  
+  // Metallbau-Erweiterungen
+  machines        Machine[]
+  projects        Project[] @relation("ProjectCostCenter")
+  timeEntries     TimeEntry[] @relation("TimeEntryCostCenter")
   
   @@unique([companyId, number])
   @@index([companyId])
@@ -3628,5 +3698,424 @@ model AuditLog {
   @@index([createdAt])
   @@index([retentionUntil])
   @@map("audit_logs")
+}
+
+// ============================================
+// METALLBAU ERP - ERWEITERUNGSSCHICHT
+// ============================================
+
+// Projektarten für Metallbau
+enum ProjectType {
+  WERKSTATT      // Werkstattprojekt
+  MONTAGE        // Montageprojekt
+  KOMBINIERT     // Kombiniertes Projekt
+}
+
+// Projektphasen-Typen
+enum ProjectPhaseType {
+  PLANUNG
+  FERTIGUNG
+  MONTAGE
+  ABSCHLUSS
+}
+
+// Zeittypen für duale Zeiterfassung
+enum TimeTypeCode {
+  PROJECT        // Projektzeit (projektwirksam)
+  ORDER          // Auftragszeit (teilweise projektwirksam)
+  GENERAL        // Allgemeine Tätigkeit
+  ADMIN          // Administration
+  TRAINING       // Weiterbildung
+  ABSENCE        // Abwesenheit
+}
+
+// Arbeitsort
+enum WorkLocation {
+  WERKSTATT
+  BAUSTELLE
+}
+
+// Maschinen-Typen
+enum MachineType {
+  LASER
+  PLASMA
+  PRESSE
+  CNC
+  SAEGE
+  BIEGE
+  SCHWEISS
+  BOHR
+  FRAES
+  SCHLEIF
+  SONSTIGE
+}
+
+// Maschinen-Status
+enum MachineStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+// Kostenarten für ProjectCostEntry
+enum CostType {
+  LABOR          // Personalkosten
+  MACHINE        // Maschinenkosten
+  MATERIAL       // Materialkosten
+  EXTERNAL       // Fremdleistungen
+  OVERHEAD       // Gemeinkosten
+}
+
+// Materialverbrauch-Typ
+enum ConsumptionType {
+  PRODUCTION     // Produktionsverbrauch
+  SCRAP          // Verschnitt/Ausschuss
+  RETURN         // Rückgabe ans Lager
+}
+
+// Zuschlagsarten
+enum SurchargeType {
+  MONTAGE        // Montagezuschlag
+  NACHT          // Nachtarbeit
+  SAMSTAG        // Samstagsarbeit
+  SONNTAG        // Sonntagsarbeit
+  FEIERTAG       // Feiertagsarbeit
+  HOEHE          // Höhenzuschlag
+  SCHMUTZ        // Schmutzzuschlag
+}
+
+// ============================================
+// ZEITTYPEN (Stammdaten)
+// ============================================
+
+model TimeType {
+  id                  String   @id @default(cuid())
+  code                TimeTypeCode @unique
+  name                String
+  description         String?
+  isProjectRelevant   Boolean  @default(false)  // Projektwirksam?
+  isBillable          Boolean  @default(false)  // Verrechenbar?
+  affectsCapacity     Boolean  @default(true)   // Kapazitätswirksam?
+  defaultCostCenterId String?                   // Standard-Kostenstelle
+  sortOrder           Int      @default(0)
+  isActive            Boolean  @default(true)
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  timeEntries         TimeEntry[] @relation("TimeEntryTimeType")
+  allowedPhases       ProjectPhaseTimeType[]
+  
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("time_types")
+}
+
+// ============================================
+// PROJEKTPHASEN
+// ============================================
+
+model ProjectPhase {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  name            String
+  phaseType       ProjectPhaseType
+  sequence        Int      @default(1)
+  
+  // Budget für diese Phase
+  budgetAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  actualAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  
+  // Zeitplanung
+  plannedStart    DateTime?
+  plannedEnd      DateTime?
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  
+  // Status
+  isCompleted     Boolean  @default(false)
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  timeEntries         TimeEntry[] @relation("TimeEntryPhase")
+  machineBookings     MachineBooking[]
+  materialConsumptions MaterialConsumption[]
+  projectCostEntries  ProjectCostEntry[]
+  budgetLines         ProjectBudgetLine[]
+  allowedTimeTypes    ProjectPhaseTimeType[]
+  
+  @@index([projectId])
+  @@index([phaseType])
+  @@map("project_phases")
+}
+
+// M:N Beziehung: Welche Zeittypen sind in welcher Phase erlaubt
+model ProjectPhaseTimeType {
+  id            String   @id @default(cuid())
+  phaseId       String
+  phase         ProjectPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  
+  timeTypeId    String
+  timeType      TimeType @relation(fields: [timeTypeId], references: [id], onDelete: Cascade)
+  
+  @@unique([phaseId, timeTypeId])
+  @@index([phaseId])
+  @@index([timeTypeId])
+  @@map("project_phase_time_types")
+}
+
+// ============================================
+// ZEITBUCHUNGS-ZUSCHLÄGE
+// ============================================
+
+model TimeEntrySurcharge {
+  id              String   @id @default(cuid())
+  timeEntryId     String
+  timeEntry       TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  
+  surchargeType   SurchargeType
+  surchargePercent Decimal? @db.Decimal(5, 2)   // Prozentzuschlag
+  surchargeAmount  Decimal? @db.Decimal(10, 2)  // Fixer Betrag
+  description     String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([timeEntryId])
+  @@map("time_entry_surcharges")
+}
+
+// ============================================
+// MASCHINEN
+// ============================================
+
+model Machine {
+  id                  String   @id @default(cuid())
+  name                String
+  machineType         MachineType @default(SONSTIGE)
+  costCenterId        String?
+  costCenter          CostCenter? @relation(fields: [costCenterId], references: [id])
+  
+  // Kaufmännische Daten
+  purchaseDate        DateTime?
+  purchaseValue       Decimal? @db.Decimal(12, 2)
+  currentBookValue    Decimal? @db.Decimal(12, 2)
+  usefulLifeYears     Int?
+  depreciationMethod  String   @default("LINEAR")
+  
+  // Kalkulatorische Daten
+  hourlyRate          Decimal  @db.Decimal(10, 2)  // Maschinenstundensatz
+  maintenanceCostYear Decimal? @db.Decimal(10, 2)
+  energyCostHour      Decimal? @db.Decimal(10, 2)
+  
+  // Status
+  status              MachineStatus @default(ACTIVE)
+  lastMaintenanceDate DateTime?
+  nextMaintenanceDate DateTime?
+  
+  notes               String?
+  
+  companyId           String
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  bookings            MachineBooking[]
+  timeEntries         TimeEntry[] @relation("TimeEntryMachine")
+  
+  @@index([companyId])
+  @@index([machineType])
+  @@index([status])
+  @@map("machines")
+}
+
+// ============================================
+// MASCHINENBUCHUNGEN
+// ============================================
+
+model MachineBooking {
+  id              String   @id @default(cuid())
+  
+  machineId       String
+  machine         Machine  @relation(fields: [machineId], references: [id])
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  
+  projectPhaseId  String?
+  projectPhase    ProjectPhase? @relation(fields: [projectPhaseId], references: [id])
+  
+  bookingDate     DateTime @default(now())
+  durationHours   Decimal  @db.Decimal(6, 2)
+  hourlyRate      Decimal  @db.Decimal(10, 2)
+  totalCost       Decimal  @db.Decimal(12, 2)
+  
+  operatorId      String?  // Bediener
+  description     String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  
+  // Relation zu ProjectCostEntry (1:1)
+  costEntry       ProjectCostEntry? @relation("MachineBookingCostEntry")
+  
+  @@index([companyId])
+  @@index([machineId])
+  @@index([projectId])
+  @@index([bookingDate])
+  @@map("machine_bookings")
+}
+
+// ============================================
+// MATERIALVERBRAUCH
+// ============================================
+
+model MaterialConsumption {
+  id              String   @id @default(cuid())
+  
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  
+  projectPhaseId  String?
+  projectPhase    ProjectPhase? @relation(fields: [projectPhaseId], references: [id])
+  
+  consumptionDate DateTime @default(now())
+  quantity        Decimal  @db.Decimal(12, 4)
+  unit            String
+  unitPrice       Decimal  @db.Decimal(12, 4)  // Ø-Preis zum Zeitpunkt
+  totalCost       Decimal  @db.Decimal(12, 2)
+  
+  consumptionType ConsumptionType @default(PRODUCTION)
+  scrapQuantity   Decimal  @default(0) @db.Decimal(12, 4)
+  
+  warehouseId     String?
+  description     String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  
+  // Relation zu ProjectCostEntry (1:1)
+  costEntry       ProjectCostEntry? @relation("MaterialConsumptionCostEntry")
+  
+  @@index([companyId])
+  @@index([productId])
+  @@index([projectId])
+  @@index([consumptionDate])
+  @@map("material_consumptions")
+}
+
+// ============================================
+// PROJEKT-KOSTENSAMMLER (Zentrales Controlling)
+// ============================================
+
+model ProjectCostEntry {
+  id              String   @id @default(cuid())
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  projectPhaseId  String?
+  projectPhase    ProjectPhase? @relation(fields: [projectPhaseId], references: [id])
+  
+  entryDate       DateTime @default(now())
+  costType        CostType
+  
+  // Referenz zur Quelltransaktion (polymorphe Beziehung)
+  sourceType      String   // TIME_ENTRY, MACHINE_BOOKING, MATERIAL_CONSUMPTION, EXTERNAL
+  sourceId        String
+  
+  amount          Decimal  @db.Decimal(12, 2)
+  isDirectCost    Boolean  @default(true)  // Direkt vs. Gemeinkostenanteil
+  description     String?
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  
+  // Optionale 1:1 Relationen zu Quellen
+  timeEntryId     String?  @unique
+  timeEntry       TimeEntry? @relation("TimeEntryCostEntry", fields: [timeEntryId], references: [id])
+  
+  machineBookingId String? @unique
+  machineBooking  MachineBooking? @relation("MachineBookingCostEntry", fields: [machineBookingId], references: [id])
+  
+  materialConsumptionId String? @unique
+  materialConsumption MaterialConsumption? @relation("MaterialConsumptionCostEntry", fields: [materialConsumptionId], references: [id])
+  
+  @@unique([sourceType, sourceId])  // Verhindert Doppelbuchungen
+  @@index([companyId])
+  @@index([projectId])
+  @@index([costType])
+  @@index([entryDate])
+  @@map("project_cost_entries")
+}
+
+// ============================================
+// PROJEKT-BUDGETZEILEN (Soll-Kalkulation)
+// ============================================
+
+model ProjectBudgetLine {
+  id              String   @id @default(cuid())
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  projectPhaseId  String?
+  projectPhase    ProjectPhase? @relation(fields: [projectPhaseId], references: [id])
+  
+  costType        CostType
+  description     String
+  
+  plannedQuantity Decimal  @db.Decimal(12, 4)
+  plannedUnitPrice Decimal @db.Decimal(12, 4)
+  plannedTotal    Decimal  @db.Decimal(12, 2)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([companyId])
+  @@index([projectId])
+  @@index([costType])
+  @@map("project_budget_lines")
+}
+
+// ============================================
+// TÄTIGKEITSARTEN (für Zeiterfassung)
+// ============================================
+
+model ActivityType {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  category        String?  // FERTIGUNG, MONTAGE, PLANUNG
+  description     String?
+  isActive        Boolean  @default(true)
+  
+  companyId       String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  timeEntries     TimeEntry[] @relation("TimeEntryActivityType")
+  
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("activity_types")
 }
 

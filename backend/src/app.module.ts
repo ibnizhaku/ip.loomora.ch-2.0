@@ -60,6 +60,8 @@ import { BankImportModule } from './modules/bank-import/bank-import.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 // Audit Log
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
+// Metallbau ERP (Projekt-Controlling, Maschinen, duale Zeiterfassung)
+import { MetallbauModule } from './modules/metallbau/metallbau.module';
 
 @Module({
   imports: [
@@ -127,6 +129,8 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
     DocumentsModule,
     // Audit Log (Global)
     AuditLogModule,
+    // Metallbau ERP (Projekt-Controlling)
+    MetallbauModule,
   ],
 })
 export class AppModule {}
