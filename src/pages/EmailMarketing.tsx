@@ -512,41 +512,94 @@ export default function EmailMarketing() {
         </TabsContent>
 
         <TabsContent value="automation" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">E-Mail Automation</h2>
+              <p className="text-sm text-muted-foreground">Automatisierte E-Mail-Workflows erstellen und verwalten</p>
+            </div>
+            <Button onClick={() => { toast.success("Neue Automation erstellen"); navigate("/email-marketing/new"); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Neue Automation
+            </Button>
+          </div>
           <Card>
-            <CardHeader>
-              <CardTitle>E-Mail Automation</CardTitle>
-              <CardDescription>
-                Automatisierte E-Mail-Workflows erstellen und verwalten
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-0">
+              <div className="divide-y">
                 {[
-                  { name: "Willkommens-Serie", status: "active", sent: 1234, trigger: "Neue Anmeldung" },
-                  { name: "Warenkorb-Abbruch", status: "active", sent: 567, trigger: "Warenkorb verlassen" },
-                  { name: "Reaktivierung", status: "paused", sent: 234, trigger: "60 Tage inaktiv" },
-                  { name: "Geburtstags-Mail", status: "active", sent: 89, trigger: "Geburtstag" },
+                  { name: "Willkommens-Serie", status: "active", sent: 1234, trigger: "Neue Anmeldung", openRate: 68 },
+                  { name: "Warenkorb-Abbruch", status: "active", sent: 567, trigger: "Warenkorb verlassen", openRate: 45 },
+                  { name: "Reaktivierung", status: "paused", sent: 234, trigger: "60 Tage inaktiv", openRate: 22 },
+                  { name: "Geburtstags-Mail", status: "active", sent: 89, trigger: "Geburtstag", openRate: 72 },
                 ].map((automation, index) => (
                   <div 
                     key={index} 
-                    className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => toast.info(`Automation "${automation.name}" bearbeiten`)}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-2 h-2 rounded-full ${automation.status === "active" ? "bg-success" : "bg-muted-foreground"}`} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          toast.success(automation.status === "active" 
+                            ? `"${automation.name}" pausiert` 
+                            : `"${automation.name}" aktiviert`
+                          ); 
+                        }}
+                      >
+                        {automation.status === "active" ? (
+                          <Pause className="h-4 w-4 text-warning" />
+                        ) : (
+                          <Play className="h-4 w-4 text-success" />
+                        )}
+                      </Button>
                       <div>
-                        <h4 className="font-medium">{automation.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">{automation.name}</h4>
+                          <Badge className={automation.status === "active" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+                            {automation.status === "active" ? "Aktiv" : "Pausiert"}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">Trigger: {automation.trigger}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="font-medium">{automation.sent}</p>
+                        <p className="font-medium">{automation.sent.toLocaleString("de-CH")}</p>
                         <p className="text-xs text-muted-foreground">E-Mails gesendet</p>
                       </div>
-                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toast.info(`Bearbeite ${automation.name}`); }}>
-                        Bearbeiten
-                      </Button>
+                      <div className="text-right">
+                        <p className="font-medium">{automation.openRate}%</p>
+                        <p className="text-xs text-muted-foreground">Öffnungsrate</p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info(`Bearbeite ${automation.name}`); }}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Bearbeiten
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success(`"${automation.name}" dupliziert`); }}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Duplizieren
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info(`Statistiken für "${automation.name}"`); }}>
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            Statistiken
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); toast.success(`"${automation.name}" gelöscht`); }}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Löschen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}
