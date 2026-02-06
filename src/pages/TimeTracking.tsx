@@ -16,6 +16,7 @@ import {
   User,
   Download,
   Filter,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -42,6 +44,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfWeek, addDays, subWeeks, addWeeks, isSameDay, parseISO, startOfMonth, endOfMonth } from "date-fns";
@@ -169,6 +179,7 @@ export default function TimeTracking() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-entries");
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfEmployeeId, setPdfEmployeeId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [manualEntry, setManualEntry] = useState({
@@ -190,15 +201,17 @@ export default function TimeTracking() {
   const myEntries = entries.filter(e => e.employeeId === currentUserId);
   const allEntries = entries;
 
-  const getFilteredEntries = (entriesList: TimeEntry[]) => {
+  const getFilteredEntries = (entriesList: TimeEntry[], forEmployeeId?: string | null) => {
     let filtered = entriesList;
     
     if (statusFilter !== "all") {
       filtered = filtered.filter(e => e.approvalStatus === statusFilter);
     }
     
-    if (employeeFilter !== "all") {
-      filtered = filtered.filter(e => e.employeeId === employeeFilter);
+    // Use specific employee filter if provided, otherwise use general filter
+    const empFilter = forEmployeeId !== undefined ? forEmployeeId : employeeFilter;
+    if (empFilter && empFilter !== "all") {
+      filtered = filtered.filter(e => e.employeeId === empFilter);
     }
     
     return filtered;
@@ -366,7 +379,7 @@ export default function TimeTracking() {
   const rejectedCount = allEntries.filter(e => e.approvalStatus === 'rejected').length;
 
   // PDF Data preparation
-  const preparePDFData = (entriesForPdf: TimeEntry[], showEmployee: boolean): TimeEntriesPDFData => {
+  const preparePDFData = (entriesForPdf: TimeEntry[], showEmployee: boolean, employeeId?: string | null): TimeEntriesPDFData => {
     const monthStart = startOfMonth(new Date());
     const monthEnd = endOfMonth(new Date());
     
@@ -375,9 +388,22 @@ export default function TimeTracking() {
     const pendingMinutes = entriesForPdf.filter(e => e.approvalStatus === 'pending').reduce((acc, e) => acc + e.duration, 0);
     const rejectedMinutes = entriesForPdf.filter(e => e.approvalStatus === 'rejected').reduce((acc, e) => acc + e.duration, 0);
 
+    // Determine title based on context
+    let title = "Meine Zeiterfassung";
+    let subtitle: string | undefined;
+    
+    if (employeeId) {
+      const employee = employees.find(e => e.id === employeeId);
+      title = `Zeiterfassung - ${employee?.name || 'Mitarbeiter'}`;
+      subtitle = `${entriesForPdf.length} Einträge`;
+    } else if (showEmployee) {
+      title = "Zeiterfassung - Alle Mitarbeiter";
+      subtitle = `${entriesForPdf.length} Einträge`;
+    }
+
     return {
-      title: showEmployee ? "Zeiterfassung - Alle Mitarbeiter" : "Meine Zeiterfassung",
-      subtitle: showEmployee ? `${entriesForPdf.length} Einträge` : undefined,
+      title,
+      subtitle,
       dateRange: {
         start: format(monthStart, 'yyyy-MM-dd'),
         end: format(monthEnd, 'yyyy-MM-dd'),
@@ -400,25 +426,59 @@ export default function TimeTracking() {
         address: "Musterstrasse 123, 8001 Zürich",
       },
       generatedBy: "Admin",
-      showEmployee,
+      showEmployee: showEmployee && !employeeId,
     };
   };
 
-  const handleDownloadPDF = () => {
-    const entriesForPdf = activeTab === "all-entries" ? getFilteredEntries(allEntries) : getFilteredEntries(myEntries);
-    const pdfData = preparePDFData(entriesForPdf, activeTab === "all-entries");
-    downloadTimeEntriesPDF(pdfData);
-    toast.success("PDF heruntergeladen");
+  const handleDownloadPDF = (employeeId?: string | null) => {
+    let entriesForPdf: TimeEntry[];
+    let showEmployee = false;
+    
+    if (employeeId) {
+      // Single employee export
+      entriesForPdf = getFilteredEntries(allEntries, employeeId);
+      showEmployee = false;
+    } else if (activeTab === "all-entries") {
+      entriesForPdf = getFilteredEntries(allEntries);
+      showEmployee = true;
+    } else {
+      entriesForPdf = getFilteredEntries(myEntries);
+      showEmployee = false;
+    }
+    
+    const pdfData = preparePDFData(entriesForPdf, showEmployee, employeeId);
+    const employee = employeeId ? employees.find(e => e.id === employeeId) : null;
+    const filename = employee 
+      ? `Zeiterfassung_${employee.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`
+      : undefined;
+    downloadTimeEntriesPDF(pdfData, filename);
+    toast.success("PDF heruntergeladen", {
+      description: employee ? `Bericht für ${employee.name}` : undefined,
+    });
   };
 
-  const handlePreviewPDF = () => {
+  const handlePreviewPDF = (employeeId?: string | null) => {
+    setPdfEmployeeId(employeeId || null);
     setPdfPreviewOpen(true);
   };
 
-  const currentPDFData = preparePDFData(
-    activeTab === "all-entries" ? getFilteredEntries(allEntries) : getFilteredEntries(myEntries),
-    activeTab === "all-entries"
-  );
+  const getCurrentPDFData = () => {
+    let entriesForPdf: TimeEntry[];
+    let showEmployee = false;
+    
+    if (pdfEmployeeId) {
+      entriesForPdf = getFilteredEntries(allEntries, pdfEmployeeId);
+      showEmployee = false;
+    } else if (activeTab === "all-entries") {
+      entriesForPdf = getFilteredEntries(allEntries);
+      showEmployee = true;
+    } else {
+      entriesForPdf = getFilteredEntries(myEntries);
+      showEmployee = false;
+    }
+    
+    return preparePDFData(entriesForPdf, showEmployee, pdfEmployeeId);
+  };
 
   return (
     <div className="space-y-6">
@@ -433,14 +493,88 @@ export default function TimeTracking() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handlePreviewPDF} className="gap-2">
-            <Eye className="h-4 w-4" />
-            Vorschau
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-2">
-            <Download className="h-4 w-4" />
-            PDF Export
-          </Button>
+          {/* PDF Vorschau Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Eye className="h-4 w-4" />
+                Vorschau
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => handlePreviewPDF(null)}>
+                <FileText className="h-4 w-4 mr-2" />
+                {activeTab === "all-entries" ? "Alle Mitarbeiter" : "Meine Einträge"}
+              </DropdownMenuItem>
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Einzelner Mitarbeiter
+                  </DropdownMenuLabel>
+                  {employees.map(emp => {
+                    const empEntryCount = allEntries.filter(e => e.employeeId === emp.id).length;
+                    return (
+                      <DropdownMenuItem 
+                        key={emp.id} 
+                        onClick={() => handlePreviewPDF(emp.id)}
+                        disabled={empEntryCount === 0}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        {emp.name}
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {empEntryCount}
+                        </Badge>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* PDF Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
+                PDF Export
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => handleDownloadPDF(null)}>
+                <FileText className="h-4 w-4 mr-2" />
+                {activeTab === "all-entries" ? "Alle Mitarbeiter" : "Meine Einträge"}
+              </DropdownMenuItem>
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Einzelner Mitarbeiter
+                  </DropdownMenuLabel>
+                  {employees.map(emp => {
+                    const empEntryCount = allEntries.filter(e => e.employeeId === emp.id).length;
+                    return (
+                      <DropdownMenuItem 
+                        key={emp.id} 
+                        onClick={() => handleDownloadPDF(emp.id)}
+                        disabled={empEntryCount === 0}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        {emp.name}
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {empEntryCount}
+                        </Badge>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -875,7 +1009,7 @@ export default function TimeTracking() {
       <TimeEntriesPDFPreview
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}
-        pdfData={currentPDFData}
+        pdfData={getCurrentPDFData()}
       />
     </div>
   );
