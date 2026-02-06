@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TimeEntriesService } from './time-entries.service';
-import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto } from './dto/time-entry.dto';
+import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto, ApproveTimeEntriesDto } from './dto/time-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
@@ -28,16 +28,34 @@ export class TimeEntriesController {
     return this.timeEntriesService.findAll(user.companyId, user.userId, query);
   }
 
+  @Get('all')
+  @ApiOperation({ summary: 'Get all employees time entries (admin only)' })
+  findAllEmployees(@CurrentUser() user: CurrentUserPayload, @Query() query: TimeEntryQueryDto) {
+    return this.timeEntriesService.findAllEmployees(user.companyId, query);
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Get time tracking statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.timeEntriesService.getStats(user.companyId, user.userId);
   }
 
+  @Get('approval-stats')
+  @ApiOperation({ summary: 'Get approval statistics (admin only)' })
+  getApprovalStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.timeEntriesService.getApprovalStats(user.companyId);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create new time entry' })
   create(@CurrentUser() user: CurrentUserPayload, @Body() dto: CreateTimeEntryDto) {
     return this.timeEntriesService.create(user.companyId, user.userId, dto);
+  }
+
+  @Post('approve')
+  @ApiOperation({ summary: 'Approve or reject time entries (admin only)' })
+  approveEntries(@CurrentUser() user: CurrentUserPayload, @Body() dto: ApproveTimeEntriesDto) {
+    return this.timeEntriesService.approveEntries(user.companyId, user.userId, dto);
   }
 
   @Put(':id')
