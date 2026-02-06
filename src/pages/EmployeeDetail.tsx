@@ -153,6 +153,38 @@ const employeeData = {
 const EmployeeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>(initialOnboardingItems);
+  const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);
+
+  // Calculate onboarding progress
+  const completedCount = onboardingItems.filter(item => item.completed).length;
+  const totalCount = onboardingItems.length;
+  const onboardingProgress = Math.round((completedCount / totalCount) * 100);
+
+  // Group onboarding items by category
+  const groupedItems = onboardingItems.reduce((acc, item) => {
+    if (!acc[item.category]) {
+      acc[item.category] = [];
+    }
+    acc[item.category].push(item);
+    return acc;
+  }, {} as Record<string, OnboardingItem[]>);
+
+  const handleToggleOnboardingItem = (itemId: string) => {
+    setOnboardingItems(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const completed = !item.completed;
+        return {
+          ...item,
+          completed,
+          completedDate: completed ? new Date().toLocaleDateString('de-CH') : undefined,
+          completedBy: completed ? "Aktueller Benutzer" : undefined,
+        };
+      }
+      return item;
+    }));
+    toast.success("Onboarding-Status aktualisiert");
+  };
 
   const handleSendEmail = () => {
     window.location.href = `mailto:${employeeData.email}`;
@@ -179,7 +211,27 @@ const EmployeeDetail = () => {
   };
 
   const handleDeactivate = () => {
-    toast.warning("Mitarbeiter wird deaktiviert...");
+    setShowOffboardingDialog(true);
+  };
+
+  const handleStartOffboarding = () => {
+    // Reset onboarding items to offboarding checklist
+    setOnboardingItems([
+      { id: "off-1", category: "IT & Rückgabe", title: "Laptop/PC zurückgeben", description: "Hardware einsammeln und inventarisieren", icon: Laptop, completed: false },
+      { id: "off-2", category: "IT & Rückgabe", title: "E-Mail-Zugang deaktivieren", description: "Konto sperren, Weiterleitung einrichten", icon: Mail, completed: false },
+      { id: "off-3", category: "IT & Rückgabe", title: "Software-Lizenzen entfernen", description: "Zugänge zu Tools widerrufen", icon: Key, completed: false },
+      { id: "off-4", category: "IT & Rückgabe", title: "Schlüssel/Badge einziehen", description: "Gebäudezugang sperren", icon: Key, completed: false },
+      { id: "off-5", category: "Dokumente", title: "Arbeitszeugnis erstellen", description: "Zeugnis vorbereiten und unterzeichnen", icon: FileText, completed: false },
+      { id: "off-6", category: "Dokumente", title: "Lohnabrechnung finalisieren", description: "Letzte Abrechnung mit Ferien-/Überzeitausgleich", icon: ClipboardList, completed: false },
+      { id: "off-7", category: "Dokumente", title: "Austrittsgespräch führen", description: "Feedback und Übergabe besprechen", icon: Users, completed: false },
+      { id: "off-8", category: "Wissenstransfer", title: "Dokumentation übergeben", description: "Wichtige Infos an Nachfolger/Team", icon: BookOpen, completed: false },
+      { id: "off-9", category: "Wissenstransfer", title: "Projekte übergeben", description: "Offene Tasks und Verantwortlichkeiten", icon: Briefcase, completed: false },
+      { id: "off-10", category: "Administrativ", title: "Sozialversicherung abmelden", description: "AHV/Pensionskasse informieren", icon: Shield, completed: false },
+    ]);
+    setShowOffboardingDialog(false);
+    toast.success("Offboarding-Prozess gestartet", {
+      description: "Die Checkliste wurde auf Offboarding-Aufgaben umgestellt."
+    });
   };
 
   return (
@@ -302,6 +354,7 @@ const EmployeeDetail = () => {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
+          <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
           <TabsTrigger value="projects">Projekte</TabsTrigger>
           <TabsTrigger value="timeoff">Abwesenheiten</TabsTrigger>
           <TabsTrigger value="documents">Dokumente</TabsTrigger>
@@ -455,6 +508,87 @@ const EmployeeDetail = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="onboarding" className="space-y-6">
+          {/* Onboarding Progress Overview */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5" />
+                    Onboarding-Fortschritt
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {completedCount} von {totalCount} Aufgaben erledigt
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-bold">{onboardingProgress}%</span>
+                  <p className="text-sm text-muted-foreground">abgeschlossen</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Progress value={onboardingProgress} className="h-3" />
+            </CardContent>
+          </Card>
+
+          {/* Grouped Onboarding Items */}
+          {Object.entries(groupedItems).map(([category, items]) => {
+            const categoryCompleted = items.filter(i => i.completed).length;
+            const CategoryIcon = items[0]?.icon || ClipboardList;
+            
+            return (
+              <Card key={category}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <CategoryIcon className="h-5 w-5 text-primary" />
+                      {category}
+                    </CardTitle>
+                    <Badge variant={categoryCompleted === items.length ? "default" : "secondary"}>
+                      {categoryCompleted}/{items.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {items.map((item) => (
+                      <div 
+                        key={item.id} 
+                        className={`flex items-start gap-4 p-4 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50 ${
+                          item.completed ? 'bg-success/5 border-success/20' : 'bg-background'
+                        }`}
+                        onClick={() => handleToggleOnboardingItem(item.id)}
+                      >
+                        <div className="pt-0.5">
+                          {item.completed ? (
+                            <CheckCircle2 className="h-5 w-5 text-success" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {item.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                          {item.completed && item.completedDate && (
+                            <p className="text-xs text-success mt-1">
+                              ✓ Erledigt am {item.completedDate} von {item.completedBy}
+                            </p>
+                          )}
+                        </div>
+                        <item.icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </TabsContent>
+
         <TabsContent value="projects">
           <Card>
             <CardHeader>
@@ -550,6 +684,44 @@ const EmployeeDetail = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Offboarding Dialog */}
+      <Dialog open={showOffboardingDialog} onOpenChange={setShowOffboardingDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserX className="h-5 w-5 text-destructive" />
+              Offboarding starten
+            </DialogTitle>
+            <DialogDescription>
+              Dies startet den Offboarding-Prozess für {employeeData.firstName} {employeeData.lastName}. 
+              Die Onboarding-Checkliste wird durch eine Offboarding-Checkliste ersetzt.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
+              <p className="text-sm font-medium text-warning">Wichtige Hinweise:</p>
+              <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                <li>Alle IT-Zugänge müssen deaktiviert werden</li>
+                <li>Firmeneigentum muss zurückgegeben werden</li>
+                <li>Ein Arbeitszeugnis muss erstellt werden</li>
+                <li>Wissenstransfer sollte dokumentiert werden</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOffboardingDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={handleStartOffboarding}>
+              <UserX className="h-4 w-4 mr-2" />
+              Offboarding starten
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,11 +1,31 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Layers, Calculator, FileText, Plus, Trash2, Edit } from "lucide-react";
+import { ArrowLeft, Package, Layers, Calculator, FileText, Plus, Trash2, Edit, Factory, Wrench, Calendar, Clock, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface BOMPosition {
   id: string;
@@ -16,6 +36,14 @@ interface BOMPosition {
   einzelpreis: number;
   total: number;
   lagerbestand: number;
+}
+
+interface ProductionOperation {
+  id: string;
+  name: string;
+  workstation: string;
+  hours: number;
+  selected: boolean;
 }
 
 const bomData = {
@@ -44,6 +72,14 @@ const positionen: BOMPosition[] = [
   { id: "8", artikelNr: "ZB-ANKER", bezeichnung: "Fundamentanker M24 verzinkt", einheit: "Stk", menge: 32, einzelpreis: 48.50, total: 1552.00, lagerbestand: 64 },
 ];
 
+const defaultOperations: ProductionOperation[] = [
+  { id: "op-1", name: "Zuschnitt", workstation: "Säge", hours: 8, selected: true },
+  { id: "op-2", name: "CNC-Bearbeitung", workstation: "CNC-Fräse", hours: 12, selected: true },
+  { id: "op-3", name: "Schweissen", workstation: "Schweissplatz", hours: 16, selected: true },
+  { id: "op-4", name: "Oberflächenbehandlung", workstation: "Sandstrahlen", hours: 4, selected: true },
+  { id: "op-5", name: "Endkontrolle", workstation: "QS-Station", hours: 2, selected: true },
+];
+
 const statusColors: Record<string, string> = {
   aktiv: "bg-success/10 text-success",
   entwurf: "bg-warning/10 text-warning",
@@ -53,6 +89,17 @@ const statusColors: Record<string, string> = {
 export default function BOMDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [showProductionDialog, setShowProductionDialog] = useState(false);
+  const [productionStep, setProductionStep] = useState(1);
+  const [operations, setOperations] = useState<ProductionOperation[]>(defaultOperations);
+  const [productionData, setProductionData] = useState({
+    quantity: 1,
+    priority: "MEDIUM",
+    plannedStartDate: new Date().toISOString().split('T')[0],
+    plannedEndDate: "",
+    notes: "",
+    reserveMaterial: true,
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -64,6 +111,55 @@ export default function BOMDetail() {
   const totalMaterial = positionen.reduce((sum, p) => sum + p.total, 0);
   const mwst = totalMaterial * 0.081;
   const gesamtTotal = totalMaterial + mwst;
+
+  const selectedOperations = operations.filter(op => op.selected);
+  const totalProductionHours = selectedOperations.reduce((sum, op) => sum + op.hours, 0);
+
+  // Check material availability
+  const materialShortages = positionen.filter(p => p.lagerbestand < p.menge * productionData.quantity);
+
+  const handleToggleOperation = (opId: string) => {
+    setOperations(prev => prev.map(op => 
+      op.id === opId ? { ...op, selected: !op.selected } : op
+    ));
+  };
+
+  const handleCreateProductionOrder = () => {
+    // Store production order data
+    const productionOrderData = {
+      bomId: bomData.id,
+      bomName: bomData.bezeichnung,
+      projekt: bomData.projekt,
+      projektNr: bomData.projektNr,
+      quantity: productionData.quantity,
+      priority: productionData.priority,
+      plannedStartDate: productionData.plannedStartDate,
+      plannedEndDate: productionData.plannedEndDate,
+      notes: productionData.notes,
+      operations: selectedOperations.map(op => ({
+        name: op.name,
+        workstation: op.workstation,
+        plannedHours: op.hours * productionData.quantity,
+      })),
+      materials: positionen.map(p => ({
+        artikelNr: p.artikelNr,
+        bezeichnung: p.bezeichnung,
+        menge: p.menge * productionData.quantity,
+        einheit: p.einheit,
+        reserved: productionData.reserveMaterial,
+      })),
+    };
+    
+    sessionStorage.setItem('productionFromBOM', JSON.stringify(productionOrderData));
+    
+    toast.success("Werkstattauftrag erstellt", {
+      description: `Auftrag für ${productionData.quantity}x ${bomData.bezeichnung}`,
+    });
+    
+    setShowProductionDialog(false);
+    setProductionStep(1);
+    navigate('/production/new');
+  };
 
   return (
     <div className="space-y-6">
@@ -92,7 +188,6 @@ export default function BOMDetail() {
           <Button 
             variant="outline"
             onClick={() => {
-              // Store BOM data in sessionStorage for calculation page
               const calcData = {
                 bomId: bomData.id,
                 bomName: bomData.bezeichnung,
@@ -117,9 +212,9 @@ export default function BOMDetail() {
             <Calculator className="mr-2 h-4 w-4" />
             Kalkulation erstellen
           </Button>
-          <Button>
-            <Edit className="mr-2 h-4 w-4" />
-            Bearbeiten
+          <Button onClick={() => setShowProductionDialog(true)}>
+            <Factory className="mr-2 h-4 w-4" />
+            Werkstattauftrag
           </Button>
         </div>
       </div>
@@ -261,6 +356,249 @@ export default function BOMDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Production Order Dialog */}
+      <Dialog open={showProductionDialog} onOpenChange={setShowProductionDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Factory className="h-5 w-5" />
+              Werkstattauftrag aus Stückliste erstellen
+            </DialogTitle>
+            <DialogDescription>
+              Schritt {productionStep} von 3 - {productionStep === 1 ? 'Grunddaten' : productionStep === 2 ? 'Arbeitsgänge' : 'Übersicht'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step indicators */}
+          <div className="flex items-center gap-2 py-2">
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="flex items-center gap-2 flex-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  productionStep >= step 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  {productionStep > step ? <CheckCircle2 className="h-4 w-4" /> : step}
+                </div>
+                <span className={`text-sm ${productionStep >= step ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {step === 1 ? 'Grunddaten' : step === 2 ? 'Arbeitsgänge' : 'Prüfung'}
+                </span>
+                {step < 3 && <div className="flex-1 h-px bg-border" />}
+              </div>
+            ))}
+          </div>
+
+          {/* Step 1: Basic Data */}
+          {productionStep === 1 && (
+            <div className="space-y-4 py-4">
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <p className="font-medium">{bomData.bezeichnung}</p>
+                <p className="text-sm text-muted-foreground">{bomData.id} • {bomData.projekt}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Menge</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={productionData.quantity}
+                    onChange={(e) => setProductionData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Priorität</Label>
+                  <Select
+                    value={productionData.priority}
+                    onValueChange={(value) => setProductionData(prev => ({ ...prev, priority: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Niedrig</SelectItem>
+                      <SelectItem value="MEDIUM">Normal</SelectItem>
+                      <SelectItem value="HIGH">Hoch</SelectItem>
+                      <SelectItem value="URGENT">Dringend</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Geplanter Start</Label>
+                  <Input
+                    type="date"
+                    value={productionData.plannedStartDate}
+                    onChange={(e) => setProductionData(prev => ({ ...prev, plannedStartDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Geplantes Ende</Label>
+                  <Input
+                    type="date"
+                    value={productionData.plannedEndDate}
+                    onChange={(e) => setProductionData(prev => ({ ...prev, plannedEndDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Bemerkungen</Label>
+                <Textarea
+                  placeholder="Zusätzliche Hinweise für die Produktion..."
+                  value={productionData.notes}
+                  onChange={(e) => setProductionData(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Operations */}
+          {productionStep === 2 && (
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Wählen Sie die Arbeitsgänge für diesen Auftrag:
+              </p>
+
+              <div className="space-y-2">
+                {operations.map((op) => (
+                  <div
+                    key={op.id}
+                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
+                      op.selected ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
+                    }`}
+                    onClick={() => handleToggleOperation(op.id)}
+                  >
+                    <Checkbox checked={op.selected} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Wrench className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{op.name}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{op.workstation}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{op.hours * productionData.quantity} Std.</p>
+                      <p className="text-xs text-muted-foreground">{op.hours} Std./Stück</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between p-4 rounded-lg bg-muted/50">
+                <span className="text-sm text-muted-foreground">Gesamte Fertigungszeit:</span>
+                <span className="font-bold">{totalProductionHours * productionData.quantity} Stunden</span>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Review */}
+          {productionStep === 3 && (
+            <div className="space-y-4 py-4">
+              {/* Material availability check */}
+              {materialShortages.length > 0 && (
+                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <div className="flex items-center gap-2 text-destructive mb-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-medium">Materialengpässe</span>
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {materialShortages.map(m => (
+                      <li key={m.id}>
+                        {m.bezeichnung}: benötigt {m.menge * productionData.quantity}, verfügbar {m.lagerbestand}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {materialShortages.length === 0 && (
+                <div className="p-4 rounded-lg bg-success/10 border border-success/20">
+                  <div className="flex items-center gap-2 text-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="font-medium">Alle Materialien verfügbar</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Summary */}
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">STÜCKLISTE</p>
+                      <p className="font-medium">{bomData.bezeichnung}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">MENGE</p>
+                      <p className="font-medium">{productionData.quantity} Stück</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">PRIORITÄT</p>
+                      <Badge variant={productionData.priority === 'URGENT' ? 'destructive' : 'secondary'}>
+                        {productionData.priority === 'LOW' ? 'Niedrig' : productionData.priority === 'MEDIUM' ? 'Normal' : productionData.priority === 'HIGH' ? 'Hoch' : 'Dringend'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">ZEITRAUM</p>
+                      <p className="font-medium">{productionData.plannedStartDate} - {productionData.plannedEndDate || 'offen'}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">ARBEITSGÄNGE ({selectedOperations.length})</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedOperations.map(op => (
+                        <Badge key={op.id} variant="outline">{op.name}</Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between pt-2">
+                    <span className="text-muted-foreground">Geschätzte Fertigungszeit:</span>
+                    <span className="font-bold">{totalProductionHours * productionData.quantity} Stunden</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={productionData.reserveMaterial}
+                  onCheckedChange={(checked) => setProductionData(prev => ({ ...prev, reserveMaterial: !!checked }))}
+                />
+                <Label className="font-normal">Material für diesen Auftrag reservieren</Label>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            {productionStep > 1 && (
+              <Button variant="outline" onClick={() => setProductionStep(prev => prev - 1)}>
+                Zurück
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button variant="outline" onClick={() => { setShowProductionDialog(false); setProductionStep(1); }}>
+              Abbrechen
+            </Button>
+            {productionStep < 3 ? (
+              <Button onClick={() => setProductionStep(prev => prev + 1)}>
+                Weiter
+              </Button>
+            ) : (
+              <Button onClick={handleCreateProductionOrder}>
+                <Factory className="h-4 w-4 mr-2" />
+                Auftrag erstellen
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
