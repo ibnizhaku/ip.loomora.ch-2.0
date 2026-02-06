@@ -280,15 +280,32 @@ export default function Projects() {
 
       {/* Empty State */}
       {!isLoading && filteredProjects.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">
-            {searchQuery || hasActiveFilters ? 'Keine Projekte gefunden' : 'Noch keine Projekte vorhanden'}
-          </p>
-          {!searchQuery && !hasActiveFilters && (
-            <Button onClick={() => navigate('/projects/new')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Erstes Projekt erstellen
-            </Button>
+        <div className="text-center py-12 rounded-xl border border-dashed border-border bg-muted/30">
+          <User className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+          {showOnlyMine ? (
+            <>
+              <p className="text-muted-foreground mb-2">
+                Ihnen sind noch keine Aufträge zugewiesen
+              </p>
+              <p className="text-sm text-muted-foreground/70 mb-4">
+                Aufträge werden hier angezeigt, sobald Sie als Projektleiter eingetragen sind
+              </p>
+              <Button variant="outline" onClick={() => navigate("/projects")}>
+                Alle Aufträge anzeigen
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery || hasActiveFilters ? 'Keine Projekte gefunden' : 'Noch keine Projekte vorhanden'}
+              </p>
+              {!searchQuery && !hasActiveFilters && (
+                <Button onClick={() => navigate('/projects/new')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Erstes Projekt erstellen
+                </Button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -308,6 +325,11 @@ export default function Projects() {
             const priorityInfo = priorityConfig[projectPriority] || priorityConfig.medium;
             const progress = project.progress || 0;
             const team = project.team || [];
+            const managerName = project.manager 
+              ? (project.manager.firstName && project.manager.lastName 
+                ? `${project.manager.firstName} ${project.manager.lastName}` 
+                : (project.manager as any).name || null)
+              : null;
 
             return (
               <div
@@ -329,6 +351,12 @@ export default function Projects() {
                         <p className="text-sm text-muted-foreground">
                           {project.client || project.customer?.companyName || project.customer?.name || 'Kein Kunde'}
                         </p>
+                        {managerName && (
+                          <p className="text-xs text-muted-foreground/70 flex items-center gap-1 mt-1">
+                            <User className="h-3 w-3" />
+                            {managerName}
+                          </p>
+                        )}
                       </div>
                       <Badge className={statusInfo.color}>
                         {statusInfo.label}
@@ -383,6 +411,12 @@ export default function Projects() {
 
                   {view === "list" && (
                     <>
+                      {managerName && (
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {managerName}
+                        </div>
+                      )}
                       <div className="w-48">
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-muted-foreground">Fortschritt</span>

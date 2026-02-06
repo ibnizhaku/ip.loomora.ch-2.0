@@ -82,4 +82,14 @@ export class ProjectQueryDto extends PaginationDto {
   @IsOptional()
   @IsEnum(ProjectPriority)
   priority?: ProjectPriority;
+
+  @ApiPropertyOptional({ description: 'Filter by manager/project leader ID' })
+  @IsOptional()
+  @IsString()
+  managerId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by customer ID' })
+  @IsOptional()
+  @IsString()
+  customerId?: string;
 }

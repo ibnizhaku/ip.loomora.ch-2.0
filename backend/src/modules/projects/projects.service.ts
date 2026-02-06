@@ -7,7 +7,7 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: ProjectQueryDto) {
-    const { page = 1, pageSize = 10, search, sortBy = 'createdAt', sortOrder = 'desc', status, priority } = query;
+    const { page = 1, pageSize = 10, search, sortBy = 'createdAt', sortOrder = 'desc', status, priority, managerId, customerId } = query;
     const { skip, take } = this.prisma.getPagination(page, pageSize);
 
     const where: any = { companyId };
@@ -26,6 +26,16 @@ export class ProjectsService {
 
     if (priority) {
       where.priority = priority;
+    }
+
+    // Filter by manager (project leader) - for "Meine Aufträge"
+    if (managerId) {
+      where.managerId = managerId;
+    }
+
+    // Filter by customer
+    if (customerId) {
+      where.customerId = customerId;
     }
 
     const [data, total] = await Promise.all([
@@ -69,6 +79,11 @@ export class ProjectsService {
       spent: Number(p.spent) || 0,
       startDate: p.startDate?.toISOString().split('T')[0],
       endDate: p.endDate?.toISOString().split('T')[0],
+      managerId: p.managerId,
+      manager: p.manager ? {
+        id: p.manager.id,
+        name: `${p.manager.firstName} ${p.manager.lastName}`,
+      } : null,
       team: p.members.map((m) => 
         `${m.employee.firstName.charAt(0)}${m.employee.lastName.charAt(0)}`
       ),
