@@ -579,12 +579,22 @@ const Orgchart = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Organigramm</h1>
-          <p className="text-muted-foreground">Visualisierung der Unternehmensstruktur</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-display text-3xl font-bold tracking-tight">Organigramm</h1>
+            <p className="text-muted-foreground">Visualisierung der Unternehmensstruktur</p>
+          </div>
+          {!editMode && (
+            <Button onClick={() => setEditMode(true)} className="gap-2 shrink-0">
+              <Edit className="h-4 w-4" />
+              Bearbeiten
+            </Button>
+          )}
         </div>
-        <div className="flex gap-2">
+        
+        {/* Action buttons row */}
+        <div className="flex flex-wrap gap-2">
           {editMode ? (
             <>
               <Button variant="outline" onClick={handleCancelEdit} className="gap-2">
@@ -603,10 +613,6 @@ const Orgchart = () => {
               </Button>
               <Button variant="outline" size="sm" onClick={collapseAll}>
                 Alle schließen
-              </Button>
-              <Button onClick={() => setEditMode(true)} className="gap-2">
-                <Settings className="h-4 w-4" />
-                Bearbeiten
               </Button>
             </>
           )}
