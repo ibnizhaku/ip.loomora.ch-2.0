@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Upload, Building2, Receipt } from "lucide-react";
+import { ArrowLeft, Save, Upload, Building2, Receipt, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+
+// Mock projects - would come from API
+const mockProjects = [
+  { id: "1", name: "Website Redesign", number: "P-2024-001" },
+  { id: "2", name: "ERP Implementation", number: "P-2024-002" },
+  { id: "3", name: "Marketing Kampagne Q1", number: "P-2024-003" },
+  { id: "4", name: "Büroumbau", number: "P-2024-004" },
+  { id: "5", name: "IT-Infrastruktur Update", number: "P-2024-005" },
+];
 
 export default function PurchaseInvoiceCreate() {
   const navigate = useNavigate();
@@ -18,6 +27,7 @@ export default function PurchaseInvoiceCreate() {
     invoiceDate: "",
     dueDate: "",
     description: "",
+    projectId: "",
     account: "",
     costCenter: "",
     vatCode: "",
@@ -97,6 +107,27 @@ export default function PurchaseInvoiceCreate() {
                   <Label>Fälligkeitsdatum</Label>
                   <Input type="date" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4" />
+                  Projekt (optional)
+                </Label>
+                <Select 
+                  value={formData.projectId} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Projekt zuweisen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.number} - {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Beschreibung</Label>
