@@ -148,6 +148,7 @@ import CostCenters from "./pages/CostCenters";
 import CostCenterDetail from "./pages/CostCenterDetail";
 import CostCenterCreate from "./pages/CostCenterCreate";
 import Products from "./pages/Products";
+import ProductCreate from "./pages/ProductCreate";
 import ProductDetail from "./pages/ProductDetail";
 import Leads from "./pages/Leads";
 import EmailMarketing from "./pages/EmailMarketing";
@@ -284,6 +285,7 @@ const App = () => (
                   
                   {/* Stammdaten & Verwaltung */}
                   <Route path="/products" element={<Products />} />
+                  <Route path="/products/new" element={<ProductCreate />} />
                   <Route path="/products/:id" element={<ProductDetail />} />
                   <Route path="/travel-expenses" element={<TravelExpenses />} />
                   <Route path="/travel-expenses/new" element={<TravelExpenseCreate />} />
