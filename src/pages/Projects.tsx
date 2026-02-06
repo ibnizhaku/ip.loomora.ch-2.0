@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Grid3X3, List, Calendar, X } from "lucide-react";
+import { Plus, Search, Filter, Grid3X3, List, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,110 +14,18 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useProjects, useProjectStats } from "@/hooks/use-projects";
 
-interface Project {
-  id: string;
-  name: string;
-  client: string;
-  status: "active" | "completed" | "paused" | "planning";
-  progress: number;
-  budget: number;
-  spent: number;
-  team: string[];
-  startDate: string;
-  endDate: string;
-  priority: "high" | "medium" | "low";
-}
-
-const projects: Project[] = [
-  {
-    id: "1",
-    name: "E-Commerce Platform",
-    client: "Fashion Store GmbH",
-    status: "active",
-    progress: 75,
-    budget: 45000,
-    spent: 33750,
-    team: ["AS", "TM", "LW"],
-    startDate: "2024-01-15",
-    endDate: "2024-03-15",
-    priority: "high",
-  },
-  {
-    id: "2",
-    name: "Mobile Banking App",
-    client: "FinTech Solutions",
-    status: "active",
-    progress: 45,
-    budget: 80000,
-    spent: 36000,
-    team: ["MK", "SK"],
-    startDate: "2024-02-01",
-    endDate: "2024-05-30",
-    priority: "high",
-  },
-  {
-    id: "3",
-    name: "CRM Integration",
-    client: "Sales Pro AG",
-    status: "completed",
-    progress: 100,
-    budget: 25000,
-    spent: 24200,
-    team: ["AS", "MK", "TM", "LW"],
-    startDate: "2023-11-01",
-    endDate: "2024-01-31",
-    priority: "medium",
-  },
-  {
-    id: "4",
-    name: "Dashboard Redesign",
-    client: "Data Analytics Inc.",
-    status: "active",
-    progress: 30,
-    budget: 15000,
-    spent: 4500,
-    team: ["SK", "LW"],
-    startDate: "2024-02-15",
-    endDate: "2024-04-15",
-    priority: "low",
-  },
-  {
-    id: "5",
-    name: "API Development",
-    client: "Tech Innovations",
-    status: "planning",
-    progress: 0,
-    budget: 35000,
-    spent: 0,
-    team: ["TM", "MK"],
-    startDate: "2024-03-01",
-    endDate: "2024-06-30",
-    priority: "medium",
-  },
-  {
-    id: "6",
-    name: "Inventory System",
-    client: "Logistics Plus",
-    status: "paused",
-    progress: 60,
-    budget: 28000,
-    spent: 16800,
-    team: ["AS", "SK"],
-    startDate: "2023-12-01",
-    endDate: "2024-02-28",
-    priority: "low",
-  },
-];
-
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: "Aktiv", color: "bg-success text-success-foreground" },
-  completed: { label: "Abgeschlossen", color: "bg-info text-info-foreground" },
-  paused: { label: "Pausiert", color: "bg-warning text-warning-foreground" },
   planning: { label: "Planung", color: "bg-muted text-muted-foreground" },
+  "on-hold": { label: "Pausiert", color: "bg-warning text-warning-foreground" },
+  completed: { label: "Abgeschlossen", color: "bg-info text-info-foreground" },
+  cancelled: { label: "Abgebrochen", color: "bg-destructive text-destructive-foreground" },
+  paused: { label: "Pausiert", color: "bg-warning text-warning-foreground" },
 };
 
-const priorityConfig = {
+const priorityConfig: Record<string, { label: string; color: string }> = {
   high: { label: "Hoch", color: "bg-destructive/10 text-destructive" },
   medium: { label: "Mittel", color: "bg-warning/10 text-warning" },
   low: { label: "Niedrig", color: "bg-muted text-muted-foreground" },
@@ -131,16 +39,25 @@ export default function Projects() {
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
+  // Backend API call
+  const { data, isLoading } = useProjects({
+    search: searchQuery || undefined,
+    status: statusFilter?.toUpperCase() || undefined,
+    pageSize: 50,
+  });
+  const { data: stats } = useProjectStats();
+
+  const projects = data?.data || [];
   const hasActiveFilters = priorityFilters.length > 0 || statusFilters.length > 0;
 
+  // Client-side filtering for priority and multiple status filters
   const filteredProjects = projects.filter((p) => {
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.client.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatusCard = !statusFilter || p.status === statusFilter;
-    const matchesStatusFilter = statusFilters.length === 0 || statusFilters.includes(p.status);
-    const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(p.priority);
-    return matchesSearch && matchesStatusCard && matchesStatusFilter && matchesPriority;
+    const projectStatus = p.status?.toLowerCase().replace('_', '-') || '';
+    const projectPriority = p.priority?.toLowerCase() || '';
+    
+    const matchesStatusFilter = statusFilters.length === 0 || statusFilters.includes(projectStatus);
+    const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(projectPriority);
+    return matchesStatusFilter && matchesPriority;
   });
 
   const togglePriorityFilter = (priority: string) => {
@@ -163,6 +80,16 @@ export default function Projects() {
     setPriorityFilters([]);
     setStatusFilters([]);
     setStatusFilter(null);
+    setSearchQuery("");
+  };
+
+  const formatCurrency = (value?: number) => {
+    if (!value) return 'CHF 0';
+    return new Intl.NumberFormat('de-CH', {
+      style: 'currency',
+      currency: 'CHF',
+      minimumFractionDigits: 0,
+    }).format(value);
   };
 
   return (
@@ -219,7 +146,7 @@ export default function Projects() {
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Status</Label>
                   <div className="space-y-2">
-                    {Object.entries(statusConfig).map(([key, config]) => (
+                    {Object.entries(statusConfig).filter(([key]) => !['paused', 'cancelled'].includes(key)).map(([key, config]) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox 
                           id={`status-${key}`}
@@ -277,27 +204,27 @@ export default function Projects() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - Using Backend Data */}
       <div className="grid gap-4 sm:grid-cols-4">
         {[
-          { label: "Gesamt", value: projects.length, color: "text-foreground", filter: null },
+          { label: "Gesamt", value: stats?.total || data?.total || 0, color: "text-foreground", filter: null },
           {
             label: "Aktiv",
-            value: projects.filter((p) => p.status === "active").length,
+            value: stats?.active || 0,
             color: "text-success",
             filter: "active",
           },
           {
             label: "Abgeschlossen",
-            value: projects.filter((p) => p.status === "completed").length,
+            value: stats?.completed || 0,
             color: "text-info",
             filter: "completed",
           },
           {
             label: "Pausiert",
-            value: projects.filter((p) => p.status === "paused").length,
+            value: stats?.paused || 0,
             color: "text-warning",
-            filter: "paused",
+            filter: "on-hold",
           },
         ].map((stat) => (
           <button
@@ -314,54 +241,129 @@ export default function Projects() {
         ))}
       </div>
 
-      {/* Projects Grid/List */}
-      <div
-        className={cn(
-          "grid gap-4",
-          view === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-        )}
-      >
-        {filteredProjects.map((project, index) => (
-          <div
-            key={project.id}
-            onClick={() => navigate(`/projects/${project.id}`)}
-            className={cn(
-              "group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-soft animate-fade-in cursor-pointer",
-              view === "list" && "flex items-center gap-6"
-            )}
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className={cn("flex-1", view === "list" && "flex items-center gap-6")}>
-              <div className="flex-1">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="font-semibold group-hover:text-primary transition-colors">
-                      {project.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {project.client}
-                    </p>
-                  </div>
-                  <Badge className={statusConfig[project.status].color}>
-                    {statusConfig[project.status].label}
-                  </Badge>
-                </div>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-                {view === "grid" && (
-                  <>
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Fortschritt</span>
-                        <span className="font-medium">{project.progress}%</span>
+      {/* Empty State */}
+      {!isLoading && filteredProjects.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-4">
+            {searchQuery || hasActiveFilters ? 'Keine Projekte gefunden' : 'Noch keine Projekte vorhanden'}
+          </p>
+          {!searchQuery && !hasActiveFilters && (
+            <Button onClick={() => navigate('/projects/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Erstes Projekt erstellen
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Projects Grid/List */}
+      {!isLoading && filteredProjects.length > 0 && (
+        <div
+          className={cn(
+            "grid gap-4",
+            view === "grid" ? "sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+          )}
+        >
+          {filteredProjects.map((project, index) => {
+            const projectStatus = project.status?.toLowerCase().replace('_', '-') || 'planning';
+            const projectPriority = project.priority?.toLowerCase() || 'medium';
+            const statusInfo = statusConfig[projectStatus] || statusConfig.planning;
+            const priorityInfo = priorityConfig[projectPriority] || priorityConfig.medium;
+            const progress = project.progress || 0;
+            const team = project.team || [];
+
+            return (
+              <div
+                key={project.id}
+                onClick={() => navigate(`/projects/${project.id}`)}
+                className={cn(
+                  "group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-soft animate-fade-in cursor-pointer",
+                  view === "list" && "flex items-center gap-6"
+                )}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className={cn("flex-1", view === "list" && "flex items-center gap-6")}>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold group-hover:text-primary transition-colors">
+                          {project.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {project.client || project.customer?.companyName || project.customer?.name || 'Kein Kunde'}
+                        </p>
                       </div>
-                      <Progress value={project.progress} className="h-2" />
+                      <Badge className={statusInfo.color}>
+                        {statusInfo.label}
+                      </Badge>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between">
+                    {view === "grid" && (
+                      <>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Fortschritt</span>
+                            <span className="font-medium">{progress}%</span>
+                          </div>
+                          <Progress value={progress} className="h-2" />
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between">
+                          <div className="flex -space-x-2">
+                            {team.slice(0, 3).map((member, idx) => (
+                              <div
+                                key={idx}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-medium ring-2 ring-card"
+                              >
+                                {member}
+                              </div>
+                            ))}
+                            {team.length > 3 && (
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium ring-2 ring-card">
+                                +{team.length - 3}
+                              </div>
+                            )}
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={priorityInfo.color}
+                          >
+                            {priorityInfo.label}
+                          </Badge>
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Budget</span>
+                            <span className="font-medium">
+                              {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {view === "list" && (
+                    <>
+                      <div className="w-48">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">Fortschritt</span>
+                          <span className="font-medium">{progress}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
                       <div className="flex -space-x-2">
-                        {project.team.slice(0, 3).map((member) => (
+                        {team.slice(0, 3).map((member, idx) => (
                           <div
-                            key={member}
+                            key={idx}
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-medium ring-2 ring-card"
                           >
                             {member}
@@ -370,62 +372,24 @@ export default function Projects() {
                       </div>
                       <Badge
                         variant="outline"
-                        className={priorityConfig[project.priority].color}
+                        className={priorityInfo.color}
                       >
-                        {priorityConfig[project.priority].label}
+                        {priorityInfo.label}
                       </Badge>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Budget</span>
-                        <span className="font-medium">
-                          €{project.spent.toLocaleString()} / €
-                          {project.budget.toLocaleString()}
-                        </span>
+                      <div className="text-right">
+                        <p className="font-medium">
+                          {formatCurrency(project.budget)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Budget</p>
                       </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
-
-              {view === "list" && (
-                <>
-                  <div className="w-48">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">Fortschritt</span>
-                      <span className="font-medium">{project.progress}%</span>
-                    </div>
-                    <Progress value={project.progress} className="h-2" />
-                  </div>
-                  <div className="flex -space-x-2">
-                    {project.team.slice(0, 3).map((member) => (
-                      <div
-                        key={member}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-medium ring-2 ring-card"
-                      >
-                        {member}
-                      </div>
-                    ))}
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={priorityConfig[project.priority].color}
-                  >
-                    {priorityConfig[project.priority].label}
-                  </Badge>
-                  <div className="text-right">
-                    <p className="font-medium">
-                      €{project.budget.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Budget</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
