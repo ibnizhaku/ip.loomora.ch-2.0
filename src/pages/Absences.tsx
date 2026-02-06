@@ -44,14 +44,94 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import AbsenceRejectDialog from "@/components/absences/AbsenceRejectDialog";
+import AbsenceApprovalStatus, { AbsenceApprovalProgress } from "@/components/absences/AbsenceApprovalStatus";
+import { loadAbsenceWorkflowConfig, getRequiredAbsenceStages, AUTO_CONFIRMED_TYPES } from "@/components/settings/AbsenceWorkflowSettings";
+
+interface AbsenceRequest {
+  id: number;
+  employee: string;
+  type: string;
+  from: string;
+  to: string;
+  days: number;
+  status: "Ausstehend" | "Genehmigt" | "Bestätigt" | "Abgelehnt";
+  requestDate: string;
+  note?: string;
+  rejectionReason?: string;
+  currentStageIndex: number;
+  approvalHistory: AbsenceApprovalProgress[];
+}
 
 // GAV Metallbau Ferienansprüche (altersabhängig)
-const absenceRequests = [
-  { id: 1, employee: "Thomas Müller", type: "Ferien", from: "12.02.2024", to: "16.02.2024", days: 5, status: "Genehmigt", requestDate: "28.01.2024" },
-  { id: 2, employee: "Michael Schneider", type: "Ferien", from: "04.03.2024", to: "15.03.2024", days: 8, status: "Ausstehend", requestDate: "25.01.2024" },
-  { id: 3, employee: "Pedro Santos", type: "Ferien", from: "26.02.2024", to: "08.03.2024", days: 10, status: "Ausstehend", requestDate: "30.01.2024" },
-  { id: 4, employee: "Lisa Weber", type: "Krankheit", from: "15.01.2024", to: "17.01.2024", days: 3, status: "Bestätigt", requestDate: "15.01.2024", note: "Arztzeugnis vorhanden" },
-  { id: 5, employee: "Michael Schneider", type: "Unfall", from: "08.01.2024", to: "12.01.2024", days: 5, status: "Bestätigt", requestDate: "08.01.2024", note: "BU - Arbeitsunfall SUVA" },
+const absenceRequests: AbsenceRequest[] = [
+  { 
+    id: 1, 
+    employee: "Thomas Müller", 
+    type: "Ferien", 
+    from: "12.02.2024", 
+    to: "16.02.2024", 
+    days: 5, 
+    status: "Genehmigt", 
+    requestDate: "28.01.2024",
+    currentStageIndex: 1,
+    approvalHistory: [
+      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "29.01.2024" },
+      { stageId: "2", stageName: "HR / Personal", status: "approved", approvedBy: "Anna Meier", approvedAt: "30.01.2024" },
+    ],
+  },
+  { 
+    id: 2, 
+    employee: "Michael Schneider", 
+    type: "Ferien", 
+    from: "04.03.2024", 
+    to: "15.03.2024", 
+    days: 8, 
+    status: "Ausstehend", 
+    requestDate: "25.01.2024",
+    currentStageIndex: 0,
+    approvalHistory: [],
+  },
+  { 
+    id: 3, 
+    employee: "Pedro Santos", 
+    type: "Ferien", 
+    from: "26.02.2024", 
+    to: "08.03.2024", 
+    days: 10, 
+    status: "Ausstehend", 
+    requestDate: "30.01.2024",
+    currentStageIndex: 1,
+    approvalHistory: [
+      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "31.01.2024" },
+    ],
+  },
+  { 
+    id: 4, 
+    employee: "Lisa Weber", 
+    type: "Krankheit", 
+    from: "15.01.2024", 
+    to: "17.01.2024", 
+    days: 3, 
+    status: "Bestätigt", 
+    requestDate: "15.01.2024", 
+    note: "Arztzeugnis vorhanden",
+    currentStageIndex: 0,
+    approvalHistory: [],
+  },
+  { 
+    id: 5, 
+    employee: "Michael Schneider", 
+    type: "Unfall", 
+    from: "08.01.2024", 
+    to: "12.01.2024", 
+    days: 5, 
+    status: "Bestätigt", 
+    requestDate: "08.01.2024", 
+    note: "BU - Arbeitsunfall SUVA",
+    currentStageIndex: 0,
+    approvalHistory: [],
+  },
 ];
 
 // Ferienkonten nach GAV Metallbau (altersabhängig)
@@ -85,10 +165,15 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 const Absences = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [requests, setRequests] = useState(absenceRequests);
+  const [requests, setRequests] = useState<AbsenceRequest[]>(absenceRequests);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string[]>([]);
   const [filterRequestStatus, setFilterRequestStatus] = useState<string[]>([]);
+  
+  // Reject dialog state
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<AbsenceRequest | null>(null);
+  
   const pendingRequests = requests.filter(r => r.status === "Ausstehend");
 
   const totalFerien = employeeVacation.reduce((sum, e) => sum + e.total, 0);
@@ -113,13 +198,26 @@ const Absences = () => {
   });
 
   const handleApprove = (id: number, name: string) => {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "Genehmigt" } : r));
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "Genehmigt" as const } : r));
     toast.success(`Antrag von ${name} genehmigt`);
   };
 
-  const handleReject = (id: number, name: string) => {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "Abgelehnt" } : r));
-    toast.error(`Antrag von ${name} abgelehnt`);
+  const openRejectDialog = (request: AbsenceRequest) => {
+    setSelectedRequest(request);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectConfirm = (reason: string) => {
+    if (selectedRequest) {
+      setRequests(prev => prev.map(r => 
+        r.id === selectedRequest.id 
+          ? { ...r, status: "Abgelehnt" as const, rejectionReason: reason } 
+          : r
+      ));
+      toast.error(`Antrag von ${selectedRequest.employee} abgelehnt`, {
+        description: reason ? `Grund: ${reason}` : undefined,
+      });
+    }
   };
 
   return (
@@ -366,13 +464,25 @@ const Absences = () => {
                         <TableCell>{request.to}</TableCell>
                         <TableCell className="text-right font-medium">{request.days}</TableCell>
                         <TableCell>
-                          <Badge className={status.color}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {request.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge className={status.color}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {request.status}
+                            </Badge>
+                            {request.status === "Ausstehend" && !AUTO_CONFIRMED_TYPES.includes(request.type) && (
+                              <AbsenceApprovalStatus
+                                absenceType={request.type}
+                                days={request.days}
+                                currentStageIndex={request.currentStageIndex}
+                                approvalHistory={request.approvalHistory}
+                                status={request.status}
+                                compact
+                              />
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {(request as any).note || "-"}
+                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                          {request.rejectionReason || request.note || "-"}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -393,7 +503,7 @@ const Absences = () => {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     className="text-destructive"
-                                    onClick={(e) => { e.stopPropagation(); handleReject(request.id, request.employee); }}
+                                    onClick={(e) => { e.stopPropagation(); openRejectDialog(request); }}
                                   >
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Ablehnen
@@ -528,6 +638,18 @@ const Absences = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Reject Dialog */}
+      {selectedRequest && (
+        <AbsenceRejectDialog
+          open={rejectDialogOpen}
+          onOpenChange={setRejectDialogOpen}
+          employeeName={selectedRequest.employee}
+          absenceType={selectedRequest.type}
+          dateRange={`${selectedRequest.from} - ${selectedRequest.to}`}
+          onConfirm={handleRejectConfirm}
+        />
+      )}
     </div>
   );
 };
