@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -12,7 +13,8 @@ import {
   MoreHorizontal,
   User,
   Calendar,
-  FileText
+  FileText,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +34,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
+import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
 const deliveryNoteData = {
   id: "LS-2024-0089",
@@ -77,8 +82,53 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const DeliveryNoteDetail = () => {
   const { id } = useParams();
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  
   const status = statusConfig[deliveryNoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
+
+  // Prepare PDF data for delivery note
+  const pdfData: SalesDocumentData = {
+    type: 'delivery-note',
+    number: deliveryNoteData.id,
+    date: deliveryNoteData.createdAt,
+    deliveryDate: deliveryNoteData.deliveredAt,
+    orderNumber: deliveryNoteData.order,
+    company: {
+      name: "Loomora Metallbau AG",
+      street: "Industriestrasse 15",
+      postalCode: "8005",
+      city: "Zürich",
+      phone: "+41 44 123 45 67",
+      email: "info@loomora.ch",
+    },
+    customer: {
+      name: deliveryNoteData.customer.name,
+      contact: deliveryNoteData.customer.contact,
+      street: deliveryNoteData.customer.deliveryAddress.split(',')[0],
+      postalCode: deliveryNoteData.customer.deliveryAddress.split(',')[1]?.trim().split(' ')[0] || '',
+      city: deliveryNoteData.customer.deliveryAddress.split(',')[1]?.trim().split(' ').slice(1).join(' ') || '',
+    },
+    positions: deliveryNoteData.positions.map((pos, idx) => ({
+      position: idx + 1,
+      description: `${pos.articleNo} - ${pos.description}`,
+      quantity: pos.delivered,
+      unit: "Stk",
+      unitPrice: 0,
+      total: 0,
+    })),
+    subtotal: 0,
+    vatRate: 0,
+    vatAmount: 0,
+    total: 0,
+    notes: deliveryNoteData.notes,
+    deliveryTerms: `Versand: ${deliveryNoteData.deliveredBy}`,
+  };
+
+  const handleDownloadPDF = () => {
+    downloadSalesDocumentPDF(pdfData);
+    toast.success("PDF heruntergeladen");
+  };
 
   return (
     <div className="space-y-6">
@@ -103,13 +153,17 @@ const DeliveryNoteDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowPDFPreview(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            Vorschau
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
           <Button variant="outline" size="sm">
             <FileText className="h-4 w-4 mr-2" />
             Rechnung erstellen
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            PDF
           </Button>
           <Button variant="outline" size="sm">
             <Printer className="h-4 w-4 mr-2" />
@@ -324,6 +378,14 @@ const DeliveryNoteDetail = () => {
           </Card>
         </div>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <PDFPreviewDialog
+        open={showPDFPreview}
+        onOpenChange={setShowPDFPreview}
+        documentData={pdfData}
+        title={`Lieferschein ${deliveryNoteData.id}`}
+      />
     </div>
   );
 };

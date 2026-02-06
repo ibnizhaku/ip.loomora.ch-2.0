@@ -1,9 +1,9 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   ArrowLeft, 
   Receipt, 
   Calendar, 
-  Euro, 
   Building2,
   Mail,
   Phone,
@@ -15,7 +15,8 @@ import {
   Printer,
   MoreHorizontal,
   CreditCard,
-  Ban
+  Ban,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
+import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
 const invoiceData = {
   id: "RE-2024-0156",
@@ -69,7 +73,7 @@ const invoiceData = {
   ],
   bankDetails: {
     bank: "Sparkasse München",
-    iban: "DE89 3704 0044 0532 0130 00",
+    iban: "CH93 0076 2011 6238 5295 7",
     bic: "COBADEFFXXX"
   }
 };
@@ -85,9 +89,59 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const InvoiceDetail = () => {
   const { id } = useParams();
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  
   const status = statusConfig[invoiceData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
   const outstanding = invoiceData.total - invoiceData.paid;
+
+  // Prepare PDF data
+  const pdfData: SalesDocumentData = {
+    type: 'invoice',
+    number: invoiceData.id,
+    date: invoiceData.createdAt,
+    dueDate: invoiceData.dueDate,
+    orderNumber: invoiceData.order,
+    company: {
+      name: "Loomora Metallbau AG",
+      street: "Industriestrasse 15",
+      postalCode: "8005",
+      city: "Zürich",
+      phone: "+41 44 123 45 67",
+      email: "info@loomora.ch",
+      vatNumber: "CHE-123.456.789",
+      iban: invoiceData.bankDetails.iban,
+      bic: invoiceData.bankDetails.bic,
+    },
+    customer: {
+      name: invoiceData.customer.name,
+      contact: invoiceData.customer.contact,
+      street: invoiceData.customer.address.split(',')[0],
+      postalCode: invoiceData.customer.address.split(',')[1]?.trim().split(' ')[0] || '',
+      city: invoiceData.customer.address.split(',')[1]?.trim().split(' ').slice(1).join(' ') || '',
+      email: invoiceData.customer.email,
+      phone: invoiceData.customer.phone,
+      vatNumber: invoiceData.customer.taxId,
+    },
+    positions: invoiceData.positions.map((pos, idx) => ({
+      position: idx + 1,
+      description: pos.description,
+      quantity: pos.quantity,
+      unit: pos.unit,
+      unitPrice: pos.price,
+      total: pos.total,
+    })),
+    subtotal: invoiceData.subtotal,
+    vatRate: 8.1,
+    vatAmount: invoiceData.tax,
+    total: invoiceData.total,
+    paymentTerms: "30 Tage netto",
+  };
+
+  const handleDownloadPDF = () => {
+    downloadSalesDocumentPDF(pdfData);
+    toast.success("PDF heruntergeladen");
+  };
 
   return (
     <div className="space-y-6">
@@ -120,11 +174,15 @@ const InvoiceDetail = () => {
             <AlertTriangle className="h-4 w-4 mr-2" />
             Mahnung erstellen
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setShowPDFPreview(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            Vorschau
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
@@ -155,7 +213,7 @@ const InvoiceDetail = () => {
             <div>
               <p className="font-semibold text-destructive">Rechnung überfällig</p>
               <p className="text-sm text-muted-foreground">
-                Die Rechnung war am {invoiceData.dueDate} fällig. Offener Betrag: €{outstanding.toFixed(2)}
+                Die Rechnung war am {invoiceData.dueDate} fällig. Offener Betrag: CHF {outstanding.toFixed(2)}
               </p>
             </div>
             <Button size="sm" className="ml-auto bg-destructive hover:bg-destructive/90">
@@ -190,8 +248,8 @@ const InvoiceDetail = () => {
                       <TableCell className="font-medium">{pos.description}</TableCell>
                       <TableCell className="text-right">{pos.quantity}</TableCell>
                       <TableCell>{pos.unit}</TableCell>
-                      <TableCell className="text-right">€{pos.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">€{pos.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">CHF {pos.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">CHF {pos.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -202,25 +260,25 @@ const InvoiceDetail = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Zwischensumme (netto)</span>
-                  <span>€{invoiceData.subtotal.toFixed(2)}</span>
+                  <span>CHF {invoiceData.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">MwSt. (19%)</span>
-                  <span>€{invoiceData.tax.toFixed(2)}</span>
+                  <span className="text-muted-foreground">MwSt. (8.1%)</span>
+                  <span>CHF {invoiceData.tax.toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Gesamtbetrag</span>
-                  <span>€{invoiceData.total.toFixed(2)}</span>
+                  <span>CHF {invoiceData.total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-success">
                   <span>Bereits bezahlt</span>
-                  <span>-€{invoiceData.paid.toFixed(2)}</span>
+                  <span>-CHF {invoiceData.paid.toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-bold text-lg text-destructive">
                   <span>Offener Betrag</span>
-                  <span>€{outstanding.toFixed(2)}</span>
+                  <span>CHF {outstanding.toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
@@ -244,7 +302,7 @@ const InvoiceDetail = () => {
                         <p className="text-sm text-muted-foreground">{payment.date} • {payment.method}</p>
                       </div>
                     </div>
-                    <span className="font-semibold text-success">+€{payment.amount.toFixed(2)}</span>
+                    <span className="font-semibold text-success">+CHF {payment.amount.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -368,6 +426,14 @@ const InvoiceDetail = () => {
           </Card>
         </div>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <PDFPreviewDialog
+        open={showPDFPreview}
+        onOpenChange={setShowPDFPreview}
+        documentData={pdfData}
+        title={`Rechnung ${invoiceData.id}`}
+      />
     </div>
   );
 };
