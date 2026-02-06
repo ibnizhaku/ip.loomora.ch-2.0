@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import SocialInsuranceEditor, { EmployeeSocialInsurance } from "@/components/contracts/SocialInsuranceEditor";
+import { DEFAULT_SOCIAL_INSURANCE_RATES, SocialInsuranceRates } from "@/components/settings/SocialInsuranceSettings";
 
 const initialVertragData = {
   id: "AV-2024-0089",
@@ -40,16 +42,11 @@ const initialVertragData = {
   ahvNr: "756.1234.5678.90",
 };
 
-const sozialversicherungen = [
-  { bezeichnung: "AHV/IV/EO", arbeitgeber: 5.3, arbeitnehmer: 5.3, basis: "Bruttolohn" },
-  { bezeichnung: "ALV", arbeitgeber: 1.1, arbeitnehmer: 1.1, basis: "bis CHF 148'200" },
-  { bezeichnung: "ALV 2 (Solidaritätsbeitrag)", arbeitgeber: 0.5, arbeitnehmer: 0.5, basis: "ab CHF 148'200" },
-  { bezeichnung: "BVG (Pensionskasse)", arbeitgeber: 7.0, arbeitnehmer: 7.0, basis: "Koordinierter Lohn" },
-  { bezeichnung: "UVG (Berufsunfall)", arbeitgeber: 0.67, arbeitnehmer: 0, basis: "Bruttolohn" },
-  { bezeichnung: "UVG (Nichtberufsunfall)", arbeitgeber: 0, arbeitnehmer: 1.28, basis: "Bruttolohn" },
-  { bezeichnung: "KTG (Krankentaggeld)", arbeitgeber: 0.5, arbeitnehmer: 0.5, basis: "Bruttolohn" },
-  { bezeichnung: "FAK (Familienausgleichskasse)", arbeitgeber: 1.2, arbeitnehmer: 0, basis: "Bruttolohn" },
-];
+// Convert DEFAULT_SOCIAL_INSURANCE_RATES to initial employee social insurance state
+const initialSocialInsurance: EmployeeSocialInsurance = {
+  rates: { ...DEFAULT_SOCIAL_INSURANCE_RATES },
+  overrides: {}
+};
 
 const spesen = [
   { bezeichnung: "Kilometerentschädigung", betrag: "CHF 0.70/km", bemerkung: "Privatfahrzeug für Geschäftsfahrten" },
@@ -86,6 +83,8 @@ export default function EmployeeContractDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [vertragData, setVertragData] = useState(initialVertragData);
   const [editData, setEditData] = useState(initialVertragData);
+  const [socialInsurance, setSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
+  const [editSocialInsurance, setEditSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
 
   // Check for edit mode from URL param
   useEffect(() => {
@@ -115,8 +114,8 @@ export default function EmployeeContractDetail() {
   };
 
   const jahreslohn = vertragData.monatslohn * (vertragData.tage13 ? 13 : 12);
-  const agAbzüge = sozialversicherungen.reduce((sum, s) => sum + s.arbeitgeber, 0);
-  const anAbzüge = sozialversicherungen.reduce((sum, s) => sum + s.arbeitnehmer, 0);
+  const agAbzüge = Object.values(socialInsurance.rates).reduce((sum, r) => sum + r.employer, 0);
+  const anAbzüge = Object.values(socialInsurance.rates).reduce((sum, r) => sum + r.employee, 0);
 
   const handlePdfExport = () => {
     const doc = new jsPDF();
@@ -154,11 +153,11 @@ export default function EmployeeContractDetail() {
     autoTable(doc, {
       startY: 160,
       head: [["Sozialversicherung", "AG %", "AN %", "Basis"]],
-      body: sozialversicherungen.map(sv => [
-        sv.bezeichnung,
-        sv.arbeitgeber > 0 ? `${sv.arbeitgeber}%` : "-",
-        sv.arbeitnehmer > 0 ? `${sv.arbeitnehmer}%` : "-",
-        sv.basis,
+      body: Object.values(socialInsurance.rates).map(rate => [
+        rate.description,
+        rate.employer > 0 ? `${rate.employer}%` : "-",
+        rate.employee > 0 ? `${rate.employee}%` : "-",
+        rate.basis,
       ]),
       theme: "striped",
       headStyles: { fillColor: [41, 128, 185] },
@@ -172,12 +171,14 @@ export default function EmployeeContractDetail() {
   const handleEditToggle = () => {
     if (!isEditMode) {
       setEditData(vertragData);
+      setEditSocialInsurance(socialInsurance);
     }
     setIsEditMode(!isEditMode);
   };
 
   const handleCancel = () => {
     setEditData(vertragData);
+    setEditSocialInsurance(socialInsurance);
     setIsEditMode(false);
   };
 
@@ -189,6 +190,7 @@ export default function EmployeeContractDetail() {
       
       // Update local data
       setVertragData(editData);
+      setSocialInsurance(editSocialInsurance);
       setIsEditMode(false);
       toast.success("Vertrag wurde erfolgreich aktualisiert");
     } catch (error) {
@@ -568,7 +570,7 @@ export default function EmployeeContractDetail() {
         </CardContent>
       </Card>
 
-      {/* Sozialversicherungen - Read-only */}
+      {/* Sozialversicherungen */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -577,32 +579,12 @@ export default function EmployeeContractDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Versicherung</TableHead>
-                <TableHead className="text-right">AG-Anteil %</TableHead>
-                <TableHead className="text-right">AN-Anteil %</TableHead>
-                <TableHead>Bemessungsgrundlage</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sozialversicherungen.map((sv, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{sv.bezeichnung}</TableCell>
-                  <TableCell className="text-right">{sv.arbeitgeber > 0 ? `${sv.arbeitgeber}%` : "-"}</TableCell>
-                  <TableCell className="text-right">{sv.arbeitnehmer > 0 ? `${sv.arbeitnehmer}%` : "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">{sv.basis}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="bg-muted/50">
-                <TableCell className="font-bold">Total Abzüge</TableCell>
-                <TableCell className="text-right font-bold">{agAbzüge.toFixed(2)}%</TableCell>
-                <TableCell className="text-right font-bold">{anAbzüge.toFixed(2)}%</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <SocialInsuranceEditor
+            value={isEditMode ? editSocialInsurance : socialInsurance}
+            onChange={setEditSocialInsurance}
+            companyRates={DEFAULT_SOCIAL_INSURANCE_RATES}
+            isEditMode={isEditMode}
+          />
         </CardContent>
       </Card>
 

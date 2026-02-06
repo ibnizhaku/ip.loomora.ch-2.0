@@ -59,6 +59,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import SocialInsuranceSettings from "@/components/settings/SocialInsuranceSettings";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
@@ -67,6 +68,7 @@ const settingsSections = [
   { id: "email", label: "E-Mail", icon: Mail },
   { id: "api", label: "API & Webhooks", icon: Webhook },
   { id: "documents", label: "Dokumente", icon: FileText },
+  { id: "socialinsurance", label: "Sozialversicherungen", icon: Shield },
   { id: "shop", label: "Shop", icon: Store },
   { id: "automation", label: "Automatisierung", icon: Zap },
   { id: "backup", label: "Backup & Export", icon: Download },
@@ -2259,6 +2261,10 @@ export default function Settings() {
                 )}
               </div>
             </div>
+          )}
+
+          {activeSection === "socialinsurance" && (
+            <SocialInsuranceSettings />
           )}
 
           {activeSection === "automation" && (
