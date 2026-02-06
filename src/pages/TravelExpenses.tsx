@@ -22,6 +22,7 @@ import {
   Trash2,
   Copy,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { loadExpenseRules, validateExpenseReport, ExpenseRules } from "@/components/settings/ExpenseRulesSettings";
+import { loadWorkflowConfig, getRequiredStages } from "@/components/settings/ExpenseWorkflowSettings";
+import ExpenseApprovalStatus, { ApprovalProgress } from "@/components/expenses/ExpenseApprovalStatus";
 
 interface TravelExpense {
   id: string;
@@ -69,6 +72,9 @@ interface TravelExpense {
     category: "transport" | "accommodation" | "meals" | "other";
     amount: number;
   }[];
+  // Workflow fields
+  currentStageIndex: number;
+  approvalHistory: ApprovalProgress[];
 }
 
 const initialExpenses: TravelExpense[] = [
@@ -87,6 +93,8 @@ const initialExpenses: TravelExpense[] = [
       { category: "accommodation", amount: 189.00 },
       { category: "meals", amount: 111.50 },
     ],
+    currentStageIndex: 0,
+    approvalHistory: [],
   },
   {
     id: "2",
@@ -102,6 +110,12 @@ const initialExpenses: TravelExpense[] = [
       { category: "transport", amount: 320.00 },
       { category: "accommodation", amount: 567.00 },
       { category: "meals", amount: 363.00 },
+    ],
+    currentStageIndex: 2,
+    approvalHistory: [
+      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "23.01.2024" },
+      { stageId: "2", stageName: "HR / Personal", status: "approved", approvedBy: "Anna Meier", approvedAt: "24.01.2024" },
+      { stageId: "3", stageName: "Buchhaltung", status: "approved", approvedBy: "Lisa Brunner", approvedAt: "25.01.2024" },
     ],
   },
   {
@@ -119,6 +133,12 @@ const initialExpenses: TravelExpense[] = [
       { category: "accommodation", amount: 159.00 },
       { category: "meals", amount: 121.00 },
     ],
+    currentStageIndex: 2,
+    approvalHistory: [
+      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "16.01.2024" },
+      { stageId: "2", stageName: "HR / Personal", status: "approved", approvedBy: "Anna Meier", approvedAt: "17.01.2024" },
+      { stageId: "3", stageName: "Buchhaltung", status: "approved", approvedBy: "Lisa Brunner", approvedAt: "18.01.2024" },
+    ],
   },
   {
     id: "4",
@@ -135,6 +155,11 @@ const initialExpenses: TravelExpense[] = [
       { category: "accommodation", amount: 398.00 },
       { category: "meals", amount: 212.00 },
     ],
+    currentStageIndex: 1,
+    approvalHistory: [
+      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "12.01.2024" },
+      { stageId: "2", stageName: "HR / Personal", status: "rejected", rejectedReason: "Hotelrechnung fehlt" },
+    ],
   },
   {
     id: "5",
@@ -149,6 +174,10 @@ const initialExpenses: TravelExpense[] = [
     items: [
       { category: "transport", amount: 145.00 },
       { category: "meals", amount: 40.00 },
+    ],
+    currentStageIndex: 0,
+    approvalHistory: [
+      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "06.01.2024" },
     ],
   },
 ];
@@ -575,6 +604,15 @@ export default function TravelExpenses() {
                         <StatusIcon className="h-3 w-3" />
                         {statusLabels[expense.status]}
                       </Badge>
+                      {expense.status === "submitted" && (
+                        <ExpenseApprovalStatus
+                          amount={expense.totalAmount}
+                          currentStageIndex={expense.currentStageIndex}
+                          approvalHistory={expense.approvalHistory}
+                          status={expense.status}
+                          compact
+                        />
+                      )}
                       {hasWarning && (
                         <TooltipProvider>
                           <Tooltip>
