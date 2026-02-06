@@ -23,6 +23,7 @@ import {
   FileType,
   Loader2,
   Banknote,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ProjectChat } from "@/components/project/ProjectChat";
+import { ProjectControllingDashboard } from "@/components/projects/ProjectControllingDashboard";
 import { useProject, useDeleteProject, useUpdateProject } from "@/hooks/use-projects";
 import { toast } from "sonner";
 import {
@@ -382,6 +384,10 @@ export default function ProjectDetail() {
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
           <TabsTrigger value="tasks">Aufgaben</TabsTrigger>
+          <TabsTrigger value="controlling" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Controlling
+          </TabsTrigger>
           <TabsTrigger value="chat" className="gap-2">
             <MessageSquare className="h-4 w-4" />
             Chat
@@ -573,6 +579,10 @@ export default function ProjectDetail() {
               <p>Aktivitäten werden geladen...</p>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="controlling" className="space-y-4">
+          <ProjectControllingDashboard projectId={id || ''} />
         </TabsContent>
       </Tabs>
 
