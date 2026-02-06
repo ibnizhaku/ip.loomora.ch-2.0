@@ -55,8 +55,9 @@ export default function Documents() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [sharedFilter, setSharedFilter] = useState<boolean | null>(null);
+  const [activeStatFilter, setActiveStatFilter] = useState<"all" | "folders" | "shared" | null>(null);
 
-  const hasActiveFilters = typeFilters.length > 0 || sharedFilter !== null;
+  const hasActiveFilters = typeFilters.length > 0 || sharedFilter !== null || activeStatFilter !== null;
 
   // Get root level documents (parentId = null)
   const rootDocuments = getDocumentsByParent(null);
@@ -65,6 +66,11 @@ export default function Documents() {
     const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilters.length === 0 || typeFilters.includes(d.type);
     const matchesShared = sharedFilter === null || d.shared === sharedFilter;
+    
+    // Stat card filters
+    if (activeStatFilter === "folders" && d.type !== "folder") return false;
+    if (activeStatFilter === "shared" && !d.shared) return false;
+    
     return matchesSearch && matchesType && matchesShared;
   });
 
@@ -131,7 +137,13 @@ export default function Documents() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <button
+          onClick={() => setActiveStatFilter(activeStatFilter === "all" ? null : "all")}
+          className={cn(
+            "rounded-xl border bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-soft",
+            activeStatFilter === "all" ? "border-primary ring-2 ring-primary/20" : "border-border"
+          )}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <File className="h-5 w-5 text-primary" />
@@ -141,8 +153,14 @@ export default function Documents() {
               <p className="text-sm text-muted-foreground">Dokumente</p>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        </button>
+        <button
+          onClick={() => setActiveStatFilter(activeStatFilter === "folders" ? null : "folders")}
+          className={cn(
+            "rounded-xl border bg-card p-5 text-left transition-all hover:border-info/50 hover:shadow-soft",
+            activeStatFilter === "folders" ? "border-info ring-2 ring-info/20" : "border-border"
+          )}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
               <Folder className="h-5 w-5 text-info" />
@@ -152,8 +170,14 @@ export default function Documents() {
               <p className="text-sm text-muted-foreground">Ordner</p>
             </div>
           </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
+        </button>
+        <button
+          onClick={() => setActiveStatFilter(activeStatFilter === "shared" ? null : "shared")}
+          className={cn(
+            "rounded-xl border bg-card p-5 text-left transition-all hover:border-success/50 hover:shadow-soft",
+            activeStatFilter === "shared" ? "border-success ring-2 ring-success/20" : "border-border"
+          )}
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
               <Share className="h-5 w-5 text-success" />
@@ -163,7 +187,7 @@ export default function Documents() {
               <p className="text-sm text-muted-foreground">Geteilt</p>
             </div>
           </div>
-        </div>
+        </button>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
@@ -210,6 +234,7 @@ export default function Documents() {
                       onClick={() => {
                         setTypeFilters([]);
                         setSharedFilter(null);
+                        setActiveStatFilter(null);
                       }}
                     >
                       <RotateCcw className="h-3 w-3 mr-1" />
