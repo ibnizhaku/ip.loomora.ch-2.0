@@ -12,22 +12,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 interface NewFolderDialogProps {
-  onFolderCreated: (folder: {
-    id: string;
-    name: string;
-    description?: string;
-  }) => void;
+  onFolderCreated: (folder: { name: string }) => void;
   trigger?: React.ReactNode;
 }
 
 export function NewFolderDialog({ onFolderCreated, trigger }: NewFolderDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
 
   const handleCreate = () => {
     if (!name.trim()) {
@@ -35,17 +29,10 @@ export function NewFolderDialog({ onFolderCreated, trigger }: NewFolderDialogPro
       return;
     }
 
-    const newFolder = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      description: description.trim() || undefined,
-    };
-
-    onFolderCreated(newFolder);
-    toast.success(`Ordner "${newFolder.name}" erstellt`);
+    onFolderCreated({ name: name.trim() });
+    toast.success(`Ordner "${name.trim()}" erstellt`);
     setOpen(false);
     setName("");
-    setDescription("");
   };
 
   return (
@@ -73,17 +60,12 @@ export function NewFolderDialog({ onFolderCreated, trigger }: NewFolderDialogPro
               placeholder="z.B. Projektverträge 2024"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleCreate();
+                }
+              }}
               autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="folder-description">Beschreibung (optional)</Label>
-            <Textarea
-              id="folder-description"
-              placeholder="Kurze Beschreibung des Ordnerinhalts..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
             />
           </div>
         </div>

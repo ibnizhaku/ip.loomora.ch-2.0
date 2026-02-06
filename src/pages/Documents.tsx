@@ -37,92 +37,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { DocumentUploadDialog } from "@/components/documents/DocumentUploadDialog";
-
-interface Document {
-  id: string;
-  name: string;
-  type: "pdf" | "doc" | "image" | "spreadsheet" | "folder";
-  size?: string;
-  modifiedDate: string;
-  modifiedBy: string;
-  shared: boolean;
-  items?: number;
-}
-
-const initialDocuments: Document[] = [
-  {
-    id: "1",
-    name: "Projektverträge",
-    type: "folder",
-    modifiedDate: "vor 2 Std.",
-    modifiedBy: "Max Keller",
-    shared: true,
-    items: 12,
-  },
-  {
-    id: "2",
-    name: "Angebot_Fashion_Store_2024.pdf",
-    type: "pdf",
-    size: "2.4 MB",
-    modifiedDate: "vor 1 Tag",
-    modifiedBy: "Anna Schmidt",
-    shared: true,
-  },
-  {
-    id: "3",
-    name: "Rechnung_INV-2024-001.pdf",
-    type: "pdf",
-    size: "156 KB",
-    modifiedDate: "vor 3 Tagen",
-    modifiedBy: "Thomas Müller",
-    shared: false,
-  },
-  {
-    id: "4",
-    name: "Marketingmaterial",
-    type: "folder",
-    modifiedDate: "vor 1 Woche",
-    modifiedBy: "Sarah Koch",
-    shared: true,
-    items: 24,
-  },
-  {
-    id: "5",
-    name: "Finanzbericht_Q4_2023.xlsx",
-    type: "spreadsheet",
-    size: "4.1 MB",
-    modifiedDate: "vor 2 Wochen",
-    modifiedBy: "Max Keller",
-    shared: false,
-  },
-  {
-    id: "6",
-    name: "Produktfotos",
-    type: "folder",
-    modifiedDate: "vor 3 Wochen",
-    modifiedBy: "Lisa Weber",
-    shared: true,
-    items: 156,
-  },
-  {
-    id: "7",
-    name: "Logo_Loomora_Final.png",
-    type: "image",
-    size: "890 KB",
-    modifiedDate: "vor 1 Monat",
-    modifiedBy: "Lisa Weber",
-    shared: true,
-  },
-  {
-    id: "8",
-    name: "Vertrag_FinTech_2024.docx",
-    type: "doc",
-    size: "245 KB",
-    modifiedDate: "vor 1 Monat",
-    modifiedBy: "Max Keller",
-    shared: false,
-  },
-];
+import { useDocuments } from "@/contexts/DocumentsContext";
 
 const typeConfig = {
   pdf: { color: "text-destructive bg-destructive/10", icon: FileText },
@@ -134,15 +49,19 @@ const typeConfig = {
 
 export default function Documents() {
   const navigate = useNavigate();
+  const { documents, getDocumentsByParent, addFolder, addDocument, updateDocument, deleteDocument } = useDocuments();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [documentList, setDocumentList] = useState<Document[]>(initialDocuments);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [sharedFilter, setSharedFilter] = useState<boolean | null>(null);
 
   const hasActiveFilters = typeFilters.length > 0 || sharedFilter !== null;
 
-  const filteredDocuments = documentList.filter((d) => {
+  // Get root level documents (parentId = null)
+  const rootDocuments = getDocumentsByParent(null);
+
+  const filteredDocuments = rootDocuments.filter((d) => {
     const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilters.length === 0 || typeFilters.includes(d.type);
     const matchesShared = sharedFilter === null || d.shared === sharedFilter;
@@ -154,48 +73,43 @@ export default function Documents() {
 
   const handleDelete = (e: React.MouseEvent, docId: string) => {
     e.stopPropagation();
-    setDocumentList(documentList.filter(d => d.id !== docId));
-    toast.success("Dokument gelöscht");
+    deleteDocument(docId);
+    toast.success("Element gelöscht");
   };
 
-  const handleDownload = (e: React.MouseEvent, doc: Document) => {
+  const handleDownload = (e: React.MouseEvent, name: string) => {
     e.stopPropagation();
-    toast.success(`${doc.name} wird heruntergeladen...`);
+    toast.success(`${name} wird heruntergeladen...`);
   };
 
-  const handleShare = (e: React.MouseEvent, doc: Document) => {
+  const handleShare = (e: React.MouseEvent, docId: string, currentShared: boolean) => {
     e.stopPropagation();
-    setDocumentList(documentList.map(d => 
-      d.id === doc.id ? { ...d, shared: !d.shared } : d
-    ));
-    toast.success(doc.shared ? "Freigabe aufgehoben" : "Dokument freigegeben");
+    updateDocument(docId, { shared: !currentShared });
+    toast.success(currentShared ? "Freigabe aufgehoben" : "Dokument freigegeben");
   };
 
-  const handleFolderCreated = (folder: { id: string; name: string; description?: string }) => {
-    const newFolder: Document = {
-      id: folder.id,
-      name: folder.name,
-      type: "folder",
-      modifiedDate: "gerade eben",
-      modifiedBy: "Max Keller",
-      shared: false,
-      items: 0,
-    };
-    setDocumentList([newFolder, ...documentList]);
+  const handleFolderCreated = (folder: { name: string }) => {
+    addFolder(folder.name, null);
   };
 
-  const handleFilesUploaded = (files: { id: string; name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[]) => {
-    const newDocs: Document[] = files.map(f => ({
-      id: f.id,
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      modifiedDate: "gerade eben",
-      modifiedBy: "Max Keller",
-      shared: false,
-    }));
-    setDocumentList([...newDocs, ...documentList]);
+  const handleFilesUploaded = (files: { name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[]) => {
+    files.forEach(f => {
+      addDocument({
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        modifiedDate: "gerade eben",
+        modifiedBy: "Max Keller",
+        shared: false,
+        parentId: null,
+      });
+    });
   };
+
+  // Calculate stats
+  const totalDocuments = documents.length;
+  const totalFolders = documents.filter(d => d.type === "folder").length;
+  const sharedDocuments = documents.filter(d => d.shared).length;
 
   return (
     <div className="space-y-6">
@@ -223,7 +137,7 @@ export default function Documents() {
               <File className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{documentList.length}</p>
+              <p className="text-2xl font-bold">{totalDocuments}</p>
               <p className="text-sm text-muted-foreground">Dokumente</p>
             </div>
           </div>
@@ -234,9 +148,7 @@ export default function Documents() {
               <Folder className="h-5 w-5 text-info" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {documentList.filter((d) => d.type === "folder").length}
-              </p>
+              <p className="text-2xl font-bold">{totalFolders}</p>
               <p className="text-sm text-muted-foreground">Ordner</p>
             </div>
           </div>
@@ -247,9 +159,7 @@ export default function Documents() {
               <Share className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {documentList.filter((d) => d.shared).length}
-              </p>
+              <p className="text-2xl font-bold">{sharedDocuments}</p>
               <p className="text-sm text-muted-foreground">Geteilt</p>
             </div>
           </div>
@@ -310,7 +220,7 @@ export default function Documents() {
                 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Dateityp</p>
-                  {Object.entries(typeConfig).map(([key, config]) => (
+                  {Object.entries(typeConfig).map(([key]) => (
                     <div key={key} className="flex items-center space-x-2">
                       <Checkbox
                         id={`type-${key}`}
@@ -384,6 +294,21 @@ export default function Documents() {
         </div>
       </div>
 
+      {/* Empty State */}
+      {filteredDocuments.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <FolderOpen className="h-16 w-16 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Keine Dokumente gefunden</h3>
+          <p className="text-muted-foreground mb-6">
+            {searchQuery ? "Versuchen Sie andere Suchbegriffe." : "Laden Sie Dateien hoch oder erstellen Sie Ordner."}
+          </p>
+          <div className="flex gap-2">
+            <NewFolderDialog onFolderCreated={handleFolderCreated} />
+            <DocumentUploadDialog onFilesUploaded={handleFilesUploaded} />
+          </div>
+        </div>
+      )}
+
       {/* Folders */}
       {folders.length > 0 && (
         <div>
@@ -411,7 +336,7 @@ export default function Documents() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{folder.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {folder.items} Elemente
+                    {folder.items || 0} Elemente
                   </p>
                 </div>
                 <DropdownMenu>
@@ -433,7 +358,7 @@ export default function Documents() {
                       <Edit className="h-4 w-4 mr-2" />
                       Umbenennen
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => handleShare(e, folder)}>
+                    <DropdownMenuItem onClick={(e) => handleShare(e, folder.id, folder.shared)}>
                       <Share className="h-4 w-4 mr-2" />
                       {folder.shared ? "Freigabe aufheben" : "Teilen"}
                     </DropdownMenuItem>
@@ -490,86 +415,51 @@ export default function Documents() {
                       </p>
                     </div>
                     {view === "list" && (
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
                         {file.shared && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             Geteilt
                           </Badge>
                         )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => handleDownload(e, file)}>
-                              <Download className="h-4 w-4 mr-2" />
-                              Herunterladen
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleShare(e, file)}>
-                              <Share className="h-4 w-4 mr-2" />
-                              {file.shared ? "Freigabe aufheben" : "Teilen"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
-                              <Trash className="h-4 w-4 mr-2" />
-                              Löschen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <span className="text-sm text-muted-foreground">
+                          {file.modifiedBy}
+                        </span>
                       </div>
                     )}
                   </div>
-                  {view === "grid" && (
-                    <div className="flex items-center justify-between mt-2" onClick={(e) => e.stopPropagation()}>
-                      {file.shared && (
-                        <Badge variant="outline" className="text-xs">
-                          Geteilt
-                        </Badge>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => handleDownload(e, file)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Herunterladen
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => handleShare(e, file)}>
-                            <Share className="h-4 w-4 mr-2" />
-                            {file.shared ? "Freigabe aufheben" : "Teilen"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
-                            <Trash className="h-4 w-4 mr-2" />
-                            Löschen
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/documents/${file.id}`)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Vorschau
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleDownload(e, file.name)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleShare(e, file.id, file.shared)}>
+                        <Share className="h-4 w-4 mr-2" />
+                        {file.shared ? "Freigabe aufheben" : "Teilen"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
+                        <Trash className="h-4 w-4 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
-
-      {filteredDocuments.length === 0 && (
-        <div className="py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
-          <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p className="text-lg">Keine Dokumente gefunden</p>
-          <p className="text-sm">Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner</p>
         </div>
       )}
     </div>
