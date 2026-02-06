@@ -8,13 +8,15 @@ interface Employee {
   lastName: string;
   email: string;
   phone?: string;
+  mobile?: string;
   department?: string;
+  departmentId?: string;
   position?: string;
   managerId?: string;
   manager?: Employee;
   hireDate: string;
   terminationDate?: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
+  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED' | 'VACATION' | 'SICK';
   salary?: number;
   workHoursPerWeek?: number;
   vacationDays?: number;
@@ -22,6 +24,16 @@ interface Employee {
   socialSecurityNumber?: string;
   bankAccount?: string;
   createdAt: string;
+  // Additional fields from backend
+  dateOfBirth?: string;
+  ahvNumber?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  childrenCount?: number;
+  employmentType?: string;
+  workloadPercent?: number;
+  iban?: string;
+  notes?: string;
 }
 
 interface EmployeeStats {
