@@ -127,6 +127,7 @@ import CompanyEdit from "./pages/CompanyEdit";
 import Calendar from "./pages/Calendar";
 import Documents from "./pages/Documents";
 import DocumentDetail from "./pages/DocumentDetail";
+import FolderDetail from "./pages/FolderDetail";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
 import SupplierCreate from "./pages/SupplierCreate";
@@ -316,6 +317,7 @@ const App = () => (
                   <Route path="/documents" element={<Documents />} />
                   <Route path="/documents/new" element={<DocumentUpload />} />
                   <Route path="/documents/:id" element={<DocumentDetail />} />
+                  <Route path="/folders/:id" element={<FolderDetail />} />
                   
                   {/* HR / Personal */}
                   <Route path="/hr" element={<HR />} />

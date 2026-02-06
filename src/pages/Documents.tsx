@@ -403,7 +403,7 @@ export default function Documents() {
                   "group flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
                 )}
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => navigate(`/documents/${folder.id}`)}
+                onClick={() => navigate(`/folders/${folder.id}`)}
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <Folder className="h-6 w-6 text-primary" />
@@ -425,7 +425,7 @@ export default function Documents() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/documents/${folder.id}`)}>
+                    <DropdownMenuItem onClick={() => navigate(`/folders/${folder.id}`)}>
                       <Eye className="h-4 w-4 mr-2" />
                       Öffnen
                     </DropdownMenuItem>
