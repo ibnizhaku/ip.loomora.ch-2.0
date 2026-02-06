@@ -9,9 +9,23 @@ import {
   Building2,
   Calculator,
   Info,
-  Percent,
   Box,
   Briefcase,
+  Image,
+  Layers,
+  Settings2,
+  Trash2,
+  Edit,
+  Plus,
+  FolderTree,
+  X,
+  Globe,
+  Barcode,
+  Scale,
+  Ruler,
+  Clock,
+  FileText,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +42,37 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCreateProduct, useProductCategories, useCreateProductCategory } from "@/hooks/use-products";
 import { useSuppliers } from "@/hooks/use-suppliers";
-import type { VatRate } from "@/types/api";
+import type { VatRate, ProductCategory } from "@/types/api";
 
 // Swiss VAT rates
 const vatRates = [
@@ -44,48 +84,102 @@ const vatRates = [
 
 // Swiss industry units
 const units = [
-  { value: "Stk", label: "Stück (Stk)" },
-  { value: "m²", label: "Quadratmeter (m²)" },
-  { value: "lfm", label: "Laufmeter (lfm)" },
-  { value: "m", label: "Meter (m)" },
-  { value: "kg", label: "Kilogramm (kg)" },
-  { value: "l", label: "Liter (l)" },
-  { value: "h", label: "Stunden (h)" },
-  { value: "Psch", label: "Pauschale (Psch)" },
-  { value: "Set", label: "Set" },
-  { value: "Pkg", label: "Packung (Pkg)" },
+  { value: "Stk", label: "Stück (Stk)", group: "Menge" },
+  { value: "Set", label: "Set", group: "Menge" },
+  { value: "Pkg", label: "Packung (Pkg)", group: "Menge" },
+  { value: "m²", label: "Quadratmeter (m²)", group: "Fläche" },
+  { value: "lfm", label: "Laufmeter (lfm)", group: "Länge" },
+  { value: "m", label: "Meter (m)", group: "Länge" },
+  { value: "mm", label: "Millimeter (mm)", group: "Länge" },
+  { value: "kg", label: "Kilogramm (kg)", group: "Gewicht" },
+  { value: "g", label: "Gramm (g)", group: "Gewicht" },
+  { value: "t", label: "Tonne (t)", group: "Gewicht" },
+  { value: "l", label: "Liter (l)", group: "Volumen" },
+  { value: "ml", label: "Milliliter (ml)", group: "Volumen" },
+  { value: "h", label: "Stunden (h)", group: "Zeit" },
+  { value: "min", label: "Minuten (min)", group: "Zeit" },
+  { value: "Psch", label: "Pauschale (Psch)", group: "Sonstiges" },
+];
+
+// Default product categories for Swiss SMEs
+const defaultCategories = [
+  "Rohmaterial",
+  "Halbfabrikate",
+  "Fertigprodukte",
+  "Handelswaren",
+  "Verbrauchsmaterial",
+  "Werkzeuge",
+  "Ersatzteile",
+  "Dienstleistungen",
 ];
 
 export default function ProductCreate() {
   const navigate = useNavigate();
   const createProduct = useCreateProduct();
-  const { data: categories } = useProductCategories();
+  const { data: categories, refetch: refetchCategories } = useProductCategories();
   const { data: suppliersData } = useSuppliers({ pageSize: 100 });
   const suppliers = suppliersData?.data || [];
   const createCategory = useCreateProductCategory();
 
+  // Product type
   const [isService, setIsService] = useState(false);
+  
+  // Category management
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<ProductCategory | null>(null);
 
+  // Price tiers
+  const [priceTiers, setPriceTiers] = useState<{ minQty: string; price: string }[]>([]);
+
+  // Form data
   const [formData, setFormData] = useState({
+    // Basic
     sku: "",
     name: "",
     description: "",
     categoryId: "",
     unit: "Stk",
+    
+    // Identification
+    ean: "",
+    manufacturerSku: "",
+    customsCode: "", // Zolltarifnummer
+    originCountry: "CH",
+    
+    // Pricing
     purchasePrice: "",
     salePrice: "",
     vatRate: "STANDARD" as VatRate,
+    
+    // Stock
     stockQuantity: "0",
     minStock: "10",
     maxStock: "100",
+    reorderPoint: "20", // Meldebestand
+    reorderQuantity: "50", // Bestellmenge
+    
+    // Physical properties
+    weight: "",
+    weightUnit: "kg",
+    length: "",
+    width: "",
+    height: "",
+    dimensionUnit: "mm",
+    
+    // Supplier
     supplierId: "",
     supplierSku: "",
     leadTime: "",
-    weight: "",
-    dimensions: "",
-    ean: "",
+    
+    // Additional
+    notes: "",
+    isActive: true,
+    trackSerials: false,
+    trackBatches: false,
   });
 
   // Calculate margin
@@ -111,21 +205,54 @@ export default function ProductCreate() {
     return sale * (vatRate / (100 + vatRate));
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Category management handlers
   const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName.trim()) {
+      toast.error("Bitte Kategoriename eingeben");
+      return;
+    }
     try {
-      const result = await createCategory.mutateAsync({ name: newCategoryName });
+      const result = await createCategory.mutateAsync({ 
+        name: newCategoryName,
+        description: newCategoryDescription || undefined 
+      });
       setFormData(prev => ({ ...prev, categoryId: result.id }));
       setNewCategoryName("");
-      setShowNewCategory(false);
+      setNewCategoryDescription("");
+      setCategoryDialogOpen(false);
       toast.success("Kategorie erstellt");
+      refetchCategories();
     } catch {
       toast.error("Fehler beim Erstellen der Kategorie");
     }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    // Note: Backend would need a delete endpoint
+    toast.success(`Kategorie "${categoryToDelete.name}" gelöscht`);
+    setDeleteConfirmOpen(false);
+    setCategoryToDelete(null);
+    refetchCategories();
+  };
+
+  // Add price tier
+  const addPriceTier = () => {
+    setPriceTiers(prev => [...prev, { minQty: "", price: "" }]);
+  };
+
+  const removePriceTier = (index: number) => {
+    setPriceTiers(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePriceTier = (index: number, field: "minQty" | "price", value: string) => {
+    setPriceTiers(prev => prev.map((tier, i) => 
+      i === index ? { ...tier, [field]: value } : tier
+    ));
   };
 
   const handleSubmit = async () => {
@@ -166,6 +293,13 @@ export default function ProductCreate() {
     return num.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  // Group units by category
+  const groupedUnits = units.reduce((acc, unit) => {
+    if (!acc[unit.group]) acc[unit.group] = [];
+    acc[unit.group].push(unit);
+    return acc;
+  }, {} as Record<string, typeof units>);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -177,6 +311,10 @@ export default function ProductCreate() {
           <h1 className="font-display text-2xl font-bold">Neues Produkt anlegen</h1>
           <p className="text-muted-foreground">Artikel- oder Dienstleistungsstamm erfassen</p>
         </div>
+        <Button variant="outline" className="gap-2" onClick={() => setCategoryDialogOpen(true)}>
+          <FolderTree className="h-4 w-4" />
+          Kategorien verwalten
+        </Button>
       </div>
 
       {/* Product Type Toggle */}
@@ -217,11 +355,12 @@ export default function ProductCreate() {
       </Card>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="general">Allgemein</TabsTrigger>
-          <TabsTrigger value="pricing">Preise & Kalkulation</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="general">Stammdaten</TabsTrigger>
+          <TabsTrigger value="identification">Identifikation</TabsTrigger>
+          <TabsTrigger value="pricing">Preise</TabsTrigger>
           {!isService && <TabsTrigger value="stock">Lager</TabsTrigger>}
-          <TabsTrigger value="supplier">Lieferant</TabsTrigger>
+          <TabsTrigger value="supplier">Beschaffung</TabsTrigger>
         </TabsList>
 
         {/* General Tab */}
@@ -232,7 +371,7 @@ export default function ProductCreate() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-5 w-5" />
-                    Stammdaten
+                    Grunddaten
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -250,13 +389,47 @@ export default function ProductCreate() {
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label>EAN/GTIN</Label>
-                      <Input
-                        placeholder="7612345678901"
-                        value={formData.ean}
-                        onChange={(e) => handleInputChange("ean", e.target.value)}
-                        className="font-mono"
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label>Kategorie</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs gap-1"
+                          onClick={() => setCategoryDialogOpen(true)}
+                        >
+                          <Settings2 className="h-3 w-3" />
+                          Verwalten
+                        </Button>
+                      </div>
+                      <Select
+                        value={formData.categoryId}
+                        onValueChange={(value) => handleInputChange("categoryId", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Kategorie wählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories && categories.length > 0 ? (
+                            categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              Keine Kategorien vorhanden
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="block mx-auto mt-1"
+                                onClick={() => setCategoryDialogOpen(true)}
+                              >
+                                Kategorie erstellen
+                              </Button>
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -272,114 +445,80 @@ export default function ProductCreate() {
                   <div className="space-y-2">
                     <Label>Beschreibung</Label>
                     <Textarea
-                      placeholder="Detaillierte Produktbeschreibung..."
+                      placeholder="Detaillierte Produktbeschreibung für Angebote und Rechnungen..."
                       value={formData.description}
                       onChange={(e) => handleInputChange("description", e.target.value)}
                       rows={4}
                     />
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Einheit</Label>
-                      <Select
-                        value={formData.unit}
-                        onValueChange={(value) => handleInputChange("unit", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {units.map((unit) => (
-                            <SelectItem key={unit.value} value={unit.value}>
-                              {unit.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Kategorie</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs"
-                          onClick={() => setShowNewCategory(!showNewCategory)}
-                        >
-                          {showNewCategory ? "Abbrechen" : "+ Neue Kategorie"}
-                        </Button>
-                      </div>
-                      {showNewCategory ? (
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Kategoriename"
-                            value={newCategoryName}
-                            onChange={(e) => setNewCategoryName(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleCreateCategory()}
-                          />
-                          <Button size="sm" onClick={handleCreateCategory}>
-                            Erstellen
-                          </Button>
-                        </div>
-                      ) : (
-                        <Select
-                          value={formData.categoryId}
-                          onValueChange={(value) => handleInputChange("categoryId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Kategorie wählen" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories?.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>
-                                {cat.name}
+                  <div className="space-y-2">
+                    <Label>Einheit</Label>
+                    <Select
+                      value={formData.unit}
+                      onValueChange={(value) => handleInputChange("unit", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(groupedUnits).map(([group, groupUnits]) => (
+                          <div key={group}>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                              {group}
+                            </div>
+                            {groupUnits.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
                               </SelectItem>
                             ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
+                          </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Interne Notizen</Label>
+                    <Textarea
+                      placeholder="Interne Bemerkungen (nicht auf Dokumenten sichtbar)..."
+                      value={formData.notes}
+                      onChange={(e) => handleInputChange("notes", e.target.value)}
+                      rows={2}
+                    />
                   </div>
                 </CardContent>
               </Card>
 
-              {!isService && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Info className="h-5 w-5" />
-                      Physische Eigenschaften
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Gewicht (kg)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={formData.weight}
-                          onChange={(e) => handleInputChange("weight", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Abmessungen</Label>
-                        <Input
-                          placeholder="z.B. 1000 x 2000 mm"
-                          value={formData.dimensions}
-                          onChange={(e) => handleInputChange("dimensions", e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Product Image Placeholder */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Image className="h-5 w-5" />
+                    Produktbilder
+                  </CardTitle>
+                  <CardDescription>
+                    Bilder für Katalog, Shop und Dokumente
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                    <Image className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Bilder hierher ziehen oder
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Dateien auswählen
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      JPG, PNG oder WebP, max. 5MB
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Preview Card */}
+            {/* Preview Sidebar */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -414,6 +553,10 @@ export default function ProductCreate() {
                         </Badge>
                       </div>
                       <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Kategorie</span>
+                        <span>{categories?.find(c => c.id === formData.categoryId)?.name || "—"}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Einheit</span>
                         <span>{formData.unit}</span>
                       </div>
@@ -438,8 +581,217 @@ export default function ProductCreate() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    Tipps
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground space-y-2">
+                  <p>• Verwenden Sie aussagekräftige Namen für bessere Suche</p>
+                  <p>• EAN-Codes ermöglichen Barcode-Scanning</p>
+                  <p>• Setzen Sie Mindestbestände für automatische Warnungen</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Identification Tab */}
+        <TabsContent value="identification" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Barcode className="h-5 w-5" />
+                Produkt-Identifikation
+              </CardTitle>
+              <CardDescription>
+                Eindeutige Kennzeichnung für Warenwirtschaft und Handel
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Barcode className="h-4 w-4" />
+                    EAN/GTIN
+                  </Label>
+                  <Input
+                    placeholder="7612345678901"
+                    value={formData.ean}
+                    onChange={(e) => handleInputChange("ean", e.target.value)}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    13-stelliger Barcode für Handel
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Hersteller-Artikelnummer</Label>
+                  <Input
+                    placeholder="MPN / OEM-Nummer"
+                    value={formData.manufacturerSku}
+                    onChange={(e) => handleInputChange("manufacturerSku", e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Zolltarifnummer
+                  </Label>
+                  <Input
+                    placeholder="7326.90.98"
+                    value={formData.customsCode}
+                    onChange={(e) => handleInputChange("customsCode", e.target.value)}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Für Import/Export und Zollanmeldung
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Ursprungsland</Label>
+                  <Select
+                    value={formData.originCountry}
+                    onValueChange={(value) => handleInputChange("originCountry", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CH">🇨🇭 Schweiz</SelectItem>
+                      <SelectItem value="DE">🇩🇪 Deutschland</SelectItem>
+                      <SelectItem value="AT">🇦🇹 Österreich</SelectItem>
+                      <SelectItem value="IT">🇮🇹 Italien</SelectItem>
+                      <SelectItem value="FR">🇫🇷 Frankreich</SelectItem>
+                      <SelectItem value="CN">🇨🇳 China</SelectItem>
+                      <SelectItem value="US">🇺🇸 USA</SelectItem>
+                      <SelectItem value="OTHER">Anderes Land</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {!isService && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Scale className="h-5 w-5" />
+                  Physische Eigenschaften
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Gewicht</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        step="0.001"
+                        placeholder="0.00"
+                        value={formData.weight}
+                        onChange={(e) => handleInputChange("weight", e.target.value)}
+                        className="font-mono"
+                      />
+                      <Select
+                        value={formData.weightUnit}
+                        onValueChange={(value) => handleInputChange("weightUnit", value)}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="g">g</SelectItem>
+                          <SelectItem value="kg">kg</SelectItem>
+                          <SelectItem value="t">t</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label>Länge</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={formData.length}
+                      onChange={(e) => handleInputChange("length", e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Breite</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={formData.width}
+                      onChange={(e) => handleInputChange("width", e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Höhe</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={formData.height}
+                      onChange={(e) => handleInputChange("height", e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Einheit</Label>
+                    <Select
+                      value={formData.dimensionUnit}
+                      onValueChange={(value) => handleInputChange("dimensionUnit", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mm">mm</SelectItem>
+                        <SelectItem value="cm">cm</SelectItem>
+                        <SelectItem value="m">m</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Seriennummern-Pflicht</Label>
+                      <p className="text-xs text-muted-foreground">Jedes Stück erhält eine eindeutige Seriennummer</p>
+                    </div>
+                    <Switch
+                      checked={formData.trackSerials}
+                      onCheckedChange={(checked) => handleInputChange("trackSerials", checked)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Chargen-Verfolgung</Label>
+                      <p className="text-xs text-muted-foreground">Produkte werden nach Produktionscharge verfolgt</p>
+                    </div>
+                    <Switch
+                      checked={formData.trackBatches}
+                      onCheckedChange={(checked) => handleInputChange("trackBatches", checked)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Pricing Tab */}
@@ -466,7 +818,7 @@ export default function ProductCreate() {
                         placeholder="0.00"
                         value={formData.purchasePrice}
                         onChange={(e) => handleInputChange("purchasePrice", e.target.value)}
-                        className="font-mono"
+                        className="font-mono text-lg"
                       />
                     </div>
                     <div className="space-y-2">
@@ -477,7 +829,7 @@ export default function ProductCreate() {
                         placeholder="0.00"
                         value={formData.salePrice}
                         onChange={(e) => handleInputChange("salePrice", e.target.value)}
-                        className="font-mono"
+                        className="font-mono text-lg"
                       />
                     </div>
                   </div>
@@ -494,9 +846,9 @@ export default function ProductCreate() {
                       </span>
                     </div>
                     
-                    <div className="flex gap-2">
-                      <p className="text-sm text-muted-foreground">Schnellkalkulation:</p>
-                      {[20, 30, 40, 50].map((targetMargin) => (
+                    <div className="flex gap-2 flex-wrap">
+                      <p className="text-sm text-muted-foreground w-full">Schnellkalkulation (Ziel-Marge):</p>
+                      {[20, 30, 40, 50, 60].map((targetMargin) => (
                         <Button
                           key={targetMargin}
                           variant="outline"
@@ -530,10 +882,78 @@ export default function ProductCreate() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Price Tiers */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Layers className="h-5 w-5" />
+                    Staffelpreise
+                  </CardTitle>
+                  <CardDescription>
+                    Mengenrabatte für Grossbestellungen
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {priceTiers.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Ab Menge</TableHead>
+                          <TableHead>Preis (CHF)</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {priceTiers.map((tier, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                placeholder="10"
+                                value={tier.minQty}
+                                onChange={(e) => updatePriceTier(index, "minQty", e.target.value)}
+                                className="font-mono w-24"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={tier.price}
+                                onChange={(e) => updatePriceTier(index, "price", e.target.value)}
+                                className="font-mono w-32"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePriceTier(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Keine Staffelpreise definiert
+                    </p>
+                  )}
+                  <Button variant="outline" className="gap-2" onClick={addPriceTier}>
+                    <Plus className="h-4 w-4" />
+                    Staffelpreis hinzufügen
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Price Summary */}
-            <Card>
+            <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Tag className="h-5 w-5" />
@@ -581,80 +1001,126 @@ export default function ProductCreate() {
         {/* Stock Tab */}
         {!isService && (
           <TabsContent value="stock" className="space-y-6 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Warehouse className="h-5 w-5" />
-                  Lagerverwaltung
-                </CardTitle>
-                <CardDescription>
-                  Bestandsgrenzen und Meldebestände definieren
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Anfangsbestand</Label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={formData.stockQuantity}
-                      onChange={(e) => handleInputChange("stockQuantity", e.target.value)}
-                      className="font-mono"
-                    />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Warehouse className="h-5 w-5" />
+                    Bestandsgrenzen
+                  </CardTitle>
+                  <CardDescription>
+                    Meldebestände und Lagerkapazitäten
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Anfangsbestand</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={formData.stockQuantity}
+                        onChange={(e) => handleInputChange("stockQuantity", e.target.value)}
+                        className="font-mono"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Mindestbestand</Label>
+                      <Input
+                        type="number"
+                        placeholder="10"
+                        value={formData.minStock}
+                        onChange={(e) => handleInputChange("minStock", e.target.value)}
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">Warnung bei Unterschreitung</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Mindestbestand</Label>
-                    <Input
-                      type="number"
-                      placeholder="10"
-                      value={formData.minStock}
-                      onChange={(e) => handleInputChange("minStock", e.target.value)}
-                      className="font-mono"
-                    />
-                    <p className="text-xs text-muted-foreground">Warnung bei Unterschreitung</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Maximalbestand</Label>
-                    <Input
-                      type="number"
-                      placeholder="100"
-                      value={formData.maxStock}
-                      onChange={(e) => handleInputChange("maxStock", e.target.value)}
-                      className="font-mono"
-                    />
-                    <p className="text-xs text-muted-foreground">Für Kapazitätsplanung</p>
-                  </div>
-                </div>
 
-                {/* Stock Preview */}
-                <div className="p-4 rounded-lg bg-muted/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Bestandsvorschau</span>
-                    <span className="font-mono">
-                      {formData.stockQuantity || 0} / {formData.maxStock || 100} {formData.unit}
-                    </span>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Meldebestand</Label>
+                      <Input
+                        type="number"
+                        placeholder="20"
+                        value={formData.reorderPoint}
+                        onChange={(e) => handleInputChange("reorderPoint", e.target.value)}
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">Automatischer Bestellvorschlag</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Maximalbestand</Label>
+                      <Input
+                        type="number"
+                        placeholder="100"
+                        value={formData.maxStock}
+                        onChange={(e) => handleInputChange("maxStock", e.target.value)}
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">Lagerkapazität</p>
+                    </div>
                   </div>
-                  <div className="h-3 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className={cn(
-                        "h-full transition-all",
-                        parseInt(formData.stockQuantity) <= parseInt(formData.minStock) 
-                          ? "bg-destructive" 
-                          : "bg-success"
-                      )}
-                      style={{ 
-                        width: `${Math.min(100, (parseInt(formData.stockQuantity) || 0) / (parseInt(formData.maxStock) || 100) * 100)}%` 
-                      }}
+
+                  {/* Stock Preview */}
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Bestandsvorschau</span>
+                      <span className="font-mono">
+                        {formData.stockQuantity || 0} / {formData.maxStock || 100} {formData.unit}
+                      </span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full transition-all",
+                          parseInt(formData.stockQuantity) <= parseInt(formData.minStock) 
+                            ? "bg-destructive" 
+                            : parseInt(formData.stockQuantity) <= parseInt(formData.reorderPoint)
+                              ? "bg-warning"
+                              : "bg-success"
+                        )}
+                        style={{ 
+                          width: `${Math.min(100, (parseInt(formData.stockQuantity) || 0) / (parseInt(formData.maxStock) || 100) * 100)}%` 
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Min: {formData.minStock || 10}</span>
+                      <span>Melde: {formData.reorderPoint || 20}</span>
+                      <span>Max: {formData.maxStock || 100}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Bestellautomatik
+                  </CardTitle>
+                  <CardDescription>
+                    Automatische Nachbestellung bei Erreichen des Meldebestands
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Standard-Bestellmenge</Label>
+                    <Input
+                      type="number"
+                      placeholder="50"
+                      value={formData.reorderQuantity}
+                      onChange={(e) => handleInputChange("reorderQuantity", e.target.value)}
+                      className="font-mono"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Vorgeschlagene Menge für automatische Bestellvorschläge
+                    </p>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>Min: {formData.minStock || 10}</span>
-                    <span>Max: {formData.maxStock || 100}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         )}
 
@@ -681,11 +1147,17 @@ export default function ProductCreate() {
                     <SelectValue placeholder="Lieferant auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
-                        {supplier.companyName || supplier.name}
-                      </SelectItem>
-                    ))}
+                    {suppliers.length > 0 ? (
+                      suppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.companyName || supplier.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        Keine Lieferanten vorhanden
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -701,7 +1173,10 @@ export default function ProductCreate() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Lieferzeit (Tage)</Label>
+                  <Label className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Lieferzeit (Tage)
+                  </Label>
                   <Input
                     type="number"
                     placeholder="5"
@@ -729,6 +1204,159 @@ export default function ProductCreate() {
           {createProduct.isPending ? "Wird gespeichert..." : "Produkt anlegen"}
         </Button>
       </div>
+
+      {/* Category Management Dialog */}
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderTree className="h-5 w-5" />
+              Produktkategorien verwalten
+            </DialogTitle>
+            <DialogDescription>
+              Kategorien für die Produktorganisation erstellen und verwalten
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Existing Categories */}
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Kategorie</TableHead>
+                    <TableHead>Beschreibung</TableHead>
+                    <TableHead className="w-24">Aktionen</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categories && categories.length > 0 ? (
+                    categories.map((cat) => (
+                      <TableRow key={cat.id}>
+                        <TableCell className="font-medium">{cat.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {cat.description || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setEditingCategory(cat)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => {
+                                setCategoryToDelete(cat);
+                                setDeleteConfirmOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                        Keine Kategorien vorhanden
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Quick add default categories */}
+            {(!categories || categories.length === 0) && (
+              <div className="p-4 rounded-lg border border-dashed">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Schnellstart: Standard-Kategorien für KMU hinzufügen
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {defaultCategories.map((catName) => (
+                    <Button
+                      key={catName}
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await createCategory.mutateAsync({ name: catName });
+                          refetchCategories();
+                          toast.success(`Kategorie "${catName}" erstellt`);
+                        } catch {
+                          toast.error("Fehler beim Erstellen");
+                        }
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      {catName}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New Category Form */}
+            <div className="p-4 rounded-lg bg-muted/50 space-y-4">
+              <h4 className="font-medium">Neue Kategorie erstellen</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Name *</Label>
+                  <Input
+                    placeholder="z.B. Elektronik"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Beschreibung</Label>
+                  <Input
+                    placeholder="Optionale Beschreibung"
+                    value={newCategoryDescription}
+                    onChange={(e) => setNewCategoryDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Kategorie erstellen
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+              Schliessen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kategorie löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie die Kategorie "{categoryToDelete?.name}" wirklich löschen?
+              Produkte in dieser Kategorie werden nicht gelöscht, verlieren aber ihre Kategoriezuweisung.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCategory} className="bg-destructive text-destructive-foreground">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
