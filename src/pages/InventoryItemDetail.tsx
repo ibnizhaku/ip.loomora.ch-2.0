@@ -1,18 +1,25 @@
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   Package,
   Warehouse,
   TrendingUp,
   TrendingDown,
-  Euro,
   Edit,
   MoreHorizontal,
   AlertTriangle,
   History,
   ShoppingCart,
   Truck,
-  BarChart3
+  BarChart3,
+  Save,
+  Printer,
+  ArrowRightLeft,
+  ClipboardCheck,
+  X,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +27,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -29,13 +46,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-const itemData = {
+const initialItemData = {
   id: "ART-00145",
   name: "Server-Rack 42HE Premium",
   category: "Hardware",
@@ -44,6 +82,7 @@ const itemData = {
   sku: "SR-42HE-PREM",
   ean: "4012345678901",
   description: "Professionelles Server-Rack mit 42 Höheneinheiten. Inklusive Kabelmanagement, Lüftereinheit und abschließbaren Türen.",
+  unit: "Stk",
   stock: {
     current: 8,
     reserved: 2,
@@ -59,6 +98,7 @@ const itemData = {
     lastPurchase: "15.01.2024"
   },
   supplier: {
+    id: "SUP-001",
     name: "TechParts International",
     articleNo: "TP-SR42P",
     deliveryTime: "3-5 Tage"
@@ -83,10 +123,201 @@ const itemData = {
   }
 };
 
+const warehouses = [
+  { id: "1", name: "Hauptlager" },
+  { id: "2", name: "Aussenlager Ost" },
+  { id: "3", name: "Nebenlager" },
+];
+
+const formatCHF = (value: number) => {
+  return value.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const InventoryItemDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  
+  // State
+  const [itemData, setItemData] = useState(initialItemData);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [reorderDialogOpen, setReorderDialogOpen] = useState(false);
+  const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    name: itemData.name,
+    description: itemData.description,
+    sku: itemData.sku,
+    ean: itemData.ean,
+    category: itemData.category,
+    subcategory: itemData.subcategory,
+    unit: itemData.unit,
+    purchasePrice: String(itemData.pricing.purchasePrice),
+    sellingPrice: String(itemData.pricing.sellingPrice),
+    minimum: String(itemData.stock.minimum),
+    maximum: String(itemData.stock.maximum),
+    reorderPoint: String(itemData.stock.reorderPoint),
+    warehouse: itemData.location.warehouse,
+    rack: itemData.location.rack,
+    shelf: itemData.location.shelf,
+    bin: itemData.location.bin,
+  });
+  
+  // Reorder form state
+  const [reorderForm, setReorderForm] = useState({
+    quantity: "10",
+    supplier: itemData.supplier.id,
+    notes: "",
+    expectedDate: "",
+  });
+  
+  // Inventory adjustment state
+  const [inventoryForm, setInventoryForm] = useState({
+    actualStock: String(itemData.stock.current),
+    reason: "inventory",
+    notes: "",
+  });
+  
+  // Transfer state
+  const [transferForm, setTransferForm] = useState({
+    targetWarehouse: "",
+    quantity: "1",
+    notes: "",
+  });
+
   const stockPercentage = (itemData.stock.current / itemData.stock.maximum) * 100;
   const isLowStock = itemData.stock.available <= itemData.stock.reorderPoint;
+
+  // Calculate margin dynamically
+  const calculateMargin = (purchase: number, sale: number) => {
+    if (sale === 0) return 0;
+    return ((sale - purchase) / sale) * 100;
+  };
+
+  // Handle edit save
+  const handleSaveEdit = () => {
+    const purchasePrice = parseFloat(editForm.purchasePrice) || 0;
+    const sellingPrice = parseFloat(editForm.sellingPrice) || 0;
+    const margin = calculateMargin(purchasePrice, sellingPrice);
+    
+    setItemData(prev => ({
+      ...prev,
+      name: editForm.name,
+      description: editForm.description,
+      sku: editForm.sku,
+      ean: editForm.ean,
+      category: editForm.category,
+      subcategory: editForm.subcategory,
+      unit: editForm.unit,
+      pricing: {
+        ...prev.pricing,
+        purchasePrice,
+        sellingPrice,
+        margin: Math.round(margin * 10) / 10,
+      },
+      stock: {
+        ...prev.stock,
+        minimum: parseInt(editForm.minimum) || 0,
+        maximum: parseInt(editForm.maximum) || 100,
+        reorderPoint: parseInt(editForm.reorderPoint) || 5,
+      },
+      location: {
+        warehouse: editForm.warehouse,
+        rack: editForm.rack,
+        shelf: editForm.shelf,
+        bin: editForm.bin,
+      },
+    }));
+    
+    setEditDialogOpen(false);
+    toast.success("Artikel wurde aktualisiert");
+  };
+
+  // Handle reorder
+  const handleReorder = () => {
+    const quantity = parseInt(reorderForm.quantity) || 0;
+    if (quantity <= 0) {
+      toast.error("Bitte gültige Menge eingeben");
+      return;
+    }
+    
+    toast.success(`Bestellung über ${quantity} ${itemData.unit} wurde erstellt`);
+    setReorderDialogOpen(false);
+    navigate("/purchase-orders/new");
+  };
+
+  // Handle inventory adjustment
+  const handleInventoryAdjustment = () => {
+    const actualStock = parseInt(inventoryForm.actualStock) || 0;
+    const difference = actualStock - itemData.stock.current;
+    
+    // Add to movements
+    const newMovement = {
+      date: new Date().toLocaleDateString("de-CH"),
+      type: "Inventur",
+      quantity: difference,
+      reference: `INV-${Date.now().toString().slice(-6)}`,
+      balance: actualStock,
+    };
+    
+    setItemData(prev => ({
+      ...prev,
+      stock: {
+        ...prev.stock,
+        current: actualStock,
+        available: actualStock - prev.stock.reserved,
+      },
+      movements: [newMovement, ...prev.movements],
+    }));
+    
+    setInventoryDialogOpen(false);
+    toast.success(`Bestand auf ${actualStock} ${itemData.unit} korrigiert (${difference >= 0 ? "+" : ""}${difference})`);
+  };
+
+  // Handle transfer
+  const handleTransfer = () => {
+    const quantity = parseInt(transferForm.quantity) || 0;
+    if (quantity <= 0 || quantity > itemData.stock.available) {
+      toast.error("Ungültige Menge für Umlagerung");
+      return;
+    }
+    
+    // Add to movements
+    const newMovement = {
+      date: new Date().toLocaleDateString("de-CH"),
+      type: "Umlagerung",
+      quantity: -quantity,
+      reference: `UML-${Date.now().toString().slice(-6)}`,
+      balance: itemData.stock.current - quantity,
+    };
+    
+    setItemData(prev => ({
+      ...prev,
+      stock: {
+        ...prev.stock,
+        current: prev.stock.current - quantity,
+        available: prev.stock.available - quantity,
+      },
+      movements: [newMovement, ...prev.movements],
+    }));
+    
+    setTransferDialogOpen(false);
+    toast.success(`${quantity} ${itemData.unit} wurden nach "${transferForm.targetWarehouse}" umgelagert`);
+  };
+
+  // Handle deactivate
+  const handleDeactivate = () => {
+    setDeactivateDialogOpen(false);
+    toast.success("Artikel wurde deaktiviert");
+    navigate("/inventory");
+  };
+
+  // Handle print label
+  const handlePrintLabel = () => {
+    toast.success("Etikett wird gedruckt...");
+  };
 
   return (
     <div className="space-y-6">
@@ -119,11 +350,31 @@ const InventoryItemDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setReorderDialogOpen(true)}>
             <ShoppingCart className="h-4 w-4 mr-2" />
             Nachbestellen
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => {
+            setEditForm({
+              name: itemData.name,
+              description: itemData.description,
+              sku: itemData.sku,
+              ean: itemData.ean,
+              category: itemData.category,
+              subcategory: itemData.subcategory,
+              unit: itemData.unit,
+              purchasePrice: String(itemData.pricing.purchasePrice),
+              sellingPrice: String(itemData.pricing.sellingPrice),
+              minimum: String(itemData.stock.minimum),
+              maximum: String(itemData.stock.maximum),
+              reorderPoint: String(itemData.stock.reorderPoint),
+              warehouse: itemData.location.warehouse,
+              rack: itemData.location.rack,
+              shelf: itemData.location.shelf,
+              bin: itemData.location.bin,
+            });
+            setEditDialogOpen(true);
+          }}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
@@ -134,10 +385,26 @@ const InventoryItemDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Inventur buchen</DropdownMenuItem>
-              <DropdownMenuItem>Umlagerung</DropdownMenuItem>
-              <DropdownMenuItem>Etikett drucken</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Deaktivieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setInventoryDialogOpen(true)}>
+                <ClipboardCheck className="h-4 w-4 mr-2" />
+                Inventur buchen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTransferDialogOpen(true)}>
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                Umlagerung
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrintLabel}>
+                <Printer className="h-4 w-4 mr-2" />
+                Etikett drucken
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="text-destructive"
+                onClick={() => setDeactivateDialogOpen(true)}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Deaktivieren
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -154,7 +421,7 @@ const InventoryItemDetail = () => {
                 Der verfügbare Bestand ({itemData.stock.available}) liegt unter dem Meldebestand ({itemData.stock.reorderPoint}).
               </p>
             </div>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setReorderDialogOpen(true)}>
               <Truck className="h-4 w-4 mr-2" />
               Jetzt bestellen
             </Button>
@@ -194,7 +461,7 @@ const InventoryItemDetail = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold">€{itemData.pricing.sellingPrice}</div>
+                <div className="text-3xl font-bold">CHF {formatCHF(itemData.pricing.sellingPrice)}</div>
                 <p className="text-sm text-muted-foreground">Verkaufspreis</p>
               </div>
               <Badge className="bg-success/10 text-success">{itemData.pricing.margin}% Marge</Badge>
@@ -257,11 +524,11 @@ const InventoryItemDetail = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Einkaufspreis</span>
-                      <span className="font-medium">€{itemData.pricing.purchasePrice}</span>
+                      <span className="font-medium">CHF {formatCHF(itemData.pricing.purchasePrice)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Verkaufspreis</span>
-                      <span className="font-medium">€{itemData.pricing.sellingPrice}</span>
+                      <span className="font-medium">CHF {formatCHF(itemData.pricing.sellingPrice)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Marge</span>
@@ -376,7 +643,7 @@ const InventoryItemDetail = () => {
                       <TableCell>{movement.date}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {movement.type === "Eingang" ? (
+                          {movement.quantity > 0 ? (
                             <TrendingUp className="h-4 w-4 text-success" />
                           ) : (
                             <TrendingDown className="h-4 w-4 text-destructive" />
@@ -385,13 +652,14 @@ const InventoryItemDetail = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Link to="#" className="font-mono hover:text-primary">
+                        <span className="font-mono hover:text-primary cursor-pointer">
                           {movement.reference}
-                        </Link>
+                        </span>
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${
+                      <TableCell className={cn(
+                        "text-right font-medium",
                         movement.quantity > 0 ? "text-success" : "text-destructive"
-                      }`}>
+                      )}>
                         {movement.quantity > 0 ? "+" : ""}{movement.quantity}
                       </TableCell>
                       <TableCell className="text-right font-medium">{movement.balance}</TableCell>
@@ -433,13 +701,13 @@ const InventoryItemDetail = () => {
                 <div className="p-6 rounded-xl bg-primary/5 border border-primary/20 text-center">
                   <p className="text-sm text-muted-foreground mb-1">Gesamtwert (EK)</p>
                   <p className="text-3xl font-bold">
-                    €{(itemData.stock.current * itemData.pricing.purchasePrice).toLocaleString()}
+                    CHF {formatCHF(itemData.stock.current * itemData.pricing.purchasePrice)}
                   </p>
                 </div>
                 <div className="p-6 rounded-xl bg-success/5 border border-success/20 text-center">
                   <p className="text-sm text-muted-foreground mb-1">Gesamtwert (VK)</p>
                   <p className="text-3xl font-bold text-success">
-                    €{(itemData.stock.current * itemData.pricing.sellingPrice).toLocaleString()}
+                    CHF {formatCHF(itemData.stock.current * itemData.pricing.sellingPrice)}
                   </p>
                 </div>
               </CardContent>
@@ -447,6 +715,504 @@ const InventoryItemDetail = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Artikel bearbeiten</DialogTitle>
+            <DialogDescription>
+              Stammdaten und Einstellungen des Artikels anpassen
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Stammdaten</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Artikelname</Label>
+                  <Input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SKU</Label>
+                  <Input
+                    value={editForm.sku}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, sku: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Beschreibung</Label>
+                <Textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>EAN</Label>
+                  <Input
+                    value={editForm.ean}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, ean: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Kategorie</Label>
+                  <Input
+                    value={editForm.category}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Unterkategorie</Label>
+                  <Input
+                    value={editForm.subcategory}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, subcategory: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Pricing */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Preise</h4>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Einkaufspreis (CHF)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editForm.purchasePrice}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, purchasePrice: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Verkaufspreis (CHF)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editForm.sellingPrice}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, sellingPrice: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Berechnete Marge</Label>
+                  <div className="h-10 flex items-center px-3 rounded-md border bg-muted/50">
+                    <span className={cn(
+                      "font-mono font-medium",
+                      calculateMargin(
+                        parseFloat(editForm.purchasePrice) || 0,
+                        parseFloat(editForm.sellingPrice) || 0
+                      ) >= 30 ? "text-success" : "text-warning"
+                    )}>
+                      {calculateMargin(
+                        parseFloat(editForm.purchasePrice) || 0,
+                        parseFloat(editForm.sellingPrice) || 0
+                      ).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Stock Settings */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Bestandsgrenzen</h4>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Mindestbestand</Label>
+                  <Input
+                    type="number"
+                    value={editForm.minimum}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, minimum: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Meldebestand</Label>
+                  <Input
+                    type="number"
+                    value={editForm.reorderPoint}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, reorderPoint: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Maximalbestand</Label>
+                  <Input
+                    type="number"
+                    value={editForm.maximum}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, maximum: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Location */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Lagerort</h4>
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Lager</Label>
+                  <Select
+                    value={editForm.warehouse}
+                    onValueChange={(value) => setEditForm(prev => ({ ...prev, warehouse: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map((wh) => (
+                        <SelectItem key={wh.id} value={wh.name}>{wh.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Regal</Label>
+                  <Input
+                    value={editForm.rack}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, rack: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fach</Label>
+                  <Input
+                    value={editForm.shelf}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, shelf: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Lagerplatz</Label>
+                  <Input
+                    value={editForm.bin}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, bin: e.target.value }))}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              <Save className="h-4 w-4 mr-2" />
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reorder Dialog */}
+      <Dialog open={reorderDialogOpen} onOpenChange={setReorderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nachbestellung erstellen</DialogTitle>
+            <DialogDescription>
+              Bestellung beim Lieferanten aufgeben
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-muted/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">{itemData.name}</span>
+                <Badge variant="outline">{itemData.sku}</Badge>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Lieferant: {itemData.supplier.name}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Aktueller Bestand: {itemData.stock.current} {itemData.unit}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Bestellmenge</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setReorderForm(prev => ({
+                    ...prev,
+                    quantity: String(Math.max(1, parseInt(prev.quantity) - 1))
+                  }))}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Input
+                  type="number"
+                  value={reorderForm.quantity}
+                  onChange={(e) => setReorderForm(prev => ({ ...prev, quantity: e.target.value }))}
+                  className="font-mono text-center"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setReorderForm(prev => ({
+                    ...prev,
+                    quantity: String(parseInt(prev.quantity) + 1)
+                  }))}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <span className="text-muted-foreground">{itemData.unit}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Erwartetes Lieferdatum</Label>
+              <Input
+                type="date"
+                value={reorderForm.expectedDate}
+                onChange={(e) => setReorderForm(prev => ({ ...prev, expectedDate: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Bemerkungen</Label>
+              <Textarea
+                placeholder="Optionale Bemerkungen zur Bestellung..."
+                value={reorderForm.notes}
+                onChange={(e) => setReorderForm(prev => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+              />
+            </div>
+
+            <div className="p-4 rounded-lg border bg-card">
+              <div className="flex justify-between text-sm mb-1">
+                <span>Geschätzter Bestellwert</span>
+                <span className="font-mono font-medium">
+                  CHF {formatCHF((parseInt(reorderForm.quantity) || 0) * itemData.pricing.purchasePrice)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Lieferzeit</span>
+                <span>{itemData.supplier.deliveryTime}</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReorderDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleReorder}>
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Bestellung erstellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inventory Adjustment Dialog */}
+      <Dialog open={inventoryDialogOpen} onOpenChange={setInventoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Inventur buchen</DialogTitle>
+            <DialogDescription>
+              Bestand aufgrund einer Inventurzählung korrigieren
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-muted/50">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Aktueller Buchbestand</span>
+                <span className="font-mono font-bold">{itemData.stock.current} {itemData.unit}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Gezählter Bestand</Label>
+              <Input
+                type="number"
+                value={inventoryForm.actualStock}
+                onChange={(e) => setInventoryForm(prev => ({ ...prev, actualStock: e.target.value }))}
+                className="font-mono text-lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Grund</Label>
+              <Select
+                value={inventoryForm.reason}
+                onValueChange={(value) => setInventoryForm(prev => ({ ...prev, reason: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inventory">Jahresinventur</SelectItem>
+                  <SelectItem value="spot-check">Stichprobe</SelectItem>
+                  <SelectItem value="damage">Beschädigung</SelectItem>
+                  <SelectItem value="shrinkage">Schwund</SelectItem>
+                  <SelectItem value="correction">Korrektur</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Bemerkungen</Label>
+              <Textarea
+                placeholder="Optionale Bemerkungen..."
+                value={inventoryForm.notes}
+                onChange={(e) => setInventoryForm(prev => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+              />
+            </div>
+
+            {parseInt(inventoryForm.actualStock) !== itemData.stock.current && (
+              <div className={cn(
+                "p-4 rounded-lg border",
+                parseInt(inventoryForm.actualStock) > itemData.stock.current
+                  ? "bg-success/5 border-success/20"
+                  : "bg-destructive/5 border-destructive/20"
+              )}>
+                <div className="flex justify-between">
+                  <span>Differenz</span>
+                  <span className={cn(
+                    "font-mono font-bold",
+                    parseInt(inventoryForm.actualStock) > itemData.stock.current
+                      ? "text-success"
+                      : "text-destructive"
+                  )}>
+                    {parseInt(inventoryForm.actualStock) > itemData.stock.current ? "+" : ""}
+                    {parseInt(inventoryForm.actualStock) - itemData.stock.current} {itemData.unit}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInventoryDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleInventoryAdjustment}>
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              Inventur buchen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Dialog */}
+      <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Umlagerung</DialogTitle>
+            <DialogDescription>
+              Artikel in ein anderes Lager umlagern
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-muted/50">
+              <div className="flex justify-between mb-2">
+                <span className="text-muted-foreground">Von</span>
+                <span className="font-medium">{itemData.location.warehouse}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Verfügbar</span>
+                <span className="font-mono">{itemData.stock.available} {itemData.unit}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ziellager</Label>
+              <Select
+                value={transferForm.targetWarehouse}
+                onValueChange={(value) => setTransferForm(prev => ({ ...prev, targetWarehouse: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Lager auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses
+                    .filter(wh => wh.name !== itemData.location.warehouse)
+                    .map((wh) => (
+                      <SelectItem key={wh.id} value={wh.name}>{wh.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Menge</Label>
+              <Input
+                type="number"
+                value={transferForm.quantity}
+                onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: e.target.value }))}
+                className="font-mono"
+                max={itemData.stock.available}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Bemerkungen</Label>
+              <Textarea
+                placeholder="Optionale Bemerkungen..."
+                value={transferForm.notes}
+                onChange={(e) => setTransferForm(prev => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={handleTransfer}
+              disabled={!transferForm.targetWarehouse}
+            >
+              <ArrowRightLeft className="h-4 w-4 mr-2" />
+              Umlagern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate Confirmation */}
+      <AlertDialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Artikel deaktivieren?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Der Artikel "{itemData.name}" wird deaktiviert und erscheint nicht mehr in der Lagerliste.
+              Diese Aktion kann rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivate} className="bg-destructive text-destructive-foreground">
+              Deaktivieren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
