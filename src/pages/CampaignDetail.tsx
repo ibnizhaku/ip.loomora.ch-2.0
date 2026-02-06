@@ -1,5 +1,5 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Megaphone, Users, Mail, TrendingUp, Calendar, Target, BarChart3, Eye } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Megaphone, Users, Mail, TrendingUp, Calendar, Target, BarChart3, Eye, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,6 +58,7 @@ const leadStatusColors: Record<string, string> = {
 
 export default function CampaignDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -226,7 +227,11 @@ export default function CampaignDetail() {
             </TableHeader>
             <TableBody>
               {leads.map((lead, i) => (
-                <TableRow key={i}>
+                <TableRow 
+                  key={i} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/leads/${i + 1}`)}
+                >
                   <TableCell className="font-medium">{lead.firma}</TableCell>
                   <TableCell>{lead.kontakt}</TableCell>
                   <TableCell>
@@ -235,7 +240,10 @@ export default function CampaignDetail() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(lead.wert)}</TableCell>
-                  <TableCell className="text-muted-foreground">{lead.datum}</TableCell>
+                  <TableCell className="text-muted-foreground flex items-center justify-between">
+                    {lead.datum}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

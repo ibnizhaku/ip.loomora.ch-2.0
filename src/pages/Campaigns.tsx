@@ -148,6 +148,7 @@ export default function Campaigns() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "draft" | "completed">("all");
   const [activeTab, setActiveTab] = useState("all");
+  const [activeStatCard, setActiveStatCard] = useState<"budget" | "revenue" | "conversions" | "active" | null>(null);
 
   const totalBudget = campaigns.reduce((sum, c) => sum + c.budget, 0);
   const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
@@ -162,10 +163,29 @@ export default function Campaigns() {
     return matchesSearch && matchesTab && matchesStatus;
   });
 
-  const handleStatCardClick = (filter: "all" | "active") => {
-    if (filter === "active") {
-      setStatusFilter(statusFilter === "active" ? "all" : "active");
-      setActiveTab(statusFilter === "active" ? "all" : "active");
+  const handleStatCardClick = (card: "budget" | "revenue" | "conversions" | "active") => {
+    if (activeStatCard === card) {
+      setActiveStatCard(null);
+      setStatusFilter("all");
+      setActiveTab("all");
+    } else {
+      setActiveStatCard(card);
+      if (card === "active") {
+        setStatusFilter("active");
+        setActiveTab("active");
+      } else if (card === "budget") {
+        // Show campaigns with high budget utilization (>50%)
+        setStatusFilter("all");
+        setActiveTab("all");
+      } else if (card === "conversions") {
+        // Show campaigns with conversions
+        setStatusFilter("all");
+        setActiveTab("all");
+      } else if (card === "revenue") {
+        // Show completed campaigns with revenue
+        setStatusFilter("completed");
+        setActiveTab("completed");
+      }
     }
   };
 
@@ -195,7 +215,13 @@ export default function Campaigns() {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            activeStatCard === "budget" && "border-primary ring-2 ring-primary/20"
+          )}
+          onClick={() => handleStatCardClick("budget")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Gesamtbudget</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
@@ -210,7 +236,13 @@ export default function Campaigns() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-primary/50",
+            activeStatCard === "revenue" && "border-info ring-2 ring-info/20"
+          )}
+          onClick={() => handleStatCardClick("revenue")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Umsatz</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -224,7 +256,13 @@ export default function Campaigns() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn(
+            "cursor-pointer transition-all hover:border-warning/50",
+            activeStatCard === "conversions" && "border-warning ring-2 ring-warning/20"
+          )}
+          onClick={() => handleStatCardClick("conversions")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversions</CardTitle>
             <MousePointer className="h-4 w-4 text-muted-foreground" />
@@ -238,8 +276,8 @@ export default function Campaigns() {
         </Card>
         <Card
           className={cn(
-            "cursor-pointer transition-all hover:border-primary/50",
-            statusFilter === "active" && "border-success ring-2 ring-success/20"
+            "cursor-pointer transition-all hover:border-success/50",
+            activeStatCard === "active" && "border-success ring-2 ring-success/20"
           )}
           onClick={() => handleStatCardClick("active")}
         >
