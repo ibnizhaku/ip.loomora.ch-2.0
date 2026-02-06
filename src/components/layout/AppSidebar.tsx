@@ -98,9 +98,9 @@ const dailyOperationsItems: NavItem[] = [
   },
   {
     title: "Meine Aufträge",
-    url: "/projects",
+    url: "/projects?mine=true",
     icon: FolderKanban,
-    keywords: ["projekt", "auftrag", "baustelle"],
+    keywords: ["projekt", "auftrag", "baustelle", "meine"],
   },
   {
     title: "Kalender",

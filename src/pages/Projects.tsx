@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Grid3X3, List, X, Loader2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus, Search, Filter, Grid3X3, List, X, Loader2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useProjects, useProjectStats } from "@/hooks/use-projects";
+
+// Simulated current user ID (would come from auth context in production)
+const CURRENT_USER_ID = "1";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: "Aktiv", color: "bg-success text-success-foreground" },
@@ -33,16 +36,20 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 
 export default function Projects() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const showOnlyMine = searchParams.get("mine") === "true";
+  
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
-  // Backend API call
+  // Backend API call - filter by managerId if showing only user's projects
   const { data, isLoading } = useProjects({
     search: searchQuery || undefined,
     status: statusFilter?.toUpperCase() || undefined,
+    managerId: showOnlyMine ? CURRENT_USER_ID : undefined,
     pageSize: 50,
   });
   const { data: stats } = useProjectStats();
@@ -97,17 +104,40 @@ export default function Projects() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
-            Aufträge & Projekte
-          </h1>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="font-display text-3xl font-bold tracking-tight">
+              {showOnlyMine ? "Meine Aufträge" : "Alle Aufträge & Projekte"}
+            </h1>
+            {showOnlyMine && (
+              <Badge variant="secondary" className="gap-1">
+                <User className="h-3 w-3" />
+                Mir zugewiesen
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">
-            Verwalten Sie alle Ihre Kundenaufträge an einem Ort
+            {showOnlyMine 
+              ? "Aufträge und Projekte, die Ihnen als Projektleiter zugewiesen sind"
+              : "Verwalten Sie alle Kundenaufträge an einem Ort"
+            }
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/projects/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Auftrag
-        </Button>
+        <div className="flex gap-2">
+          {showOnlyMine ? (
+            <Button variant="outline" onClick={() => navigate("/projects")}>
+              Alle anzeigen
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => navigate("/projects?mine=true")}>
+              <User className="h-4 w-4 mr-2" />
+              Nur meine
+            </Button>
+          )}
+          <Button className="gap-2" onClick={() => navigate("/projects/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Auftrag
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
