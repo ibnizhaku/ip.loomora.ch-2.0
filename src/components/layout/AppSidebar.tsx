@@ -110,13 +110,13 @@ const dailyOperationsItems: NavItem[] = [
   },
 ];
 
-// AUFTRÄGE & PROJEKTE - Zentrales Modul
+// PROJEKTE - Zentrales Modul
 const projectsItems: NavItem[] = [
   {
-    title: "Aufträge & Projekte",
+    title: "Projekte",
     url: "/projects",
     icon: FolderKanban,
-    keywords: ["projekt", "auftrag", "baustelle", "montage", "order"],
+    keywords: ["projekt", "baustelle", "montage"],
     subItems: [
       { title: "Übersicht", url: "/projects", icon: FolderKanban },
       { title: "Kundenaufträge", url: "/orders", icon: ShoppingCart },
@@ -590,7 +590,7 @@ export function AppSidebar() {
           searchQuery={sidebarSearch} 
         />
         <NavGroup 
-          label="Aufträge & Projekte" 
+          label="Projekte" 
           items={projectsItems} 
           location={location} 
           searchQuery={sidebarSearch}
