@@ -17,7 +17,6 @@ import {
   Download,
   Filter,
   ChevronDown,
-  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +59,6 @@ import { de } from "date-fns/locale";
 import { TimeEntriesTable, type TimeEntryRow, type ApprovalStatus } from "@/components/time-tracking/TimeEntriesTable";
 import { TimeEntriesPDFPreview } from "@/components/time-tracking/TimeEntriesPDFPreview";
 import { TimeEntriesPDFData, downloadTimeEntriesPDF } from "@/lib/pdf/time-entries";
-import { MetallbauTimeEntryDialog } from "@/components/time-tracking/MetallbauTimeEntryDialog";
 
 interface TimeEntry {
   id: string;
@@ -182,7 +180,6 @@ export default function TimeTracking() {
   const [activeTab, setActiveTab] = useState("my-entries");
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfEmployeeId, setPdfEmployeeId] = useState<string | null>(null);
-  const [metallbauDialogOpen, setMetallbauDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [manualEntry, setManualEntry] = useState({
@@ -489,10 +486,10 @@ export default function TimeTracking() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            Betriebszeit
+            Zeiterfassung
           </h1>
           <p className="text-muted-foreground">
-            Erfassen Sie Ihre Arbeitszeit – Werkstatt, Baustelle oder Büro
+            Erfassen und verwalten Sie Ihre Arbeitszeit
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -536,16 +533,6 @@ export default function TimeTracking() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Betriebszeit erfassen - Hauptaktion */}
-          <Button 
-            size="sm" 
-            className="gap-2"
-            onClick={() => setMetallbauDialogOpen(true)}
-          >
-            <Clock className="h-4 w-4" />
-            Zeit erfassen
-          </Button>
 
           {/* PDF Export Dropdown */}
           <DropdownMenu>
@@ -1023,13 +1010,6 @@ export default function TimeTracking() {
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}
         pdfData={getCurrentPDFData()}
-      />
-
-      {/* Metallbau Zeiterfassung Dialog */}
-      <MetallbauTimeEntryDialog
-        open={metallbauDialogOpen}
-        onOpenChange={setMetallbauDialogOpen}
-        defaultDate={format(new Date(), "yyyy-MM-dd")}
       />
     </div>
   );

@@ -1,11 +1,5 @@
 // API Client for backend communication
-import { getMockData } from './mock-data';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-// Mock-Modus: Aktiviert wenn Backend nicht erreichbar
-let useMockData = false;
-let mockModeChecked = false;
 
 interface ApiError {
   error: string;
@@ -79,20 +73,10 @@ class ApiClient {
     return this.user;
   }
 
-  isMockMode() {
-    return useMockData;
-  }
-
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Bei Mock-Modus direkt Mock-Daten zurückgeben (nur für GET)
-    if (useMockData && options.method === 'GET') {
-      console.log(`[MockMode] Verwende Mock-Daten für: ${endpoint}`);
-      return getMockData(endpoint) as T;
-    }
-
     const url = `${this.baseUrl}${endpoint}`;
     
     const headers: HeadersInit = {
@@ -104,63 +88,42 @@ class ApiClient {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-      // Handle token refresh on 401
-      if (response.status === 401 && this.refreshToken && endpoint !== '/auth/refresh') {
-        const refreshed = await this.tryRefreshToken();
-        if (refreshed) {
-          // Retry the original request
-          (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
-          const retryResponse = await fetch(url, { ...options, headers });
-          if (retryResponse.ok) {
-            return retryResponse.json();
-          }
+    // Handle token refresh on 401
+    if (response.status === 401 && this.refreshToken && endpoint !== '/auth/refresh') {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        // Retry the original request
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
+        const retryResponse = await fetch(url, { ...options, headers });
+        if (retryResponse.ok) {
+          return retryResponse.json();
         }
-        // Refresh failed, clear auth
-        this.clearAuth();
-        window.location.href = '/login';
-        throw new Error('Session expired');
       }
-
-      if (!response.ok) {
-        const error: ApiError = await response.json().catch(() => ({
-          error: 'Unknown error',
-          message: response.statusText,
-        }));
-        throw new Error(error.message || error.error);
-      }
-
-      // Handle empty responses
-      const text = await response.text();
-      if (!text) {
-        return {} as T;
-      }
-      return JSON.parse(text);
-    } catch (error) {
-      // Bei Netzwerkfehler: Aktiviere Mock-Modus und versuche erneut
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        if (!mockModeChecked) {
-          mockModeChecked = true;
-          useMockData = true;
-          console.warn('[API] Backend nicht erreichbar - Mock-Modus aktiviert');
-        }
-        
-        // Nur für GET-Anfragen Mock-Daten zurückgeben
-        if (options.method === 'GET' || !options.method) {
-          console.log(`[MockMode] Verwende Mock-Daten für: ${endpoint}`);
-          return getMockData(endpoint) as T;
-        }
-        
-        // Für Schreiboperationen Fehler werfen
-        throw new Error('Backend nicht erreichbar. Schreiboperationen sind im Mock-Modus nicht verfügbar.');
-      }
-      throw error;
+      // Refresh failed, clear auth
+      this.clearAuth();
+      window.location.href = '/login';
+      throw new Error('Session expired');
     }
+
+    if (!response.ok) {
+      const error: ApiError = await response.json().catch(() => ({
+        error: 'Unknown error',
+        message: response.statusText,
+      }));
+      throw new Error(error.message || error.error);
+    }
+
+    // Handle empty responses
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+    return JSON.parse(text);
   }
 
   private async tryRefreshToken(): Promise<boolean> {

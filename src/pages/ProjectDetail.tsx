@@ -23,7 +23,6 @@ import {
   FileType,
   Loader2,
   Banknote,
-  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +31,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ProjectChat } from "@/components/project/ProjectChat";
-import { ProjectControllingDashboard } from "@/components/projects/ProjectControllingDashboard";
 import { useProject, useDeleteProject, useUpdateProject } from "@/hooks/use-projects";
 import { toast } from "sonner";
 import {
@@ -383,11 +381,7 @@ export default function ProjectDetail() {
       {/* Tabs */}
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="tasks">Fertigungsschritte</TabsTrigger>
-          <TabsTrigger value="controlling" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Kosten & Marge
-          </TabsTrigger>
+          <TabsTrigger value="tasks">Aufgaben</TabsTrigger>
           <TabsTrigger value="chat" className="gap-2">
             <MessageSquare className="h-4 w-4" />
             Chat
@@ -399,23 +393,23 @@ export default function ProjectDetail() {
 
         <TabsContent value="tasks" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Fertigungsschritte ({tasks.length})</h3>
+            <h3 className="font-semibold">Aufgaben ({tasks.length})</h3>
             <Button size="sm" className="gap-2" onClick={() => navigate('/tasks/new')}>
               <Plus className="h-4 w-4" />
-              Neuer Schritt
+              Neue Aufgabe
             </Button>
           </div>
 
           {tasks.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
               <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Keine Fertigungsschritte vorhanden</p>
+              <p className="text-muted-foreground">Keine Aufgaben vorhanden</p>
               <Button 
                 variant="link" 
                 onClick={() => navigate('/tasks/new')}
                 className="mt-2"
               >
-                Ersten Schritt erstellen
+                Erste Aufgabe erstellen
               </Button>
             </div>
           ) : (
@@ -579,10 +573,6 @@ export default function ProjectDetail() {
               <p>Aktivitäten werden geladen...</p>
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="controlling" className="space-y-4">
-          <ProjectControllingDashboard projectId={id || ''} />
         </TabsContent>
       </Tabs>
 

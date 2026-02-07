@@ -4,7 +4,6 @@ import {
   FolderKanban,
   Banknote,
   Loader2,
-  Factory,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -27,16 +26,16 @@ const Index = () => {
 
   const statsCards = [
     {
-      title: "Umsatz (Monat)",
+      title: "Gesamtumsatz",
       value: stats ? formatCurrency(stats.totalRevenue) : "CHF 0",
       change: stats?.revenueChange || "+0%",
       changeType: stats?.revenueChange?.startsWith('+') ? "positive" as const : "negative" as const,
       icon: Banknote,
     },
     {
-      title: "Aktive Aufträge",
+      title: "Aktive Projekte",
       value: stats?.activeProjects?.toString() || "0",
-      change: stats?.activeProjects ? `${stats.activeProjects} in Arbeit` : "0 in Arbeit",
+      change: stats?.activeProjects ? `${stats.activeProjects} aktiv` : "0 aktiv",
       changeType: "positive" as const,
       icon: FolderKanban,
     },
@@ -48,11 +47,11 @@ const Index = () => {
       icon: Users,
     },
     {
-      title: "Werkstatt-Auslastung",
+      title: "Auslastung",
       value: stats ? `${stats.utilizationRate}%` : "0%",
-      change: stats?.utilizationRate && stats.utilizationRate >= 80 ? "Gut ausgelastet" : "Kapazität frei",
+      change: stats?.utilizationRate && stats.utilizationRate >= 80 ? "Gut" : "Optimierbar",
       changeType: stats?.utilizationRate && stats.utilizationRate >= 80 ? "positive" as const : "neutral" as const,
-      icon: Factory,
+      icon: TrendingUp,
     },
   ];
 
@@ -61,10 +60,10 @@ const Index = () => {
       {/* Page Header */}
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-3xl font-bold tracking-tight">
-          Betriebsübersicht
+          Willkommen zurück
         </h1>
         <p className="text-muted-foreground">
-          Aufträge, Werkstatt und Finanzen auf einen Blick
+          Hier ist ein Überblick über Ihre aktuellen Aktivitäten und Projekte.
         </p>
       </div>
 
