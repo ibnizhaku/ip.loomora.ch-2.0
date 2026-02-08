@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Plus,
   Search,
@@ -63,9 +64,21 @@ const priorityConfig = {
 };
 
 export default function Tasks() {
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/tasks"], queryFn: () => api.get<any>("/tasks") });
   const tasks = apiData?.data || [];
   const navigate = useNavigate();
+
+  const deleteMutation = useMutation({
+    mutationFn: (taskId: string) => api.delete(`/tasks/${taskId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
+      toast.success("Aufgabe erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Aufgabe");
+    },
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
@@ -277,7 +290,15 @@ export default function Tasks() {
                       <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
                       <DropdownMenuItem>Status ändern</DropdownMenuItem>
                       <DropdownMenuItem>Zuweisen</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Aufgabe wirklich löschen?")) {
+                            deleteMutation.mutate(task.id);
+                          }
+                        }}
+                      >
                         Löschen
                       </DropdownMenuItem>
                     </DropdownMenuContent>
