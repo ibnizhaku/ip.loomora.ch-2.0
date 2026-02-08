@@ -275,7 +275,7 @@ export class DocumentsService {
         project: { select: { id: true, name: true } },
         customer: { select: { id: true, name: true } },
         invoice: { select: { id: true, number: true } },
-        contract: { select: { id: true, number: true } },
+        contract: { select: { id: true } },
         employee: { select: { id: true, firstName: true, lastName: true } },
         versions: {
           orderBy: { version: 'desc' },
