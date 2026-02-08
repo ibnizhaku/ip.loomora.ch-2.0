@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Header } from "@/components/layout/Header";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { DocumentsProvider } from "./contexts/DocumentsContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -169,10 +172,30 @@ import GoodsReceipts from "./pages/GoodsReceipts";
 import GoodsReceiptCreate from "./pages/GoodsReceiptCreate";
 import GoodsReceiptDetail from "./pages/GoodsReceiptDetail";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import SelectCompany from "./pages/SelectCompany";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-import { DocumentsProvider } from "./contexts/DocumentsContext";
+
+// Layout wrapper for protected routes with sidebar
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <SidebarInset>
+            <Header />
+            <main className="flex-1 p-6">
+              {children}
+            </main>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    </ProtectedRoute>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -180,215 +203,211 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <DocumentsProvider>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-              <AppSidebar />
-              <SidebarInset>
-                <Header />
-                <main className="flex-1 p-6">
-                  <Routes>
-                    {/* Dashboard */}
-                    <Route path="/" element={<Index />} />
-                  
-                  {/* Projekte */}
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/projects/new" element={<ProjectCreate />} />
-                  <Route path="/projects/:id" element={<ProjectDetail />} />
-                  <Route path="/projects/:id/edit" element={<ProjectEdit />} />
-                  
-                  {/* Aufgaben */}
-                  <Route path="/tasks" element={<Tasks />} />
-                  <Route path="/tasks/new" element={<TaskCreate />} />
-                  <Route path="/tasks/:id" element={<TaskDetail />} />
-                  
-                  {/* CRM */}
-                  <Route path="/customers" element={<Customers />} />
-                  <Route path="/customers/new" element={<CustomerCreate />} />
-                  <Route path="/customers/:id" element={<CustomerDetail />} />
-                  <Route path="/suppliers" element={<Suppliers />} />
-                  <Route path="/suppliers/new" element={<SupplierCreate />} />
-                  <Route path="/suppliers/:id" element={<SupplierDetail />} />
-                  
-                  {/* Zeit */}
-                  <Route path="/time-tracking" element={<TimeTracking />} />
-                  <Route path="/calendar" element={<Calendar />} />
-                  
-                  {/* Verkauf */}
-                  <Route path="/quotes" element={<Quotes />} />
-                  <Route path="/quotes/new" element={<QuoteCreate />} />
-                  <Route path="/quotes/:id" element={<QuoteDetail />} />
-                  <Route path="/orders" element={<Orders />} />
-                  <Route path="/orders/new" element={<OrderCreate />} />
-                  <Route path="/orders/:id" element={<OrderDetail />} />
-                  <Route path="/invoices" element={<Invoices />} />
-                  <Route path="/invoices/new" element={<InvoiceCreate />} />
-                  <Route path="/invoices/:id" element={<InvoiceDetail />} />
-                  <Route path="/invoices/:id/edit" element={<InvoiceEdit />} />
-                  <Route path="/delivery-notes" element={<DeliveryNotes />} />
-                  <Route path="/delivery-notes/new" element={<DeliveryNoteCreate />} />
-                  <Route path="/delivery-notes/:id" element={<DeliveryNoteDetail />} />
-                  <Route path="/delivery-notes/:id/edit" element={<DeliveryNoteEdit />} />
-                  <Route path="/credit-notes" element={<CreditNotes />} />
-                  <Route path="/credit-notes/new" element={<CreditNoteCreate />} />
-                  <Route path="/credit-notes/:id" element={<CreditNoteDetail />} />
-                  <Route path="/credit-notes/:id/edit" element={<CreditNoteEdit />} />
-                  <Route path="/reminders" element={<Reminders />} />
-                  <Route path="/reminders/:id" element={<ReminderDetail />} />
-                  
-                  {/* Einkauf & Lager */}
-                  <Route path="/purchase-orders" element={<PurchaseOrders />} />
-                  <Route path="/purchase-orders/new" element={<PurchaseOrderCreate />} />
-                  <Route path="/purchase-orders/:id" element={<PurchaseOrderDetail />} />
-                  <Route path="/purchase-invoices" element={<PurchaseInvoices />} />
-                  <Route path="/purchase-invoices/new" element={<PurchaseInvoiceCreate />} />
-                  <Route path="/purchase-invoices/:id" element={<PurchaseInvoiceDetail />} />
-                  <Route path="/inventory" element={<Inventory />} />
-                  <Route path="/inventory/:id" element={<InventoryItemDetail />} />
-                  <Route path="/goods-receipts" element={<GoodsReceipts />} />
-                  <Route path="/goods-receipts/new" element={<GoodsReceiptCreate />} />
-                  <Route path="/goods-receipts/:id" element={<GoodsReceiptDetail />} />
-                  
-                  {/* Finanzen & Buchhaltung */}
-                  <Route path="/finance" element={<Finance />} />
-                  <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
-                  <Route path="/chart-of-accounts/new" element={<ChartOfAccountCreate />} />
-                  <Route path="/chart-of-accounts/:id" element={<ChartOfAccountDetail />} />
-                  <Route path="/journal-entries" element={<JournalEntries />} />
-                  <Route path="/journal-entries/:id" element={<JournalEntryDetail />} />
-                  <Route path="/general-ledger" element={<GeneralLedger />} />
-                  <Route path="/general-ledger/:id" element={<GeneralLedgerDetail />} />
-                  <Route path="/open-items" element={<OpenItems />} />
-                  <Route path="/debtors" element={<Debtors />} />
-                  <Route path="/creditors" element={<Creditors />} />
-                  <Route path="/balance-sheet" element={<BalanceSheet />} />
-                  <Route path="/vat-returns" element={<VatReturns />} />
-                  <Route path="/vat-returns/:id" element={<VatReturnDetail />} />
-                  <Route path="/fixed-assets" element={<FixedAssets />} />
-                  <Route path="/fixed-assets/new" element={<FixedAssetCreate />} />
-                  <Route path="/fixed-assets/:id" element={<FixedAssetDetail />} />
-                  <Route path="/cash-book" element={<CashBook />} />
-                  <Route path="/cash-book/new" element={<CashBookCreate />} />
-                  <Route path="/bank-accounts" element={<BankAccounts />} />
-                  <Route path="/bank-accounts/new" element={<BankAccountCreate />} />
-                  <Route path="/bank-accounts/:id" element={<BankAccountDetail />} />
-                  <Route path="/sepa-payments" element={<SepaPayments />} />
-                  <Route path="/sepa-payments/:id" element={<SepaPaymentDetail />} />
-                  <Route path="/cost-centers" element={<CostCenters />} />
-                  <Route path="/cost-centers/new" element={<CostCenterCreate />} />
-                  <Route path="/cost-centers/:id" element={<CostCenterDetail />} />
-                  <Route path="/budgets" element={<Budgets />} />
-                  <Route path="/budgets/new" element={<BudgetCreate />} />
-                  <Route path="/budgets/:id" element={<BudgetDetail />} />
-                  <Route path="/contracts" element={<Contracts />} />
-                  <Route path="/contracts/new" element={<ContractCreate />} />
-                  <Route path="/contracts/:id" element={<ContractDetail />} />
-                  <Route path="/payments" element={<Payments />} />
-                  <Route path="/payments/:id" element={<PaymentDetail />} />
-                  
-                  {/* Stammdaten & Verwaltung */}
-                  <Route path="/products" element={<Products />} />
-                  <Route path="/products/new" element={<ProductCreate />} />
-                  <Route path="/products/:id" element={<ProductDetail />} />
-                  <Route path="/travel-expenses" element={<TravelExpenses />} />
-                  <Route path="/travel-expenses/new" element={<TravelExpenseCreate />} />
-                  <Route path="/travel-expenses/:id" element={<TravelExpenseDetail />} />
-                  
-                  {/* Marketing */}
-                  <Route path="/campaigns" element={<Campaigns />} />
-                  <Route path="/campaigns/new" element={<CampaignCreate />} />
-                  <Route path="/campaigns/:id" element={<CampaignDetail />} />
-                  <Route path="/leads" element={<Leads />} />
-                  <Route path="/leads/new" element={<LeadCreate />} />
-                  <Route path="/leads/:id" element={<LeadDetail />} />
-                  <Route path="/email-marketing" element={<EmailMarketing />} />
-                  <Route path="/email-marketing/new" element={<EmailCreate />} />
-                  
-                  {/* E-Commerce */}
-                  <Route path="/shop" element={<Shop />} />
-                  <Route path="/discounts" element={<Discounts />} />
-                  <Route path="/discounts/new" element={<DiscountCreate />} />
-                  <Route path="/discounts/:id" element={<DiscountDetail />} />
-                  <Route path="/reviews" element={<Reviews />} />
-                  <Route path="/reviews/:id" element={<ReviewDetail />} />
-                  
-                  {/* Berichte */}
-                  <Route path="/reports" element={<Reports />} />
-                  
-                  {/* Dokumente */}
-                  <Route path="/documents" element={<Documents />} />
-                  <Route path="/documents/new" element={<DocumentUpload />} />
-                  <Route path="/documents/:id" element={<DocumentDetail />} />
-                  <Route path="/folders/:id" element={<FolderDetail />} />
-                  
-                  {/* HR / Personal */}
-                  <Route path="/hr" element={<HR />} />
-                  <Route path="/hr/new" element={<EmployeeCreate />} />
-                  <Route path="/hr/:id" element={<EmployeeDetail />} />
-                  <Route path="/employee-contracts" element={<EmployeeContracts />} />
-                  <Route path="/employee-contracts/new" element={<EmployeeContractCreate />} />
-                  <Route path="/employee-contracts/:id" element={<EmployeeContractDetail />} />
-                  <Route path="/payroll" element={<Payroll />} />
-                  <Route path="/payroll/new" element={<PayrollCreate />} />
-                  <Route path="/payslips/:id" element={<PayslipDetail />} />
-                  <Route path="/absences" element={<Absences />} />
-                  <Route path="/absences/new" element={<AbsenceCreate />} />
-                  <Route path="/absences/:id" element={<AbsenceDetail />} />
-                  <Route path="/recruiting" element={<Recruiting />} />
-                  <Route path="/recruiting/new" element={<JobPostingCreate />} />
-                  <Route path="/recruiting/:id" element={<CandidateDetail />} />
-                  <Route path="/training" element={<Training />} />
-                  <Route path="/training/new" element={<TrainingCreate />} />
-                  <Route path="/training/:id" element={<TrainingDetail />} />
-                  <Route path="/orgchart" element={<Orgchart />} />
-                  
-                  {/* Administration */}
-                  <Route path="/users" element={<Users />} />
-                  <Route path="/users/:id" element={<UserDetail />} />
-                  <Route path="/company" element={<Company />} />
-                  <Route path="/company/edit" element={<CompanyEdit />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/roles" element={<Roles />} />
-                  <Route path="/roles/:id" element={<RoleDetail />} />
-                  <Route path="/audit-log" element={<AuditLog />} />
-                  <Route path="/audit-log/:id" element={<AuditLogDetail />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/notifications/:id" element={<NotificationDetail />} />
-                  <Route path="/help" element={<Help />} />
-                  
-                  {/* Produktion */}
-                  <Route path="/bom" element={<BillOfMaterials />} />
-                  <Route path="/bom/new" element={<BOMCreate />} />
-                  <Route path="/bom/:id" element={<BOMDetail />} />
-                  <Route path="/calculation" element={<Calculation />} />
-                  <Route path="/calculation/new" element={<CalculationCreate />} />
-                  <Route path="/calculation/:id" element={<CalculationDetail />} />
-                  <Route path="/production" element={<Production />} />
-                  <Route path="/production/new" element={<ProductionCreate />} />
-                  <Route path="/production/:id" element={<ProductionDetail />} />
-                  <Route path="/qr-invoice" element={<QRInvoice />} />
-                  <Route path="/bank-import" element={<BankImport />} />
-                  <Route path="/swissdec" element={<Swissdec />} />
-                  <Route path="/withholding-tax" element={<WithholdingTax />} />
-                  <Route path="/service" element={<Service />} />
-                  <Route path="/service/new" element={<ServiceCreate />} />
-                  <Route path="/service/:id" element={<ServiceDetail />} />
-                  <Route path="/quality" element={<QualityControl />} />
-                  <Route path="/quality/new" element={<QualityCheckCreate />} />
-                  <Route path="/quality/checklists" element={<QualityChecklists />} />
-                  <Route path="/quality/checklists/new" element={<QualityChecklistCreate />} />
-                  <Route path="/quality/checklists/:id" element={<QualityChecklistDetail />} />
-                  <Route path="/quality/:id" element={<QualityCheckDetail />} />
-                  <Route path="/login" element={<Login />} />
-                  
-                  {/* 404 */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-        </DocumentsProvider>
+        <AuthProvider>
+          <DocumentsProvider>
+            <Routes>
+              {/* Public Routes - No Auth Required */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/select-company" element={<SelectCompany />} />
+              
+              {/* Protected Routes - Wrapped with Layout */}
+              <Route path="/" element={<ProtectedLayout><Index /></ProtectedLayout>} />
+              
+              {/* Projekte */}
+              <Route path="/projects" element={<ProtectedLayout><Projects /></ProtectedLayout>} />
+              <Route path="/projects/new" element={<ProtectedLayout><ProjectCreate /></ProtectedLayout>} />
+              <Route path="/projects/:id" element={<ProtectedLayout><ProjectDetail /></ProtectedLayout>} />
+              <Route path="/projects/:id/edit" element={<ProtectedLayout><ProjectEdit /></ProtectedLayout>} />
+              
+              {/* Aufgaben */}
+              <Route path="/tasks" element={<ProtectedLayout><Tasks /></ProtectedLayout>} />
+              <Route path="/tasks/new" element={<ProtectedLayout><TaskCreate /></ProtectedLayout>} />
+              <Route path="/tasks/:id" element={<ProtectedLayout><TaskDetail /></ProtectedLayout>} />
+              
+              {/* CRM */}
+              <Route path="/customers" element={<ProtectedLayout><Customers /></ProtectedLayout>} />
+              <Route path="/customers/new" element={<ProtectedLayout><CustomerCreate /></ProtectedLayout>} />
+              <Route path="/customers/:id" element={<ProtectedLayout><CustomerDetail /></ProtectedLayout>} />
+              <Route path="/suppliers" element={<ProtectedLayout><Suppliers /></ProtectedLayout>} />
+              <Route path="/suppliers/new" element={<ProtectedLayout><SupplierCreate /></ProtectedLayout>} />
+              <Route path="/suppliers/:id" element={<ProtectedLayout><SupplierDetail /></ProtectedLayout>} />
+              
+              {/* Zeit */}
+              <Route path="/time-tracking" element={<ProtectedLayout><TimeTracking /></ProtectedLayout>} />
+              <Route path="/calendar" element={<ProtectedLayout><Calendar /></ProtectedLayout>} />
+              
+              {/* Verkauf */}
+              <Route path="/quotes" element={<ProtectedLayout><Quotes /></ProtectedLayout>} />
+              <Route path="/quotes/new" element={<ProtectedLayout><QuoteCreate /></ProtectedLayout>} />
+              <Route path="/quotes/:id" element={<ProtectedLayout><QuoteDetail /></ProtectedLayout>} />
+              <Route path="/orders" element={<ProtectedLayout><Orders /></ProtectedLayout>} />
+              <Route path="/orders/new" element={<ProtectedLayout><OrderCreate /></ProtectedLayout>} />
+              <Route path="/orders/:id" element={<ProtectedLayout><OrderDetail /></ProtectedLayout>} />
+              <Route path="/invoices" element={<ProtectedLayout><Invoices /></ProtectedLayout>} />
+              <Route path="/invoices/new" element={<ProtectedLayout><InvoiceCreate /></ProtectedLayout>} />
+              <Route path="/invoices/:id" element={<ProtectedLayout><InvoiceDetail /></ProtectedLayout>} />
+              <Route path="/invoices/:id/edit" element={<ProtectedLayout><InvoiceEdit /></ProtectedLayout>} />
+              <Route path="/delivery-notes" element={<ProtectedLayout><DeliveryNotes /></ProtectedLayout>} />
+              <Route path="/delivery-notes/new" element={<ProtectedLayout><DeliveryNoteCreate /></ProtectedLayout>} />
+              <Route path="/delivery-notes/:id" element={<ProtectedLayout><DeliveryNoteDetail /></ProtectedLayout>} />
+              <Route path="/delivery-notes/:id/edit" element={<ProtectedLayout><DeliveryNoteEdit /></ProtectedLayout>} />
+              <Route path="/credit-notes" element={<ProtectedLayout><CreditNotes /></ProtectedLayout>} />
+              <Route path="/credit-notes/new" element={<ProtectedLayout><CreditNoteCreate /></ProtectedLayout>} />
+              <Route path="/credit-notes/:id" element={<ProtectedLayout><CreditNoteDetail /></ProtectedLayout>} />
+              <Route path="/credit-notes/:id/edit" element={<ProtectedLayout><CreditNoteEdit /></ProtectedLayout>} />
+              <Route path="/reminders" element={<ProtectedLayout><Reminders /></ProtectedLayout>} />
+              <Route path="/reminders/:id" element={<ProtectedLayout><ReminderDetail /></ProtectedLayout>} />
+              
+              {/* Einkauf & Lager */}
+              <Route path="/purchase-orders" element={<ProtectedLayout><PurchaseOrders /></ProtectedLayout>} />
+              <Route path="/purchase-orders/new" element={<ProtectedLayout><PurchaseOrderCreate /></ProtectedLayout>} />
+              <Route path="/purchase-orders/:id" element={<ProtectedLayout><PurchaseOrderDetail /></ProtectedLayout>} />
+              <Route path="/purchase-invoices" element={<ProtectedLayout><PurchaseInvoices /></ProtectedLayout>} />
+              <Route path="/purchase-invoices/new" element={<ProtectedLayout><PurchaseInvoiceCreate /></ProtectedLayout>} />
+              <Route path="/purchase-invoices/:id" element={<ProtectedLayout><PurchaseInvoiceDetail /></ProtectedLayout>} />
+              <Route path="/inventory" element={<ProtectedLayout><Inventory /></ProtectedLayout>} />
+              <Route path="/inventory/:id" element={<ProtectedLayout><InventoryItemDetail /></ProtectedLayout>} />
+              <Route path="/goods-receipts" element={<ProtectedLayout><GoodsReceipts /></ProtectedLayout>} />
+              <Route path="/goods-receipts/new" element={<ProtectedLayout><GoodsReceiptCreate /></ProtectedLayout>} />
+              <Route path="/goods-receipts/:id" element={<ProtectedLayout><GoodsReceiptDetail /></ProtectedLayout>} />
+              
+              {/* Finanzen & Buchhaltung */}
+              <Route path="/finance" element={<ProtectedLayout><Finance /></ProtectedLayout>} />
+              <Route path="/chart-of-accounts" element={<ProtectedLayout><ChartOfAccounts /></ProtectedLayout>} />
+              <Route path="/chart-of-accounts/new" element={<ProtectedLayout><ChartOfAccountCreate /></ProtectedLayout>} />
+              <Route path="/chart-of-accounts/:id" element={<ProtectedLayout><ChartOfAccountDetail /></ProtectedLayout>} />
+              <Route path="/journal-entries" element={<ProtectedLayout><JournalEntries /></ProtectedLayout>} />
+              <Route path="/journal-entries/:id" element={<ProtectedLayout><JournalEntryDetail /></ProtectedLayout>} />
+              <Route path="/general-ledger" element={<ProtectedLayout><GeneralLedger /></ProtectedLayout>} />
+              <Route path="/general-ledger/:id" element={<ProtectedLayout><GeneralLedgerDetail /></ProtectedLayout>} />
+              <Route path="/open-items" element={<ProtectedLayout><OpenItems /></ProtectedLayout>} />
+              <Route path="/debtors" element={<ProtectedLayout><Debtors /></ProtectedLayout>} />
+              <Route path="/creditors" element={<ProtectedLayout><Creditors /></ProtectedLayout>} />
+              <Route path="/balance-sheet" element={<ProtectedLayout><BalanceSheet /></ProtectedLayout>} />
+              <Route path="/vat-returns" element={<ProtectedLayout><VatReturns /></ProtectedLayout>} />
+              <Route path="/vat-returns/:id" element={<ProtectedLayout><VatReturnDetail /></ProtectedLayout>} />
+              <Route path="/fixed-assets" element={<ProtectedLayout><FixedAssets /></ProtectedLayout>} />
+              <Route path="/fixed-assets/new" element={<ProtectedLayout><FixedAssetCreate /></ProtectedLayout>} />
+              <Route path="/fixed-assets/:id" element={<ProtectedLayout><FixedAssetDetail /></ProtectedLayout>} />
+              <Route path="/cash-book" element={<ProtectedLayout><CashBook /></ProtectedLayout>} />
+              <Route path="/cash-book/new" element={<ProtectedLayout><CashBookCreate /></ProtectedLayout>} />
+              <Route path="/bank-accounts" element={<ProtectedLayout><BankAccounts /></ProtectedLayout>} />
+              <Route path="/bank-accounts/new" element={<ProtectedLayout><BankAccountCreate /></ProtectedLayout>} />
+              <Route path="/bank-accounts/:id" element={<ProtectedLayout><BankAccountDetail /></ProtectedLayout>} />
+              <Route path="/sepa-payments" element={<ProtectedLayout><SepaPayments /></ProtectedLayout>} />
+              <Route path="/sepa-payments/:id" element={<ProtectedLayout><SepaPaymentDetail /></ProtectedLayout>} />
+              <Route path="/cost-centers" element={<ProtectedLayout><CostCenters /></ProtectedLayout>} />
+              <Route path="/cost-centers/new" element={<ProtectedLayout><CostCenterCreate /></ProtectedLayout>} />
+              <Route path="/cost-centers/:id" element={<ProtectedLayout><CostCenterDetail /></ProtectedLayout>} />
+              <Route path="/budgets" element={<ProtectedLayout><Budgets /></ProtectedLayout>} />
+              <Route path="/budgets/new" element={<ProtectedLayout><BudgetCreate /></ProtectedLayout>} />
+              <Route path="/budgets/:id" element={<ProtectedLayout><BudgetDetail /></ProtectedLayout>} />
+              <Route path="/contracts" element={<ProtectedLayout><Contracts /></ProtectedLayout>} />
+              <Route path="/contracts/new" element={<ProtectedLayout><ContractCreate /></ProtectedLayout>} />
+              <Route path="/contracts/:id" element={<ProtectedLayout><ContractDetail /></ProtectedLayout>} />
+              <Route path="/payments" element={<ProtectedLayout><Payments /></ProtectedLayout>} />
+              <Route path="/payments/:id" element={<ProtectedLayout><PaymentDetail /></ProtectedLayout>} />
+              
+              {/* Stammdaten & Verwaltung */}
+              <Route path="/products" element={<ProtectedLayout><Products /></ProtectedLayout>} />
+              <Route path="/products/new" element={<ProtectedLayout><ProductCreate /></ProtectedLayout>} />
+              <Route path="/products/:id" element={<ProtectedLayout><ProductDetail /></ProtectedLayout>} />
+              <Route path="/travel-expenses" element={<ProtectedLayout><TravelExpenses /></ProtectedLayout>} />
+              <Route path="/travel-expenses/new" element={<ProtectedLayout><TravelExpenseCreate /></ProtectedLayout>} />
+              <Route path="/travel-expenses/:id" element={<ProtectedLayout><TravelExpenseDetail /></ProtectedLayout>} />
+              
+              {/* Marketing */}
+              <Route path="/campaigns" element={<ProtectedLayout><Campaigns /></ProtectedLayout>} />
+              <Route path="/campaigns/new" element={<ProtectedLayout><CampaignCreate /></ProtectedLayout>} />
+              <Route path="/campaigns/:id" element={<ProtectedLayout><CampaignDetail /></ProtectedLayout>} />
+              <Route path="/leads" element={<ProtectedLayout><Leads /></ProtectedLayout>} />
+              <Route path="/leads/new" element={<ProtectedLayout><LeadCreate /></ProtectedLayout>} />
+              <Route path="/leads/:id" element={<ProtectedLayout><LeadDetail /></ProtectedLayout>} />
+              <Route path="/email-marketing" element={<ProtectedLayout><EmailMarketing /></ProtectedLayout>} />
+              <Route path="/email-marketing/new" element={<ProtectedLayout><EmailCreate /></ProtectedLayout>} />
+              
+              {/* E-Commerce */}
+              <Route path="/shop" element={<ProtectedLayout><Shop /></ProtectedLayout>} />
+              <Route path="/discounts" element={<ProtectedLayout><Discounts /></ProtectedLayout>} />
+              <Route path="/discounts/new" element={<ProtectedLayout><DiscountCreate /></ProtectedLayout>} />
+              <Route path="/discounts/:id" element={<ProtectedLayout><DiscountDetail /></ProtectedLayout>} />
+              <Route path="/reviews" element={<ProtectedLayout><Reviews /></ProtectedLayout>} />
+              <Route path="/reviews/:id" element={<ProtectedLayout><ReviewDetail /></ProtectedLayout>} />
+              
+              {/* Berichte */}
+              <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+              
+              {/* Dokumente */}
+              <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
+              <Route path="/documents/new" element={<ProtectedLayout><DocumentUpload /></ProtectedLayout>} />
+              <Route path="/documents/:id" element={<ProtectedLayout><DocumentDetail /></ProtectedLayout>} />
+              <Route path="/folders/:id" element={<ProtectedLayout><FolderDetail /></ProtectedLayout>} />
+              
+              {/* HR / Personal */}
+              <Route path="/hr" element={<ProtectedLayout><HR /></ProtectedLayout>} />
+              <Route path="/hr/new" element={<ProtectedLayout><EmployeeCreate /></ProtectedLayout>} />
+              <Route path="/hr/:id" element={<ProtectedLayout><EmployeeDetail /></ProtectedLayout>} />
+              <Route path="/employee-contracts" element={<ProtectedLayout><EmployeeContracts /></ProtectedLayout>} />
+              <Route path="/employee-contracts/new" element={<ProtectedLayout><EmployeeContractCreate /></ProtectedLayout>} />
+              <Route path="/employee-contracts/:id" element={<ProtectedLayout><EmployeeContractDetail /></ProtectedLayout>} />
+              <Route path="/payroll" element={<ProtectedLayout><Payroll /></ProtectedLayout>} />
+              <Route path="/payroll/new" element={<ProtectedLayout><PayrollCreate /></ProtectedLayout>} />
+              <Route path="/payslips/:id" element={<ProtectedLayout><PayslipDetail /></ProtectedLayout>} />
+              <Route path="/absences" element={<ProtectedLayout><Absences /></ProtectedLayout>} />
+              <Route path="/absences/new" element={<ProtectedLayout><AbsenceCreate /></ProtectedLayout>} />
+              <Route path="/absences/:id" element={<ProtectedLayout><AbsenceDetail /></ProtectedLayout>} />
+              <Route path="/recruiting" element={<ProtectedLayout><Recruiting /></ProtectedLayout>} />
+              <Route path="/recruiting/new" element={<ProtectedLayout><JobPostingCreate /></ProtectedLayout>} />
+              <Route path="/recruiting/:id" element={<ProtectedLayout><CandidateDetail /></ProtectedLayout>} />
+              <Route path="/training" element={<ProtectedLayout><Training /></ProtectedLayout>} />
+              <Route path="/training/new" element={<ProtectedLayout><TrainingCreate /></ProtectedLayout>} />
+              <Route path="/training/:id" element={<ProtectedLayout><TrainingDetail /></ProtectedLayout>} />
+              <Route path="/orgchart" element={<ProtectedLayout><Orgchart /></ProtectedLayout>} />
+              
+              {/* Administration */}
+              <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
+              <Route path="/users/:id" element={<ProtectedLayout><UserDetail /></ProtectedLayout>} />
+              <Route path="/company" element={<ProtectedLayout><Company /></ProtectedLayout>} />
+              <Route path="/company/edit" element={<ProtectedLayout><CompanyEdit /></ProtectedLayout>} />
+              <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
+              <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
+              <Route path="/roles/:id" element={<ProtectedLayout><RoleDetail /></ProtectedLayout>} />
+              <Route path="/audit-log" element={<ProtectedLayout><AuditLog /></ProtectedLayout>} />
+              <Route path="/audit-log/:id" element={<ProtectedLayout><AuditLogDetail /></ProtectedLayout>} />
+              <Route path="/notifications" element={<ProtectedLayout><Notifications /></ProtectedLayout>} />
+              <Route path="/notifications/:id" element={<ProtectedLayout><NotificationDetail /></ProtectedLayout>} />
+              <Route path="/help" element={<ProtectedLayout><Help /></ProtectedLayout>} />
+              
+              {/* Produktion */}
+              <Route path="/bom" element={<ProtectedLayout><BillOfMaterials /></ProtectedLayout>} />
+              <Route path="/bom/new" element={<ProtectedLayout><BOMCreate /></ProtectedLayout>} />
+              <Route path="/bom/:id" element={<ProtectedLayout><BOMDetail /></ProtectedLayout>} />
+              <Route path="/calculation" element={<ProtectedLayout><Calculation /></ProtectedLayout>} />
+              <Route path="/calculation/new" element={<ProtectedLayout><CalculationCreate /></ProtectedLayout>} />
+              <Route path="/calculation/:id" element={<ProtectedLayout><CalculationDetail /></ProtectedLayout>} />
+              <Route path="/production" element={<ProtectedLayout><Production /></ProtectedLayout>} />
+              <Route path="/production/new" element={<ProtectedLayout><ProductionCreate /></ProtectedLayout>} />
+              <Route path="/production/:id" element={<ProtectedLayout><ProductionDetail /></ProtectedLayout>} />
+              <Route path="/qr-invoice" element={<ProtectedLayout><QRInvoice /></ProtectedLayout>} />
+              <Route path="/bank-import" element={<ProtectedLayout><BankImport /></ProtectedLayout>} />
+              <Route path="/swissdec" element={<ProtectedLayout><Swissdec /></ProtectedLayout>} />
+              <Route path="/withholding-tax" element={<ProtectedLayout><WithholdingTax /></ProtectedLayout>} />
+              <Route path="/service" element={<ProtectedLayout><Service /></ProtectedLayout>} />
+              <Route path="/service/new" element={<ProtectedLayout><ServiceCreate /></ProtectedLayout>} />
+              <Route path="/service/:id" element={<ProtectedLayout><ServiceDetail /></ProtectedLayout>} />
+              <Route path="/quality" element={<ProtectedLayout><QualityControl /></ProtectedLayout>} />
+              <Route path="/quality/new" element={<ProtectedLayout><QualityCheckCreate /></ProtectedLayout>} />
+              <Route path="/quality/checklists" element={<ProtectedLayout><QualityChecklists /></ProtectedLayout>} />
+              <Route path="/quality/checklists/new" element={<ProtectedLayout><QualityChecklistCreate /></ProtectedLayout>} />
+              <Route path="/quality/checklists/:id" element={<ProtectedLayout><QualityChecklistDetail /></ProtectedLayout>} />
+              <Route path="/quality/:id" element={<ProtectedLayout><QualityCheckDetail /></ProtectedLayout>} />
+              
+              {/* 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </DocumentsProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

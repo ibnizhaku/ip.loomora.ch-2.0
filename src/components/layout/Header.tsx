@@ -1,4 +1,4 @@
-import { Bell, Search, Moon, Sun, Command, ChevronLeft, ChevronRight, Maximize, Minimize, User, Settings, LogOut } from "lucide-react";
+import { Bell, Search, Moon, Sun, Command, ChevronLeft, ChevronRight, Maximize, Minimize, User, Settings, LogOut, Building2, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -16,9 +16,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const mockNotifications = [
   { id: 1, title: "Neue Rechnung erstellt", description: "Rechnung #2024-0042 wurde erstellt", time: "vor 5 Min", unread: true },
@@ -32,9 +36,20 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [notifications, setNotifications] = useState(mockNotifications);
+  const [isSwitching, setIsSwitching] = useState(false);
   const navigate = useNavigate();
+  
+  const { user, activeCompany, availableCompanies, logout, switchCompany } = useAuth();
 
   const unreadCount = notifications.filter(n => n.unread).length;
+
+  // Get user initials
+  const userInitials = user 
+    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() 
+    : 'U';
+
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Benutzer';
+  const userEmail = user?.email || '';
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains("dark");
@@ -81,9 +96,30 @@ export function Header() {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
   };
 
-  const handleLogout = () => {
-    toast.success("Erfolgreich abgemeldet");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Erfolgreich abgemeldet");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Abmeldung fehlgeschlagen");
+    }
+  };
+
+  const handleSwitchCompany = async (companyId: string) => {
+    if (companyId === activeCompany?.id) return;
+    
+    setIsSwitching(true);
+    try {
+      await switchCompany(companyId);
+      toast.success("Firma gewechselt");
+      // Reload page to refresh all data
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.message || "Firmenwechsel fehlgeschlagen");
+    } finally {
+      setIsSwitching(false);
+    }
   };
 
   return (
@@ -127,6 +163,16 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1">
+        {/* Current Company Badge */}
+        {activeCompany && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg mr-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium truncate max-w-[150px]">
+              {activeCompany.name}
+            </span>
+          </div>
+        )}
+
         <Button
           variant="ghost"
           size="icon"
@@ -220,9 +266,9 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative ml-1">
               <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-                <AvatarImage src="/placeholder.svg" />
+                <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} />
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-xs font-semibold">
-                  MK
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
             </Button>
@@ -230,19 +276,27 @@ export function Header() {
           <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">Max Keller</p>
-                <p className="text-xs text-muted-foreground">max.keller@loomora.ch</p>
+                <p className="text-sm font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground">{userEmail}</p>
+                {activeCompany && (
+                  <p className="text-xs text-primary font-medium">
+                    {activeCompany.role} {activeCompany.isOwner && "• Inhaber"}
+                  </p>
+                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/users/1")} className="cursor-pointer">
+            
+            <DropdownMenuItem onClick={() => navigate("/users/me")} className="cursor-pointer">
               <User className="mr-2 h-4 w-4" />
               <span>Mein Profil</span>
             </DropdownMenuItem>
+            
             <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
               <span>Einstellungen</span>
             </DropdownMenuItem>
+            
             <DropdownMenuItem onClick={() => navigate("/notifications")} className="cursor-pointer">
               <Bell className="mr-2 h-4 w-4" />
               <span>Benachrichtigungen</span>
@@ -252,6 +306,50 @@ export function Header() {
                 </span>
               )}
             </DropdownMenuItem>
+            
+            {/* Company Switcher - only show if multiple companies */}
+            {availableCompanies.length > 1 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="cursor-pointer">
+                    <Building2 className="mr-2 h-4 w-4" />
+                    <span>Firma wechseln</span>
+                    {isSwitching && <RefreshCw className="ml-auto h-4 w-4 animate-spin" />}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    {availableCompanies.map((company) => (
+                      <DropdownMenuItem
+                        key={company.id}
+                        onClick={() => handleSwitchCompany(company.id)}
+                        className="cursor-pointer"
+                        disabled={isSwitching}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className={`h-2 w-2 rounded-full ${
+                            company.id === activeCompany?.id 
+                              ? 'bg-primary' 
+                              : 'bg-muted-foreground/30'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{company.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {company.role}
+                            </p>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </>
+            )}
+            
+            <DropdownMenuItem onClick={() => navigate("/company")} className="cursor-pointer">
+              <Building2 className="mr-2 h-4 w-4" />
+              <span>Firmeneinstellungen</span>
+            </DropdownMenuItem>
+            
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />

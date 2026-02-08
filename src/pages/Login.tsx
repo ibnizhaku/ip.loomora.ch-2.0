@@ -1,29 +1,45 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const from = location.state?.from?.pathname || "/";
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate login - replace with actual auth
-    setTimeout(() => {
+    try {
+      const result = await login({ email, password });
+      
+      if (result.requiresCompanySelection) {
+        // User has multiple companies, redirect to selection
+        navigate("/select-company", { state: { from: location.state?.from } });
+      } else {
+        toast.success("Erfolgreich angemeldet");
+        navigate(from, { replace: true });
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Anmeldung fehlgeschlagen");
+    } finally {
       setIsLoading(false);
-      navigate("/");
-    }, 1000);
+    }
   };
 
   return (
@@ -168,9 +184,15 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-muted-foreground space-y-2">
             <p>
-              Demo-Zugang: <span className="font-mono">demo@loomora.ch</span> / <span className="font-mono">demo123</span>
+              Noch kein Konto?{" "}
+              <Link to="/register" className="text-primary hover:underline font-medium">
+                Jetzt registrieren
+              </Link>
+            </p>
+            <p className="text-xs">
+              Demo: <span className="font-mono">admin@loomora.ch</span> / <span className="font-mono">admin123</span>
             </p>
           </div>
         </div>
