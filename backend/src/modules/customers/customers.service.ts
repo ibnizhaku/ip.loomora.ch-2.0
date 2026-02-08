@@ -11,7 +11,7 @@ export class CustomersService {
     const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const skip = (page - 1) * pageSize;
 
-    const where: any = { companyId };
+    const where: any = { companyId, isActive: true };
     
     if (search) {
       where.OR = [
