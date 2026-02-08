@@ -147,10 +147,9 @@ export class SuppliersService {
       throw new NotFoundException('Supplier not found');
     }
 
-    // Soft delete by setting isActive to false
-    return this.prisma.supplier.update({
+    // Hard delete - will fail if there are related records (purchase orders, invoices, etc.)
+    return this.prisma.supplier.delete({
       where: { id },
-      data: { isActive: false },
     });
   }
 }

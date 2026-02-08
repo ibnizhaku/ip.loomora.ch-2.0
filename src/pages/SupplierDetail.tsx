@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   Building2,
@@ -8,12 +8,13 @@ import {
   Globe,
   User,
   Package,
-  Euro,
   FileText,
-  Clock,
   Star,
-  TrendingUp,
-  ShoppingCart
+  ShoppingCart,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,61 +36,66 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useSupplier, useDeleteSupplier } from "@/hooks/use-suppliers";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
-const supplierData = {
-  id: "LF-001",
-  name: "TechParts International GmbH",
-  status: "Aktiv",
-  rating: 4.5,
-  category: "Elektronik & Hardware",
-  contact: {
-    name: "Peter Schmidt",
-    position: "Key Account Manager",
-    email: "p.schmidt@techparts.de",
-    phone: "+49 221 9876543"
-  },
-  address: {
-    street: "Industriestraße 100",
-    city: "50999 Köln",
-    country: "Deutschland"
-  },
-  website: "www.techparts-international.de",
-  taxId: "DE987654321",
-  paymentTerms: "30 Tage netto",
-  stats: {
-    totalOrders: 156,
-    totalVolume: 287500,
-    avgDeliveryTime: 3.2,
-    onTimeRate: 94,
-    qualityRate: 98
-  },
-  recentOrders: [
-    { id: "EK-2024-0045", date: "28.01.2024", items: 12, total: 4580, status: "Geliefert" },
-    { id: "EK-2024-0038", date: "15.01.2024", items: 8, total: 2890, status: "Geliefert" },
-    { id: "EK-2024-0029", date: "05.01.2024", items: 25, total: 8750, status: "Geliefert" },
-    { id: "EK-2023-0198", date: "20.12.2023", items: 15, total: 5200, status: "Geliefert" },
-  ],
-  products: [
-    { articleNo: "TP-001", name: "Serverschrank 42HE", price: 899, stock: "Verfügbar" },
-    { articleNo: "TP-045", name: "Netzwerk-Switch 48-Port", price: 459, stock: "Verfügbar" },
-    { articleNo: "TP-089", name: "USV 3000VA", price: 1250, stock: "Begrenzt" },
-    { articleNo: "TP-102", name: "Server-Netzteil 750W", price: 189, stock: "Verfügbar" },
-    { articleNo: "TP-156", name: "SSD 1TB Enterprise", price: 159, stock: "Nicht verfügbar" },
-  ],
-  notes: [
-    { date: "25.01.2024", text: "Rahmenvertrag bis 2025 verlängert", user: "Max Keller" },
-    { date: "10.01.2024", text: "5% Rabatt auf Großbestellungen verhandelt", user: "Anna Schmidt" },
-  ]
-};
-
-const stockColors: Record<string, string> = {
-  "Verfügbar": "bg-success/10 text-success",
-  "Begrenzt": "bg-warning/10 text-warning",
-  "Nicht verfügbar": "bg-destructive/10 text-destructive",
+const orderStatusConfig: Record<string, { label: string; color: string }> = {
+  DRAFT: { label: "Entwurf", color: "bg-muted text-muted-foreground" },
+  SENT: { label: "Bestellt", color: "bg-info/10 text-info" },
+  CONFIRMED: { label: "Bestätigt", color: "bg-success/10 text-success" },
+  CANCELLED: { label: "Storniert", color: "bg-destructive/10 text-destructive" },
 };
 
 const SupplierDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { data: supplier, isLoading, error } = useSupplier(id);
+  const deleteSupplier = useDeleteSupplier();
+
+  const handleDelete = async () => {
+    if (!supplier) return;
+    if (confirm(`Möchten Sie "${supplier.name}" wirklich löschen?`)) {
+      try {
+        await deleteSupplier.mutateAsync(supplier.id);
+        toast.success(`${supplier.name} wurde gelöscht`);
+        navigate("/suppliers");
+      } catch (error) {
+        toast.error("Fehler beim Löschen. Möglicherweise gibt es verknüpfte Bestellungen.");
+      }
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !supplier) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link to="/suppliers">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="font-display text-2xl font-bold">Lieferant nicht gefunden</h1>
+        </div>
+        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">Der Lieferant konnte nicht geladen werden.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const products = (supplier as any).products || [];
+  const purchaseOrders = (supplier as any).purchaseOrders || [];
 
   return (
     <div className="space-y-6">
@@ -101,63 +113,82 @@ const SupplierDetail = () => {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="font-display text-2xl font-bold">{supplierData.name}</h1>
-                <Badge className="bg-success/10 text-success">{supplierData.status}</Badge>
+                <h1 className="font-display text-2xl font-bold">{supplier.companyName || supplier.name}</h1>
+                <Badge className={supplier.isActive ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+                  {supplier.isActive ? "Aktiv" : "Inaktiv"}
+                </Badge>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{supplierData.category}</span>
-                <span>•</span>
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-warning text-warning" />
-                  <span>{supplierData.rating}</span>
-                </div>
+                <span>{supplier.number}</span>
+                {supplier.rating && supplier.rating > 0 && (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-warning text-warning" />
+                      <span>{supplier.rating}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => navigate("/purchase-orders/new")}>
             <ShoppingCart className="h-4 w-4 mr-2" />
             Bestellung erstellen
           </Button>
-          <Button size="sm">
-            <Mail className="h-4 w-4 mr-2" />
-            Kontaktieren
+          <Button variant="outline" size="sm" onClick={() => navigate(`/suppliers/${id}/edit`)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Bearbeiten
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {supplier.email && (
+                <DropdownMenuItem onClick={() => window.location.href = `mailto:${supplier.email}`}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  E-Mail senden
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Löschen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{supplierData.stats.totalOrders}</div>
+            <div className="text-2xl font-bold">{supplier.totalOrders || 0}</div>
             <p className="text-sm text-muted-foreground">Bestellungen</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">CHF {supplierData.stats.totalVolume.toLocaleString('de-CH')}</div>
+            <div className="text-2xl font-bold">CHF {((supplier.totalValue || 0) as number).toLocaleString('de-CH')}</div>
             <p className="text-sm text-muted-foreground">Gesamtvolumen</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{supplierData.stats.avgDeliveryTime} Tage</div>
-            <p className="text-sm text-muted-foreground">Ø Lieferzeit</p>
+            <div className="text-2xl font-bold">{products.length}</div>
+            <p className="text-sm text-muted-foreground">Produkte</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-success">{supplierData.stats.onTimeRate}%</div>
-            <p className="text-sm text-muted-foreground">Pünktlichkeit</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-success">{supplierData.stats.qualityRate}%</div>
-            <p className="text-sm text-muted-foreground">Qualitätsrate</p>
+            <div className="text-2xl font-bold">{supplier.paymentTermDays || 30} Tage</div>
+            <p className="text-sm text-muted-foreground">Zahlungsziel</p>
           </CardContent>
         </Card>
       </div>
@@ -165,224 +196,211 @@ const SupplierDetail = () => {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
-          <TabsTrigger value="products">Produkte</TabsTrigger>
-          <TabsTrigger value="orders">Bestellungen</TabsTrigger>
-          <TabsTrigger value="documents">Dokumente</TabsTrigger>
+          <TabsTrigger value="products">Produkte ({products.length})</TabsTrigger>
+          <TabsTrigger value="orders">Bestellungen ({purchaseOrders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-2">
             {/* Contact Info */}
-            <Card className="lg:col-span-2">
+            <Card>
               <CardHeader>
                 <CardTitle>Kontaktinformationen</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Ansprechpartner</p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{supplierData.contact.name}</p>
-                          <p className="text-sm text-muted-foreground">{supplierData.contact.position}</p>
-                        </div>
-                      </div>
+              <CardContent className="space-y-4">
+                {supplier.name && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
                     </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span>{supplierData.contact.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{supplierData.contact.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
-                        <span>{supplierData.website}</span>
-                      </div>
+                    <div>
+                      <p className="font-medium">{supplier.name}</p>
+                      <p className="text-sm text-muted-foreground">Ansprechpartner</p>
                     </div>
                   </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Adresse</p>
-                      <div className="flex items-start gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <div>
-                          <p>{supplierData.address.street}</p>
-                          <p>{supplierData.address.city}</p>
-                          <p>{supplierData.address.country}</p>
-                        </div>
-                      </div>
+                )}
+                
+                <div className="space-y-2">
+                  {supplier.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href={`mailto:${supplier.email}`} className="hover:text-primary">{supplier.email}</a>
                     </div>
+                  )}
+                  {supplier.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span>{supplier.phone}</span>
+                    </div>
+                  )}
+                  {supplier.website && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                      <a 
+                        href={supplier.website.startsWith('http') ? supplier.website : `https://${supplier.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary"
+                      >
+                        {supplier.website}
+                      </a>
+                    </div>
+                  )}
+                </div>
 
+                {(supplier.street || supplier.city) && (
+                  <>
                     <Separator />
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">USt-IdNr.</span>
-                        <span>{supplierData.taxId}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Zahlungsziel</span>
-                        <span>{supplierData.paymentTerms}</span>
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        {supplier.street && <p>{supplier.street}</p>}
+                        <p>{supplier.zipCode} {supplier.city}</p>
+                        {supplier.country && <p>{supplier.country}</p>}
                       </div>
                     </div>
+                  </>
+                )}
+
+                <Separator />
+
+                <div className="space-y-2 text-sm">
+                  {supplier.vatNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">UID</span>
+                      <span>{supplier.vatNumber}</span>
+                    </div>
+                  )}
+                  {supplier.iban && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">IBAN</span>
+                      <span className="font-mono text-xs">{supplier.iban}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Erstellt am</span>
+                    <span>{format(new Date(supplier.createdAt), "dd.MM.yyyy", { locale: de })}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Performance */}
+            {/* Rating */}
             <Card>
               <CardHeader>
-                <CardTitle>Leistungsbewertung</CardTitle>
+                <CardTitle>Bewertung</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Pünktlichkeit</span>
-                    <span className="font-medium">{supplierData.stats.onTimeRate}%</span>
-                  </div>
-                  <Progress value={supplierData.stats.onTimeRate} className="h-2" />
+                <div className="flex items-center gap-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={cn(
+                        "h-6 w-6",
+                        i < (supplier.rating || 0)
+                          ? "text-warning fill-warning"
+                          : "text-muted"
+                      )}
+                    />
+                  ))}
+                  <span className="text-lg font-medium ml-2">{supplier.rating || 0}/5</span>
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Qualität</span>
-                    <span className="font-medium">{supplierData.stats.qualityRate}%</span>
-                  </div>
-                  <Progress value={supplierData.stats.qualityRate} className="h-2" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Kommunikation</span>
-                    <span className="font-medium">92%</span>
-                  </div>
-                  <Progress value={92} className="h-2" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Preis-Leistung</span>
-                    <span className="font-medium">88%</span>
-                  </div>
-                  <Progress value={88} className="h-2" />
-                </div>
+
+                {supplier.notes && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-sm font-medium mb-2">Notizen</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{supplier.notes}</p>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
-
-          {/* Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Notizen</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {supplierData.notes.map((note, index) => (
-                  <div key={index} className="flex gap-4 p-3 rounded-lg bg-muted/50">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm">{note.text}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span>{note.date}</span>
-                        <span>•</span>
-                        <span>{note.user}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="products">
           <Card>
             <CardHeader>
-              <CardTitle>Produkte & Preisliste</CardTitle>
+              <CardTitle>Produkte von diesem Lieferanten</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Art.-Nr.</TableHead>
-                    <TableHead>Bezeichnung</TableHead>
-                    <TableHead className="text-right">Preis</TableHead>
-                    <TableHead>Verfügbarkeit</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {supplierData.products.map((product) => (
-                    <TableRow key={product.articleNo}>
-                      <TableCell className="font-mono">{product.articleNo}</TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right">CHF {product.price.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={stockColors[product.stock]}>
-                          {product.stock}
-                        </Badge>
-                      </TableCell>
+              {products.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Keine Produkte vorhanden.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Art.-Nr.</TableHead>
+                      <TableHead>Bezeichnung</TableHead>
+                      <TableHead className="text-right">EK-Preis</TableHead>
+                      <TableHead className="text-right">Bestand</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((product: any) => (
+                      <TableRow 
+                        key={product.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/products/${product.id}`)}
+                      >
+                        <TableCell className="font-mono">{product.sku}</TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell className="text-right">CHF {(product.purchasePrice || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{product.stockQuantity || 0} {product.unit}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="orders">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Bestellhistorie</CardTitle>
+              <Button size="sm" onClick={() => navigate("/purchase-orders/new")}>
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Neue Bestellung
+              </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bestellnummer</TableHead>
-                    <TableHead>Datum</TableHead>
-                    <TableHead className="text-right">Positionen</TableHead>
-                    <TableHead className="text-right">Betrag</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {supplierData.recentOrders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>
-                        <Link to={`/purchase-orders/${order.id}`} className="font-medium hover:text-primary">
-                          {order.id}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{order.date}</TableCell>
-                      <TableCell className="text-right">{order.items}</TableCell>
-                      <TableCell className="text-right">CHF {order.total.toLocaleString('de-CH')}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-success/10 text-success">{order.status}</Badge>
-                      </TableCell>
+              {purchaseOrders.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Keine Bestellungen vorhanden.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bestellnummer</TableHead>
+                      <TableHead>Datum</TableHead>
+                      <TableHead className="text-right">Betrag</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="documents">
-          <Card>
-            <CardHeader>
-              <CardTitle>Dokumente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Keine Dokumente vorhanden.</p>
+                  </TableHeader>
+                  <TableBody>
+                    {purchaseOrders.map((order: any) => {
+                      const status = orderStatusConfig[order.status] || orderStatusConfig.DRAFT;
+                      return (
+                        <TableRow 
+                          key={order.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/purchase-orders/${order.id}`)}
+                        >
+                          <TableCell className="font-medium">{order.number}</TableCell>
+                          <TableCell>{format(new Date(order.date || order.createdAt), "dd.MM.yyyy", { locale: de })}</TableCell>
+                          <TableCell className="text-right">CHF {(order.total || 0).toLocaleString('de-CH')}</TableCell>
+                          <TableCell>
+                            <Badge className={status.color}>{status.label}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

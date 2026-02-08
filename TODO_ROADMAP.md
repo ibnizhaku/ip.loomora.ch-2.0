@@ -1,7 +1,7 @@
 # Loomora ERP – TODO Roadmap
 
 **Server:** srv1174249 | **Domain:** app.loomora.ch  
-**Stand:** 08.02.2026
+**Stand:** 08.02.2026 – Aktualisiert
 
 ---
 
@@ -18,9 +18,17 @@
 
 ### 1.2 Datenintegrität
 - [x] **Kunden: Hard-Delete statt Soft-Delete** ✅ Erledigt
-- [ ] **Lieferanten: Hard-Delete implementieren**
+- [x] **Lieferanten: Hard-Delete implementieren** ✅ Erledigt
 - [ ] **Produkte: Hard-Delete implementieren**
 - [ ] **Alle Module: Delete-Strategie vereinheitlichen**
+
+### 1.3 CRM-Modul bereinigt ✅
+- [x] **Kunden-Liste:** API verknüpft, keine Mock-Daten
+- [x] **Kunden-Detail:** API verknüpft, echte Daten aus DB
+- [x] **Kunden-Erstellen:** API verknüpft
+- [x] **Lieferanten-Liste:** API verknüpft
+- [x] **Lieferanten-Detail:** API verknüpft, echte Daten aus DB
+- [x] **Lieferanten-Erstellen:** API verknüpft
 
 ### 1.3 Auth & Session
 - [ ] **Login-Flow testen** (Company-Auswahl, Token-Refresh)
