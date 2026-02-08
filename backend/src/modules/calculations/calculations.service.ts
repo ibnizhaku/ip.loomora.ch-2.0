@@ -241,7 +241,7 @@ export class CalculationsService {
   }
 
   // Transfer calculation to quote
-  async transferToQuote(id: string, companyId: string) {
+  async transferToQuote(id: string, companyId: string, userId: string) {
     const calculation = await this.findOne(id, companyId);
     const result = calculation.result;
 
@@ -256,6 +256,7 @@ export class CalculationsService {
         companyId,
         number: quoteNumber,
         customerId: calculation.customerId!,
+        createdById: userId,
         status: 'DRAFT',
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         subtotal: result.netTotal,
@@ -263,7 +264,7 @@ export class CalculationsService {
         total: result.grandTotal,
         notes: `Basierend auf Kalkulation ${calculation.number}`,
         items: {
-          create: calculation.items.map((item, index) => ({
+          create: calculation.items.map((item: any, index: number) => ({
             position: index + 1,
             productId: item.productId,
             description: item.description,
