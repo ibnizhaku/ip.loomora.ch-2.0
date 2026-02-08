@@ -128,45 +128,91 @@ enum LeadStatus {
   LOST
 }
 
+// Multi-Tenant & Subscription Enums
+enum UserStatus {
+  PENDING           // E-Mail nicht bestätigt
+  ACTIVE            // Aktiver User
+  SUSPENDED         // Gesperrt
+  DELETED           // Gelöscht (soft delete)
+}
+
+enum CompanyStatus {
+  PENDING_PAYMENT   // Warten auf erste Zahlung
+  ACTIVE            // Aktiv mit gültiger Subscription
+  SUSPENDED         // Gesperrt (Zahlung fehlgeschlagen)
+  CANCELLED         // Gekündigt
+}
+
+enum SubscriptionStatus {
+  PENDING           // Checkout initiiert, noch nicht bezahlt
+  ACTIVE            // Aktive Subscription
+  PAST_DUE          // Zahlung fehlgeschlagen (Grace Period)
+  CANCELLED         // Gekündigt (läuft bis Periodenende)
+  EXPIRED           // Abgelaufen
+}
+
+enum InvitationStatus {
+  PENDING           // Einladung versendet
+  ACCEPTED          // Angenommen
+  EXPIRED           // Abgelaufen
+  REVOKED           // Widerrufen
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
 // ============================================
 // CORE / SYSTEM
 // ============================================
 
 model Company {
-  id            String   @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
+  slug          String        @unique  // URL-freundlicher Name
   legalName     String?
   street        String?
   zipCode       String?
   city          String?
-  country       String   @default("CH")
+  country       String        @default("CH")
   phone         String?
   email         String?
   website       String?
-  vatNumber     String?  // CHE-123.456.789
+  vatNumber     String?       // CHE-123.456.789
   iban          String?
   bic           String?
   bankName      String?
   logoUrl       String?
   
+  // Multi-Tenant Status
+  status        CompanyStatus @default(PENDING_PAYMENT)
+  createdById   String?       // User der die Company erstellt hat
+  
   // Settings as JSON
-  settings      Json     @default("{}")
-  shopSettings  Json?    // E-Commerce settings
+  settings      Json          @default("{}")
+  shopSettings  Json?         // E-Commerce settings
   
   // Numbering (current counters)
-  invoiceCounter    Int  @default(0)
-  quoteCounter      Int  @default(0)
-  orderCounter      Int  @default(0)
-  deliveryCounter   Int  @default(0)
-  creditNoteCounter Int  @default(0)
-  purchaseCounter   Int  @default(0)
-  projectCounter    Int  @default(0)
-  employeeCounter   Int  @default(0)
+  invoiceCounter    Int       @default(0)
+  quoteCounter      Int       @default(0)
+  orderCounter      Int       @default(0)
+  deliveryCounter   Int       @default(0)
+  creditNoteCounter Int       @default(0)
+  purchaseCounter   Int       @default(0)
+  projectCounter    Int       @default(0)
+  employeeCounter   Int       @default(0)
   
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   
-  // Relations
+  // Multi-Tenant Relations
+  memberships   UserCompanyMembership[]
+  roles         Role[]
+  subscriptions Subscription[]
+  invitations   Invitation[]
+  
+  // Business Relations (Legacy - User relation wird beibehalten für Migration)
   users         User[]
   customers     Customer[]
   suppliers     Supplier[]
@@ -192,30 +238,268 @@ model Company {
   leads         Lead[]
   campaigns     Campaign[]
   
+  @@index([status])
+  @@index([slug])
   @@map("companies")
 }
 
-model User {
+// ============================================
+// MULTI-TENANT: SUBSCRIPTION PLANS
+// ============================================
+
+model SubscriptionPlan {
+  id              String   @id @default(cuid())
+  name            String   // Basic, Pro, Enterprise
+  description     String?
+  
+  priceMonthly    Decimal  @db.Decimal(10, 2)
+  priceYearly     Decimal  @db.Decimal(10, 2)
+  currency        String   @default("CHF")
+  
+  // Features & Limits as JSON
+  features        Json     @default("{}")   // {"api_access": true, "exports": true}
+  limits          Json     @default("{}")   // {"max_users": 5, "max_projects": 10}
+  
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false)  // Standard-Plan bei Registrierung
+  
+  // Zahls.ch IDs (später zu befüllen)
+  externalProductId String?   // Zahls.ch Product ID
+  externalPriceIdMonthly String?  // Zahls.ch Price ID Monthly
+  externalPriceIdYearly String?   // Zahls.ch Price ID Yearly
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  subscriptions   Subscription[]
+  
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  
+  companyId             String
+  company               Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  planId                String
+  plan                  SubscriptionPlan   @relation(fields: [planId], references: [id])
+  
+  status                SubscriptionStatus @default(PENDING)
+  billingCycle          BillingCycle       @default(MONTHLY)
+  
+  // Perioden
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelledAt           DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  
+  // Zahls.ch IDs (später zu befüllen)
+  externalSubscriptionId String?   // Zahls.ch Subscription ID
+  externalCustomerId     String?   // Zahls.ch Customer ID
+  
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  
+  @@index([companyId])
+  @@index([status])
+  @@index([externalSubscriptionId])
+  @@map("subscriptions")
+}
+
+// ============================================
+// MULTI-TENANT: ROLES & PERMISSIONS
+// ============================================
+
+model Role {
   id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
-  firstName     String
-  lastName      String
-  phone         String?
-  avatarUrl     String?
-  role          UserRole @default(EMPLOYEE)
-  isActive      Boolean  @default(true)
-  twoFactorEnabled Boolean @default(false)
-  lastLoginAt   DateTime?
-  refreshToken  String?
   
   companyId     String
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  name          String   // Owner, Admin, Manager, Member, Custom...
+  description   String?
+  isSystemRole  Boolean  @default(false)  // System-Rollen können nicht gelöscht werden
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
   // Relations
+  permissions   RolePermission[]
+  memberships   UserCompanyMembership[]
+  invitations   Invitation[]
+  
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("roles")
+}
+
+model RolePermission {
+  id          String   @id @default(cuid())
+  
+  roleId      String
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  module      String   // customers, invoices, projects, settings, users...
+  permission  String   // read, write, delete, admin
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([roleId, module, permission])
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+// ============================================
+// MULTI-TENANT: USER-COMPANY MEMBERSHIP
+// ============================================
+
+model UserCompanyMembership {
+  id          String   @id @default(cuid())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  roleId      String
+  role        Role     @relation(fields: [roleId], references: [id])
+  
+  isOwner     Boolean  @default(false)  // Company-Eigentümer
+  isPrimary   Boolean  @default(false)  // Primäre Company beim Login
+  
+  invitedById String?  // User der eingeladen hat
+  
+  joinedAt    DateTime @default(now())
+  
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@index([roleId])
+  @@map("user_company_memberships")
+}
+
+// ============================================
+// MULTI-TENANT: INVITATIONS
+// ============================================
+
+model Invitation {
+  id          String           @id @default(cuid())
+  
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  email       String
+  roleId      String
+  role        Role             @relation(fields: [roleId], references: [id])
+  
+  token       String           @unique
+  status      InvitationStatus @default(PENDING)
+  
+  invitedById String           // User der eingeladen hat
+  
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  
+  createdAt   DateTime         @default(now())
+  
+  @@index([companyId])
+  @@index([email])
+  @@index([token])
+  @@map("invitations")
+}
+
+// ============================================
+// MULTI-TENANT: REFRESH TOKENS
+// ============================================
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tokenHash   String   @unique
+  
+  // Device/Session Info
+  deviceInfo  String?
+  ipAddress   String?
+  userAgent   String?
+  
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ============================================
+// MULTI-TENANT: WEBHOOK EVENTS (Idempotenz)
+// ============================================
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  
+  externalEventId String   @unique  // Event-ID von Zahls.ch
+  eventType       String             // checkout.session.completed, invoice.paid, etc.
+  
+  payload         Json               // Vollständiger Webhook-Payload
+  
+  status          String   @default("pending")  // pending, processed, failed
+  processedAt     DateTime?
+  errorMessage    String?
+  retryCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([externalEventId])
+  @@index([eventType])
+  @@index([status])
+  @@map("webhook_events")
+}
+
+// ============================================
+// USERS (Updated for Multi-Tenant)
+// ============================================
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  phone         String?
+  avatarUrl     String?
+  
+  // Multi-Tenant Status
+  status        UserStatus @default(PENDING)
+  
+  // Legacy fields (für Rückwärtskompatibilität)
+  role          UserRole   @default(EMPLOYEE)
+  isActive      Boolean    @default(true)
+  
+  twoFactorEnabled Boolean @default(false)
+  lastLoginAt   DateTime?
+  
+  // Legacy: Direkte Company-Relation (wird durch Memberships ersetzt)
+  companyId     String?
+  company       Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  // Multi-Tenant Relations
+  memberships   UserCompanyMembership[]
+  refreshTokens RefreshToken[]
+  
+  // Business Relations
   createdQuotes     Quote[]    @relation("QuoteCreator")
   createdOrders     Order[]    @relation("OrderCreator")
   createdInvoices   Invoice[]  @relation("InvoiceCreator")
@@ -239,6 +523,7 @@ model User {
   
   @@index([companyId])
   @@index([email])
+  @@index([status])
   @@map("users")
 }
 
