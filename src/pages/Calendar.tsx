@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -48,7 +48,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface Event {
@@ -75,7 +75,8 @@ const typeConfig = {
 const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 export default function Calendar() {
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const queryClient = useQueryClient();
+  const [events, setEvents] = useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 1, 1));
 
   // Fetch calendar events from API
@@ -84,7 +85,27 @@ export default function Calendar() {
     queryFn: () => api.get<any>('/calendar'),
   });
   const initialEvents = calendarData?.data || [];
+  
+  // Update events when API data changes
+  useEffect(() => {
+    if (initialEvents.length > 0) {
+      setEvents(initialEvents);
+    }
+  }, [initialEvents]);
+
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2024, 1, 1));
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/calendar/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success("Termin erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen des Termins");
+    },
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
@@ -229,8 +250,7 @@ export default function Calendar() {
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(e => e.id !== eventId));
-    toast.success("Termin wurde gelöscht");
+    deleteMutation.mutate(eventId);
   };
 
   const handleDuplicateEvent = (event: Event) => {

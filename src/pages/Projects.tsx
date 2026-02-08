@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Grid3X3, List, X, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, Grid3X3, List, X, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,17 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useProjects, useProjectStats } from "@/hooks/use-projects";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: "Aktiv", color: "bg-success text-success-foreground" },
@@ -33,6 +43,7 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 
 export default function Projects() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -46,6 +57,17 @@ export default function Projects() {
     pageSize: 50,
   });
   const { data: stats } = useProjectStats();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/projects/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      toast.success("Projekt erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   const projects = data?.data || [];
   const hasActiveFilters = priorityFilters.length > 0 || statusFilters.length > 0;
@@ -300,9 +322,39 @@ export default function Projects() {
                           {project.client || project.customer?.companyName || project.customer?.name || 'Kein Kunde'}
                         </p>
                       </div>
-                      <Badge className={statusInfo.color}>
-                        {statusInfo.label}
-                      </Badge>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Badge className={statusInfo.color}>
+                          {statusInfo.label}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}`)}>
+                              Details anzeigen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}`)}>
+                              Bearbeiten
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Möchten Sie "${project.name}" wirklich löschen?`)) {
+                                  deleteMutation.mutate(project.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Löschen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
 
                     {view === "grid" && (

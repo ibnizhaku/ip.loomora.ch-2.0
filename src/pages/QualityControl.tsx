@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface QualityCheck {
@@ -87,6 +87,7 @@ const statusLabels = {
 
 export default function QualityControl() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from API
@@ -97,6 +98,18 @@ export default function QualityControl() {
   const initialChecks = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [checkList, setCheckList] = useState<QualityCheck[]>(initialChecks);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/quality/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/quality-checks"] });
+      toast.success("Prüfung erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Prüfung");
+    },
+  });
 
   const totalChecks = checkList.length;
   const passedChecks = checkList.filter((c) => c.status === "passed").length;
@@ -113,8 +126,7 @@ export default function QualityControl() {
 
   const handleDelete = (e: React.MouseEvent, checkId: string) => {
     e.stopPropagation();
-    setCheckList(checkList.filter(c => c.id !== checkId));
-    toast.success("Prüfung gelöscht");
+    deleteMutation.mutate(checkId);
   };
 
   const handleDuplicate = (e: React.MouseEvent, check: QualityCheck) => {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -89,6 +89,7 @@ const statusLabels = {
 
 export default function CostCenters() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -119,10 +120,17 @@ export default function CostCenters() {
   const warningCount = centerList.filter(c => c.status === "warning").length;
   const overBudgetCount = centerList.filter(c => c.status === "over-budget").length;
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/cost-centers/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/cost-centers"] });
+      toast.success("Kostenstelle erfolgreich gelöscht");
+    },
+  });
+
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setCenterList(centerList.filter(c => c.id !== id));
-    toast.success("Kostenstelle gelöscht");
+    deleteMutation.mutate(id);
   };
 
   const handleStatCardClick = (filter: "all" | "on-track" | "warning" | "over-budget") => {

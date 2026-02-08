@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Plus,
   Search,
@@ -15,6 +16,7 @@ import {
   Edit,
   Link2,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -66,10 +69,22 @@ const statusLabels = {
 };
 
 export default function Payments() {
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/payments"], queryFn: () => api.get<any>("/payments") });
   const payments = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/payments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/payments"] });
+      toast.success("Zahlung erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   const incomingPayments = payments.filter((p) => p.type === "incoming");
   const outgoingPayments = payments.filter((p) => p.type === "outgoing");
@@ -275,6 +290,19 @@ export default function Payments() {
                         <DropdownMenuItem>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Möchten Sie diese Zahlung wirklich löschen?`)) {
+                              deleteMutation.mutate(payment.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

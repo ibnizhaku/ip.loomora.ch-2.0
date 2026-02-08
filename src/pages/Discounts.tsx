@@ -36,7 +36,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface Discount {
@@ -82,6 +82,7 @@ const getTypeIcon = (type: string) => {
 
 export default function Discounts() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch data from API
@@ -93,6 +94,18 @@ export default function Discounts() {
   const [discounts, setDiscounts] = useState<Discount[]>(initialDiscounts);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "percentage" | "fixed" | "shipping">("all");
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/ecommerce/discounts/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/ecommerce/discounts"] });
+      toast.success("Rabatt erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen des Rabatts");
+    },
+  });
 
   const totalRevenue = discounts.reduce((sum, d) => sum + d.revenue, 0);
   const totalUsed = discounts.reduce((sum, d) => sum + d.usedCount, 0);
@@ -137,8 +150,7 @@ export default function Discounts() {
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setDiscounts(prev => prev.filter(d => d.id !== id));
-    toast.success("Rabattcode gelöscht");
+    deleteMutation.mutate(id);
   };
 
   const handleEdit = (id: string, e: React.MouseEvent) => {

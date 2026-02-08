@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -38,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -86,6 +87,7 @@ const statusConfig = {
 
 export default function Users() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/users"], queryFn: () => api.get<any>("/users") });
   const users = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,6 +101,17 @@ export default function Users() {
     email: "",
     name: "",
     role: "user" as User["role"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
+      toast.success("Benutzer erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
   });
 
   const activeFilters = filterUserStatus.length + filterUserRole.length;
@@ -422,6 +435,19 @@ export default function Users() {
                           onClick={() => toast.warning(`${user.name} deaktiviert`)}
                         >
                           Deaktivieren
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Möchten Sie "${user.name}" wirklich löschen?`)) {
+                              deleteMutation.mutate(user.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -67,6 +67,7 @@ const statusConfig = {
 
 export default function Inventory() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/products"], queryFn: () => api.get<any>("/products") });
   const products = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,11 +87,17 @@ export default function Inventory() {
   const lowStockCount = productList.filter((p) => p.status === "low-stock").length;
   const outOfStockCount = productList.filter((p) => p.status === "out-of-stock").length;
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/products/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
+      toast.success("Produkt erfolgreich gelöscht");
+    },
+  });
+
   const handleDelete = (e: React.MouseEvent, productId: string) => {
     e.stopPropagation();
-    const product = productList.find(p => p.id === productId);
-    setProductList(productList.filter(p => p.id !== productId));
-    toast.success(`${product?.name} wurde gelöscht`);
+    deleteMutation.mutate(productId);
   };
 
   const handleOpenStockDialog = (e: React.MouseEvent, product: Product) => {

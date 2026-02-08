@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -77,12 +77,24 @@ const priorityConfig = {
 };
 
 export default function Orders() {
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/orders"], queryFn: () => api.get<any>("/orders") });
   const orders = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/orders/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/orders"] });
+      toast.success("Auftrag erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   const toggleStatusFilter = (status: string) => {
     setStatusFilters((prev) =>
@@ -348,6 +360,18 @@ export default function Orders() {
                         <DropdownMenuItem onClick={(e) => handleCreateInvoice(order, e)}>
                           <FileText className="h-4 w-4 mr-2" />
                           Rechnung erstellen
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Auftrag wirklich löschen?")) {
+                              deleteMutation.mutate(order.id);
+                            }
+                          }}
+                        >
+                          Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

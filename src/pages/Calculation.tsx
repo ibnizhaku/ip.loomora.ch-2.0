@@ -47,7 +47,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface Calculation {
@@ -177,6 +177,7 @@ const bomStatusLabels = {
 
 export default function Calculation() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from API
@@ -189,6 +190,18 @@ export default function Calculation() {
   const [calcList, setCalcList] = useState<Calculation[]>(initialCalculations);
   const [bomDialogOpen, setBomDialogOpen] = useState(false);
   const [bomSearchQuery, setBomSearchQuery] = useState("");
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/calculations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/calculations"] });
+      toast.success("Kalkulation erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Kalkulation");
+    },
+  });
 
   const totalCalcs = calcList.length;
   const approvedCalcs = calcList.filter((c) => c.status === "approved").length;
@@ -214,8 +227,7 @@ export default function Calculation() {
 
   const handleDelete = (e: React.MouseEvent, calcId: string) => {
     e.stopPropagation();
-    setCalcList(calcList.filter(c => c.id !== calcId));
-    toast.success("Kalkulation gelöscht");
+    deleteMutation.mutate(calcId);
   };
 
   const handleDuplicate = (e: React.MouseEvent, calc: Calculation) => {

@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils";
 import { loadExpenseRules, validateExpenseReport, ExpenseRules } from "@/components/settings/ExpenseRulesSettings";
 import { loadWorkflowConfig, getRequiredStages } from "@/components/settings/ExpenseWorkflowSettings";
 import ExpenseApprovalStatus, { ApprovalProgress } from "@/components/expenses/ExpenseApprovalStatus";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface TravelExpense {
@@ -124,6 +124,7 @@ const formatCHF = (amount: number) => {
 
 export default function TravelExpenses() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from API
@@ -137,6 +138,18 @@ export default function TravelExpenses() {
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterDestination, setFilterDestination] = useState<string[]>([]);
   const [expenseRules, setExpenseRules] = useState<ExpenseRules | null>(null);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/travel-expenses/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses"] });
+      toast.success("Spesen erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Spesen");
+    },
+  });
 
   // Load expense rules on mount
   useEffect(() => {
@@ -191,9 +204,7 @@ export default function TravelExpenses() {
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const expense = expenses.find(exp => exp.id === id);
-    setExpenses(prev => prev.filter(exp => exp.id !== id));
-    toast.success(`Reisekostenabrechnung ${expense?.number} gelöscht`);
+    deleteMutation.mutate(id);
   };
 
   const handleDuplicate = (id: string, e: React.MouseEvent) => {

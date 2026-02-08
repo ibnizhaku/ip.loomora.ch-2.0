@@ -45,7 +45,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface Contract {
@@ -81,6 +81,7 @@ const typeConfig = {
 export default function Contracts() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -109,10 +110,17 @@ export default function Contracts() {
   const expiringCount = contractList.filter((c) => c.status === "expiring").length;
   const activeCount = contractList.filter((c) => c.status === "active").length;
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/contracts/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/contracts"] });
+      toast.success("Vertrag erfolgreich gelöscht");
+    },
+  });
+
   const handleDelete = (e: React.MouseEvent, contractId: string) => {
     e.stopPropagation();
-    setContractList(contractList.filter(c => c.id !== contractId));
-    toast.success("Vertrag gelöscht");
+    deleteMutation.mutate(contractId);
   };
 
   const handleDuplicate = (e: React.MouseEvent, contract: Contract) => {

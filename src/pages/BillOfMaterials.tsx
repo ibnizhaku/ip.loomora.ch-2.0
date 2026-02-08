@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface BOMItem {
@@ -142,6 +142,7 @@ function BOMItemRow({ item, level = 0 }: { item: BOMItem; level?: number }) {
 
 export default function BillOfMaterials() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from API
@@ -153,6 +154,18 @@ export default function BillOfMaterials() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedBOM, setExpandedBOM] = useState<string | null>("1");
   const [bomList, setBomList] = useState<BOM[]>(initialBoms);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/bom/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/bom"] });
+      toast.success("Stückliste erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Stückliste");
+    },
+  });
 
   const totalBOMs = bomList.length;
   const activeBOMs = bomList.filter((b) => b.status === "active").length;
@@ -171,8 +184,7 @@ export default function BillOfMaterials() {
 
   const handleDelete = (e: React.MouseEvent, bomId: string) => {
     e.stopPropagation();
-    setBomList(bomList.filter(b => b.id !== bomId));
-    toast.success("Stückliste gelöscht");
+    deleteMutation.mutate(bomId);
   };
 
   const handleDuplicate = (e: React.MouseEvent, bom: BOM) => {

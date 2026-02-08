@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -24,6 +24,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
@@ -50,12 +51,24 @@ const statusConfig = {
 const departments = ["Alle", "Geschäftsleitung", "Produktion", "Montage", "Projektmanagement", "Administration"];
 
 export default function HR() {
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/employees"], queryFn: () => api.get<any>("/employees") });
   const employees = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("Alle");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/employees/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/employees"] });
+      toast.success("Mitarbeiter erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   const handleStatClick = (status: string | null) => {
     setStatusFilter(statusFilter === status ? null : status);
@@ -249,6 +262,18 @@ export default function HR() {
                     onClick={(e) => { e.stopPropagation(); toast.success(`${employee.name} wurde deaktiviert`); }}
                   >
                     Deaktivieren
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Mitarbeiter wirklich löschen?")) {
+                        deleteMutation.mutate(employee.id);
+                      }
+                    }}
+                  >
+                    Löschen
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

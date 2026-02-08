@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface PurchaseInvoice {
@@ -89,6 +89,7 @@ const suppliers = [
 export default function PurchaseInvoices() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -208,9 +209,17 @@ export default function PurchaseInvoices() {
     toast.info("Rechnung abgelehnt");
   };
 
-  const handleDelete = (id: string) => {
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
-    toast.success("Rechnung gelöscht");
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/purchase-invoices/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/purchase-invoices"] });
+      toast.success("Eingangsrechnung erfolgreich gelöscht");
+    },
+  });
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -418,7 +427,7 @@ export default function PurchaseInvoices() {
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-destructive"
-                        onClick={() => handleDelete(invoice.id)}
+                        onClick={(e) => handleDelete(e, invoice.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Löschen

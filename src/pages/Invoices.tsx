@@ -1,5 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Plus,
   Search,
@@ -31,6 +34,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useInvoices, type Invoice } from "@/hooks/use-invoices";
@@ -84,6 +88,7 @@ const formatDate = (dateStr?: string) => {
 };
 
 export default function Invoices() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -94,6 +99,17 @@ export default function Invoices() {
   });
   
   const invoices = useMemo(() => invoicesData?.data || [], [invoicesData]);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/invoices/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success("Rechnung erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   // Calculate stats from API data
   const totalAmount = useMemo(() => 
@@ -271,6 +287,18 @@ export default function Invoices() {
                         <DropdownMenuItem className="gap-2">
                           <Send className="h-4 w-4" />
                           Per E-Mail senden
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Rechnung wirklich löschen?")) {
+                              deleteMutation.mutate(invoice.id);
+                            }
+                          }}
+                        >
+                          Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

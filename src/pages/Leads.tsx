@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface Lead {
@@ -98,6 +98,7 @@ type SortOrder = "asc" | "desc";
 
 export default function Leads() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -106,6 +107,17 @@ export default function Leads() {
   });
   const initialLeads = apiData?.data || [];
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/marketing/leads/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      toast.success("Lead erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [view, setView] = useState<"list" | "pipeline">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -516,6 +528,19 @@ export default function Leads() {
                                 Als verloren markieren
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Möchten Sie "${lead.name}" wirklich löschen?`)) {
+                                  deleteMutation.mutate(lead.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Löschen
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -639,6 +664,19 @@ export default function Leads() {
                                   <DropdownMenuItem onClick={(e) => handleMarkAsLost(e as any, lead)}>
                                     <Trash2 className="h-4 w-4 mr-2 text-destructive" />
                                     Verloren
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm(`Möchten Sie "${lead.name}" wirklich löschen?`)) {
+                                        deleteMutation.mutate(lead.id);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Löschen
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>

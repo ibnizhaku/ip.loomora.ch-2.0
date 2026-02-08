@@ -16,6 +16,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search,
   Filter,
   MoreHorizontal,
@@ -27,9 +33,10 @@ import {
   Check,
   X,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface Review {
@@ -85,6 +92,7 @@ const StarRating = ({ rating }: { rating: number }) => (
 
 export default function Reviews() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch data from API
@@ -100,6 +108,18 @@ export default function Reviews() {
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [statusFilterChecked, setStatusFilterChecked] = useState<string[]>([]);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/ecommerce/reviews/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/ecommerce/reviews"] });
+      toast.success("Bewertung erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Bewertung");
+    },
+  });
 
   const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   const pendingCount = reviews.filter((r) => r.status === "pending").length;
@@ -171,6 +191,11 @@ export default function Reviews() {
   const handleFlag = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     toast.warning("Bewertung als problematisch markiert");
+  };
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteMutation.mutate(id);
   };
 
   const handleReviewClick = (id: string) => {
@@ -456,9 +481,22 @@ export default function Reviews() {
                     >
                       <Flag className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          className="text-destructive" 
+                          onClick={(e) => handleDelete(review.id, e)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardContent>

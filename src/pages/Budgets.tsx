@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Eye,
   Edit,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -105,11 +107,23 @@ const statusIcons = {
 
 export default function Budgets() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/budgets"], queryFn: () => api.get<any>("/budgets") });
   const budgets = apiData?.data || [];
   const [year, setYear] = useState("2024");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "at-risk" | "over-budget" | "under-utilized">("all");
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/budgets/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/budgets"] });
+      toast.success("Budget erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   const budgetList = budgetDataByYear[year] || budgets;
 
@@ -361,6 +375,19 @@ export default function Budgets() {
                       <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Möchten Sie "${budget.name}" wirklich löschen?`)) {
+                            deleteMutation.mutate(budget.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

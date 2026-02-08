@@ -65,7 +65,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 // Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
@@ -101,6 +101,7 @@ type DeliveryMethod = "email" | "post" | "both";
 
 const Reminders = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -108,6 +109,18 @@ const Reminders = () => {
     queryFn: () => api.get<any>("/reminders"),
   });
   const initialReminders = apiData?.data || [];
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/reminders/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      toast.success("Mahnung erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Mahnung");
+    },
+  });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);

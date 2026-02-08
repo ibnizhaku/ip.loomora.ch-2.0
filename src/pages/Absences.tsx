@@ -47,7 +47,7 @@ import { cn } from "@/lib/utils";
 import AbsenceRejectDialog from "@/components/absences/AbsenceRejectDialog";
 import AbsenceApprovalStatus, { AbsenceApprovalProgress } from "@/components/absences/AbsenceApprovalStatus";
 import { loadAbsenceWorkflowConfig, getRequiredAbsenceStages, AUTO_CONFIRMED_TYPES } from "@/components/settings/AbsenceWorkflowSettings";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface AbsenceRequest {
@@ -96,6 +96,7 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const Absences = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -103,6 +104,18 @@ const Absences = () => {
     queryFn: () => api.get<any>("/absences"),
   });
   const absenceRequests = apiData?.data || [];
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/absences/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/absences"] });
+      toast.success("Abwesenheit erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen der Abwesenheit");
+    },
+  });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [requests, setRequests] = useState<AbsenceRequest[]>(absenceRequests);

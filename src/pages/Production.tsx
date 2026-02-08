@@ -38,7 +38,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface ProductionOrder {
@@ -94,6 +94,7 @@ const priorityLabels = {
 export default function Production() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const queryClient = useQueryClient();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -142,10 +143,17 @@ export default function Production() {
     toast.success("Auftrag fortgesetzt");
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/production-orders/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/production-orders"] });
+      toast.success("Produktionsauftrag erfolgreich gelöscht");
+    },
+  });
+
   const handleDelete = (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation();
-    setOrderList(orderList.filter(o => o.id !== orderId));
-    toast.success("Auftrag gelöscht");
+    deleteMutation.mutate(orderId);
   };
 
   const handleDuplicate = (e: React.MouseEvent, order: ProductionOrder) => {

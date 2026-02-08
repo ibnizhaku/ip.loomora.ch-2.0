@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Plus,
@@ -32,8 +32,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Quote {
   id: string;
@@ -57,10 +59,22 @@ const statusConfig = {
 };
 
 export default function Quotes() {
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/quotes"], queryFn: () => api.get<any>("/quotes") });
   const quotes = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/quotes/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/quotes"] });
+      toast.success("Offerte erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen");
+    },
+  });
 
   const filteredQuotes = quotes.filter(
     (q) =>
@@ -236,6 +250,18 @@ export default function Quotes() {
                         <DropdownMenuItem className="gap-2">
                           <ArrowRight className="h-4 w-4" />
                           In Rechnung umwandeln
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Offerte wirklich löschen?")) {
+                              deleteMutation.mutate(quote.id);
+                            }
+                          }}
+                        >
+                          Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

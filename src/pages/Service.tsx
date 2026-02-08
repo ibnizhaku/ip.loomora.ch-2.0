@@ -60,7 +60,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UpcomingMaintenanceDialog } from "@/components/service/UpcomingMaintenanceDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 interface ServiceTicket {
@@ -133,6 +133,7 @@ const statusLabels = {
 
 export default function Service() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from API
@@ -143,6 +144,18 @@ export default function Service() {
   const initialTickets = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [ticketList, setTicketList] = useState<ServiceTicket[]>(initialTickets);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/service-tickets/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/service-tickets"] });
+      toast.success("Ticket erfolgreich gelöscht");
+    },
+    onError: () => {
+      toast.error("Fehler beim Löschen des Tickets");
+    },
+  });
   
   // Dialog states
   const [timeTrackingOpen, setTimeTrackingOpen] = useState(false);
@@ -269,8 +282,7 @@ export default function Service() {
 
   const handleDelete = () => {
     if (!selectedTicket) return;
-    setTicketList(ticketList.filter(t => t.id !== selectedTicket.id));
-    toast.success("Ticket gelöscht");
+    deleteMutation.mutate(selectedTicket.id);
     setDeleteOpen(false);
     setSelectedTicket(null);
   };
