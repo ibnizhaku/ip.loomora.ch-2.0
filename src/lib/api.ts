@@ -1,5 +1,7 @@
 // API Client for backend communication
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app.loomora.ch/api';
+// Default to relative /api so it works on the deployed domain (e.g. https://app.loomora.ch)
+// and can be proxied in development/preview to avoid CORS.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 interface ApiError {
   error: string;
@@ -80,7 +82,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -90,10 +92,16 @@ class ApiClient {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch {
+      // Most common cause in preview/dev is CORS or the backend being unreachable.
+      throw new Error('Backend nicht erreichbar. Bitte prüfen Sie die Verbindung oder versuchen Sie es später erneut.');
+    }
 
     // Handle token refresh on 401
     if (response.status === 401 && this.refreshToken && endpoint !== '/auth/refresh') {
@@ -101,8 +109,8 @@ class ApiClient {
       if (refreshed) {
         // Retry the original request
         (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
-        const retryResponse = await fetch(url, { ...options, headers });
-        if (retryResponse.ok) {
+        const retryResponse = await fetch(url, { ...options, headers }).catch(() => null);
+        if (retryResponse?.ok) {
           return retryResponse.json();
         }
       }
