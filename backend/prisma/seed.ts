@@ -1335,16 +1335,18 @@ async function main() {
   console.log('📦 Erstelle Angebote...');
 
   const quotes = await Promise.all([
-    prisma.quote.create({
-      data: {
+    prisma.quote.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'AN-2024-001' } },
+      update: {},
+      create: {
         number: 'AN-2024-001',
         customerId: customers[3].id,
         date: daysAgo(30),
         validUntil: daysFromNow(30),
         status: 'CONFIRMED',
         subtotal: 28500,
-        vatAmount: 2308.50,
-        total: 30808.50,
+        vatAmount: 2308.5,
+        total: 30808.5,
         notes: 'Gültig 30 Tage ab Offertdatum',
         createdById: adminUser.id,
         companyId: company.id,
@@ -1359,8 +1361,10 @@ async function main() {
         },
       },
     }),
-    prisma.quote.create({
-      data: {
+    prisma.quote.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'AN-2024-002' } },
+      update: {},
+      create: {
         number: 'AN-2024-002',
         customerId: customers[1].id,
         date: daysAgo(15),
@@ -1381,8 +1385,10 @@ async function main() {
         },
       },
     }),
-    prisma.quote.create({
-      data: {
+    prisma.quote.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'AN-2024-003' } },
+      update: {},
+      create: {
         number: 'AN-2024-003',
         customerId: customers[4].id,
         date: daysAgo(5),
@@ -1402,7 +1408,6 @@ async function main() {
         },
       },
     }),
-  ]);
 
   console.log('  ✓ 3 Angebote erstellt');
 
