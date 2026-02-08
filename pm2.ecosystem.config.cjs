@@ -2,13 +2,13 @@ module.exports = {
   apps: [
     {
       name: 'loomora-api',
-      cwd: './server',
-      script: 'dist/index.js',
-      instances: 'max',
+      cwd: './backend',
+      script: 'dist/main.js',
+      instances: 4, // Optimiert: 4 statt max
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '512M',
       env: {
         NODE_ENV: 'production',
         PORT: 3001,
@@ -17,6 +17,8 @@ module.exports = {
         NODE_ENV: 'development',
         PORT: 3001,
       },
+      // Load .env file
+      node_args: '-r dotenv/config',
     },
   ],
 };
