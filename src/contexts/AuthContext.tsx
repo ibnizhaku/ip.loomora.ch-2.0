@@ -90,20 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const companiesJson = localStorage.getItem('auth_companies');
 
         if (token && userJson) {
-          const user = JSON.parse(userJson) as UserInfo;
-          const activeCompany = companyJson ? JSON.parse(companyJson) as ActiveCompanyInfo : null;
-          const availableCompanies = companiesJson ? JSON.parse(companiesJson) as CompanySummary[] : [];
-
-          setState({
-            user,
-            activeCompany,
-            availableCompanies,
-            isAuthenticated: true,
-            isLoading: false,
-            requiresCompanySelection: !activeCompany,
-          });
-
-          // Verify token is still valid by fetching current user
+          // First verify token is still valid by fetching current user
           try {
             const meResponse = await api.get<{
               userId: string;
@@ -114,26 +101,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
               isOwner: boolean;
             }>('/auth/me');
             
-            // Token is valid, update company info if available
-            if (meResponse.companyId && activeCompany) {
-              setState(prev => ({
-                ...prev,
-                activeCompany: {
-                  ...activeCompany,
-                  role: meResponse.role,
-                  permissions: meResponse.permissions,
-                  isOwner: meResponse.isOwner,
-                },
-              }));
-            }
+            // Token is valid - load stored data
+            const user = JSON.parse(userJson) as UserInfo;
+            const activeCompany = companyJson ? JSON.parse(companyJson) as ActiveCompanyInfo : null;
+            const availableCompanies = companiesJson ? JSON.parse(companiesJson) as CompanySummary[] : [];
+
+            // Update company info with fresh data from backend
+            const updatedCompany = activeCompany && meResponse.companyId ? {
+              ...activeCompany,
+              role: meResponse.role,
+              permissions: meResponse.permissions,
+              isOwner: meResponse.isOwner,
+            } : activeCompany;
+
+            setState({
+              user,
+              activeCompany: updatedCompany,
+              availableCompanies,
+              isAuthenticated: true,
+              isLoading: false,
+              requiresCompanySelection: !updatedCompany,
+            });
           } catch {
-            // Token invalid, clear auth
+            // Token invalid, clear auth and redirect
             clearAuthState();
+            setState(prev => ({ ...prev, isLoading: false }));
           }
         } else {
           setState(prev => ({ ...prev, isLoading: false }));
         }
       } catch {
+        clearAuthState();
         setState(prev => ({ ...prev, isLoading: false }));
       }
     };
