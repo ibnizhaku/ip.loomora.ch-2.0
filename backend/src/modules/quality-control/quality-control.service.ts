@@ -197,7 +197,6 @@ export class QualityControlService {
           },
         },
         productionOrder: { select: { id: true, number: true, name: true } },
-        goodsReceipt: { select: { id: true, number: true } },
         inspector: { select: { id: true, firstName: true, lastName: true } },
         results: true,
       },
@@ -208,8 +207,8 @@ export class QualityControlService {
     }
 
     // Merge checklist items with results
-    const itemsWithResults = check.checklist.items.map(item => {
-      const result = check.results.find(r => r.checklistItemId === item.id);
+    const itemsWithResults = check.checklist.items.map((item: any) => {
+      const result = check.results.find((r: any) => r.checklistItemId === item.id);
       return {
         ...item,
         result: result || null,

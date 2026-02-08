@@ -58,7 +58,7 @@ export class CalculationsController {
   @Post(':id/transfer-to-quote')
   @ApiOperation({ summary: 'Transfer calculation to quote' })
   transferToQuote(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.calculationsService.transferToQuote(id, user.companyId);
+    return this.calculationsService.transferToQuote(id, user.companyId, user.id);
   }
 
   @Delete(':id')
