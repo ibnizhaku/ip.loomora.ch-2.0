@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -56,7 +58,7 @@ interface CostCenter {
   status: "on-track" | "warning" | "over-budget";
 }
 
-const costCenters: CostCenter[] = [
+const mockCostCenters: CostCenter[] = [
   {
     id: "1",
     number: "1000",
@@ -149,6 +151,14 @@ const statusLabels = {
 
 export default function CostCenters() {
   const navigate = useNavigate();
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/cost-centers"],
+    queryFn: () => api.get<any>("/cost-centers"),
+  });
+  const costCenters = apiData?.data || mockCostCenters;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [centerList, setCenterList] = useState(costCenters);
   const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "warning" | "over-budget">("all");

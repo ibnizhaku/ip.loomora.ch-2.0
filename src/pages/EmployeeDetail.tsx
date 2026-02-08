@@ -1,12 +1,5 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-
-  // Fetch data from API
-  const { data: apiData } = useQuery({
-    queryKey: ["/employees"],
-    queryFn: () => api.get<any>("/employees"),
-  });
-  const initialOnboardingItems = apiData?.data || mockOnboardingItems;
 import { 
   ArrowLeft, 
   User,
@@ -162,6 +155,14 @@ const employeeData = {
 const EmployeeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/employees"],
+    queryFn: () => api.get<any>("/employees"),
+  });
+  const initialOnboardingItems = apiData?.data || mockOnboardingItems;
+
   const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>(initialOnboardingItems);
   const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);
 

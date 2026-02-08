@@ -1,12 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-  // Fetch data from API
-  const { data: apiData } = useQuery({
-    queryKey: ["/absences"],
-    queryFn: () => api.get<any>("/absences"),
-  });
-  const absenceRequests = apiData?.data || mockAbsenceRequests;
 import { 
   Plus, 
   Search, 
@@ -173,6 +166,14 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const Absences = () => {
   const navigate = useNavigate();
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/absences"],
+    queryFn: () => api.get<any>("/absences"),
+  });
+  const absenceRequests = apiData?.data || mockAbsenceRequests;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [requests, setRequests] = useState<AbsenceRequest[]>(absenceRequests);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);

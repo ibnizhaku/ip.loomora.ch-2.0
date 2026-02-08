@@ -1,12 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-  // Fetch data from API
-  const { data: apiData } = useQuery({
-    queryKey: ["/reminders"],
-    queryFn: () => api.get<any>("/reminders"),
-  });
-  const initialReminders = apiData?.data || mockReminders;
 import { 
   Plus, 
   Search, 
@@ -115,6 +108,14 @@ type DeliveryMethod = "email" | "post" | "both";
 
 const Reminders = () => {
   const navigate = useNavigate();
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/reminders"],
+    queryFn: () => api.get<any>("/reminders"),
+  });
+  const initialReminders = apiData?.data || mockReminders;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [levelFilters, setLevelFilters] = useState<number[]>([]);
