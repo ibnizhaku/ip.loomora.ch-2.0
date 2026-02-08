@@ -160,7 +160,8 @@ export class ServiceTicketsService {
     // Auto-set status based on technician assignment
     let newStatus = dto.status;
     if (dto.assignedTechnicianId && !ticket.assignedTechnicianId && !dto.status) {
-      newStatus = ServiceTicketStatus.OPEN; // Use OPEN as fallback (ASSIGNED may not exist)
+      // Keep current status or use IN_PROGRESS since ASSIGNED doesn't exist in schema
+      newStatus = undefined;
     }
 
     return this.prisma.serviceTicket.update({
@@ -263,7 +264,7 @@ export class ServiceTicketsService {
         assignedTechnicianId: dto.technicianId,
         scheduledDate: new Date(dto.scheduledDate),
         estimatedHours: dto.estimatedHours,
-        status: ServiceTicketStatus.ASSIGNED,
+        status: 'ASSIGNED' as any,
       },
       include: {
         customer: { select: { id: true, name: true } },

@@ -288,7 +288,7 @@ export class MarketingService {
 
       // Get the first user in the company as createdById fallback
       const firstUser = await this.prisma.user.findFirst({
-        where: { companyMemberships: { some: { companyId } } },
+        where: { companyId },
       });
 
       project = await this.prisma.project.create({

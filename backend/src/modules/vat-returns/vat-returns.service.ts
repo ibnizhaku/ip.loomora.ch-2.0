@@ -262,7 +262,7 @@ export class VatReturnsService {
     const vatReturn = await this.findOne(id, companyId);
     const company = await this.prisma.company.findFirst({ where: { id: companyId } });
 
-    const data = (vatReturn.data || {}) as VatReturnDataDto;
+    const data = (vatReturn.data || {}) as unknown as VatReturnDataDto;
 
     // Generate XML according to eCH-0217 standard
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
