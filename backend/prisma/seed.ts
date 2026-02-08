@@ -24,11 +24,11 @@ async function main() {
   console.log('📦 Erstelle Firma und Benutzer...');
 
   const company = await prisma.company.upsert({
-    where: { id: 'loomora-demo' },
+    where: { slug: 'loomora-demo' },
     update: {},
     create: {
-      id: 'loomora-demo',
       name: 'Loomora Metallbau AG',
+      slug: 'loomora-demo',
       legalName: 'Loomora Metallbau AG',
       street: 'Industriestrasse 42',
       zipCode: '8005',
@@ -41,6 +41,7 @@ async function main() {
       iban: 'CH93 0076 2011 6238 5295 7',
       bic: 'UBSWCHZH80A',
       bankName: 'UBS Switzerland AG',
+      status: 'ACTIVE',
       settings: {
         currency: 'CHF',
         locale: 'de-CH',
@@ -1914,11 +1915,11 @@ async function main() {
           paidAt: i > 0 ? new Date(period.getFullYear(), period.getMonth() + 1, 25) : null,
           items: {
             create: [
-              { type: 'Grundlohn', description: 'Monatslohn', amount: emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000, isDeduction: false },
-              { type: 'Abzug', description: 'AHV/IV/EO', amount: emp.number === 'MA-0001' ? 662.50 : emp.number === 'MA-0006' ? 206.70 : 318, isDeduction: true },
-              { type: 'Abzug', description: 'ALV', amount: emp.number === 'MA-0001' ? 137.50 : emp.number === 'MA-0006' ? 42.90 : 66, isDeduction: true },
-              { type: 'Abzug', description: 'NBU', amount: emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.40 : 36, isDeduction: true },
-              { type: 'Abzug', description: 'BVG', amount: emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360, isDeduction: true },
+              { category: 'EARNING', type: 'base', description: 'Monatslohn', amount: emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000, sortOrder: 1 },
+              { category: 'DEDUCTION', type: 'social', description: 'AHV/IV/EO', amount: emp.number === 'MA-0001' ? 662.50 : emp.number === 'MA-0006' ? 206.70 : 318, rate: 5.3, sortOrder: 2 },
+              { category: 'DEDUCTION', type: 'social', description: 'ALV', amount: emp.number === 'MA-0001' ? 137.50 : emp.number === 'MA-0006' ? 42.90 : 66, rate: 1.1, sortOrder: 3 },
+              { category: 'DEDUCTION', type: 'insurance', description: 'NBU', amount: emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.40 : 36, rate: 0.6, sortOrder: 4 },
+              { category: 'DEDUCTION', type: 'pension', description: 'BVG', amount: emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360, rate: 6.0, sortOrder: 5 },
             ],
           },
         },
