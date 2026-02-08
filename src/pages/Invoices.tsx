@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -13,6 +13,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,80 +33,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useInvoices, type Invoice } from "@/hooks/use-invoices";
 
-interface Invoice {
-  id: string;
-  number: string;
-  client: string;
-  project: string;
-  amount: number;
-  status: "paid" | "pending" | "overdue" | "draft";
-  issueDate: string;
-  dueDate: string;
-}
+// Map backend status to UI status
+type UIStatus = "paid" | "pending" | "overdue" | "draft";
 
-const invoices: Invoice[] = [
-  {
-    id: "1",
-    number: "INV-2024-001",
-    client: "Fashion Store GmbH",
-    project: "E-Commerce Platform",
-    amount: 15000,
-    status: "paid",
-    issueDate: "15.01.2024",
-    dueDate: "15.02.2024",
-  },
-  {
-    id: "2",
-    number: "INV-2024-002",
-    client: "FinTech Solutions",
-    project: "Mobile Banking App",
-    amount: 25000,
-    status: "pending",
-    issueDate: "20.01.2024",
-    dueDate: "20.02.2024",
-  },
-  {
-    id: "3",
-    number: "INV-2024-003",
-    client: "Sales Pro AG",
-    project: "CRM Integration",
-    amount: 8500,
-    status: "overdue",
-    issueDate: "01.01.2024",
-    dueDate: "31.01.2024",
-  },
-  {
-    id: "4",
-    number: "INV-2024-004",
-    client: "Data Analytics Inc.",
-    project: "Dashboard Redesign",
-    amount: 5000,
-    status: "draft",
-    issueDate: "01.02.2024",
-    dueDate: "01.03.2024",
-  },
-  {
-    id: "5",
-    number: "INV-2024-005",
-    client: "Tech Innovations",
-    project: "API Development",
-    amount: 12000,
-    status: "pending",
-    issueDate: "25.01.2024",
-    dueDate: "25.02.2024",
-  },
-  {
-    id: "6",
-    number: "INV-2024-006",
-    client: "Logistics Plus",
-    project: "Inventory System",
-    amount: 18000,
-    status: "paid",
-    issueDate: "10.01.2024",
-    dueDate: "10.02.2024",
-  },
-];
+const mapStatus = (status: Invoice['status']): UIStatus => {
+  switch (status) {
+    case 'PAID': return 'paid';
+    case 'SENT': return 'pending';
+    case 'OVERDUE': return 'overdue';
+    case 'DRAFT': return 'draft';
+    case 'CANCELLED': return 'draft';
+    default: return 'draft';
+  }
+};
 
 const statusConfig = {
   paid: {
@@ -130,26 +72,38 @@ const statusConfig = {
   },
 };
 
+// Format date from ISO to DD.MM.YYYY
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('de-CH');
+  } catch {
+    return dateStr;
+  }
+};
+
 export default function Invoices() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Fetch invoices from API
+  const { data: invoicesData, isLoading } = useInvoices({ 
+    search: searchQuery || undefined,
+    pageSize: 100 
+  });
+  
+  const invoices = useMemo(() => invoicesData?.data || [], [invoicesData]);
 
-  const filteredInvoices = invoices.filter(
-    (i) =>
-      i.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.project.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const totalPaid = invoices
-    .filter((i) => i.status === "paid")
-    .reduce((acc, i) => acc + i.amount, 0);
-  const totalPending = invoices
-    .filter((i) => i.status === "pending")
-    .reduce((acc, i) => acc + i.amount, 0);
-  const totalOverdue = invoices
-    .filter((i) => i.status === "overdue")
-    .reduce((acc, i) => acc + i.amount, 0);
+  // Calculate stats from API data
+  const totalAmount = useMemo(() => 
+    invoices.reduce((acc, i) => acc + (i.total || 0), 0), [invoices]);
+  const totalPaid = useMemo(() => 
+    invoices.filter((i) => i.status === "PAID").reduce((acc, i) => acc + (i.total || 0), 0), [invoices]);
+  const totalPending = useMemo(() => 
+    invoices.filter((i) => i.status === "SENT").reduce((acc, i) => acc + (i.total || 0), 0), [invoices]);
+  const totalOverdue = useMemo(() => 
+    invoices.filter((i) => i.status === "OVERDUE").reduce((acc, i) => acc + (i.total || 0), 0), [invoices]);
 
   return (
     <div className="space-y-6">
@@ -179,7 +133,7 @@ export default function Invoices() {
             <div>
               <p className="text-sm text-muted-foreground">Gesamt</p>
               <p className="text-2xl font-bold">
-                CHF {invoices.reduce((acc, i) => acc + i.amount, 0).toLocaleString("de-CH")}
+                CHF {totalAmount.toLocaleString("de-CH")}
               </p>
             </div>
           </div>
@@ -250,8 +204,23 @@ export default function Invoices() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredInvoices.map((invoice, index) => {
-              const StatusIcon = statusConfig[invoice.status].icon;
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p className="text-muted-foreground">Rechnungen werden geladen...</p>
+                </TableCell>
+              </TableRow>
+            ) : invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-muted-foreground">Keine Rechnungen gefunden</p>
+                </TableCell>
+              </TableRow>
+            ) : invoices.map((invoice, index) => {
+              const uiStatus = mapStatus(invoice.status);
+              const StatusIcon = statusConfig[uiStatus].icon;
               return (
                 <TableRow
                   key={invoice.id}
@@ -267,21 +236,21 @@ export default function Invoices() {
                       <span className="font-medium">{invoice.number}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{invoice.client}</TableCell>
+                  <TableCell>{invoice.customer?.name || '-'}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {invoice.project}
+                    {invoice.project?.name || '-'}
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", statusConfig[invoice.status].color)}>
+                    <Badge className={cn("gap-1", statusConfig[uiStatus].color)}>
                       <StatusIcon className="h-3 w-3" />
-                      {statusConfig[invoice.status].label}
+                      {statusConfig[uiStatus].label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    CHF {invoice.amount.toLocaleString("de-CH")}
+                    CHF {(invoice.total || 0).toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {invoice.dueDate}
+                    {formatDate(invoice.dueDate)}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
