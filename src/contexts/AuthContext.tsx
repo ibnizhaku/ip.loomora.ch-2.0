@@ -177,26 +177,67 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginCredentials): Promise<{ requiresCompanySelection: boolean; availableCompanies?: CompanySummary[] }> => {
     const response = await api.post<{
+      // Support both old server format (token) and new backend format (accessToken/refreshToken)
+      token?: string;
       accessToken?: string;
       refreshToken?: string;
-      user: UserInfo;
+      user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        role: string;
+        avatarUrl?: string;
+        company?: {
+          id: string;
+          name: string;
+        };
+      };
       requiresCompanySelection?: boolean;
       availableCompanies?: CompanySummary[];
       activeCompany?: ActiveCompanyInfo;
     }>('/auth/login', credentials);
 
+    // Handle old server format (single token + user with embedded company)
+    const accessToken = response.accessToken || response.token;
+    const refreshToken = response.refreshToken || response.token; // Use same token if no refresh
+    
+    if (!accessToken) {
+      throw new Error('Login fehlgeschlagen: Kein Token erhalten');
+    }
+
+    // Map user info
+    const userInfo: UserInfo = {
+      id: response.user.id,
+      email: response.user.email,
+      firstName: response.user.firstName,
+      lastName: response.user.lastName,
+      avatarUrl: response.user.avatarUrl,
+      status: 'ACTIVE',
+    };
+
+    // Map active company from user.company if not provided separately
+    const activeCompany: ActiveCompanyInfo | null = response.activeCompany || (response.user.company ? {
+      id: response.user.company.id,
+      name: response.user.company.name,
+      slug: response.user.company.id,
+      status: 'ACTIVE',
+      subscriptionStatus: 'ACTIVE',
+      planName: 'Pro',
+      role: response.user.role,
+      permissions: ['*'], // Full access for now
+      isOwner: response.user.role === 'ADMIN',
+    } : null);
+
     if (response.requiresCompanySelection && response.availableCompanies) {
       // User needs to select a company
-      // Save temporary token for company selection
-      if (response.accessToken && response.refreshToken) {
-        localStorage.setItem('auth_token', response.accessToken);
-        localStorage.setItem('refresh_token', response.refreshToken);
-        localStorage.setItem('auth_user', JSON.stringify(response.user));
-        localStorage.setItem('auth_companies', JSON.stringify(response.availableCompanies));
-      }
+      localStorage.setItem('auth_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+      localStorage.setItem('auth_user', JSON.stringify(userInfo));
+      localStorage.setItem('auth_companies', JSON.stringify(response.availableCompanies));
 
       setState({
-        user: response.user,
+        user: userInfo,
         activeCompany: null,
         availableCompanies: response.availableCompanies,
         isAuthenticated: false,
@@ -207,25 +248,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return { requiresCompanySelection: true, availableCompanies: response.availableCompanies };
     }
 
-    // Single company or auto-selected
-    if (response.accessToken && response.refreshToken && response.activeCompany) {
-      saveAuthState(
-        response.user,
-        response.activeCompany,
-        response.availableCompanies || [],
-        response.accessToken,
-        response.refreshToken
-      );
+    // Single company or auto-selected - save and authenticate
+    saveAuthState(
+      userInfo,
+      activeCompany,
+      response.availableCompanies || [],
+      accessToken,
+      refreshToken
+    );
 
-      setState({
-        user: response.user,
-        activeCompany: response.activeCompany,
-        availableCompanies: response.availableCompanies || [],
-        isAuthenticated: true,
-        isLoading: false,
-        requiresCompanySelection: false,
-      });
-    }
+    setState({
+      user: userInfo,
+      activeCompany,
+      availableCompanies: response.availableCompanies || [],
+      isAuthenticated: true,
+      isLoading: false,
+      requiresCompanySelection: false,
+    });
 
     return { requiresCompanySelection: false };
   };
