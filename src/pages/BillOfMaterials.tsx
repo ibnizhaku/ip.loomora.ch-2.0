@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface BOMItem {
   id: string;
@@ -64,7 +66,7 @@ interface BOM {
   createdAt: string;
 }
 
-const initialBoms: BOM[] = [
+const mockBOMs: BOM[] = [
   {
     id: "1",
     number: "STL-2024-001",
@@ -245,6 +247,13 @@ function BOMItemRow({ item, level = 0 }: { item: BOMItem; level?: number }) {
 export default function BillOfMaterials() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/bom"],
+    queryFn: () => api.get<any>("/bom"),
+  });
+  const initialBoms = apiData?.data || mockBOMs;
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedBOM, setExpandedBOM] = useState<string | null>("1");
   const [bomList, setBomList] = useState<BOM[]>(initialBoms);

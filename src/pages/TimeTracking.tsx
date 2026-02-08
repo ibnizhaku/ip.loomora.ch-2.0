@@ -59,6 +59,8 @@ import { de } from "date-fns/locale";
 import { TimeEntriesTable, type TimeEntryRow, type ApprovalStatus } from "@/components/time-tracking/TimeEntriesTable";
 import { TimeEntriesPDFPreview } from "@/components/time-tracking/TimeEntriesPDFPreview";
 import { TimeEntriesPDFData, downloadTimeEntriesPDF } from "@/lib/pdf/time-entries";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface TimeEntry {
   id: string;
@@ -87,7 +89,7 @@ const employees = [
   { id: "4", name: "Julia Weber" },
 ];
 
-const initialEntries: TimeEntry[] = [
+const mockTimeEntrys: TimeEntry[] = [
   {
     id: "1",
     project: "E-Commerce Platform",
@@ -172,6 +174,13 @@ function formatTime(seconds: number): string {
 export default function TimeTracking() {
   const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
   const [isTracking, setIsTracking] = useState(false);
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/time-entries"],
+    queryFn: () => api.get<any>("/time-entries"),
+  });
+  const initialEntries = apiData?.data || mockTimeEntrys;
   const [currentTask, setCurrentTask] = useState("");
   const [currentProject, setCurrentProject] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);

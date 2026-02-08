@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface DeliveryNote {
   id: string;
@@ -46,7 +48,7 @@ interface DeliveryNote {
   trackingNumber?: string;
 }
 
-const deliveryNotes: DeliveryNote[] = [
+const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: "1",
     number: "LS-2024-001",
@@ -121,6 +123,13 @@ const statusConfig = {
 export default function DeliveryNotes() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/delivery-notes"],
+    queryFn: () => api.get<any>("/delivery-notes"),
+  });
+  const deliveryNotes = apiData?.data || mockDeliveryNotes;
 
   const filteredNotes = deliveryNotes.filter(
     (n) =>

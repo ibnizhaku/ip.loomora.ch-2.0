@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface PurchaseInvoice {
   id: string;
@@ -59,7 +61,7 @@ interface PurchaseInvoice {
   pdfFile?: string;
 }
 
-const initialInvoices: PurchaseInvoice[] = [
+const mockPurchaseInvoices: PurchaseInvoice[] = [
   {
     id: "1",
     number: "ERI-2024-001",
@@ -147,6 +149,13 @@ const suppliers = [
 export default function PurchaseInvoices() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/purchase-invoices"],
+    queryFn: () => api.get<any>("/purchase-invoices"),
+  });
+  const initialInvoices = apiData?.data || mockPurchaseInvoices;
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>(initialInvoices);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

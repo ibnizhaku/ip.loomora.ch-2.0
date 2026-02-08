@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/employees"],
+    queryFn: () => api.get<any>("/employees"),
+  });
+  const initialOnboardingItems = apiData?.data || mockOnboardingItems;
 import { 
   ArrowLeft, 
   User,
@@ -53,6 +60,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 // Onboarding checklist items
 interface OnboardingItem {
@@ -66,7 +75,7 @@ interface OnboardingItem {
   completedBy?: string;
 }
 
-const initialOnboardingItems: OnboardingItem[] = [
+const mockOnboardingItems: OnboardingItem[] = [
   // IT & Ausstattung
   { id: "it-1", category: "IT & Ausstattung", title: "Laptop/PC einrichten", description: "Hardware bereitstellen und konfigurieren", icon: Laptop, completed: true, completedDate: "01.04.2021", completedBy: "IT-Support" },
   { id: "it-2", category: "IT & Ausstattung", title: "E-Mail-Konto erstellen", description: "Firmen-E-Mail und Kalender einrichten", icon: Mail, completed: true, completedDate: "01.04.2021", completedBy: "IT-Support" },

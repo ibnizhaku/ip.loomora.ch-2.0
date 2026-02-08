@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/absences"],
+    queryFn: () => api.get<any>("/absences"),
+  });
+  const absenceRequests = apiData?.data || mockAbsenceRequests;
 import { 
   Plus, 
   Search, 
@@ -47,6 +54,8 @@ import { cn } from "@/lib/utils";
 import AbsenceRejectDialog from "@/components/absences/AbsenceRejectDialog";
 import AbsenceApprovalStatus, { AbsenceApprovalProgress } from "@/components/absences/AbsenceApprovalStatus";
 import { loadAbsenceWorkflowConfig, getRequiredAbsenceStages, AUTO_CONFIRMED_TYPES } from "@/components/settings/AbsenceWorkflowSettings";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface AbsenceRequest {
   id: number;
@@ -64,7 +73,7 @@ interface AbsenceRequest {
 }
 
 // GAV Metallbau Ferienansprüche (altersabhängig)
-const absenceRequests: AbsenceRequest[] = [
+const mockAbsenceRequests: AbsenceRequest[] = [
   { 
     id: 1, 
     employee: "Thomas Müller", 

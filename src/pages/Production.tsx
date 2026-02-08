@@ -38,6 +38,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface ProductionOrder {
   id: string;
@@ -58,7 +60,7 @@ interface ProductionOrder {
   workstation: string;
 }
 
-const initialOrders: ProductionOrder[] = [
+const mockProductionOrders: ProductionOrder[] = [
   {
     id: "1",
     number: "WA-2024-001",
@@ -159,6 +161,13 @@ const priorityLabels = {
 export default function Production() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/production-orders"],
+    queryFn: () => api.get<any>("/production-orders"),
+  });
+  const initialOrders = apiData?.data || mockProductionOrders;
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderList, setOrderList] = useState<ProductionOrder[]>(initialOrders);
 

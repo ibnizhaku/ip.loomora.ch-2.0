@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface QualityCheck {
   id: string;
@@ -52,7 +54,7 @@ interface QualityCheck {
   notes?: string;
 }
 
-const initialChecks: QualityCheck[] = [
+const mockQualityChecks: QualityCheck[] = [
   {
     id: "1",
     number: "QS-2024-001",
@@ -160,6 +162,13 @@ const statusLabels = {
 export default function QualityControl() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/quality-checks"],
+    queryFn: () => api.get<any>("/quality-checks"),
+  });
+  const initialChecks = apiData?.data || mockQualityChecks;
   const [statusFilter, setStatusFilter] = useState("all");
   const [checkList, setCheckList] = useState<QualityCheck[]>(initialChecks);
 

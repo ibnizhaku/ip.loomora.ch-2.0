@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 // Schweizer MWST-Sätze (ab 2024)
 interface VatPeriod {
@@ -45,7 +47,7 @@ interface VatPeriod {
   submittedDate?: string;
 }
 
-const vatPeriods: VatPeriod[] = [
+const mockVatPeriods: VatPeriod[] = [
   {
     id: "1",
     period: "2024-Q4",
@@ -129,6 +131,13 @@ const statusLabels = {
 export default function VatReturns() {
   const [selectedPeriod, setSelectedPeriod] = useState("2024-Q4");
   const [year, setYear] = useState("2024");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/vat-returns"],
+    queryFn: () => api.get<any>("/vat-returns"),
+  });
+  const vatPeriods = apiData?.data || mockVatPeriods;
 
   const currentPeriod = vatPeriods.find((p) => p.period === selectedPeriod);
 

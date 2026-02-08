@@ -48,6 +48,8 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Event {
   id: string;
@@ -61,7 +63,7 @@ interface Event {
   description?: string;
 }
 
-const initialEvents: Event[] = [
+const mockEvents: Event[] = [
   {
     id: "1",
     title: "Projekt-Kickoff E-Commerce",
@@ -130,6 +132,13 @@ const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 export default function Calendar() {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 1, 1));
+
+  // Fetch calendar events from API
+  const { data: calendarData } = useQuery({
+    queryKey: ['calendar'],
+    queryFn: () => api.get<any>('/calendar'),
+  });
+  const initialEvents = calendarData?.data || mockEvents;
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2024, 1, 1));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);

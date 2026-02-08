@@ -36,6 +36,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Discount {
   id: string;
@@ -51,7 +53,7 @@ interface Discount {
   revenue: number;
 }
 
-const initialDiscounts: Discount[] = [
+const mockDiscounts: Discount[] = [
   {
     id: "1",
     code: "WINTER2024",
@@ -148,6 +150,13 @@ const getTypeIcon = (type: string) => {
 export default function Discounts() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/ecommerce/discounts"],
+    queryFn: () => api.get<any>("/ecommerce/discounts"),
+  });
+  const initialDiscounts = apiData?.data || mockDiscounts;
   const [discounts, setDiscounts] = useState<Discount[]>(initialDiscounts);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "percentage" | "fixed" | "shipping">("all");

@@ -32,6 +32,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface OpenItem {
   id: string;
@@ -48,7 +50,7 @@ interface OpenItem {
   daysOverdue?: number;
 }
 
-const openItems: OpenItem[] = [
+const mockOpenItems: OpenItem[] = [
   {
     id: "1",
     type: "receivable",
@@ -162,6 +164,13 @@ const statusLabels = {
 export default function OpenItems() {
   const [activeTab, setActiveTab] = useState("receivables");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/invoices"],
+    queryFn: () => api.get<any>("/invoices"),
+  });
+  const openItems = apiData?.data || mockOpenItems;
 
   const receivables = openItems.filter((i) => i.type === "receivable");
   const payables = openItems.filter((i) => i.type === "payable");

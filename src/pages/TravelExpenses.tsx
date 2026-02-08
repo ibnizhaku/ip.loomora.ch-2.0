@@ -53,6 +53,8 @@ import { cn } from "@/lib/utils";
 import { loadExpenseRules, validateExpenseReport, ExpenseRules } from "@/components/settings/ExpenseRulesSettings";
 import { loadWorkflowConfig, getRequiredStages } from "@/components/settings/ExpenseWorkflowSettings";
 import ExpenseApprovalStatus, { ApprovalProgress } from "@/components/expenses/ExpenseApprovalStatus";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface TravelExpense {
   id: string;
@@ -77,7 +79,7 @@ interface TravelExpense {
   approvalHistory: ApprovalProgress[];
 }
 
-const initialExpenses: TravelExpense[] = [
+const mockTravelExpenses: TravelExpense[] = [
   {
     id: "1",
     number: "RK-2024-012",
@@ -227,6 +229,13 @@ const formatCHF = (amount: number) => {
 export default function TravelExpenses() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/travel-expenses"],
+    queryFn: () => api.get<any>("/travel-expenses"),
+  });
+  const initialExpenses = apiData?.data || mockTravelExpenses;
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<TravelExpense[]>(initialExpenses);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);

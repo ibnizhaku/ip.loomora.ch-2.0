@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/reminders"],
+    queryFn: () => api.get<any>("/reminders"),
+  });
+  const initialReminders = apiData?.data || mockReminders;
 import { 
   Plus, 
   Search, 
@@ -65,6 +72,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 // Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
 const levelConfig: Record<number, { label: string; color: string; fee: number; days: number }> = {
@@ -87,7 +96,7 @@ interface Reminder {
   daysOverdue: number;
 }
 
-const initialReminders: Reminder[] = [
+const mockReminders: Reminder[] = [
   { id: "MA-2024-0028", invoice: "RE-2024-0156", customer: "Müller & Partner GmbH", customerEmail: "buchhaltung@mueller-partner.ch", dueDate: "19.01.2024", amount: 8262.55, level: 2, lastReminder: "27.01.2024", daysOverdue: 12 },
   { id: "MA-2024-0027", invoice: "RE-2024-0148", customer: "Innovation Labs", customerEmail: "finance@innovationlabs.ch", dueDate: "15.01.2024", amount: 4580.00, level: 3, lastReminder: "25.01.2024", daysOverdue: 16 },
   { id: "MA-2024-0026", invoice: "RE-2024-0142", customer: "Weber Elektronik", customerEmail: "info@weber-elektronik.ch", dueDate: "22.01.2024", amount: 2890.00, level: 1, lastReminder: "28.01.2024", daysOverdue: 9 },

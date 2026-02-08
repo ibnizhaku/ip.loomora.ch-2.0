@@ -25,6 +25,8 @@ import {
   Globe,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 type PaymentStatus = "paid" | "pending" | "refunded";
@@ -41,7 +43,7 @@ interface ShopOrder {
   shippingMethod: string;
 }
 
-const initialShopOrders: ShopOrder[] = [
+const mockShopOrders: ShopOrder[] = [
   {
     id: "ORD-10234",
     customer: "Maria Schmidt",
@@ -140,6 +142,13 @@ const getPaymentColor = (status: string) => {
 export default function Shop() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/ecommerce/orders"],
+    queryFn: () => api.get<any>("/ecommerce/orders"),
+  });
+  const initialShopOrders = apiData?.data || mockShopOrders;
   const [shopOrders, setShopOrders] = useState<ShopOrder[]>(initialShopOrders);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
 

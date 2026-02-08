@@ -43,6 +43,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Lead {
   id: string;
@@ -60,7 +62,7 @@ interface Lead {
   lastContact: string;
 }
 
-const initialLeads: Lead[] = [
+const mockLeads: Lead[] = [
   {
     id: "1",
     name: "Thomas Müller",
@@ -189,6 +191,13 @@ type SortOrder = "asc" | "desc";
 export default function Leads() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/marketing/leads"],
+    queryFn: () => api.get<any>("/marketing/leads"),
+  });
+  const initialLeads = apiData?.data || mockLeads;
   const [searchTerm, setSearchTerm] = useState("");
   const [view, setView] = useState<"list" | "pipeline">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");

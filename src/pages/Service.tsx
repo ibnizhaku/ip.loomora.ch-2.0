@@ -60,6 +60,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { UpcomingMaintenanceDialog } from "@/components/service/UpcomingMaintenanceDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface ServiceTicket {
   id: string;
@@ -77,7 +79,7 @@ interface ServiceTicket {
   description: string;
 }
 
-const initialTickets: ServiceTicket[] = [
+const mockServiceTickets: ServiceTicket[] = [
   {
     id: "1",
     number: "SRV-2024-001",
@@ -187,6 +189,13 @@ const statusLabels = {
 export default function Service() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/service-tickets"],
+    queryFn: () => api.get<any>("/service-tickets"),
+  });
+  const initialTickets = apiData?.data || mockServiceTickets;
   const [statusFilter, setStatusFilter] = useState("all");
   const [ticketList, setTicketList] = useState<ServiceTicket[]>(initialTickets);
   

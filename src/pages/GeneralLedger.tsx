@@ -29,6 +29,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface LedgerAccount {
   id: string;
@@ -43,7 +45,7 @@ interface LedgerAccount {
   transactionCount: number;
 }
 
-const ledgerAccounts: LedgerAccount[] = [
+const mockLedgerAccounts: LedgerAccount[] = [
   {
     id: "1",
     number: "1200",
@@ -163,6 +165,13 @@ const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { mi
 export default function GeneralLedger() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/journal-entries"],
+    queryFn: () => api.get<any>("/journal-entries"),
+  });
+  const ledgerAccounts = apiData?.data || mockLedgerAccounts;
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [hasActivityFilter, setHasActivityFilter] = useState(false);

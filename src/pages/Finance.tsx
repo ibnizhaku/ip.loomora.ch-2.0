@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddTransactionDialog } from "@/components/finance/AddTransactionDialog";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Transaction {
   id: string;
@@ -29,7 +31,7 @@ const formatCHF = (amount: number) => {
   return amount.toLocaleString("de-CH", { minimumFractionDigits: 0 });
 };
 
-const initialTransactions: Transaction[] = [
+const mockTransactions: Transaction[] = [
   {
     id: "1",
     description: "Zahlung von Fashion Store GmbH",
@@ -98,6 +100,13 @@ const monthlyData = [
 export default function Finance() {
   const navigate = useNavigate();
   const [transactionList, setTransactionList] = useState<Transaction[]>(initialTransactions);
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/finance"],
+    queryFn: () => api.get<any>("/finance"),
+  });
+  const initialTransactions = apiData?.data || mockTransactions;
   
   const totalIncome = transactionList
     .filter((t) => t.type === "income")

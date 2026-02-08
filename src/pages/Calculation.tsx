@@ -47,6 +47,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Calculation {
   id: string;
@@ -68,7 +70,7 @@ interface Calculation {
   createdAt: string;
 }
 
-const initialCalculations: Calculation[] = [
+const mockCalculations: Calculation[] = [
   {
     id: "1",
     number: "KALK-2024-001",
@@ -252,6 +254,13 @@ const bomStatusLabels = {
 export default function Calculation() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/calculations"],
+    queryFn: () => api.get<any>("/calculations"),
+  });
+  const initialCalculations = apiData?.data || mockCalculations;
   const [statusFilter, setStatusFilter] = useState("all");
   const [calcList, setCalcList] = useState<Calculation[]>(initialCalculations);
   const [bomDialogOpen, setBomDialogOpen] = useState(false);

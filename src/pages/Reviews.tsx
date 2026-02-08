@@ -29,6 +29,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Review {
   id: string;
@@ -46,7 +48,7 @@ interface Review {
   hasResponse: boolean;
 }
 
-const initialReviews: Review[] = [
+const mockReviews: Review[] = [
   {
     id: "1",
     product: "Premium Widget Pro",
@@ -161,6 +163,13 @@ const StarRating = ({ rating }: { rating: number }) => (
 export default function Reviews() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/ecommerce/reviews"],
+    queryFn: () => api.get<any>("/ecommerce/reviews"),
+  });
+  const initialReviews = apiData?.data || mockReviews;
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "positive">("all");

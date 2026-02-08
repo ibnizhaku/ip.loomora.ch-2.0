@@ -45,6 +45,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface Contract {
   id: string;
@@ -60,7 +62,7 @@ interface Contract {
   daysLeft?: number;
 }
 
-const initialContracts: Contract[] = [
+const mockContracts: Contract[] = [
   {
     id: "1",
     number: "VTR-2024-001",
@@ -156,6 +158,13 @@ const typeConfig = {
 export default function Contracts() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/contracts"],
+    queryFn: () => api.get<any>("/contracts"),
+  });
+  const initialContracts = apiData?.data || mockContracts;
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [autoRenewalFilter, setAutoRenewalFilter] = useState<boolean | null>(null);

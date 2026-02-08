@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface BankAccount {
   id: string;
@@ -60,7 +62,7 @@ interface Transaction {
   reference?: string;
 }
 
-const bankAccounts: BankAccount[] = [
+const mockBankAccounts: BankAccount[] = [
   {
     id: "1",
     name: "Geschäftskonto Hauptkonto",
@@ -183,6 +185,13 @@ const statusLabels = {
 export default function BankAccounts() {
   const navigate = useNavigate();
   const [selectedAccount, setSelectedAccount] = useState(bankAccounts[0]);
+
+  // Fetch data from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/bank-accounts"],
+    queryFn: () => api.get<any>("/bank-accounts"),
+  });
+  const bankAccounts = apiData?.data || mockBankAccounts;
 
   const totalBalance = bankAccounts.reduce((acc, a) => acc + a.balance, 0);
   const unmatchedCount = recentTransactions.filter((t) => t.status === "unmatched").length;
