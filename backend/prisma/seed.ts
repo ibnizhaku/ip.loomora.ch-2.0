@@ -1899,27 +1899,40 @@ async function main() {
   for (const emp of employees.slice(0, 5)) {
     for (let i = 0; i < 3; i++) {
       const period = monthStart(i);
+      const grossSalary = emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000;
+      const ahv = emp.number === 'MA-0001' ? 662.5 : emp.number === 'MA-0006' ? 206.7 : 318;
+      const alv = emp.number === 'MA-0001' ? 137.5 : emp.number === 'MA-0006' ? 42.9 : 66;
+      const nbu = emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.4 : 36;
+      const bvg = emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360;
+      const totalDeductions = ahv + alv + nbu + bvg;
+
       await prisma.payslip.create({
         data: {
           employeeId: emp.id,
+
+          year: period.getFullYear(),
+          month: period.getMonth() + 1,
           period,
-          grossSalary: emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000,
+
+          grossSalary,
           netSalary: emp.number === 'MA-0001' ? 9875 : emp.number === 'MA-0006' ? 3120 : 4740,
-          ahvDeduction: emp.number === 'MA-0001' ? 662.50 : emp.number === 'MA-0006' ? 206.70 : 318,
-          alvDeduction: emp.number === 'MA-0001' ? 137.50 : emp.number === 'MA-0006' ? 42.90 : 66,
-          nbuDeduction: emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.40 : 36,
-          bvgDeduction: emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360,
-          taxDeduction: 0,
-          hoursWorked: emp.workloadPercent === 100 ? 184.5 : 110.7,
-          isPaid: i > 0,
-          paidAt: i > 0 ? new Date(period.getFullYear(), period.getMonth() + 1, 25) : null,
+          totalDeductions,
+          totalExpenses: 0,
+          totalEmployerCost: 0,
+
+          targetHours: emp.workloadPercent === 100 ? 184.5 : 110.7,
+          actualHours: emp.workloadPercent === 100 ? 184.5 : 110.7,
+
+          status: i > 0 ? 'PAID' : 'DRAFT',
+          paymentDate: i > 0 ? new Date(period.getFullYear(), period.getMonth() + 1, 25) : null,
+
           items: {
             create: [
-              { category: 'EARNING', type: 'base', description: 'Monatslohn', amount: emp.number === 'MA-0001' ? 12500 : emp.number === 'MA-0006' ? 3900 : 6000, sortOrder: 1 },
-              { category: 'DEDUCTION', type: 'social', description: 'AHV/IV/EO', amount: emp.number === 'MA-0001' ? 662.50 : emp.number === 'MA-0006' ? 206.70 : 318, rate: 5.3, sortOrder: 2 },
-              { category: 'DEDUCTION', type: 'social', description: 'ALV', amount: emp.number === 'MA-0001' ? 137.50 : emp.number === 'MA-0006' ? 42.90 : 66, rate: 1.1, sortOrder: 3 },
-              { category: 'DEDUCTION', type: 'insurance', description: 'NBU', amount: emp.number === 'MA-0001' ? 75 : emp.number === 'MA-0006' ? 23.40 : 36, rate: 0.6, sortOrder: 4 },
-              { category: 'DEDUCTION', type: 'pension', description: 'BVG', amount: emp.number === 'MA-0001' ? 750 : emp.number === 'MA-0006' ? 234 : 360, rate: 6.0, sortOrder: 5 },
+              { category: 'EARNING', type: 'base', description: 'Monatslohn', amount: grossSalary, sortOrder: 1 },
+              { category: 'DEDUCTION', type: 'social', description: 'AHV/IV/EO', amount: ahv, rate: 5.3, sortOrder: 2 },
+              { category: 'DEDUCTION', type: 'social', description: 'ALV', amount: alv, rate: 1.1, sortOrder: 3 },
+              { category: 'DEDUCTION', type: 'insurance', description: 'NBU', amount: nbu, rate: 0.6, sortOrder: 4 },
+              { category: 'DEDUCTION', type: 'pension', description: 'BVG', amount: bvg, rate: 6.0, sortOrder: 5 },
             ],
           },
         },
