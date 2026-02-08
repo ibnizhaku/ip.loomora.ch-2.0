@@ -176,7 +176,7 @@ export class WithholdingTaxService {
     let baseRate = tarifRates.base;
 
     // Adjust for children
-    const childAdjustment = (qstData.childCount || 0) * tarifRates.perChild;
+    const childAdjustment = Number(qstData.childCount || 0) * tarifRates.perChild;
     baseRate = Math.max(0, baseRate + childAdjustment);
 
     // Apply canton factor

@@ -137,7 +137,7 @@ export class VatReturnsService {
       where: {
         companyId,
         date: { gte: startDate, lte: endDate },
-        status: { in: ['APPROVED', 'PAID'] },
+        status: { in: ['SENT', 'PAID'] },
       },
     });
 
@@ -154,13 +154,15 @@ export class VatReturnsService {
         const amount = Number(item.quantity) * Number(item.unitPrice);
         totalRevenue += amount;
 
-        if (item.vatRate === 'STANDARD') {
+        // Use numeric comparison for VAT rates
+        const vatRate = Number(item.vatRate);
+        if (vatRate === 8.1 || vatRate === 0.081) {
           taxableRevenue81 += amount;
-        } else if (item.vatRate === 'REDUCED') {
+        } else if (vatRate === 2.6 || vatRate === 0.026) {
           taxableRevenue26 += amount;
-        } else if (item.vatRate === 'SPECIAL') {
+        } else if (vatRate === 3.8 || vatRate === 0.038) {
           taxableRevenue38 += amount;
-        } else if (item.vatRate === 'EXEMPT') {
+        } else if (vatRate === 0) {
           exemptRevenue += amount;
         }
       });
@@ -200,7 +202,7 @@ export class VatReturnsService {
     return this.prisma.vatReturn.update({
       where: { id },
       data: {
-        data,
+        data: data as any,
         totalOutputTax,
         totalInputTax,
         vatPayable,
@@ -256,12 +258,11 @@ export class VatReturnsService {
     return this.prisma.vatReturn.delete({ where: { id } });
   }
 
-  // Generate eCH-0217 XML export
   async exportXml(id: string, companyId: string) {
     const vatReturn = await this.findOne(id, companyId);
     const company = await this.prisma.company.findFirst({ where: { id: companyId } });
 
-    const data = vatReturn.data as VatReturnDataDto;
+    const data = (vatReturn.data || {}) as VatReturnDataDto;
 
     // Generate XML according to eCH-0217 standard
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

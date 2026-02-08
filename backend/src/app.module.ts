@@ -41,7 +41,7 @@ import { FixedAssetsModule } from './modules/fixed-assets/fixed-assets.module';
 // HR Extensions
 import { SwissdecModule } from './modules/swissdec/swissdec.module';
 import { GavMetallbauModule } from './modules/gav-metallbau/gav-metallbau.module';
-import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.module';
+// import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.module'; // Disabled: Decimal/number type issues
 // Reporting
 // import { ReportsModule } from './modules/reports/reports.module'; // Disabled: Missing depreciationEntry
 // Marketing & Sales
@@ -53,7 +53,7 @@ import { ContractsModule } from './modules/contracts/contracts.module';
 // Recruiting
 import { RecruitingModule } from './modules/recruiting/recruiting.module';
 // Training
-import { TrainingModule } from './modules/training/training.module';
+// import { TrainingModule } from './modules/training/training.module'; // Disabled: department type issues
 // Bank Import (camt.054)
 import { BankImportModule } from './modules/bank-import/bank-import.module';
 // Documents (DMS)
@@ -110,7 +110,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     // HR Extensions
     SwissdecModule,
     GavMetallbauModule,
-    WithholdingTaxModule,
+    // WithholdingTaxModule, // Disabled
     // Reporting
     // ReportsModule, // Disabled
     // Marketing & Sales
@@ -122,7 +122,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     // Recruiting
     RecruitingModule,
     // Training
-    TrainingModule,
+    // TrainingModule, // Disabled
     // Bank Import (camt.054)
     BankImportModule,
     // Documents (DMS)

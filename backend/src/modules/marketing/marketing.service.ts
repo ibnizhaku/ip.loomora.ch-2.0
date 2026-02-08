@@ -286,6 +286,11 @@ export class MarketingService {
         : 0;
       const projectNumber = `P-${String(lastProjNum + 1).padStart(4, '0')}`;
 
+      // Get the first user in the company as createdById fallback
+      const firstUser = await this.prisma.user.findFirst({
+        where: { companyMemberships: { some: { companyId } } },
+      });
+
       project = await this.prisma.project.create({
         data: {
           number: projectNumber,
@@ -293,6 +298,7 @@ export class MarketingService {
           customerId: customer.id,
           companyId,
           budget: Number(lead.estimatedValue || 0),
+          createdById: firstUser?.id || '',
         },
       });
     }
