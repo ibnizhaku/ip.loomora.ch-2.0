@@ -5,6 +5,11 @@ export default defineConfig({
   earlyAccess: true,
   schema: path.join(__dirname, 'prisma', 'schema.prisma'),
   
+  // Database URL for migrations
+  datasource: {
+    url: process.env.DATABASE_URL,
+  },
+  
   migrate: {
     async adapter() {
       const { PrismaPg } = await import('@prisma/adapter-pg');
