@@ -83,13 +83,16 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    // Always read the latest token from localStorage (AuthContext may have updated it)
+    const token = this.accessToken || localStorage.getItem('auth_token');
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
     };
 
-    if (this.accessToken) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     }
 
     let response: Response;
@@ -104,7 +107,8 @@ class ApiClient {
     }
 
     // Handle token refresh on 401
-    if (response.status === 401 && this.refreshToken && endpoint !== '/auth/refresh') {
+    const currentRefreshToken = this.refreshToken || localStorage.getItem('refresh_token');
+    if (response.status === 401 && currentRefreshToken && endpoint !== '/auth/refresh') {
       const refreshed = await this.tryRefreshToken();
       if (refreshed) {
         // Retry the original request
@@ -137,15 +141,18 @@ class ApiClient {
   }
 
   private async tryRefreshToken(): Promise<boolean> {
-    if (!this.refreshToken || !this.user) return false;
+    const refreshToken = this.refreshToken || localStorage.getItem('refresh_token');
+    const userJson = localStorage.getItem('auth_user');
+    const user = this.user || (userJson ? JSON.parse(userJson) : null);
+    if (!refreshToken || !user) return false;
 
     try {
       const response = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: this.user.id,
-          refreshToken: this.refreshToken,
+          userId: user.id,
+          refreshToken: refreshToken,
         }),
       });
 
@@ -227,7 +234,7 @@ export const auth = {
   },
   
   isAuthenticated: () => {
-    return !!api.getToken();
+    return !!(api.getToken() || localStorage.getItem('auth_token'));
   },
 
   getUser: () => {
