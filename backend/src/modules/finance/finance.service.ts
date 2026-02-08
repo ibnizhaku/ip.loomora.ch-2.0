@@ -9,8 +9,6 @@ import {
 } from './dto/finance.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
-// Use local AccountType enum from dto
-
 @Injectable()
 export class FinanceService {
   constructor(private prisma: PrismaService) {}
@@ -37,23 +35,22 @@ export class FinanceService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.account.findMany({
+      this.prisma.chartOfAccount.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { [sortBy]: sortOrder },
         include: {
           parent: { select: { id: true, number: true, name: true } },
-          _count: { select: { journalEntries: true } },
         },
       }),
-      this.prisma.account.count({ where }),
+      this.prisma.chartOfAccount.count({ where }),
     ]);
 
     // Calculate balances from journal entries
     const enrichedData = await Promise.all(
-      data.map(async (account) => {
-        const balance = await this.calculateAccountBalance(account.id);
+      data.map(async (account: any) => {
+        const balance = await this.calculateAccountBalance(account.id, account.type);
         return { ...account, balance };
       }),
     );
@@ -68,7 +65,7 @@ export class FinanceService {
   }
 
   async findOneAccount(id: string, companyId: string) {
-    const account = await this.prisma.account.findFirst({
+    const account = await this.prisma.chartOfAccount.findFirst({
       where: { id, companyId },
       include: {
         parent: true,
@@ -80,12 +77,12 @@ export class FinanceService {
       throw new NotFoundException('Account not found');
     }
 
-    const balance = await this.calculateAccountBalance(id);
+    const balance = await this.calculateAccountBalance(id, account.type);
     return { ...account, balance };
   }
 
   async createAccount(companyId: string, dto: CreateAccountDto) {
-    return this.prisma.account.create({
+    return this.prisma.chartOfAccount.create({
       data: {
         ...dto,
         companyId,
@@ -94,7 +91,7 @@ export class FinanceService {
   }
 
   async updateAccount(id: string, companyId: string, dto: UpdateAccountDto) {
-    const account = await this.prisma.account.findFirst({
+    const account = await this.prisma.chartOfAccount.findFirst({
       where: { id, companyId },
     });
 
@@ -102,27 +99,25 @@ export class FinanceService {
       throw new NotFoundException('Account not found');
     }
 
-    return this.prisma.account.update({
+    return this.prisma.chartOfAccount.update({
       where: { id },
       data: dto,
     });
   }
 
-  private async calculateAccountBalance(accountId: string): Promise<number> {
-    const result = await this.prisma.journalEntry.aggregate({
+  private async calculateAccountBalance(accountId: string, accountType: string): Promise<number> {
+    // Get journal lines for this account
+    const result = await this.prisma.journalLine.aggregate({
       where: { accountId },
       _sum: { debit: true, credit: true },
     });
 
-    const debit = result._sum.debit || 0;
-    const credit = result._sum.credit || 0;
+    const debit = Number(result._sum?.debit || 0);
+    const credit = Number(result._sum?.credit || 0);
 
     // For ASSET and EXPENSE: balance = debit - credit
     // For LIABILITY, EQUITY, REVENUE: balance = credit - debit
-    const account = await this.prisma.account.findUnique({ where: { id: accountId } });
-    if (!account) return 0;
-
-    if (account.type === AccountType.ASSET || account.type === AccountType.EXPENSE) {
+    if (accountType === AccountType.ASSET || accountType === AccountType.EXPENSE) {
       return debit - credit;
     }
     return credit - debit;
@@ -148,7 +143,7 @@ export class FinanceService {
       include: {
         transactions: {
           take: 20,
-          orderBy: { transactionDate: 'desc' },
+          orderBy: { bookingDate: 'desc' },
         },
       },
     });
@@ -204,24 +199,24 @@ export class FinanceService {
   // =====================
 
   async getBalanceSheet(companyId: string) {
-    const accounts = await this.prisma.account.findMany({
+    const accounts = await this.prisma.chartOfAccount.findMany({
       where: { companyId, isActive: true },
     });
 
     const balances = await Promise.all(
-      accounts.map(async (account) => {
-        const balance = await this.calculateAccountBalance(account.id);
+      accounts.map(async (account: any) => {
+        const balance = await this.calculateAccountBalance(account.id, account.type);
         return { ...account, balance };
       }),
     );
 
-    const assets = balances.filter((a) => a.type === AccountType.ASSET);
-    const liabilities = balances.filter((a) => a.type === AccountType.LIABILITY);
-    const equity = balances.filter((a) => a.type === AccountType.EQUITY);
+    const assets = balances.filter((a: any) => a.type === AccountType.ASSET);
+    const liabilities = balances.filter((a: any) => a.type === AccountType.LIABILITY);
+    const equity = balances.filter((a: any) => a.type === AccountType.EQUITY);
 
-    const totalAssets = assets.reduce((sum, a) => sum + a.balance, 0);
-    const totalLiabilities = liabilities.reduce((sum, a) => sum + a.balance, 0);
-    const totalEquity = equity.reduce((sum, a) => sum + a.balance, 0);
+    const totalAssets = assets.reduce((sum: number, a: any) => sum + a.balance, 0);
+    const totalLiabilities = liabilities.reduce((sum: number, a: any) => sum + a.balance, 0);
+    const totalEquity = equity.reduce((sum: number, a: any) => sum + a.balance, 0);
 
     return {
       assets,
@@ -239,34 +234,38 @@ export class FinanceService {
   async getIncomeStatement(companyId: string, startDate?: Date, endDate?: Date) {
     const where: any = { companyId, isActive: true };
 
-    const accounts = await this.prisma.account.findMany({
+    const accounts = await this.prisma.chartOfAccount.findMany({
       where: { ...where, type: { in: [AccountType.REVENUE, AccountType.EXPENSE] } },
     });
 
     const balances = await Promise.all(
-      accounts.map(async (account) => {
+      accounts.map(async (account: any) => {
         const journalWhere: any = { accountId: account.id };
-        if (startDate) journalWhere.date = { gte: startDate };
-        if (endDate) journalWhere.date = { ...journalWhere.date, lte: endDate };
+        
+        if (startDate || endDate) {
+          journalWhere.journalEntry = {};
+          if (startDate) journalWhere.journalEntry.date = { gte: startDate };
+          if (endDate) journalWhere.journalEntry.date = { ...journalWhere.journalEntry.date, lte: endDate };
+        }
 
-        const result = await this.prisma.journalEntry.aggregate({
+        const result = await this.prisma.journalLine.aggregate({
           where: journalWhere,
           _sum: { debit: true, credit: true },
         });
 
-        const debit = result._sum.debit || 0;
-        const credit = result._sum.credit || 0;
+        const debit = Number(result._sum?.debit || 0);
+        const credit = Number(result._sum?.credit || 0);
         const balance = account.type === AccountType.EXPENSE ? debit - credit : credit - debit;
 
         return { ...account, balance };
       }),
     );
 
-    const revenue = balances.filter((a) => a.type === AccountType.REVENUE);
-    const expenses = balances.filter((a) => a.type === AccountType.EXPENSE);
+    const revenue = balances.filter((a: any) => a.type === AccountType.REVENUE);
+    const expenses = balances.filter((a: any) => a.type === AccountType.EXPENSE);
 
-    const totalRevenue = revenue.reduce((sum, a) => sum + a.balance, 0);
-    const totalExpenses = expenses.reduce((sum, a) => sum + a.balance, 0);
+    const totalRevenue = revenue.reduce((sum: number, a: any) => sum + a.balance, 0);
+    const totalExpenses = expenses.reduce((sum: number, a: any) => sum + a.balance, 0);
     const netIncome = totalRevenue - totalExpenses;
 
     return {

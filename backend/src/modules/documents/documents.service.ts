@@ -10,6 +10,7 @@ import {
   FolderType,
   DocumentStatus,
 } from './dto/document.dto';
+import { Folder, DMSDocument } from '@prisma/client';
 
 @Injectable()
 export class DocumentsService {
@@ -75,7 +76,7 @@ export class DocumentsService {
           orderBy: { name: 'asc' },
         },
         documents: {
-          where: { status: DocumentStatus.ACTIVE },
+          where: { status: 'ACTIVE' },
           orderBy: { name: 'asc' },
         },
         _count: { select: { documents: true, children: true } },
@@ -98,7 +99,7 @@ export class DocumentsService {
       throw new NotFoundException('Ordner nicht gefunden');
     }
 
-    if (folder.type === FolderType.SYSTEM) {
+    if (folder.type === 'SYSTEM') {
       throw new BadRequestException('Systemordner können nicht geändert werden');
     }
 
@@ -131,7 +132,7 @@ export class DocumentsService {
       throw new NotFoundException('Ordner nicht gefunden');
     }
 
-    if (folder.type === FolderType.SYSTEM) {
+    if (folder.type === 'SYSTEM') {
       throw new BadRequestException('Systemordner können nicht gelöscht werden');
     }
 
@@ -148,9 +149,8 @@ export class DocumentsService {
     let currentId: string | null = id;
 
     while (currentId) {
-      const folder = await this.prisma.folder.findFirst({
+      const folder: Folder | null = await this.prisma.folder.findFirst({
         where: { id: currentId, companyId },
-        select: { id: true, name: true, parentId: true },
       });
 
       if (!folder) break;
@@ -175,7 +175,7 @@ export class DocumentsService {
       }
     }
 
-    return this.prisma.document.create({
+    return this.prisma.dMSDocument.create({
       data: {
         companyId,
         name: dto.name,
@@ -186,7 +186,7 @@ export class DocumentsService {
         storagePath: dto.storagePath,
         description: dto.description,
         tags: dto.tags || [],
-        status: DocumentStatus.ACTIVE,
+        status: 'ACTIVE',
         version: 1,
         projectId: dto.projectId,
         customerId: dto.customerId,
@@ -217,7 +217,7 @@ export class DocumentsService {
     } = params;
 
     const skip = (page - 1) * pageSize;
-    const where: any = { companyId, status: DocumentStatus.ACTIVE };
+    const where: any = { companyId, status: 'ACTIVE' };
 
     if (folderId) where.folderId = folderId;
     if (projectId) where.projectId = projectId;
@@ -242,7 +242,7 @@ export class DocumentsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.document.findMany({
+      this.prisma.dMSDocument.findMany({
         where,
         skip,
         take: pageSize,
@@ -254,7 +254,7 @@ export class DocumentsService {
           customer: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.document.count({ where }),
+      this.prisma.dMSDocument.count({ where }),
     ]);
 
     return {
@@ -267,7 +267,7 @@ export class DocumentsService {
   }
 
   async findDocumentById(id: string, companyId: string) {
-    const document = await this.prisma.document.findFirst({
+    const document = await this.prisma.dMSDocument.findFirst({
       where: { id, companyId },
       include: {
         folder: { select: { id: true, name: true } },
@@ -294,7 +294,7 @@ export class DocumentsService {
   async updateDocument(id: string, companyId: string, dto: UpdateDocumentDto) {
     await this.findDocumentById(id, companyId);
 
-    return this.prisma.document.update({
+    return this.prisma.dMSDocument.update({
       where: { id },
       data: {
         name: dto.name,
@@ -310,7 +310,7 @@ export class DocumentsService {
   }
 
   async moveDocument(id: string, companyId: string, dto: MoveDocumentDto) {
-    const document = await this.findDocumentById(id, companyId);
+    await this.findDocumentById(id, companyId);
 
     // Validate target folder
     const targetFolder = await this.prisma.folder.findFirst({
@@ -321,7 +321,7 @@ export class DocumentsService {
       throw new NotFoundException('Zielordner nicht gefunden');
     }
 
-    return this.prisma.document.update({
+    return this.prisma.dMSDocument.update({
       where: { id },
       data: { folderId: dto.targetFolderId },
       include: {
@@ -334,18 +334,18 @@ export class DocumentsService {
     await this.findDocumentById(id, companyId);
 
     // Soft delete - mark as deleted
-    return this.prisma.document.update({
+    return this.prisma.dMSDocument.update({
       where: { id },
-      data: { status: DocumentStatus.DELETED },
+      data: { status: 'DELETED' },
     });
   }
 
   async archiveDocument(id: string, companyId: string) {
     await this.findDocumentById(id, companyId);
 
-    return this.prisma.document.update({
+    return this.prisma.dMSDocument.update({
       where: { id },
-      data: { status: DocumentStatus.ARCHIVED },
+      data: { status: 'ARCHIVED' },
     });
   }
 
@@ -359,19 +359,19 @@ export class DocumentsService {
     const document = await this.findDocumentById(id, companyId);
 
     // Create version record
-    await this.prisma.documentVersion.create({
+    await this.prisma.dMSDocumentVersion.create({
       data: {
         documentId: id,
         version: document.version,
-        storageUrl: document.storageUrl,
+        storageUrl: document.storageUrl || '',
         storagePath: document.storagePath,
-        fileSize: document.fileSize,
+        fileSize: document.fileSize || 0,
         createdById: userId,
       },
     });
 
     // Update document with new version
-    return this.prisma.document.update({
+    return this.prisma.dMSDocument.update({
       where: { id },
       data: {
         version: document.version + 1,
@@ -389,16 +389,16 @@ export class DocumentsService {
   // Get storage statistics
   async getStorageStats(companyId: string) {
     const [totalDocs, totalSize, byType, byFolder] = await Promise.all([
-      this.prisma.document.count({
-        where: { companyId, status: DocumentStatus.ACTIVE },
+      this.prisma.dMSDocument.count({
+        where: { companyId, status: 'ACTIVE' },
       }),
-      this.prisma.document.aggregate({
-        where: { companyId, status: DocumentStatus.ACTIVE },
+      this.prisma.dMSDocument.aggregate({
+        where: { companyId, status: 'ACTIVE' },
         _sum: { fileSize: true },
       }),
-      this.prisma.document.groupBy({
+      this.prisma.dMSDocument.groupBy({
         by: ['mimeType'],
-        where: { companyId, status: DocumentStatus.ACTIVE },
+        where: { companyId, status: 'ACTIVE' },
         _count: true,
         _sum: { fileSize: true },
       }),
@@ -416,12 +416,12 @@ export class DocumentsService {
       totalDocuments: totalDocs,
       totalSize: totalSize._sum.fileSize || 0,
       totalSizeFormatted: this.formatBytes(totalSize._sum.fileSize || 0),
-      byMimeType: byType.map(t => ({
+      byMimeType: byType.map((t: any) => ({
         mimeType: t.mimeType || 'unknown',
         count: t._count,
         size: t._sum.fileSize || 0,
       })),
-      byFolder: byFolder.map(f => ({
+      byFolder: byFolder.map((f: any) => ({
         id: f.id,
         name: f.name,
         documentCount: f._count.documents,
@@ -440,12 +440,12 @@ export class DocumentsService {
   // Initialize default folders for a company
   async initializeDefaultFolders(companyId: string, userId: string) {
     const defaultFolders = [
-      { name: 'Kunden', type: FolderType.CUSTOMER },
-      { name: 'Projekte', type: FolderType.PROJECT },
-      { name: 'Rechnungen', type: FolderType.INVOICE },
-      { name: 'Verträge', type: FolderType.CONTRACT },
-      { name: 'Personal', type: FolderType.EMPLOYEE },
-      { name: 'Allgemein', type: FolderType.GENERAL },
+      { name: 'Kunden', type: 'CUSTOMER' },
+      { name: 'Projekte', type: 'PROJECT' },
+      { name: 'Rechnungen', type: 'INVOICE' },
+      { name: 'Verträge', type: 'CONTRACT' },
+      { name: 'Personal', type: 'EMPLOYEE' },
+      { name: 'Allgemein', type: 'GENERAL' },
     ];
 
     const created = [];
@@ -459,7 +459,7 @@ export class DocumentsService {
           data: {
             companyId,
             name: folder.name,
-            type: folder.type as FolderType,
+            type: folder.type as any,
             createdById: userId,
           },
         });

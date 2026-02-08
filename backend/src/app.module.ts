@@ -18,7 +18,7 @@ import { HealthModule } from './modules/health/health.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
-// import { FinanceModule } from './modules/finance/finance.module'; // Disabled: Missing Account model - uses ChartOfAccount
+import { FinanceModule } from './modules/finance/finance.module';
 import { DeliveryNotesModule } from './modules/delivery-notes/delivery-notes.module';
 import { CreditNotesModule } from './modules/credit-notes/credit-notes.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
@@ -29,10 +29,9 @@ import { GoodsReceiptsModule } from './modules/goods-receipts/goods-receipts.mod
 import { BomModule } from './modules/bom/bom.module';
 import { ProductionOrdersModule } from './modules/production-orders/production-orders.module';
 import { CalculationsModule } from './modules/calculations/calculations.module';
-// import { QualityControlModule } from './modules/quality-control/quality-control.module'; // Disabled: Schema include mismatch
+import { QualityControlModule } from './modules/quality-control/quality-control.module';
 import { ServiceTicketsModule } from './modules/service-tickets/service-tickets.module';
-// Extended Accounting - Some disabled due to schema mismatch
-// import { JournalEntriesModule } from './modules/journal-entries/journal-entries.module';
+// Extended Accounting
 import { CostCentersModule } from './modules/cost-centers/cost-centers.module';
 import { BudgetsModule } from './modules/budgets/budgets.module';
 import { CashBookModule } from './modules/cash-book/cash-book.module';
@@ -43,7 +42,7 @@ import { SwissdecModule } from './modules/swissdec/swissdec.module';
 import { GavMetallbauModule } from './modules/gav-metallbau/gav-metallbau.module';
 // import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.module'; // Disabled: Decimal type issues
 // Reporting
-// import { ReportsModule } from './modules/reports/reports.module'; // Disabled: Schema field mismatches
+import { ReportsModule } from './modules/reports/reports.module';
 // Marketing & Sales
 import { MarketingModule } from './modules/marketing/marketing.module';
 // E-Commerce
@@ -57,7 +56,7 @@ import { RecruitingModule } from './modules/recruiting/recruiting.module';
 // Bank Import (camt.054)
 import { BankImportModule } from './modules/bank-import/bank-import.module';
 // Documents (DMS)
-// import { DocumentsModule } from './modules/documents/documents.module'; // Disabled: Uses document instead of dMSDocument
+import { DocumentsModule } from './modules/documents/documents.module';
 // Audit Log
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 // Subscriptions & Payments
@@ -86,7 +85,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     QuotesModule,
     OrdersModule,
     InvoicesModule,
-    // FinanceModule,
+    FinanceModule,
     DeliveryNotesModule,
     CreditNotesModule,
     RemindersModule,
@@ -98,10 +97,9 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     BomModule,
     ProductionOrdersModule,
     CalculationsModule,
-    // QualityControlModule,
+    QualityControlModule,
     ServiceTicketsModule,
     // Extended Accounting
-    // JournalEntriesModule,
     CostCentersModule,
     BudgetsModule,
     CashBookModule,
@@ -112,7 +110,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     GavMetallbauModule,
     // WithholdingTaxModule,
     // Reporting
-    // ReportsModule,
+    ReportsModule,
     // Marketing & Sales
     MarketingModule,
     // E-Commerce
@@ -126,7 +124,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     // Bank Import (camt.054)
     BankImportModule,
     // Documents (DMS)
-    // DocumentsModule,
+    DocumentsModule,
     // Audit Log (Global)
     AuditLogModule,
     // Subscriptions & Payments

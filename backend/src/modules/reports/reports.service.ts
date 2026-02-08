@@ -252,7 +252,7 @@ export class ReportsService {
     });
     
     const fixedAssets = assets.reduce((acc, asset) => {
-      const originalValue = Number(asset.purchasePrice || asset.salePrice || 0);
+      const originalValue = Number(asset.acquisitionCost || asset.salePrice || 0);
       const depreciation = 0; // Simplified - would need separate tracking
       const category = asset.category || 'EQUIPMENT';
       
@@ -684,7 +684,7 @@ export class ReportsService {
         orderBy: { dueDate: 'asc' },
       }),
       this.prisma.purchaseInvoice.findMany({
-        where: { companyId, status: { in: ['PENDING', 'APPROVED'] } },
+        where: { companyId, status: { in: ['DRAFT', 'SENT'] as any } },
         include: { supplier: true },
         orderBy: { dueDate: 'asc' },
       }),
@@ -707,7 +707,7 @@ export class ReportsService {
         total: openInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0),
       },
       creditors: {
-        items: openPurchases.map(p => ({
+        items: openPurchases.map((p: any) => ({
           id: p.id,
           number: p.number,
           supplier: p.supplier?.name || 'Unbekannt',
@@ -716,7 +716,7 @@ export class ReportsService {
           amount: Number(p.totalAmount || 0),
           daysOverdue: p.dueDate ? Math.max(0, Math.floor((today.getTime() - new Date(p.dueDate).getTime()) / 86400000)) : 0,
         })),
-        total: openPurchases.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0),
+        total: openPurchases.reduce((sum: number, p: any) => sum + Number(p.totalAmount || 0), 0),
       },
     };
   }
@@ -775,20 +775,30 @@ export class ReportsService {
 
     const costCenters = await this.prisma.costCenter.findMany({
       where: { companyId, isActive: true },
-      include: {
-        budgets: { where: { year: startDate.getFullYear() } },
+    });
+
+    // Get budget lines for cost centers
+    const budgetLines = await this.prisma.budgetLine.findMany({
+      where: { 
+        budget: {
+          companyId,
+          year: startDate.getFullYear(),
+        },
+        costCenterId: { in: costCenters.map(cc => cc.id) },
       },
+      include: { budget: true },
     });
 
     const analysis = costCenters.map(cc => {
-      const budget = cc.budgets[0];
+      const ccBudgetLines = budgetLines.filter(bl => bl.costCenterId === cc.id);
+      const totalBudget = ccBudgetLines.reduce((sum, bl) => sum + Number(bl.amount || 0), 0);
       return {
         id: cc.id,
-        code: cc.code,
+        code: cc.number,
         name: cc.name,
-        budget: budget ? Number(budget.plannedAmount || 0) : 0,
-        actual: budget ? Number(budget.actualAmount || 0) : 0,
-        variance: budget ? Number(budget.plannedAmount || 0) - Number(budget.actualAmount || 0) : 0,
+        budget: totalBudget,
+        actual: 0,
+        variance: totalBudget,
       };
     });
 
