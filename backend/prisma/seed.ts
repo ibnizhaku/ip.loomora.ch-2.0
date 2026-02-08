@@ -1408,6 +1408,7 @@ async function main() {
         },
       },
     }),
+  ]);
 
   console.log('  ✓ 3 Angebote erstellt');
 
