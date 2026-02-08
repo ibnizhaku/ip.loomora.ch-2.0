@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'loomora-api',
       cwd: './backend',
-      script: 'dist/main.js',
+      script: 'dist/src/main.js',
       instances: 4, // Optimiert: 4 statt max
       exec_mode: 'cluster',
       autorestart: true,
