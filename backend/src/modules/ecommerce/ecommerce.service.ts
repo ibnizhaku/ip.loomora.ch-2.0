@@ -119,7 +119,7 @@ export class EcommerceService {
         orderTotal: subtotal,
         productIds: dto.items.map(i => i.productId),
       });
-      if (discount.valid) {
+      if (discount.valid && discount.discountAmount !== undefined) {
         discountAmount = discount.discountAmount;
         discountId = discount.discountId;
       }
@@ -352,7 +352,7 @@ export class EcommerceService {
       return { valid: false, reason: 'Discount usage limit reached' };
     }
 
-    if (discount.minimumOrderValue && dto.orderTotal < discount.minimumOrderValue) {
+    if (discount.minimumOrderValue && dto.orderTotal < Number(discount.minimumOrderValue)) {
       return { valid: false, reason: `Minimum order value of CHF ${discount.minimumOrderValue} required` };
     }
 
@@ -360,18 +360,18 @@ export class EcommerceService {
     let discountAmount = 0;
     switch (discount.type) {
       case DiscountType.PERCENTAGE:
-        discountAmount = dto.orderTotal * (discount.value / 100);
+        discountAmount = dto.orderTotal * (Number(discount.value) / 100);
         break;
       case DiscountType.FIXED_AMOUNT:
-        discountAmount = discount.value;
+        discountAmount = Number(discount.value);
         break;
       case DiscountType.FREE_SHIPPING:
         discountAmount = 0; // Handled separately
         break;
     }
 
-    if (discount.maximumDiscount && discountAmount > discount.maximumDiscount) {
-      discountAmount = discount.maximumDiscount;
+    if (discount.maximumDiscount && discountAmount > Number(discount.maximumDiscount)) {
+      discountAmount = Number(discount.maximumDiscount);
     }
 
     return {
@@ -566,7 +566,7 @@ export class EcommerceService {
       where: { id: companyId },
       data: {
         shopSettings: {
-          ...currentSettings,
+          ...(currentSettings as object),
           ...dto,
         },
       },

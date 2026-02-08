@@ -168,12 +168,12 @@ export class GoodsReceiptsService {
     if (status === GoodsReceiptStatus.COMPLETE) {
       await this.prisma.purchaseOrder.update({
         where: { id: dto.purchaseOrderId },
-        data: { status: 'RECEIVED' },
+        data: { status: 'CONFIRMED' },
       });
     } else if (status === GoodsReceiptStatus.PARTIAL) {
       await this.prisma.purchaseOrder.update({
         where: { id: dto.purchaseOrderId },
-        data: { status: 'PARTIAL' },
+        data: { status: 'SENT' },
       });
     }
 
@@ -197,7 +197,7 @@ export class GoodsReceiptsService {
     if (dto.items) {
       // Reverse previous inventory changes
       for (const existingItem of goodsReceipt.items) {
-        if (existingItem.receivedQuantity > 0) {
+        if (Number(existingItem.receivedQuantity) > 0) {
           await this.updateInventory(
             existingItem.productId, 
             -Number(existingItem.receivedQuantity), 
@@ -263,7 +263,7 @@ export class GoodsReceiptsService {
 
     // Reverse inventory changes
     for (const item of goodsReceipt.items) {
-      if (item.receivedQuantity > 0) {
+      if (Number(item.receivedQuantity) > 0) {
         await this.updateInventory(
           item.productId, 
           -Number(item.receivedQuantity), 
@@ -313,7 +313,7 @@ export class GoodsReceiptsService {
     const pendingOrders = await this.prisma.purchaseOrder.findMany({
       where: {
         companyId,
-        status: { in: ['SENT', 'CONFIRMED', 'PARTIAL'] },
+        status: { in: ['SENT', 'CONFIRMED'] },
       },
       include: {
         supplier: { select: { id: true, name: true } },
@@ -349,7 +349,7 @@ export class GoodsReceiptsService {
       this.prisma.purchaseOrder.count({
         where: {
           companyId,
-          status: { in: ['SENT', 'CONFIRMED', 'PARTIAL'] },
+          status: { in: ['SENT', 'CONFIRMED'] },
         },
       }),
     ]);

@@ -4,10 +4,12 @@ import {
   CreateAccountDto, 
   UpdateAccountDto, 
   CreateBankAccountDto, 
-  UpdateBankAccountDto 
+  UpdateBankAccountDto,
+  AccountType,
 } from './dto/finance.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { AccountType } from '@prisma/client';
+
+// Use local AccountType enum from dto
 
 @Injectable()
 export class FinanceService {

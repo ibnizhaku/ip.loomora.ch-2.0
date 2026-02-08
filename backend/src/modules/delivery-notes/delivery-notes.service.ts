@@ -183,7 +183,7 @@ export class DeliveryNotesService {
         orderId: order.id,
         number,
         status: DeliveryNoteStatus.DRAFT,
-        deliveryAddress: order.customer.address,
+        deliveryAddress: `${order.customer.street || ''}, ${order.customer.zipCode || ''} ${order.customer.city || ''}`.trim(),
         items: {
           create: order.items.map((item, index) => ({
             productId: item.productId,

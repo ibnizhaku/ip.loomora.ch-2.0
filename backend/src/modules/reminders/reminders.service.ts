@@ -303,7 +303,7 @@ export class RemindersService {
       },
     });
 
-    const totalFees = byLevel.reduce((sum, l) => sum + (l._sum.totalWithFee || 0), 0);
+    const totalFees = byLevel.reduce((sum, l) => sum + Number(l._sum.totalWithFee || 0), 0);
 
     return {
       totalReminders,
@@ -319,7 +319,7 @@ export class RemindersService {
   }
 
   private getSendConfirmationMessage(method: SendMethod, level: number): string {
-    const levelNames = {
+    const levelNames: Record<number, string> = {
       1: 'Zahlungserinnerung',
       2: '1. Mahnung',
       3: '2. Mahnung',
@@ -333,6 +333,6 @@ export class RemindersService {
       [SendMethod.BOTH]: 'per E-Mail und Post',
     };
 
-    return `${levelNames[level]} wurde ${methodText[method]} versendet.`;
+    return `${levelNames[level] || 'Mahnung'} wurde ${methodText[method]} versendet.`;
   }
 }

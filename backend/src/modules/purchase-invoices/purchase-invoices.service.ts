@@ -194,7 +194,7 @@ export class PurchaseInvoicesService {
     const updatedInvoice = await this.prisma.purchaseInvoice.update({
       where: { id },
       data: {
-        status: PurchaseInvoiceStatus.APPROVED,
+        status: 'SENT', // Use SENT as approved status
         notes: dto.approvalNote 
           ? `${purchaseInvoice.notes || ''}\n[Freigabe] ${dto.approvalNote}`
           : purchaseInvoice.notes,
@@ -261,7 +261,7 @@ export class PurchaseInvoicesService {
         number: externalNumber,
         date: new Date(),
         dueDate,
-        status: PurchaseInvoiceStatus.PENDING,
+        status: 'DRAFT',
         subtotal: purchaseOrder.subtotal,
         vatAmount: purchaseOrder.vatAmount,
         totalAmount: purchaseOrder.total,
@@ -288,14 +288,14 @@ export class PurchaseInvoicesService {
       this.prisma.purchaseInvoice.count({
         where: {
           companyId,
-          status: { in: ['DRAFT', 'PENDING', 'APPROVED'] },
+          status: { in: ['DRAFT', 'SENT'] },
           dueDate: { lt: today },
         },
       }),
       this.prisma.purchaseInvoice.aggregate({
         where: {
           companyId,
-          status: { in: ['PENDING', 'APPROVED'] },
+          status: { in: ['DRAFT', 'SENT'] },
         },
         _sum: { totalAmount: true },
       }),
@@ -304,7 +304,7 @@ export class PurchaseInvoicesService {
     return {
       total,
       overdue,
-      totalOpenAmount: totalOpen._sum.totalAmount || 0,
+      totalOpenAmount: Number(totalOpen._sum?.totalAmount || 0),
       byStatus: byStatus.map(s => ({
         status: s.status,
         count: s._count,
