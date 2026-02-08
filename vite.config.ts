@@ -11,6 +11,14 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    // Proxy API calls in dev/preview to avoid CORS.
+    proxy: {
+      "/api": {
+        target: "https://app.loomora.ch",
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
@@ -19,3 +27,4 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+
