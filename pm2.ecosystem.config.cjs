@@ -4,7 +4,7 @@ module.exports = {
       name: 'loomora-api',
       cwd: './backend',
       script: 'dist/src/main.js',
-      instances: 4, // Optimiert: 4 statt max
+      instances: 4,
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,
@@ -17,8 +17,7 @@ module.exports = {
         NODE_ENV: 'development',
         PORT: 3001,
       },
-      // Load .env file
-      node_args: '-r dotenv/config',
+      // NestJS lädt .env automatisch via @nestjs/config
     },
   ],
 };
