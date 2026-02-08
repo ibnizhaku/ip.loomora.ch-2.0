@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsString, IsOptional, IsNumber, IsEnum, IsBoolean } from 'class-validator';
-import { AccountType } from '@prisma/client';
+
+// Define AccountType locally to avoid Prisma import issues
+export enum AccountType {
+  ASSET = 'ASSET',
+  LIABILITY = 'LIABILITY',
+  EQUITY = 'EQUITY',
+  REVENUE = 'REVENUE',
+  EXPENSE = 'EXPENSE',
+}
 
 export class CreateAccountDto {
   @ApiProperty()

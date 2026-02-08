@@ -104,7 +104,7 @@ export class BomService {
       const template = await this.findOne(dto.templateId, companyId);
       items = template.items.map((item, index) => ({
         type: item.type as BomItemType,
-        productId: item.productId,
+        productId: item.productId ?? undefined,
         description: item.description,
         quantity: Number(item.quantity),
         unit: item.unit,

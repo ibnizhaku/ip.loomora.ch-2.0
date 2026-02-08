@@ -122,9 +122,9 @@ export class MarketingService {
     return {
       total,
       active,
-      totalBudget: totalBudget._sum.budget || 0,
-      totalSpent: totalSpent._sum.spent || 0,
-      budgetRemaining: (totalBudget._sum.budget || 0) - (totalSpent._sum.spent || 0),
+      totalBudget: Number(totalBudget._sum.budget || 0),
+      totalSpent: Number(totalSpent._sum.spent || 0),
+      budgetRemaining: Number(totalBudget._sum.budget || 0) - Number(totalSpent._sum.spent || 0),
     };
   }
 
@@ -292,7 +292,7 @@ export class MarketingService {
           name: dto.projectName,
           customerId: customer.id,
           companyId,
-          estimatedValue: lead.estimatedValue || 0,
+          budget: Number(lead.estimatedValue || 0),
         },
       });
     }

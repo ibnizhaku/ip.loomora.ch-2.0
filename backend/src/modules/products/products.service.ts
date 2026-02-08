@@ -48,10 +48,10 @@ export class ProductsService {
     // Calculate margin and available stock
     const enrichedData = data.map((product) => ({
       ...product,
-      margin: product.purchasePrice > 0 
-        ? ((product.salePrice - product.purchasePrice) / product.purchasePrice) * 100 
+      margin: Number(product.purchasePrice) > 0 
+        ? ((Number(product.salePrice) - Number(product.purchasePrice)) / Number(product.purchasePrice)) * 100 
         : 100,
-      availableStock: product.stockQuantity - (product.reservedStock || 0),
+      availableStock: Number(product.stockQuantity) - Number(product.reservedStock || 0),
     }));
 
     return {
@@ -78,10 +78,10 @@ export class ProductsService {
 
     return {
       ...product,
-      margin: product.purchasePrice > 0 
-        ? ((product.salePrice - product.purchasePrice) / product.purchasePrice) * 100 
+      margin: Number(product.purchasePrice) > 0 
+        ? ((Number(product.salePrice) - Number(product.purchasePrice)) / Number(product.purchasePrice)) * 100 
         : 100,
-      availableStock: product.stockQuantity - (product.reservedStock || 0),
+      availableStock: Number(product.stockQuantity) - Number(product.reservedStock || 0),
     };
   }
 
@@ -142,7 +142,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    const newQuantity = product.stockQuantity + dto.quantity;
+    const newQuantity = Number(product.stockQuantity) + dto.quantity;
     
     if (newQuantity < 0) {
       throw new Error('Stock cannot be negative');

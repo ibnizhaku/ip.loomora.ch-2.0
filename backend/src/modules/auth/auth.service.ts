@@ -3,7 +3,6 @@ import {
   UnauthorizedException, 
   ConflictException,
   ForbiddenException,
-  PaymentRequiredException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';

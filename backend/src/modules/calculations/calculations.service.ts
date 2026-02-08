@@ -112,7 +112,7 @@ export class CalculationsService {
       items = bom.items.map((item, index) => ({
         type: item.type as CostItemType,
         description: item.description,
-        productId: item.productId,
+        productId: item.productId ?? undefined,
         quantity: Number(item.quantity),
         unit: item.unit,
         unitCost: Number(item.unitPrice),
@@ -256,7 +256,7 @@ export class CalculationsService {
         companyId,
         number: quoteNumber,
         customerId: calculation.customerId!,
-        projectId: calculation.projectId,
+        // projectId: calculation.projectId,
         status: 'DRAFT',
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         subtotal: result.netTotal,

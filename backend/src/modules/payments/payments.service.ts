@@ -270,17 +270,17 @@ export class PaymentsService {
     return {
       incoming: {
         count: incoming._count,
-        total: incoming._sum.amount || 0,
+        total: Number(incoming._sum.amount || 0),
       },
       outgoing: {
         count: outgoing._count,
-        total: outgoing._sum.amount || 0,
+        total: Number(outgoing._sum.amount || 0),
       },
-      netCashflow: (incoming._sum.amount || 0) - (outgoing._sum.amount || 0),
+      netCashflow: Number(incoming._sum.amount || 0) - Number(outgoing._sum.amount || 0),
       byMethod: byMethod.map(m => ({
         method: m.method,
         count: m._count,
-        total: m._sum.amount || 0,
+        total: Number(m._sum.amount || 0),
       })),
     };
   }

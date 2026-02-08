@@ -234,13 +234,13 @@ export class BankImportService {
     // Perfect match - create payment and reconcile
     const payment = await this.paymentsService.create(companyId, {
       type: PaymentType.INCOMING,
-      amount: transaction.amount,
+      amount: Number(transaction.amount),
       method: PaymentMethod.BANK_TRANSFER,
       invoiceId: invoice.id,
       bankAccountId: transaction.bankAccountId,
       paymentDate: transaction.bookingDate,
-      qrReference: transaction.qrReference,
-      reference: transaction.entryReference,
+      qrReference: transaction.qrReference ?? undefined,
+      reference: transaction.entryReference ?? undefined,
       notes: `Automatisch abgeglichen via camt.054 Import`,
     });
 
@@ -336,13 +336,14 @@ export class BankImportService {
 
     // Strategy 2: Match by amount and debtor name
     if (transaction.debtorName) {
+      const txAmount = Number(transaction.amount);
       const invoices = await this.prisma.invoice.findMany({
         where: {
           companyId,
           status: { in: ['SENT', 'PARTIAL', 'OVERDUE'] },
           totalAmount: {
-            gte: transaction.amount - 0.05,
-            lte: transaction.amount + 0.05,
+            gte: txAmount - 0.05,
+            lte: txAmount + 0.05,
           },
           customer: {
             name: { contains: transaction.debtorName.split(' ')[0], mode: 'insensitive' },
@@ -367,13 +368,14 @@ export class BankImportService {
     }
 
     // Strategy 3: Match by amount only
+    const txAmountForMatch = Number(transaction.amount);
     const amountMatches = await this.prisma.invoice.findMany({
       where: {
         companyId,
         status: { in: ['SENT', 'PARTIAL', 'OVERDUE'] },
         totalAmount: {
-          gte: transaction.amount - 0.01,
-          lte: transaction.amount + 0.01,
+          gte: txAmountForMatch - 0.01,
+          lte: txAmountForMatch + 0.01,
         },
       },
       include: { customer: true },
@@ -416,13 +418,13 @@ export class BankImportService {
     if (dto.createPayment && dto.invoiceId) {
       payment = await this.paymentsService.create(companyId, {
         type: PaymentType.INCOMING,
-        amount: transaction.amount,
+        amount: Number(transaction.amount),
         method: PaymentMethod.BANK_TRANSFER,
         invoiceId: dto.invoiceId,
         bankAccountId: transaction.bankAccountId,
         paymentDate: transaction.bookingDate.toISOString(),
-        qrReference: transaction.qrReference,
-        reference: transaction.entryReference,
+        qrReference: transaction.qrReference ?? undefined,
+        reference: transaction.entryReference ?? undefined,
         notes: 'Manuell abgeglichen',
       });
     }

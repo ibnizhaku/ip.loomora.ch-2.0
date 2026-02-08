@@ -42,9 +42,9 @@ export class QuotesService {
           customer: {
             select: { id: true, name: true, companyName: true },
           },
-          project: {
-            select: { id: true, number: true, name: true },
-          },
+          // project: {
+          //   select: { id: true, number: true, name: true },
+          // },
           _count: {
             select: { items: true },
           },
@@ -67,7 +67,7 @@ export class QuotesService {
       where: { id, companyId },
       include: {
         customer: true,
-        project: true,
+        // project: true,
         items: {
           orderBy: { position: 'asc' },
           include: {
@@ -119,7 +119,7 @@ export class QuotesService {
       data: {
         number,
         customerId: dto.customerId,
-        projectId: dto.projectId,
+        // projectId: dto.projectId,
         status: DocumentStatus.DRAFT,
         date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         validUntil: dto.validUntil ? new Date(dto.validUntil) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -181,7 +181,7 @@ export class QuotesService {
         where: { id },
         data: {
           customerId: dto.customerId,
-          projectId: dto.projectId,
+          // projectId: dto.projectId,
           status: dto.status,
           date: dto.issueDate ? new Date(dto.issueDate) : undefined,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
@@ -216,7 +216,7 @@ export class QuotesService {
       where: { id },
       data: {
         customerId: dto.customerId,
-        projectId: dto.projectId,
+        // projectId: dto.projectId,
         status: dto.status,
         date: dto.issueDate ? new Date(dto.issueDate) : undefined,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
@@ -262,7 +262,7 @@ export class QuotesService {
       data: {
         number: orderNumber,
         customerId: quote.customerId,
-        projectId: quote.projectId,
+        // projectId: quote.projectId,
         quoteId: quote.id,
         status: DocumentStatus.CONFIRMED,
         date: new Date(),

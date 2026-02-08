@@ -317,9 +317,9 @@ export class JournalEntriesService {
 
     return {
       accountId,
-      debitTotal: result._sum.debit || 0,
-      creditTotal: result._sum.credit || 0,
-      balance: (result._sum.debit || 0) - (result._sum.credit || 0),
+      debitTotal: Number(result._sum.debit || 0),
+      creditTotal: Number(result._sum.credit || 0),
+      balance: Number(result._sum.debit || 0) - Number(result._sum.credit || 0),
     };
   }
 
