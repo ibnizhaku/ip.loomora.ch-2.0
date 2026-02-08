@@ -11,7 +11,7 @@ export class CustomersService {
     const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const skip = (page - 1) * pageSize;
 
-    const where: any = { companyId, isActive: true };
+    const where: any = { companyId };
     
     if (search) {
       where.OR = [
@@ -171,10 +171,9 @@ export class CustomersService {
       throw new NotFoundException('Customer not found');
     }
 
-    // Soft delete by setting isActive to false
-    return this.prisma.customer.update({
+    // Hard delete - will fail if there are related records (invoices, projects, etc.)
+    return this.prisma.customer.delete({
       where: { id },
-      data: { isActive: false },
     });
   }
 }
