@@ -1418,8 +1418,10 @@ async function main() {
   console.log('📦 Erstelle Aufträge...');
 
   const orders = await Promise.all([
-    prisma.order.create({
-      data: {
+    prisma.order.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'AU-2024-001' } },
+      update: {},
+      create: {
         number: 'AU-2024-001',
         customerId: customers[0].id,
         projectId: projects[0].id,
@@ -1441,8 +1443,10 @@ async function main() {
         },
       },
     }),
-    prisma.order.create({
-      data: {
+    prisma.order.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'AU-2024-002' } },
+      update: {},
+      create: {
         number: 'AU-2024-002',
         customerId: customers[2].id,
         projectId: projects[1].id,
@@ -1464,8 +1468,10 @@ async function main() {
         },
       },
     }),
-    prisma.order.create({
-      data: {
+    prisma.order.upsert({
+      where: { companyId_number: { companyId: company.id, number: 'AU-2023-028' } },
+      update: {},
+      create: {
         number: 'AU-2023-028',
         customerId: customers[3].id,
         projectId: projects[3].id,
