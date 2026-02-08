@@ -256,13 +256,11 @@ export class CalculationsService {
         companyId,
         number: quoteNumber,
         customerId: calculation.customerId!,
-        // projectId: calculation.projectId,
         status: 'DRAFT',
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         subtotal: result.netTotal,
         vatAmount: result.vatAmount,
         total: result.grandTotal,
-        discount: calculation.discount,
         notes: `Basierend auf Kalkulation ${calculation.number}`,
         items: {
           create: calculation.items.map((item, index) => ({

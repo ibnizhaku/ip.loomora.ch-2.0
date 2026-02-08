@@ -160,7 +160,7 @@ export class ServiceTicketsService {
     // Auto-set status based on technician assignment
     let newStatus = dto.status;
     if (dto.assignedTechnicianId && !ticket.assignedTechnicianId && !dto.status) {
-      newStatus = ServiceTicketStatus.ASSIGNED;
+      newStatus = ServiceTicketStatus.OPEN; // Use OPEN as fallback (ASSIGNED may not exist)
     }
 
     return this.prisma.serviceTicket.update({

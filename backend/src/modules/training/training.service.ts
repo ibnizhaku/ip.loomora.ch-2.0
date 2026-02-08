@@ -328,7 +328,7 @@ export class TrainingService {
       completedTrainings: participations.filter(p => p.status === ParticipantStatus.ATTENDED).length,
       totalHours: participations
         .filter(p => p.status === ParticipantStatus.ATTENDED)
-        .reduce((sum, p) => sum + (p.training.durationHours || 0), 0),
+        .reduce((sum, p) => sum + Number(p.training.durationHours || 0), 0),
       certificates: participations.filter(p => p.certificateIssued).length,
     };
 
@@ -387,8 +387,8 @@ export class TrainingService {
     const summary = {
       totalTrainings: trainings.length,
       totalParticipants: trainings.reduce((sum, t) => sum + t.participants.length, 0),
-      totalHours: trainings.reduce((sum, t) => sum + (t.durationHours || 0), 0),
-      totalCost: trainings.reduce((sum, t) => sum + (t.totalBudget || 0), 0),
+      totalHours: trainings.reduce((sum: number, t) => sum + Number(t.durationHours || 0), 0),
+      totalCost: trainings.reduce((sum: number, t) => sum + Number(t.totalBudget || 0), 0),
       byType: {} as Record<string, number>,
       byDepartment: {} as Record<string, number>,
     };
@@ -396,8 +396,8 @@ export class TrainingService {
     trainings.forEach(t => {
       summary.byType[t.type] = (summary.byType[t.type] || 0) + 1;
       t.participants.forEach(p => {
-        const dept = p.employee.department || 'Unknown';
-        summary.byDepartment[dept] = (summary.byDepartment[dept] || 0) + 1;
+        const deptName = p.employee.department?.name || 'Unknown';
+        summary.byDepartment[deptName] = (summary.byDepartment[deptName] || 0) + 1;
       });
     });
 
