@@ -63,6 +63,8 @@ class ApiClient {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_company');
+    localStorage.removeItem('auth_companies');
   }
 
   getToken() {
