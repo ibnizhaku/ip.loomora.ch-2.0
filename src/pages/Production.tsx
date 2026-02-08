@@ -60,73 +60,6 @@ interface ProductionOrder {
   workstation: string;
 }
 
-const mockProductionOrders: ProductionOrder[] = [
-  {
-    id: "1",
-    number: "WA-2024-001",
-    name: "Metalltreppe 3-geschossig",
-    project: "PRJ-2024-015",
-    bomNumber: "STL-2024-001",
-    status: "in_progress",
-    priority: "high",
-    plannedStart: "22.01.2024",
-    plannedEnd: "02.02.2024",
-    actualStart: "22.01.2024",
-    plannedHours: 68,
-    actualHours: 42,
-    progress: 62,
-    assignedTeam: ["M. Steiner", "A. Meier"],
-    workstation: "Schweisserei 1",
-  },
-  {
-    id: "2",
-    number: "WA-2024-002",
-    name: "Balkongeländer 15m",
-    project: "PRJ-2024-018",
-    bomNumber: "STL-2024-002",
-    status: "planned",
-    priority: "normal",
-    plannedStart: "05.02.2024",
-    plannedEnd: "09.02.2024",
-    plannedHours: 19,
-    actualHours: 0,
-    progress: 0,
-    assignedTeam: ["T. Brunner"],
-    workstation: "Montage",
-  },
-  {
-    id: "3",
-    number: "WA-2024-003",
-    name: "Brandschutztüren (5 Stk)",
-    status: "paused",
-    priority: "urgent",
-    plannedStart: "29.01.2024",
-    plannedEnd: "31.01.2024",
-    actualStart: "29.01.2024",
-    plannedHours: 25,
-    actualHours: 12,
-    progress: 48,
-    assignedTeam: ["S. Huber", "M. Steiner"],
-    workstation: "Schweisserei 2",
-  },
-  {
-    id: "4",
-    number: "WA-2024-004",
-    name: "Stahlträger Carport",
-    project: "PRJ-2024-022",
-    status: "completed",
-    priority: "low",
-    plannedStart: "15.01.2024",
-    plannedEnd: "19.01.2024",
-    actualStart: "15.01.2024",
-    actualEnd: "18.01.2024",
-    plannedHours: 14,
-    actualHours: 12,
-    progress: 100,
-    assignedTeam: ["A. Meier"],
-    workstation: "Schweisserei 1",
-  },
-];
 
 const statusStyles = {
   planned: "bg-muted text-muted-foreground",
@@ -167,7 +100,7 @@ export default function Production() {
     queryKey: ["/production-orders"],
     queryFn: () => api.get<any>("/production-orders"),
   });
-  const initialOrders = apiData?.data || mockProductionOrders;
+  const initialOrders = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderList, setOrderList] = useState<ProductionOrder[]>(initialOrders);
 

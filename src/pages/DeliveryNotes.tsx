@@ -48,70 +48,6 @@ interface DeliveryNote {
   trackingNumber?: string;
 }
 
-const mockDeliveryNotes: DeliveryNote[] = [
-  {
-    id: "1",
-    number: "LS-2024-001",
-    client: "Fashion Store GmbH",
-    orderNumber: "AUF-2024-015",
-    status: "delivered",
-    items: 12,
-    createdDate: "20.01.2024",
-    deliveryDate: "22.01.2024",
-    address: "München, Bayern",
-    carrier: "DHL",
-    trackingNumber: "JJD000123456789",
-  },
-  {
-    id: "2",
-    number: "LS-2024-002",
-    client: "FinTech Solutions",
-    orderNumber: "AUF-2024-018",
-    status: "in-transit",
-    items: 5,
-    createdDate: "25.01.2024",
-    deliveryDate: "28.01.2024",
-    address: "Berlin, Berlin",
-    carrier: "UPS",
-    trackingNumber: "1Z999AA10123456784",
-  },
-  {
-    id: "3",
-    number: "LS-2024-003",
-    client: "Sales Pro AG",
-    orderNumber: "AUF-2024-021",
-    status: "shipped",
-    items: 8,
-    createdDate: "28.01.2024",
-    deliveryDate: "01.02.2024",
-    address: "Hamburg, Hamburg",
-    carrier: "DPD",
-  },
-  {
-    id: "4",
-    number: "LS-2024-004",
-    client: "Tech Innovations",
-    orderNumber: "AUF-2024-022",
-    status: "prepared",
-    items: 3,
-    createdDate: "30.01.2024",
-    deliveryDate: "02.02.2024",
-    address: "Köln, NRW",
-  },
-  {
-    id: "5",
-    number: "LS-2024-005",
-    client: "Data Analytics Inc.",
-    orderNumber: "AUF-2024-024",
-    status: "delivered",
-    items: 15,
-    createdDate: "15.01.2024",
-    deliveryDate: "18.01.2024",
-    address: "Frankfurt, Hessen",
-    carrier: "DHL",
-    trackingNumber: "JJD000987654321",
-  },
-];
 
 const statusConfig = {
   prepared: { label: "Vorbereitet", color: "bg-muted text-muted-foreground", icon: Package },
@@ -129,7 +65,7 @@ export default function DeliveryNotes() {
     queryKey: ["/delivery-notes"],
     queryFn: () => api.get<any>("/delivery-notes"),
   });
-  const deliveryNotes = apiData?.data || mockDeliveryNotes;
+  const deliveryNotes = apiData?.data || [];
 
   const filteredNotes = deliveryNotes.filter(
     (n) =>

@@ -47,51 +47,6 @@ interface VatPeriod {
   submittedDate?: string;
 }
 
-const mockVatPeriods: VatPeriod[] = [
-  {
-    id: "1",
-    period: "2024-Q4",
-    periodLabel: "Q4 2023",
-    dueDate: "28.02.2024",
-    outputVat: 80550,
-    inputVat: 52200,
-    payable: 28350,
-    status: "draft",
-  },
-  {
-    id: "2",
-    period: "2023-Q3",
-    periodLabel: "Q3 2023",
-    dueDate: "30.11.2023",
-    outputVat: 76500,
-    inputVat: 48200,
-    payable: 28300,
-    status: "accepted",
-    submittedDate: "28.11.2023",
-  },
-  {
-    id: "3",
-    period: "2023-Q2",
-    periodLabel: "Q2 2023",
-    dueDate: "31.08.2023",
-    outputVat: 82100,
-    inputVat: 51800,
-    payable: 30300,
-    status: "accepted",
-    submittedDate: "25.08.2023",
-  },
-  {
-    id: "4",
-    period: "2023-Q1",
-    periodLabel: "Q1 2023",
-    dueDate: "31.05.2023",
-    outputVat: 71200,
-    inputVat: 45600,
-    payable: 25600,
-    status: "accepted",
-    submittedDate: "29.05.2023",
-  },
-];
 
 // Schweizer MWST-Positionen (effektive Methode)
 const vatPositions = [
@@ -137,7 +92,7 @@ export default function VatReturns() {
     queryKey: ["/vat-returns"],
     queryFn: () => api.get<any>("/vat-returns"),
   });
-  const vatPeriods = apiData?.data || mockVatPeriods;
+  const vatPeriods = apiData?.data || [];
 
   const currentPeriod = vatPeriods.find((p) => p.period === selectedPeriod);
 

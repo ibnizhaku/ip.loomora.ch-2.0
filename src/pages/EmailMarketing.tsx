@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,68 +51,6 @@ interface Newsletter {
   bounces: number;
 }
 
-const newsletters: Newsletter[] = [
-  {
-    id: "1",
-    subject: "Herbst-Angebote 2024 - Bis zu 40% sparen!",
-    status: "sent",
-    sentAt: "2024-01-15 10:00",
-    recipients: 12500,
-    opens: 4200,
-    clicks: 890,
-    unsubscribes: 23,
-    bounces: 45,
-  },
-  {
-    id: "2",
-    subject: "Neues Produkt: Innovation X Pro",
-    status: "sent",
-    sentAt: "2024-01-10 14:30",
-    recipients: 12450,
-    opens: 3800,
-    clicks: 720,
-    unsubscribes: 15,
-    bounces: 38,
-  },
-  {
-    id: "3",
-    subject: "Wochenend-Special: Nur dieses Wochenende",
-    status: "scheduled",
-    sentAt: "2024-01-20 09:00",
-    recipients: 12400,
-    opens: 0,
-    clicks: 0,
-    unsubscribes: 0,
-    bounces: 0,
-  },
-  {
-    id: "4",
-    subject: "Newsletter KW 4 - Branchen-News",
-    status: "draft",
-    sentAt: "-",
-    recipients: 12400,
-    opens: 0,
-    clicks: 0,
-    unsubscribes: 0,
-    bounces: 0,
-  },
-];
-
-const templates = [
-  { id: "1", name: "Produkt-Launch", category: "Marketing", uses: 45 },
-  { id: "2", name: "Newsletter Standard", category: "Newsletter", uses: 128 },
-  { id: "3", name: "Rabatt-Aktion", category: "Sales", uses: 67 },
-  { id: "4", name: "Willkommens-Mail", category: "Onboarding", uses: 234 },
-  { id: "5", name: "Event-Einladung", category: "Events", uses: 23 },
-];
-
-const lists = [
-  { id: "1", name: "Alle Abonnenten", subscribers: 12500, active: 12200, growth: "+245" },
-  { id: "2", name: "Premium-Kunden", subscribers: 3400, active: 3350, growth: "+67" },
-  { id: "3", name: "Interessenten", subscribers: 5600, active: 5200, growth: "+189" },
-  { id: "4", name: "Inaktive Kunden", subscribers: 2800, active: 1200, growth: "-45" },
-];
-
 const statusStyles = {
   sent: "bg-success/10 text-success",
   scheduled: "bg-info/10 text-info",
@@ -125,6 +65,10 @@ const statusLabels = {
 
 export default function EmailMarketing() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/marketing"], queryFn: () => api.get<any>("/marketing") });
+  const newsletters = apiData?.newsletters || apiData?.data || [];
+  const templates = apiData?.templates || [];
+  const lists = apiData?.lists || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "scheduled" | "draft">("all");
 

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -56,74 +58,6 @@ interface Product {
   lastUpdate: string;
 }
 
-const products: Product[] = [
-  {
-    id: "1",
-    name: "MacBook Pro 14\"",
-    sku: "MBP-14-2024",
-    category: "Elektronik",
-    stock: 25,
-    minStock: 10,
-    price: 2499,
-    status: "in-stock",
-    lastUpdate: "vor 2 Std.",
-  },
-  {
-    id: "2",
-    name: "Dell Monitor 27\"",
-    sku: "DM-27-4K",
-    category: "Monitore",
-    stock: 8,
-    minStock: 15,
-    price: 549,
-    status: "low-stock",
-    lastUpdate: "vor 1 Tag",
-  },
-  {
-    id: "3",
-    name: "Logitech MX Master 3",
-    sku: "LMX-M3",
-    category: "Zubehör",
-    stock: 45,
-    minStock: 20,
-    price: 99,
-    status: "in-stock",
-    lastUpdate: "vor 3 Std.",
-  },
-  {
-    id: "4",
-    name: "USB-C Hub 7-in-1",
-    sku: "USB-HUB-7",
-    category: "Zubehör",
-    stock: 0,
-    minStock: 25,
-    price: 79,
-    status: "out-of-stock",
-    lastUpdate: "vor 5 Tagen",
-  },
-  {
-    id: "5",
-    name: "iPhone 15 Pro",
-    sku: "IP15-PRO",
-    category: "Elektronik",
-    stock: 12,
-    minStock: 10,
-    price: 1199,
-    status: "in-stock",
-    lastUpdate: "vor 6 Std.",
-  },
-  {
-    id: "6",
-    name: "Samsung SSD 2TB",
-    sku: "SAM-SSD-2T",
-    category: "Speicher",
-    stock: 5,
-    minStock: 15,
-    price: 189,
-    status: "low-stock",
-    lastUpdate: "vor 2 Tagen",
-  },
-];
 
 const statusConfig = {
   "in-stock": { label: "Auf Lager", color: "bg-success/10 text-success" },
@@ -133,6 +67,8 @@ const statusConfig = {
 
 export default function Inventory() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/products"], queryFn: () => api.get<any>("/products") });
+  const products = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [productList, setProductList] = useState<Product[]>(products);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);

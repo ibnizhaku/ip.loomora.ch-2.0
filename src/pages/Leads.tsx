@@ -62,98 +62,6 @@ interface Lead {
   lastContact: string;
 }
 
-const mockLeads: Lead[] = [
-  {
-    id: "1",
-    name: "Thomas Müller",
-    company: "TechStart GmbH",
-    email: "t.mueller@techstart.ch",
-    phone: "+41 44 123 45 67",
-    location: "Zürich",
-    source: "Website",
-    status: "qualified",
-    score: 85,
-    value: 25000,
-    assignedTo: "Anna Schmidt",
-    createdAt: "2024-01-15",
-    lastContact: "2024-01-18",
-  },
-  {
-    id: "2",
-    name: "Lisa Weber",
-    company: "Digital Solutions AG",
-    email: "l.weber@digitalsolutions.ch",
-    phone: "+41 31 987 65 43",
-    location: "Bern",
-    source: "Messe",
-    status: "proposal",
-    score: 92,
-    value: 45000,
-    assignedTo: "Max Bauer",
-    createdAt: "2024-01-10",
-    lastContact: "2024-01-19",
-  },
-  {
-    id: "3",
-    name: "Michael Schneider",
-    company: "Innovation Labs",
-    email: "m.schneider@innovationlabs.ch",
-    phone: "+41 61 456 78 90",
-    location: "Basel",
-    source: "Empfehlung",
-    status: "new",
-    score: 65,
-    value: 15000,
-    assignedTo: "Anna Schmidt",
-    createdAt: "2024-01-18",
-    lastContact: "-",
-  },
-  {
-    id: "4",
-    name: "Sandra Fischer",
-    company: "Cloud Systems KG",
-    email: "s.fischer@cloudsystems.ch",
-    phone: "+41 22 234 56 78",
-    location: "Genf",
-    source: "Google Ads",
-    status: "negotiation",
-    score: 88,
-    value: 38000,
-    assignedTo: "Max Bauer",
-    createdAt: "2024-01-05",
-    lastContact: "2024-01-19",
-  },
-  {
-    id: "5",
-    name: "Peter Wagner",
-    company: "Smart Factory GmbH",
-    email: "p.wagner@smartfactory.ch",
-    phone: "+41 71 345 67 89",
-    location: "St. Gallen",
-    source: "LinkedIn",
-    status: "contacted",
-    score: 72,
-    value: 22000,
-    assignedTo: "Anna Schmidt",
-    createdAt: "2024-01-12",
-    lastContact: "2024-01-17",
-  },
-  {
-    id: "6",
-    name: "Andrea Keller",
-    company: "Swiss Tech AG",
-    email: "a.keller@swisstech.ch",
-    phone: "+41 52 111 22 33",
-    location: "Winterthur",
-    source: "Kaltakquise",
-    status: "new",
-    score: 55,
-    value: 18000,
-    assignedTo: "Max Bauer",
-    createdAt: "2024-01-19",
-    lastContact: "-",
-  },
-];
 
 const pipelineStages = [
   { id: "new", label: "Neu", color: "bg-muted" },
@@ -190,14 +98,14 @@ type SortOrder = "asc" | "desc";
 
 export default function Leads() {
   const navigate = useNavigate();
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
 
   // Fetch data from API
   const { data: apiData } = useQuery({
     queryKey: ["/marketing/leads"],
     queryFn: () => api.get<any>("/marketing/leads"),
   });
-  const initialLeads = apiData?.data || mockLeads;
+  const initialLeads = apiData?.data || [];
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [searchTerm, setSearchTerm] = useState("");
   const [view, setView] = useState<"list" | "pipeline">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");

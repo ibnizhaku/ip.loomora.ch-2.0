@@ -45,14 +45,8 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-const creditNotes = [
-  { id: "GS-2024-0015", invoice: "RE-2024-0145", customer: "Weber Elektronik GmbH", date: "28.01.2024", total: 1250.50, status: "Verbucht", reason: "Warenrückgabe" },
-  { id: "GS-2024-0014", invoice: "RE-2024-0138", customer: "Digital Solutions AG", date: "25.01.2024", total: 890.00, status: "Verbucht", reason: "Preisanpassung" },
-  { id: "GS-2024-0013", invoice: "RE-2024-0130", customer: "TechStart GmbH", date: "20.01.2024", total: 2100.00, status: "Entwurf", reason: "Kulanz" },
-  { id: "GS-2024-0012", invoice: "RE-2024-0125", customer: "Müller & Partner", date: "15.01.2024", total: 450.75, status: "Verbucht", reason: "Teillieferung" },
-  { id: "GS-2024-0011", invoice: "RE-2024-0118", customer: "Innovation Labs", date: "10.01.2024", total: 3200.00, status: "Verbucht", reason: "Reklamation" },
-];
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const statusConfig: Record<string, { color: string }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground" },
@@ -70,6 +64,8 @@ const stats = [
 ];
 
 const CreditNotes = () => {
+  const { data: apiData } = useQuery({ queryKey: ["/credit-notes"], queryFn: () => api.get<any>("/credit-notes") });
+  const creditNotes = apiData?.data || [];
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);

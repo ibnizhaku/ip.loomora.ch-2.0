@@ -31,62 +31,6 @@ const formatCHF = (amount: number) => {
   return amount.toLocaleString("de-CH", { minimumFractionDigits: 0 });
 };
 
-const mockTransactions: Transaction[] = [
-  {
-    id: "1",
-    description: "Zahlung von Fashion Store GmbH",
-    category: "Einnahmen",
-    amount: 15000,
-    type: "income",
-    date: "01.02.2024",
-    status: "completed",
-  },
-  {
-    id: "2",
-    description: "Software-Lizenzen",
-    category: "Betriebskosten",
-    amount: 2500,
-    type: "expense",
-    date: "31.01.2024",
-    status: "completed",
-  },
-  {
-    id: "3",
-    description: "Zahlung von FinTech Solutions",
-    category: "Einnahmen",
-    amount: 25000,
-    type: "income",
-    date: "30.01.2024",
-    status: "pending",
-  },
-  {
-    id: "4",
-    description: "Büromaterial",
-    category: "Betriebskosten",
-    amount: 350,
-    type: "expense",
-    date: "29.01.2024",
-    status: "completed",
-  },
-  {
-    id: "5",
-    description: "Gehälter Januar",
-    category: "Personal",
-    amount: 45000,
-    type: "expense",
-    date: "28.01.2024",
-    status: "completed",
-  },
-  {
-    id: "6",
-    description: "Zahlung von Sales Pro AG",
-    category: "Einnahmen",
-    amount: 8500,
-    type: "income",
-    date: "27.01.2024",
-    status: "completed",
-  },
-];
 
 const monthlyData = [
   { month: "Aug", income: 85000, expense: 62000 },
@@ -99,14 +43,14 @@ const monthlyData = [
 
 export default function Finance() {
   const navigate = useNavigate();
-  const [transactionList, setTransactionList] = useState<Transaction[]>(initialTransactions);
 
   // Fetch data from API
   const { data: apiData } = useQuery({
     queryKey: ["/finance"],
     queryFn: () => api.get<any>("/finance"),
   });
-  const initialTransactions = apiData?.data || mockTransactions;
+  const initialTransactions = apiData?.data || [];
+  const [transactionList, setTransactionList] = useState<Transaction[]>(initialTransactions);
   
   const totalIncome = transactionList
     .filter((t) => t.type === "income")

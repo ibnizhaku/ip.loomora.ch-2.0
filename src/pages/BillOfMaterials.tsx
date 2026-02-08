@@ -66,110 +66,6 @@ interface BOM {
   createdAt: string;
 }
 
-const mockBOMs: BOM[] = [
-  {
-    id: "1",
-    number: "STL-2024-001",
-    name: "Metalltreppe 3-geschossig",
-    project: "PRJ-2024-015",
-    status: "active",
-    totalMaterial: 12450,
-    totalWork: 8600,
-    totalExternal: 2200,
-    createdAt: "15.01.2024",
-    items: [
-      {
-        id: "1-1",
-        articleNumber: "ART-001",
-        name: "Stahlträger HEB 200",
-        quantity: 24,
-        unit: "lfm",
-        unitPrice: 85,
-        type: "material",
-      },
-      {
-        id: "1-2",
-        articleNumber: "ART-002",
-        name: "Treppenstufen Gitterrost",
-        quantity: 36,
-        unit: "Stk",
-        unitPrice: 125,
-        type: "material",
-      },
-      {
-        id: "1-3",
-        articleNumber: "DL-001",
-        name: "Schweissarbeiten",
-        quantity: 48,
-        unit: "Std",
-        unitPrice: 125,
-        type: "work",
-      },
-      {
-        id: "1-4",
-        articleNumber: "EXT-001",
-        name: "Verzinkung extern",
-        quantity: 1,
-        unit: "psch",
-        unitPrice: 2200,
-        type: "external",
-      },
-    ],
-  },
-  {
-    id: "2",
-    number: "STL-2024-002",
-    name: "Geländer Balkon 15m",
-    project: "PRJ-2024-018",
-    status: "active",
-    totalMaterial: 3200,
-    totalWork: 2400,
-    totalExternal: 850,
-    createdAt: "22.01.2024",
-    items: [
-      {
-        id: "2-1",
-        articleNumber: "ART-003",
-        name: "Edelstahl Rundrohr 42mm",
-        quantity: 45,
-        unit: "lfm",
-        unitPrice: 28,
-        type: "material",
-      },
-      {
-        id: "2-2",
-        articleNumber: "DL-001",
-        name: "Montagearbeiten",
-        quantity: 16,
-        unit: "Std",
-        unitPrice: 125,
-        type: "work",
-      },
-    ],
-  },
-  {
-    id: "3",
-    number: "STL-2024-003",
-    name: "Brandschutztür T90",
-    status: "draft",
-    totalMaterial: 1800,
-    totalWork: 960,
-    totalExternal: 0,
-    createdAt: "28.01.2024",
-    items: [],
-  },
-  {
-    id: "4",
-    number: "STL-2023-045",
-    name: "Vordach Stahl verzinkt",
-    status: "archived",
-    totalMaterial: 4500,
-    totalWork: 2100,
-    totalExternal: 600,
-    createdAt: "10.12.2023",
-    items: [],
-  },
-];
 
 const typeStyles = {
   material: "bg-blue-500/10 text-blue-600",
@@ -253,7 +149,7 @@ export default function BillOfMaterials() {
     queryKey: ["/bom"],
     queryFn: () => api.get<any>("/bom"),
   });
-  const initialBoms = apiData?.data || mockBOMs;
+  const initialBoms = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedBOM, setExpandedBOM] = useState<string | null>("1");
   const [bomList, setBomList] = useState<BOM[]>(initialBoms);

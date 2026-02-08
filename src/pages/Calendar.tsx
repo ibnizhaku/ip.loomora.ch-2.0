@@ -63,61 +63,6 @@ interface Event {
   description?: string;
 }
 
-const mockEvents: Event[] = [
-  {
-    id: "1",
-    title: "Projekt-Kickoff E-Commerce",
-    type: "meeting",
-    startTime: "09:00",
-    endTime: "10:30",
-    date: "2024-02-01",
-    attendees: ["MK", "AS", "TM"],
-    location: "Konferenzraum A",
-  },
-  {
-    id: "2",
-    title: "Call mit FinTech Solutions",
-    type: "call",
-    startTime: "11:00",
-    endTime: "11:30",
-    date: "2024-02-01",
-    attendees: ["MK"],
-  },
-  {
-    id: "3",
-    title: "Sprint Review",
-    type: "meeting",
-    startTime: "14:00",
-    endTime: "15:00",
-    date: "2024-02-01",
-    attendees: ["AS", "LW", "SK", "TM"],
-    location: "Online (Zoom)",
-  },
-  {
-    id: "4",
-    title: "Deadline: API Dokumentation",
-    type: "deadline",
-    startTime: "18:00",
-    date: "2024-02-01",
-  },
-  {
-    id: "5",
-    title: "Team-Meeting",
-    type: "meeting",
-    startTime: "10:00",
-    endTime: "11:00",
-    date: "2024-02-02",
-    attendees: ["MK", "AS", "TM", "LW", "SK"],
-    location: "Konferenzraum B",
-  },
-  {
-    id: "6",
-    title: "Urlaub Thomas",
-    type: "vacation",
-    startTime: "Ganztägig",
-    date: "2024-02-05",
-  },
-];
 
 const typeConfig = {
   meeting: { label: "Meeting", color: "bg-primary", icon: Users },
@@ -138,7 +83,7 @@ export default function Calendar() {
     queryKey: ['calendar'],
     queryFn: () => api.get<any>('/calendar'),
   });
-  const initialEvents = calendarData?.data || mockEvents;
+  const initialEvents = calendarData?.data || [];
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2024, 1, 1));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);

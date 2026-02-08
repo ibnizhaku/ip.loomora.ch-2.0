@@ -45,104 +45,6 @@ interface LedgerAccount {
   transactionCount: number;
 }
 
-const mockLedgerAccounts: LedgerAccount[] = [
-  {
-    id: "1",
-    number: "1200",
-    name: "Bank",
-    type: "asset",
-    openingBalance: 50000,
-    debitTotal: 125000,
-    creditTotal: 130000,
-    closingBalance: 45000,
-    lastActivity: "31.01.2024",
-    transactionCount: 45,
-  },
-  {
-    id: "2",
-    number: "1400",
-    name: "Forderungen aus L+L",
-    type: "asset",
-    openingBalance: 28000,
-    debitTotal: 85000,
-    creditTotal: 81000,
-    closingBalance: 32000,
-    lastActivity: "31.01.2024",
-    transactionCount: 28,
-  },
-  {
-    id: "3",
-    number: "1600",
-    name: "Kasse",
-    type: "asset",
-    openingBalance: 3000,
-    debitTotal: 5000,
-    creditTotal: 5500,
-    closingBalance: 2500,
-    lastActivity: "26.01.2024",
-    transactionCount: 12,
-  },
-  {
-    id: "4",
-    number: "3300",
-    name: "Verbindlichkeiten aus L+L",
-    type: "liability",
-    openingBalance: 22000,
-    debitTotal: 45000,
-    creditTotal: 48000,
-    closingBalance: 25000,
-    lastActivity: "30.01.2024",
-    transactionCount: 18,
-  },
-  {
-    id: "5",
-    number: "4000",
-    name: "Umsatzerlöse 19%",
-    type: "revenue",
-    openingBalance: 0,
-    debitTotal: 0,
-    creditTotal: 250000,
-    closingBalance: 250000,
-    lastActivity: "31.01.2024",
-    transactionCount: 35,
-  },
-  {
-    id: "6",
-    number: "6000",
-    name: "Personalaufwand",
-    type: "expense",
-    openingBalance: 0,
-    debitTotal: 120000,
-    creditTotal: 0,
-    closingBalance: 120000,
-    lastActivity: "29.01.2024",
-    transactionCount: 12,
-  },
-  {
-    id: "7",
-    number: "6300",
-    name: "Abschreibungen",
-    type: "expense",
-    openingBalance: 0,
-    debitTotal: 15000,
-    creditTotal: 0,
-    closingBalance: 15000,
-    lastActivity: "28.01.2024",
-    transactionCount: 6,
-  },
-  {
-    id: "8",
-    number: "6800",
-    name: "Betriebskosten",
-    type: "expense",
-    openingBalance: 0,
-    debitTotal: 25000,
-    creditTotal: 0,
-    closingBalance: 25000,
-    lastActivity: "27.01.2024",
-    transactionCount: 22,
-  },
-];
 
 const typeColors = {
   asset: "bg-blue-500/10 text-blue-600",
@@ -171,7 +73,7 @@ export default function GeneralLedger() {
     queryKey: ["/journal-entries"],
     queryFn: () => api.get<any>("/journal-entries"),
   });
-  const ledgerAccounts = apiData?.data || mockLedgerAccounts;
+  const ledgerAccounts = apiData?.data || [];
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [hasActivityFilter, setHasActivityFilter] = useState(false);

@@ -53,73 +53,6 @@ interface Discount {
   revenue: number;
 }
 
-const mockDiscounts: Discount[] = [
-  {
-    id: "1",
-    code: "WINTER2024",
-    type: "percentage",
-    value: 20,
-    minOrder: 50,
-    maxUses: 1000,
-    usedCount: 456,
-    startDate: "2024-01-01",
-    endDate: "2024-01-31",
-    active: true,
-    revenue: 12340,
-  },
-  {
-    id: "2",
-    code: "NEUKUNDE10",
-    type: "percentage",
-    value: 10,
-    minOrder: 0,
-    maxUses: null,
-    usedCount: 234,
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-    active: true,
-    revenue: 4560,
-  },
-  {
-    id: "3",
-    code: "VERSANDKOSTENFREI",
-    type: "shipping",
-    value: 0,
-    minOrder: 75,
-    maxUses: 500,
-    usedCount: 189,
-    startDate: "2024-01-01",
-    endDate: "2024-03-31",
-    active: true,
-    revenue: 0,
-  },
-  {
-    id: "4",
-    code: "SALE50",
-    type: "fixed",
-    value: 50,
-    minOrder: 200,
-    maxUses: 100,
-    usedCount: 100,
-    startDate: "2023-12-01",
-    endDate: "2023-12-31",
-    active: false,
-    revenue: 8900,
-  },
-  {
-    id: "5",
-    code: "VIP25",
-    type: "percentage",
-    value: 25,
-    minOrder: 100,
-    maxUses: 50,
-    usedCount: 23,
-    startDate: "2024-01-15",
-    endDate: "2024-02-15",
-    active: true,
-    revenue: 5670,
-  },
-];
 
 const getTypeLabel = (type: string) => {
   switch (type) {
@@ -156,7 +89,7 @@ export default function Discounts() {
     queryKey: ["/ecommerce/discounts"],
     queryFn: () => api.get<any>("/ecommerce/discounts"),
   });
-  const initialDiscounts = apiData?.data || mockDiscounts;
+  const initialDiscounts = apiData?.data || [];
   const [discounts, setDiscounts] = useState<Discount[]>(initialDiscounts);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "percentage" | "fixed" | "shipping">("all");

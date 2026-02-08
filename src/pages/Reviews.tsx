@@ -48,83 +48,6 @@ interface Review {
   hasResponse: boolean;
 }
 
-const mockReviews: Review[] = [
-  {
-    id: "1",
-    product: "Premium Widget Pro",
-    productId: "PRD-001",
-    customer: "Maria Schmidt",
-    email: "m.schmidt@email.de",
-    rating: 5,
-    title: "Absolut empfehlenswert!",
-    content: "Bin sehr zufrieden mit dem Produkt. Die Qualität ist hervorragend und der Versand war super schnell. Würde ich jederzeit wieder kaufen!",
-    date: "2024-01-18",
-    status: "approved",
-    helpful: 12,
-    notHelpful: 1,
-    hasResponse: true,
-  },
-  {
-    id: "2",
-    product: "Smart Gadget X",
-    productId: "PRD-002",
-    customer: "Thomas Weber",
-    email: "t.weber@email.de",
-    rating: 4,
-    title: "Gutes Produkt mit kleinen Mängeln",
-    content: "Im Großen und Ganzen zufrieden. Die Verarbeitung könnte etwas besser sein, aber für den Preis ist es ok.",
-    date: "2024-01-17",
-    status: "approved",
-    helpful: 8,
-    notHelpful: 2,
-    hasResponse: false,
-  },
-  {
-    id: "3",
-    product: "Ultra Kit Bundle",
-    productId: "PRD-003",
-    customer: "Lisa Müller",
-    email: "l.mueller@email.de",
-    rating: 5,
-    title: "Perfekt!",
-    content: "Genau das, was ich gesucht habe. Alle Teile sind hochwertig und passen perfekt zusammen.",
-    date: "2024-01-16",
-    status: "pending",
-    helpful: 0,
-    notHelpful: 0,
-    hasResponse: false,
-  },
-  {
-    id: "4",
-    product: "Basic Starter Set",
-    productId: "PRD-004",
-    customer: "Michael Fischer",
-    email: "m.fischer@email.de",
-    rating: 2,
-    title: "Nicht wie erwartet",
-    content: "Leider entspricht das Produkt nicht der Beschreibung. Die Farbe ist anders und die Größe stimmt auch nicht.",
-    date: "2024-01-15",
-    status: "pending",
-    helpful: 3,
-    notHelpful: 0,
-    hasResponse: false,
-  },
-  {
-    id: "5",
-    product: "Pro Accessory Pack",
-    productId: "PRD-005",
-    customer: "Sandra Bauer",
-    email: "s.bauer@email.de",
-    rating: 3,
-    title: "Mittelmäßig",
-    content: "Nichts Besonderes. Erfüllt seinen Zweck, aber hätte mir mehr erwartet für den Preis.",
-    date: "2024-01-14",
-    status: "approved",
-    helpful: 5,
-    notHelpful: 3,
-    hasResponse: true,
-  },
-];
 
 const ratingDistribution = [
   { stars: 5, count: 156, percentage: 52 },
@@ -169,7 +92,7 @@ export default function Reviews() {
     queryKey: ["/ecommerce/reviews"],
     queryFn: () => api.get<any>("/ecommerce/reviews"),
   });
-  const initialReviews = apiData?.data || mockReviews;
+  const initialReviews = apiData?.data || [];
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "positive">("all");

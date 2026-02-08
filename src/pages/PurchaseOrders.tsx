@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { 
   Plus, 
   Search, 
@@ -38,15 +40,6 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const purchaseOrders = [
-  { id: "EK-2024-0048", supplier: "TechParts International", date: "30.01.2024", items: 15, total: 8450, status: "Bestellt", expectedDelivery: "05.02.2024" },
-  { id: "EK-2024-0047", supplier: "Office Supplies Pro", date: "28.01.2024", items: 8, total: 1280, status: "In Transit", expectedDelivery: "01.02.2024" },
-  { id: "EK-2024-0046", supplier: "Hardware Express", date: "25.01.2024", items: 22, total: 12500, status: "Geliefert", expectedDelivery: "29.01.2024" },
-  { id: "EK-2024-0045", supplier: "TechParts International", date: "22.01.2024", items: 10, total: 4580, status: "Geliefert", expectedDelivery: "26.01.2024" },
-  { id: "EK-2024-0044", supplier: "Component World", date: "20.01.2024", items: 30, total: 6890, status: "Geliefert", expectedDelivery: "24.01.2024" },
-  { id: "EK-2024-0043", supplier: "Server Solutions", date: "18.01.2024", items: 5, total: 15200, status: "Geliefert", expectedDelivery: "22.01.2024" },
-];
-
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground", icon: ShoppingCart },
   "Bestellt": { color: "bg-info/10 text-info", icon: Clock },
@@ -65,6 +58,8 @@ const stats = [
 ];
 
 const PurchaseOrders = () => {
+  const { data: apiData } = useQuery({ queryKey: ["/purchase-orders"], queryFn: () => api.get<any>("/purchase-orders") });
+  const purchaseOrders = apiData?.data || [];
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);

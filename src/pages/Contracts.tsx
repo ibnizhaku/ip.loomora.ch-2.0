@@ -62,83 +62,6 @@ interface Contract {
   daysLeft?: number;
 }
 
-const mockContracts: Contract[] = [
-  {
-    id: "1",
-    number: "VTR-2024-001",
-    title: "E-Commerce Entwicklung",
-    client: "Fashion Store GmbH",
-    type: "project",
-    value: 85000,
-    status: "active",
-    startDate: "01.01.2024",
-    endDate: "31.12.2024",
-    autoRenewal: false,
-    daysLeft: 334,
-  },
-  {
-    id: "2",
-    number: "VTR-2024-002",
-    title: "Support & Wartung",
-    client: "FinTech Solutions",
-    type: "support",
-    value: 24000,
-    status: "active",
-    startDate: "01.02.2024",
-    endDate: "31.01.2025",
-    autoRenewal: true,
-    daysLeft: 365,
-  },
-  {
-    id: "3",
-    number: "VTR-2023-089",
-    title: "Software Lizenz",
-    client: "Sales Pro AG",
-    type: "license",
-    value: 12000,
-    status: "expiring",
-    startDate: "01.02.2023",
-    endDate: "31.01.2024",
-    autoRenewal: false,
-    daysLeft: 0,
-  },
-  {
-    id: "4",
-    number: "VTR-2024-003",
-    title: "Beratungsvertrag",
-    client: "Tech Innovations",
-    type: "service",
-    value: 48000,
-    status: "draft",
-    startDate: "01.03.2024",
-    endDate: "28.02.2025",
-    autoRenewal: false,
-  },
-  {
-    id: "5",
-    number: "VTR-2022-045",
-    title: "Hosting Services",
-    client: "Data Analytics Inc.",
-    type: "service",
-    value: 18000,
-    status: "expired",
-    startDate: "01.01.2022",
-    endDate: "31.12.2023",
-    autoRenewal: false,
-  },
-  {
-    id: "6",
-    number: "VTR-2023-078",
-    title: "Entwicklungsvertrag",
-    client: "Logistics Plus",
-    type: "project",
-    value: 65000,
-    status: "terminated",
-    startDate: "01.06.2023",
-    endDate: "31.05.2024",
-    autoRenewal: false,
-  },
-];
 
 const statusConfig = {
   active: { label: "Aktiv", color: "bg-success/10 text-success", icon: CheckCircle },
@@ -164,7 +87,7 @@ export default function Contracts() {
     queryKey: ["/contracts"],
     queryFn: () => api.get<any>("/contracts"),
   });
-  const initialContracts = apiData?.data || mockContracts;
+  const initialContracts = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [autoRenewalFilter, setAutoRenewalFilter] = useState<boolean | null>(null);

@@ -50,102 +50,6 @@ interface OpenItem {
   daysOverdue?: number;
 }
 
-const mockOpenItems: OpenItem[] = [
-  {
-    id: "1",
-    type: "receivable",
-    documentNumber: "RE-2024-089",
-    documentType: "invoice",
-    partner: "Fashion Store GmbH",
-    partnerType: "customer",
-    issueDate: "15.01.2024",
-    dueDate: "14.02.2024",
-    amount: 15000,
-    openAmount: 15000,
-    status: "open",
-  },
-  {
-    id: "2",
-    type: "receivable",
-    documentNumber: "RE-2024-078",
-    documentType: "invoice",
-    partner: "FinTech Solutions",
-    partnerType: "customer",
-    issueDate: "05.01.2024",
-    dueDate: "04.02.2024",
-    amount: 25000,
-    openAmount: 25000,
-    status: "due-soon",
-  },
-  {
-    id: "3",
-    type: "receivable",
-    documentNumber: "RE-2024-065",
-    documentType: "invoice",
-    partner: "Retail Pro AG",
-    partnerType: "customer",
-    issueDate: "20.12.2023",
-    dueDate: "19.01.2024",
-    amount: 8500,
-    openAmount: 8500,
-    status: "overdue",
-    daysOverdue: 12,
-  },
-  {
-    id: "4",
-    type: "receivable",
-    documentNumber: "RE-2024-058",
-    documentType: "invoice",
-    partner: "Logistics Hub",
-    partnerType: "customer",
-    issueDate: "10.12.2023",
-    dueDate: "09.01.2024",
-    amount: 12000,
-    openAmount: 6000,
-    status: "partial",
-    daysOverdue: 22,
-  },
-  {
-    id: "5",
-    type: "payable",
-    documentNumber: "ER-2024-044",
-    documentType: "invoice",
-    partner: "Software AG",
-    partnerType: "supplier",
-    issueDate: "27.01.2024",
-    dueDate: "26.02.2024",
-    amount: 2500,
-    openAmount: 2500,
-    status: "open",
-  },
-  {
-    id: "6",
-    type: "payable",
-    documentNumber: "ER-2024-038",
-    documentType: "invoice",
-    partner: "Office Supplies GmbH",
-    partnerType: "supplier",
-    issueDate: "15.01.2024",
-    dueDate: "14.02.2024",
-    amount: 850,
-    openAmount: 850,
-    status: "open",
-  },
-  {
-    id: "7",
-    type: "payable",
-    documentNumber: "ER-2024-025",
-    documentType: "invoice",
-    partner: "Energie Versorger",
-    partnerType: "supplier",
-    issueDate: "01.01.2024",
-    dueDate: "31.01.2024",
-    amount: 1200,
-    openAmount: 1200,
-    status: "overdue",
-    daysOverdue: 1,
-  },
-];
 
 const statusStyles = {
   open: "bg-primary/10 text-primary",
@@ -170,7 +74,7 @@ export default function OpenItems() {
     queryKey: ["/invoices"],
     queryFn: () => api.get<any>("/invoices"),
   });
-  const openItems = apiData?.data || mockOpenItems;
+  const openItems = apiData?.data || [];
 
   const receivables = openItems.filter((i) => i.type === "receivable");
   const payables = openItems.filter((i) => i.type === "payable");

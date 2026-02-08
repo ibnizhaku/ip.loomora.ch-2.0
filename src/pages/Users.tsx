@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -68,62 +70,6 @@ interface User {
   avatar?: string;
 }
 
-const users: User[] = [
-  {
-    id: "1",
-    name: "Max Keller",
-    email: "m.keller@loomora.de",
-    role: "admin",
-    status: "active",
-    lastLogin: "vor 2 Std.",
-    twoFactor: true,
-  },
-  {
-    id: "2",
-    name: "Anna Schmidt",
-    email: "a.schmidt@loomora.de",
-    role: "manager",
-    status: "active",
-    lastLogin: "vor 1 Tag",
-    twoFactor: true,
-  },
-  {
-    id: "3",
-    name: "Thomas Müller",
-    email: "t.mueller@loomora.de",
-    role: "user",
-    status: "active",
-    lastLogin: "vor 3 Std.",
-    twoFactor: false,
-  },
-  {
-    id: "4",
-    name: "Lisa Weber",
-    email: "l.weber@loomora.de",
-    role: "user",
-    status: "active",
-    lastLogin: "vor 5 Std.",
-    twoFactor: true,
-  },
-  {
-    id: "5",
-    name: "Sarah Koch",
-    email: "s.koch@loomora.de",
-    role: "manager",
-    status: "inactive",
-    lastLogin: "vor 1 Woche",
-    twoFactor: false,
-  },
-  {
-    id: "6",
-    name: "Michael Braun",
-    email: "m.braun@loomora.de",
-    role: "viewer",
-    status: "pending",
-    lastLogin: "Nie",
-    twoFactor: false,
-  },
-];
 
 const roleConfig = {
   admin: { label: "Administrator", color: "bg-destructive/10 text-destructive", icon: ShieldAlert },
@@ -140,6 +86,8 @@ const statusConfig = {
 
 export default function Users() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/users"], queryFn: () => api.get<any>("/users") });
+  const users = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);

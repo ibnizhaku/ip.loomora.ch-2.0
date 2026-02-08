@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -44,63 +46,6 @@ interface Permission {
   module: string;
 }
 
-const roles: Role[] = [
-  {
-    id: "1",
-    name: "Administrator",
-    description: "Vollzugriff auf alle Module und Einstellungen",
-    userCount: 2,
-    permissions: ["*"],
-    isSystem: true,
-    color: "bg-destructive/10 text-destructive",
-  },
-  {
-    id: "2",
-    name: "Geschäftsleitung",
-    description: "Zugriff auf alle Daten, keine Systemeinstellungen",
-    userCount: 1,
-    permissions: ["sales.*", "finance.*", "hr.view", "reports.*"],
-    isSystem: false,
-    color: "bg-primary/10 text-primary",
-  },
-  {
-    id: "3",
-    name: "Projektleiter",
-    description: "Projekte, Aufgaben, Zeiterfassung und Berichte",
-    userCount: 3,
-    permissions: ["projects.*", "tasks.*", "time.*", "reports.view"],
-    isSystem: false,
-    color: "bg-info/10 text-info",
-  },
-  {
-    id: "4",
-    name: "Buchhaltung",
-    description: "Finanzen, Rechnungen, Debitoren und Kreditoren",
-    userCount: 2,
-    permissions: ["finance.*", "invoices.*", "payments.*"],
-    isSystem: false,
-    color: "bg-success/10 text-success",
-  },
-  {
-    id: "5",
-    name: "Produktion",
-    description: "Werkstattaufträge, Lager und Qualitätssicherung",
-    userCount: 4,
-    permissions: ["production.*", "inventory.*", "quality.*"],
-    isSystem: false,
-    color: "bg-warning/10 text-warning",
-  },
-  {
-    id: "6",
-    name: "Sachbearbeiter",
-    description: "Eingeschränkter Zugriff auf CRM und Dokumente",
-    userCount: 2,
-    permissions: ["customers.view", "documents.*", "calendar.*"],
-    isSystem: false,
-    color: "bg-muted text-muted-foreground",
-  },
-];
-
 const modules = [
   { name: "Dashboard", key: "dashboard" },
   { name: "Projekte", key: "projects" },
@@ -120,6 +65,8 @@ const modules = [
 ];
 
 export default function Roles() {
+  const { data: apiData } = useQuery({ queryKey: ["/roles"], queryFn: () => api.get<any>("/users") });
+  const roles = apiData?.roles || apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("roles");
   const [selectedRole, setSelectedRole] = useState<string | null>("1");

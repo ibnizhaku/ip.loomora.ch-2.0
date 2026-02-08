@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Upload,
   Download,
@@ -29,54 +31,6 @@ interface SwissdecSubmission {
   confirmedAt?: string;
   errors?: string[];
 }
-
-const submissions: SwissdecSubmission[] = [
-  {
-    id: "1",
-    type: "monthly",
-    period: "Januar 2024",
-    employeeCount: 12,
-    totalSalary: 98500,
-    status: "confirmed",
-    submittedAt: "31.01.2024 14:23",
-    confirmedAt: "31.01.2024 14:25",
-  },
-  {
-    id: "2",
-    type: "monthly",
-    period: "Dezember 2023",
-    employeeCount: 11,
-    totalSalary: 94200,
-    status: "confirmed",
-    submittedAt: "29.12.2023 16:45",
-    confirmedAt: "29.12.2023 16:48",
-  },
-  {
-    id: "3",
-    type: "annual",
-    period: "2023",
-    employeeCount: 15,
-    totalSalary: 1125000,
-    status: "submitted",
-    submittedAt: "15.01.2024 09:30",
-  },
-  {
-    id: "4",
-    type: "entry",
-    period: "Februar 2024",
-    employeeCount: 1,
-    totalSalary: 6200,
-    status: "ready",
-  },
-  {
-    id: "5",
-    type: "monthly",
-    period: "Februar 2024",
-    employeeCount: 13,
-    totalSalary: 104700,
-    status: "draft",
-  },
-];
 
 const typeLabels = {
   monthly: "Monatsmeldung",
@@ -111,6 +65,8 @@ const statusLabels = {
 };
 
 export default function Swissdec() {
+  const { data: apiData } = useQuery({ queryKey: ["/swissdec"], queryFn: () => api.get<any>("/swissdec") });
+  const submissions = apiData?.data || [];
   const [activeTab, setActiveTab] = useState("submissions");
 
   const confirmedSubmissions = submissions.filter((s) => s.status === "confirmed").length;

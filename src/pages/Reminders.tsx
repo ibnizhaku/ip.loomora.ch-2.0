@@ -89,13 +89,6 @@ interface Reminder {
   daysOverdue: number;
 }
 
-const mockReminders: Reminder[] = [
-  { id: "MA-2024-0028", invoice: "RE-2024-0156", customer: "Müller & Partner GmbH", customerEmail: "buchhaltung@mueller-partner.ch", dueDate: "19.01.2024", amount: 8262.55, level: 2, lastReminder: "27.01.2024", daysOverdue: 12 },
-  { id: "MA-2024-0027", invoice: "RE-2024-0148", customer: "Innovation Labs", customerEmail: "finance@innovationlabs.ch", dueDate: "15.01.2024", amount: 4580.00, level: 3, lastReminder: "25.01.2024", daysOverdue: 16 },
-  { id: "MA-2024-0026", invoice: "RE-2024-0142", customer: "Weber Elektronik", customerEmail: "info@weber-elektronik.ch", dueDate: "22.01.2024", amount: 2890.00, level: 1, lastReminder: "28.01.2024", daysOverdue: 9 },
-  { id: "MA-2024-0025", invoice: "RE-2024-0135", customer: "StartUp Solutions", customerEmail: "admin@startup-solutions.ch", dueDate: "10.01.2024", amount: 12500.00, level: 4, lastReminder: "20.01.2024", daysOverdue: 21 },
-  { id: "MA-2024-0024", invoice: "RE-2024-0128", customer: "Digital Consulting", customerEmail: "rechnungen@digital-consulting.ch", dueDate: "18.01.2024", amount: 3450.00, level: 2, lastReminder: "26.01.2024", daysOverdue: 13 },
-];
 
 const overdueInvoices = [
   { id: "RE-2024-0160", customer: "Tech Industries", customerEmail: "ap@tech-industries.ch", dueDate: "25.01.2024", amount: 5680.00, daysOverdue: 6, remindersSent: 0 },
@@ -114,7 +107,7 @@ const Reminders = () => {
     queryKey: ["/reminders"],
     queryFn: () => api.get<any>("/reminders"),
   });
-  const initialReminders = apiData?.data || mockReminders;
+  const initialReminders = apiData?.data || [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);

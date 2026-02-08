@@ -54,80 +54,6 @@ interface QualityCheck {
   notes?: string;
 }
 
-const mockQualityChecks: QualityCheck[] = [
-  {
-    id: "1",
-    number: "QS-2024-001",
-    title: "Endabnahme Metalltreppe",
-    project: "PRJ-2024-015",
-    type: "final",
-    status: "passed",
-    inspector: "M. Keller",
-    date: "28.01.2024",
-    totalChecks: 24,
-    passedChecks: 24,
-    failedChecks: 0,
-    photos: 12,
-  },
-  {
-    id: "2",
-    number: "QS-2024-002",
-    title: "Schweissnaht-Prüfung",
-    project: "PRJ-2024-015",
-    type: "production",
-    status: "conditional",
-    inspector: "A. Meier",
-    date: "25.01.2024",
-    totalChecks: 18,
-    passedChecks: 16,
-    failedChecks: 2,
-    photos: 8,
-    notes: "2 Nähte nacharbeiten",
-  },
-  {
-    id: "3",
-    number: "QS-2024-003",
-    title: "Wareneingang Stahlträger",
-    project: "PRJ-2024-018",
-    type: "incoming",
-    status: "passed",
-    inspector: "T. Brunner",
-    date: "22.01.2024",
-    totalChecks: 8,
-    passedChecks: 8,
-    failedChecks: 0,
-    photos: 4,
-  },
-  {
-    id: "4",
-    number: "QS-2024-004",
-    title: "ISO 9001 Audit",
-    project: "-",
-    type: "audit",
-    status: "pending",
-    inspector: "Extern",
-    date: "15.02.2024",
-    totalChecks: 45,
-    passedChecks: 0,
-    failedChecks: 0,
-    photos: 0,
-  },
-  {
-    id: "5",
-    number: "QS-2024-005",
-    title: "Oberflächenprüfung Geländer",
-    project: "PRJ-2024-018",
-    type: "production",
-    status: "failed",
-    inspector: "S. Huber",
-    date: "20.01.2024",
-    totalChecks: 12,
-    passedChecks: 8,
-    failedChecks: 4,
-    photos: 6,
-    notes: "Verzinkung ungleichmässig",
-  },
-];
 
 const typeStyles = {
   incoming: "bg-info/10 text-info",
@@ -168,7 +94,7 @@ export default function QualityControl() {
     queryKey: ["/quality-checks"],
     queryFn: () => api.get<any>("/quality-checks"),
   });
-  const initialChecks = apiData?.data || mockQualityChecks;
+  const initialChecks = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [checkList, setCheckList] = useState<QualityCheck[]>(initialChecks);
 

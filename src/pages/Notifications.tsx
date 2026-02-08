@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Bell,
   CheckCircle2,
@@ -27,79 +29,6 @@ interface Notification {
   link?: string;
 }
 
-const notifications: Notification[] = [
-  {
-    id: "1",
-    type: "warning",
-    title: "Rechnung überfällig",
-    message: "RE-2024-0142 von Bauherr AG ist seit 5 Tagen überfällig (CHF 12'450)",
-    timestamp: "Vor 2 Stunden",
-    read: false,
-    category: "finance",
-    link: "/invoices/142",
-  },
-  {
-    id: "2",
-    type: "success",
-    title: "Zahlungseingang",
-    message: "CHF 31'970 von Immobilien Müller eingegangen (RE-2024-0156)",
-    timestamp: "Vor 4 Stunden",
-    read: false,
-    category: "finance",
-    link: "/payments",
-  },
-  {
-    id: "3",
-    type: "info",
-    title: "Neuer Auftrag",
-    message: "Auftrag AU-2024-0089 wurde von Thomas Brunner erstellt",
-    timestamp: "Heute, 09:15",
-    read: false,
-    category: "sales",
-    link: "/orders/89",
-  },
-  {
-    id: "4",
-    type: "error",
-    title: "Lagerbestand kritisch",
-    message: "Edelstahl Blech 2mm unter Mindestbestand (45 von 50 m²)",
-    timestamp: "Heute, 08:30",
-    read: true,
-    category: "production",
-    link: "/inventory",
-  },
-  {
-    id: "5",
-    type: "info",
-    title: "Vertrag läuft aus",
-    message: "Arbeitsvertrag von Marco Steiner (Lehrvertrag) läuft in 30 Tagen aus",
-    timestamp: "Gestern, 14:22",
-    read: true,
-    category: "hr",
-    link: "/employee-contracts",
-  },
-  {
-    id: "6",
-    type: "warning",
-    title: "QS-Prüfung fehlgeschlagen",
-    message: "Oberflächenprüfung Geländer (QS-2024-005) nicht bestanden",
-    timestamp: "Gestern, 11:45",
-    read: true,
-    category: "production",
-    link: "/quality",
-  },
-  {
-    id: "7",
-    type: "success",
-    title: "Swissdec Meldung bestätigt",
-    message: "Monatsmeldung Januar 2024 erfolgreich übermittelt",
-    timestamp: "31.01.2024, 14:25",
-    read: true,
-    category: "hr",
-    link: "/swissdec",
-  },
-];
-
 const typeIcons = {
   info: Info,
   success: CheckCircle2,
@@ -123,6 +52,8 @@ const categoryLabels = {
 };
 
 export default function Notifications() {
+  const { data: apiData } = useQuery({ queryKey: ["/notifications"], queryFn: () => api.get<any>("/notifications") });
+  const notifications = apiData?.data || [];
   const [activeTab, setActiveTab] = useState("all");
   const [notificationList, setNotificationList] = useState(notifications);
 

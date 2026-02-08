@@ -65,76 +65,6 @@ interface AbsenceRequest {
   approvalHistory: AbsenceApprovalProgress[];
 }
 
-// GAV Metallbau Ferienansprüche (altersabhängig)
-const mockAbsenceRequests: AbsenceRequest[] = [
-  { 
-    id: 1, 
-    employee: "Thomas Müller", 
-    type: "Ferien", 
-    from: "12.02.2024", 
-    to: "16.02.2024", 
-    days: 5, 
-    status: "Genehmigt", 
-    requestDate: "28.01.2024",
-    currentStageIndex: 1,
-    approvalHistory: [
-      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "29.01.2024" },
-      { stageId: "2", stageName: "HR / Personal", status: "approved", approvedBy: "Anna Meier", approvedAt: "30.01.2024" },
-    ],
-  },
-  { 
-    id: 2, 
-    employee: "Michael Schneider", 
-    type: "Ferien", 
-    from: "04.03.2024", 
-    to: "15.03.2024", 
-    days: 8, 
-    status: "Ausstehend", 
-    requestDate: "25.01.2024",
-    currentStageIndex: 0,
-    approvalHistory: [],
-  },
-  { 
-    id: 3, 
-    employee: "Pedro Santos", 
-    type: "Ferien", 
-    from: "26.02.2024", 
-    to: "08.03.2024", 
-    days: 10, 
-    status: "Ausstehend", 
-    requestDate: "30.01.2024",
-    currentStageIndex: 1,
-    approvalHistory: [
-      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "31.01.2024" },
-    ],
-  },
-  { 
-    id: 4, 
-    employee: "Lisa Weber", 
-    type: "Krankheit", 
-    from: "15.01.2024", 
-    to: "17.01.2024", 
-    days: 3, 
-    status: "Bestätigt", 
-    requestDate: "15.01.2024", 
-    note: "Arztzeugnis vorhanden",
-    currentStageIndex: 0,
-    approvalHistory: [],
-  },
-  { 
-    id: 5, 
-    employee: "Michael Schneider", 
-    type: "Unfall", 
-    from: "08.01.2024", 
-    to: "12.01.2024", 
-    days: 5, 
-    status: "Bestätigt", 
-    requestDate: "08.01.2024", 
-    note: "BU - Arbeitsunfall SUVA",
-    currentStageIndex: 0,
-    approvalHistory: [],
-  },
-];
 
 // Ferienkonten nach GAV Metallbau (altersabhängig)
 const employeeVacation = [
@@ -172,7 +102,7 @@ const Absences = () => {
     queryKey: ["/absences"],
     queryFn: () => api.get<any>("/absences"),
   });
-  const absenceRequests = apiData?.data || mockAbsenceRequests;
+  const absenceRequests = apiData?.data || [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [requests, setRequests] = useState<AbsenceRequest[]>(absenceRequests);

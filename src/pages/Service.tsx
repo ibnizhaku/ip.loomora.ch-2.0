@@ -79,61 +79,6 @@ interface ServiceTicket {
   description: string;
 }
 
-const mockServiceTickets: ServiceTicket[] = [
-  {
-    id: "1",
-    number: "SRV-2024-001",
-    title: "Treppenstufe locker",
-    customer: "Bauherr AG",
-    type: "repair",
-    priority: "high",
-    status: "in_progress",
-    assignedTo: "T. Brunner",
-    scheduledDate: "01.02.2024",
-    estimatedHours: 3,
-    actualHours: 1.5,
-    description: "Stufe 12 der Metalltreppe hat sich gelöst",
-  },
-  {
-    id: "2",
-    number: "SRV-2024-002",
-    title: "Jährliche Wartung Brandschutztüren",
-    customer: "Logistik Center Zürich",
-    type: "maintenance",
-    priority: "normal",
-    status: "open",
-    scheduledDate: "15.02.2024",
-    estimatedHours: 8,
-    description: "Wartungsvertrag - 12 Brandschutztüren",
-  },
-  {
-    id: "3",
-    number: "SRV-2024-003",
-    title: "Geländer Korrosionsschaden",
-    customer: "Immobilien Müller",
-    type: "warranty",
-    priority: "normal",
-    status: "waiting",
-    assignedTo: "A. Meier",
-    estimatedHours: 4,
-    description: "Garantiefall - Korrosion nach 6 Monaten",
-  },
-  {
-    id: "4",
-    number: "SRV-2024-004",
-    title: "Abnahme Carport",
-    customer: "Privat Schneider",
-    type: "inspection",
-    priority: "low",
-    status: "completed",
-    assignedTo: "M. Keller",
-    scheduledDate: "25.01.2024",
-    completedDate: "25.01.2024",
-    estimatedHours: 1,
-    actualHours: 1,
-    description: "Endabnahme und Übergabe",
-  },
-];
 
 const technicians = [
   { id: "1", name: "T. Brunner", kürzel: "TB" },
@@ -195,7 +140,7 @@ export default function Service() {
     queryKey: ["/service-tickets"],
     queryFn: () => api.get<any>("/service-tickets"),
   });
-  const initialTickets = apiData?.data || mockServiceTickets;
+  const initialTickets = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [ticketList, setTicketList] = useState<ServiceTicket[]>(initialTickets);
   

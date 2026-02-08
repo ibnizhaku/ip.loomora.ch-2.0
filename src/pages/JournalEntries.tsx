@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -56,89 +58,6 @@ interface JournalEntry {
   status: "draft" | "posted" | "reversed";
 }
 
-const entries: JournalEntry[] = [
-  {
-    id: "1",
-    number: "BU-2024-0156",
-    date: "31.01.2024",
-    description: "Ausgangsrechnung RE-2024-089",
-    debitAccount: "1400",
-    debitAccountName: "Forderungen aus L+L",
-    creditAccount: "4000",
-    creditAccountName: "Umsatzerlöse 19%",
-    amount: 15000,
-    type: "standard",
-    reference: "RE-2024-089",
-    status: "posted",
-  },
-  {
-    id: "2",
-    number: "BU-2024-0155",
-    date: "30.01.2024",
-    description: "Bankzahlung Lieferant",
-    debitAccount: "3300",
-    debitAccountName: "Verbindlichkeiten aus L+L",
-    creditAccount: "1200",
-    creditAccountName: "Bank",
-    amount: 5600,
-    type: "standard",
-    reference: "ER-2024-045",
-    status: "posted",
-  },
-  {
-    id: "3",
-    number: "BU-2024-0154",
-    date: "29.01.2024",
-    description: "Gehaltszahlung Januar",
-    debitAccount: "6000",
-    debitAccountName: "Personalaufwand",
-    creditAccount: "1200",
-    creditAccountName: "Bank",
-    amount: 45000,
-    type: "standard",
-    status: "posted",
-  },
-  {
-    id: "4",
-    number: "BU-2024-0153",
-    date: "28.01.2024",
-    description: "Abschreibung Maschinen",
-    debitAccount: "6300",
-    debitAccountName: "Abschreibungen",
-    creditAccount: "0400",
-    creditAccountName: "Maschinen",
-    amount: 1250,
-    type: "adjustment",
-    status: "posted",
-  },
-  {
-    id: "5",
-    number: "BU-2024-0152",
-    date: "27.01.2024",
-    description: "Eingangsrechnung Software",
-    debitAccount: "6800",
-    debitAccountName: "Betriebskosten",
-    creditAccount: "3300",
-    creditAccountName: "Verbindlichkeiten aus L+L",
-    amount: 2500,
-    type: "standard",
-    reference: "ER-2024-044",
-    status: "posted",
-  },
-  {
-    id: "6",
-    number: "BU-2024-0151",
-    date: "26.01.2024",
-    description: "Bareinzahlung Kasse",
-    debitAccount: "1200",
-    debitAccountName: "Bank",
-    creditAccount: "1600",
-    creditAccountName: "Kasse",
-    amount: 500,
-    type: "standard",
-    status: "draft",
-  },
-];
 
 const typeStyles = {
   standard: "bg-primary/10 text-primary",
@@ -170,6 +89,8 @@ const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { mi
 
 export default function JournalEntries() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/journal-entries"], queryFn: () => api.get<any>("/journal-entries") });
+  const entries = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [entryList, setEntryList] = useState(entries);
   const [filterOpen, setFilterOpen] = useState(false);

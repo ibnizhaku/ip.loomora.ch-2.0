@@ -199,7 +199,7 @@ export default function ProjectDetail() {
   const status = project.status?.toUpperCase().replace('-', '_') || 'PLANNING';
   const statusInfo = statusConfig[status] || statusConfig.PLANNING;
 
-  // Mock data for team and tasks if not available from backend
+  // Team und Tasks aus Backend-Daten aufbereiten
   const team = project.members?.map((m: any) => ({
     initials: `${m.employee?.firstName?.[0] || ''}${m.employee?.lastName?.[0] || ''}`,
     name: `${m.employee?.firstName || ''} ${m.employee?.lastName || ''}`,

@@ -79,110 +79,6 @@ interface TravelExpense {
   approvalHistory: ApprovalProgress[];
 }
 
-const mockTravelExpenses: TravelExpense[] = [
-  {
-    id: "1",
-    number: "RK-2024-012",
-    employee: { name: "Thomas Müller", initials: "TM" },
-    purpose: "Kundenbesuch Zürich",
-    destination: "Zürich",
-    startDate: "28.01.2024",
-    endDate: "29.01.2024",
-    totalAmount: 485.50,
-    status: "submitted",
-    items: [
-      { category: "transport", amount: 185.00 },
-      { category: "accommodation", amount: 189.00 },
-      { category: "meals", amount: 111.50 },
-    ],
-    currentStageIndex: 0,
-    approvalHistory: [],
-  },
-  {
-    id: "2",
-    number: "RK-2024-011",
-    employee: { name: "Sarah Weber", initials: "SW" },
-    purpose: "Messe Swissbau Basel",
-    destination: "Basel",
-    startDate: "22.01.2024",
-    endDate: "25.01.2024",
-    totalAmount: 1250.00,
-    status: "approved",
-    items: [
-      { category: "transport", amount: 320.00 },
-      { category: "accommodation", amount: 567.00 },
-      { category: "meals", amount: 363.00 },
-    ],
-    currentStageIndex: 2,
-    approvalHistory: [
-      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "23.01.2024" },
-      { stageId: "2", stageName: "HR / Personal", status: "approved", approvedBy: "Anna Meier", approvedAt: "24.01.2024" },
-      { stageId: "3", stageName: "Buchhaltung", status: "approved", approvedBy: "Lisa Brunner", approvedAt: "25.01.2024" },
-    ],
-  },
-  {
-    id: "3",
-    number: "RK-2024-010",
-    employee: { name: "Michael Schmidt", initials: "MS" },
-    purpose: "Lieferantenaudit Bern",
-    destination: "Bern",
-    startDate: "15.01.2024",
-    endDate: "16.01.2024",
-    totalAmount: 520.00,
-    status: "paid",
-    items: [
-      { category: "transport", amount: 240.00 },
-      { category: "accommodation", amount: 159.00 },
-      { category: "meals", amount: 121.00 },
-    ],
-    currentStageIndex: 2,
-    approvalHistory: [
-      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "16.01.2024" },
-      { stageId: "2", stageName: "HR / Personal", status: "approved", approvedBy: "Anna Meier", approvedAt: "17.01.2024" },
-      { stageId: "3", stageName: "Buchhaltung", status: "approved", approvedBy: "Lisa Brunner", approvedAt: "18.01.2024" },
-    ],
-  },
-  {
-    id: "4",
-    number: "RK-2024-009",
-    employee: { name: "Julia Hoffmann", initials: "JH" },
-    purpose: "Schulung Luzern",
-    destination: "Luzern",
-    startDate: "10.01.2024",
-    endDate: "12.01.2024",
-    totalAmount: 890.00,
-    status: "rejected",
-    items: [
-      { category: "transport", amount: 280.00 },
-      { category: "accommodation", amount: 398.00 },
-      { category: "meals", amount: 212.00 },
-    ],
-    currentStageIndex: 1,
-    approvalHistory: [
-      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "12.01.2024" },
-      { stageId: "2", stageName: "HR / Personal", status: "rejected", rejectedReason: "Hotelrechnung fehlt" },
-    ],
-  },
-  {
-    id: "5",
-    number: "RK-2024-008",
-    employee: { name: "Thomas Müller", initials: "TM" },
-    purpose: "Projektabnahme Winterthur",
-    destination: "Winterthur",
-    startDate: "05.01.2024",
-    endDate: "05.01.2024",
-    totalAmount: 185.00,
-    status: "paid",
-    items: [
-      { category: "transport", amount: 145.00 },
-      { category: "meals", amount: 40.00 },
-    ],
-    currentStageIndex: 0,
-    approvalHistory: [
-      { stageId: "1", stageName: "Teamleiter", status: "approved", approvedBy: "Peter Keller", approvedAt: "06.01.2024" },
-    ],
-  },
-];
 
 const categoryIcons = {
   transport: Car,
@@ -235,7 +131,7 @@ export default function TravelExpenses() {
     queryKey: ["/travel-expenses"],
     queryFn: () => api.get<any>("/travel-expenses"),
   });
-  const initialExpenses = apiData?.data || mockTravelExpenses;
+  const initialExpenses = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<TravelExpense[]>(initialExpenses);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);

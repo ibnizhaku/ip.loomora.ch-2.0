@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface FixedAsset {
   id: string;
@@ -51,93 +53,6 @@ interface FixedAsset {
   location: string;
   status: "active" | "disposed" | "fully-depreciated";
 }
-
-const assets: FixedAsset[] = [
-  {
-    id: "1",
-    inventoryNumber: "AV-2020-001",
-    name: "Bürogebäude Hauptstraße",
-    category: "buildings",
-    acquisitionDate: "01.01.2020",
-    acquisitionCost: 500000,
-    usefulLife: 33,
-    depreciationMethod: "linear",
-    accumulatedDepreciation: 60000,
-    bookValue: 440000,
-    location: "Hauptstraße 1",
-    status: "active",
-  },
-  {
-    id: "2",
-    inventoryNumber: "AV-2021-005",
-    name: "CNC-Fräsmaschine",
-    category: "machinery",
-    acquisitionDate: "15.03.2021",
-    acquisitionCost: 85000,
-    usefulLife: 10,
-    depreciationMethod: "linear",
-    accumulatedDepreciation: 25500,
-    bookValue: 59500,
-    location: "Produktionshalle A",
-    status: "active",
-  },
-  {
-    id: "3",
-    inventoryNumber: "AV-2022-012",
-    name: "Firmenwagen BMW 520d",
-    category: "vehicles",
-    acquisitionDate: "01.06.2022",
-    acquisitionCost: 55000,
-    usefulLife: 6,
-    depreciationMethod: "linear",
-    accumulatedDepreciation: 15000,
-    bookValue: 40000,
-    location: "Fuhrpark",
-    status: "active",
-  },
-  {
-    id: "4",
-    inventoryNumber: "AV-2023-008",
-    name: "Server-Cluster",
-    category: "equipment",
-    acquisitionDate: "01.02.2023",
-    acquisitionCost: 25000,
-    usefulLife: 5,
-    depreciationMethod: "linear",
-    accumulatedDepreciation: 5000,
-    bookValue: 20000,
-    location: "Serverraum",
-    status: "active",
-  },
-  {
-    id: "5",
-    inventoryNumber: "AV-2019-003",
-    name: "Büromöbel Empfang",
-    category: "equipment",
-    acquisitionDate: "15.06.2019",
-    acquisitionCost: 8000,
-    usefulLife: 8,
-    depreciationMethod: "linear",
-    accumulatedDepreciation: 4500,
-    bookValue: 3500,
-    location: "Empfangsbereich",
-    status: "active",
-  },
-  {
-    id: "6",
-    inventoryNumber: "AV-2018-015",
-    name: "Drucker HP LaserJet",
-    category: "equipment",
-    acquisitionDate: "01.03.2018",
-    acquisitionCost: 2500,
-    usefulLife: 5,
-    depreciationMethod: "linear",
-    accumulatedDepreciation: 2500,
-    bookValue: 0,
-    location: "Büro EG",
-    status: "fully-depreciated",
-  },
-];
 
 const categoryIcons = {
   buildings: Building2,
@@ -176,9 +91,17 @@ const statusLabels = {
 };
 
 export default function FixedAssets() {
+  const { data: apiData } = useQuery({ queryKey: ["/fixed-assets"], queryFn: () => api.get<any>("/fixed-assets") });
+  const assets = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [assetList, setAssetList] = useState(assets);
+  const [assetList, setAssetList] = useState<FixedAsset[]>([]);
+  
+  useEffect(() => {
+    if (assets.length > 0) {
+      setAssetList(assets);
+    }
+  }, [assets]);
 
   const totalAcquisitionCost = assetList.reduce((acc, a) => acc + a.acquisitionCost, 0);
   const totalBookValue = assetList.reduce((acc, a) => acc + a.bookValue, 0);

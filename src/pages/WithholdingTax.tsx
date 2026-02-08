@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Search,
   Calculator,
@@ -40,78 +42,6 @@ interface WithholdingTaxEmployee {
   status: "active" | "exempt" | "pending";
 }
 
-const employees: WithholdingTaxEmployee[] = [
-  {
-    id: "1",
-    name: "Pedro Santos",
-    permitType: "B",
-    canton: "ZH",
-    municipality: "Zürich",
-    tariffCode: "A1",
-    churchTax: false,
-    grossSalary: 6500,
-    withholdingTax: 845,
-    taxRate: 13.0,
-    children: 0,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Maria Kowalski",
-    permitType: "B",
-    canton: "ZH",
-    municipality: "Winterthur",
-    tariffCode: "B2",
-    churchTax: true,
-    grossSalary: 7200,
-    withholdingTax: 720,
-    taxRate: 10.0,
-    children: 2,
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Antonio Rossi",
-    permitType: "G",
-    canton: "ZH",
-    municipality: "Zürich",
-    tariffCode: "A0",
-    churchTax: false,
-    grossSalary: 8500,
-    withholdingTax: 1275,
-    taxRate: 15.0,
-    children: 0,
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Svetlana Ivanova",
-    permitType: "L",
-    canton: "AG",
-    municipality: "Baden",
-    tariffCode: "C1",
-    churchTax: false,
-    grossSalary: 5800,
-    withholdingTax: 522,
-    taxRate: 9.0,
-    children: 1,
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "Jean Dubois",
-    permitType: "C",
-    canton: "ZH",
-    municipality: "Zürich",
-    tariffCode: "-",
-    churchTax: true,
-    grossSalary: 9200,
-    withholdingTax: 0,
-    taxRate: 0,
-    children: 0,
-    status: "exempt",
-  },
-];
 
 const permitLabels = {
   B: "Aufenthaltsbewilligung B",
@@ -140,6 +70,8 @@ const statusLabels = {
 };
 
 export default function WithholdingTax() {
+  const { data: apiData } = useQuery({ queryKey: ["/withholding-tax"], queryFn: () => api.get<any>("/withholding-tax") });
+  const employees = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [cantonFilter, setCantonFilter] = useState("all");
 

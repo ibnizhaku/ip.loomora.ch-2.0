@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -58,82 +60,6 @@ interface Order {
   progress: number;
 }
 
-const orders: Order[] = [
-  {
-    id: "1",
-    number: "AUF-2024-001",
-    client: "Fashion Store GmbH",
-    quoteNumber: "ANG-2024-001",
-    amount: 28500,
-    status: "completed",
-    priority: "high",
-    orderDate: "16.01.2024",
-    deliveryDate: "22.01.2024",
-    items: 5,
-    progress: 100,
-  },
-  {
-    id: "2",
-    number: "AUF-2024-002",
-    client: "FinTech Solutions",
-    amount: 45000,
-    status: "in-progress",
-    priority: "high",
-    orderDate: "21.01.2024",
-    deliveryDate: "15.02.2024",
-    items: 8,
-    progress: 65,
-  },
-  {
-    id: "3",
-    number: "AUF-2024-003",
-    client: "Sales Pro AG",
-    quoteNumber: "ANG-2023-089",
-    amount: 12000,
-    status: "shipped",
-    priority: "medium",
-    orderDate: "25.01.2024",
-    deliveryDate: "01.02.2024",
-    items: 3,
-    progress: 90,
-  },
-  {
-    id: "4",
-    number: "AUF-2024-004",
-    client: "Tech Innovations",
-    amount: 35000,
-    status: "confirmed",
-    priority: "medium",
-    orderDate: "28.01.2024",
-    deliveryDate: "20.02.2024",
-    items: 6,
-    progress: 25,
-  },
-  {
-    id: "5",
-    number: "AUF-2024-005",
-    client: "Logistics Plus",
-    amount: 22000,
-    status: "new",
-    priority: "low",
-    orderDate: "30.01.2024",
-    deliveryDate: "28.02.2024",
-    items: 4,
-    progress: 0,
-  },
-  {
-    id: "6",
-    number: "AUF-2024-006",
-    client: "Data Analytics Inc.",
-    amount: 8500,
-    status: "cancelled",
-    priority: "low",
-    orderDate: "10.01.2024",
-    deliveryDate: "25.01.2024",
-    items: 2,
-    progress: 0,
-  },
-];
 
 const statusConfig = {
   new: { label: "Neu", color: "bg-info/10 text-info", icon: ShoppingCart },
@@ -151,6 +77,8 @@ const priorityConfig = {
 };
 
 export default function Orders() {
+  const { data: apiData } = useQuery({ queryKey: ["/orders"], queryFn: () => api.get<any>("/orders") });
+  const orders = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);

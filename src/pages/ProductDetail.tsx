@@ -27,57 +27,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
-// Mock product data
-const product = {
-  id: "1",
-  sku: "PROD-001",
-  ean: "7612345678901",
-  name: "Edelstahl Blech 2mm",
-  description: "Hochwertiges Edelstahlblech für Metallbauarbeiten. Korrosionsbeständig, langlebig und vielseitig einsetzbar.",
-  category: "Rohmaterial",
-  type: "physical" as const,
-  unit: "m²",
-  status: "active" as const,
-  price: 89.50,
-  costPrice: 52.00,
-  margin: 41.9,
-  taxRate: 8.1,
-  stock: 145,
-  minStock: 50,
-  maxStock: 300,
-  reservedStock: 23,
-  supplier: "Stahl AG Zürich",
-  supplierSku: "STZ-ED2MM",
-  leadTime: 5,
-  weight: 15.8,
-  dimensions: "1000 x 2000 mm",
-  createdAt: "15.03.2023",
-  updatedAt: "28.01.2024",
-};
-
-const priceHistory = [
-  { date: "01.01.2024", price: 89.50, change: 2.3 },
-  { date: "01.10.2023", price: 87.50, change: 0 },
-  { date: "01.07.2023", price: 87.50, change: -3.2 },
-  { date: "01.04.2023", price: 90.40, change: 5.1 },
-  { date: "15.03.2023", price: 86.00, change: 0 },
-];
-
-const stockMovements = [
-  { date: "28.01.2024", type: "Eingang", quantity: 50, reference: "BE-2024-0045", balance: 145 },
-  { date: "25.01.2024", type: "Ausgang", quantity: -12, reference: "LS-2024-0089", balance: 95 },
-  { date: "22.01.2024", type: "Ausgang", quantity: -8, reference: "LS-2024-0082", balance: 107 },
-  { date: "18.01.2024", type: "Reservierung", quantity: -23, reference: "AU-2024-0034", balance: 115 },
-  { date: "15.01.2024", type: "Eingang", quantity: 30, reference: "BE-2024-0032", balance: 138 },
-];
-
-const relatedDocuments = [
-  { type: "Rechnung", number: "RE-2024-0156", date: "25.01.2024", amount: 1074 },
-  { type: "Lieferschein", number: "LS-2024-0089", date: "25.01.2024", quantity: 12 },
-  { type: "Bestellung", number: "BE-2024-0045", date: "20.01.2024", quantity: 50 },
-  { type: "Angebot", number: "AN-2024-0078", date: "18.01.2024", quantity: 30 },
-];
 
 const typeStyles = {
   physical: "bg-blue-500/10 text-blue-600",
@@ -95,8 +47,19 @@ export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const stockPercentage = (product.stock / product.maxStock) * 100;
-  const availableStock = product.stock - product.reservedStock;
+  const { data: apiData } = useQuery({
+    queryKey: ["/products", id],
+    queryFn: () => api.get<any>(`/products/${id}`),
+    enabled: !!id,
+  });
+
+  const product = apiData?.data || null;
+  const priceHistory = product?.priceHistory || [];
+  const stockMovements = product?.stockMovements || [];
+  const relatedDocuments = product?.relatedDocuments || [];
+
+  const stockPercentage = product?.stock && product?.maxStock ? (product.stock / product.maxStock) * 100 : 0;
+  const availableStock = (product?.stock || 0) - (product?.reservedStock || 0);
 
   return (
     <div className="space-y-6">
@@ -108,12 +71,14 @@ export default function ProductDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-3xl font-bold tracking-tight">
-              {product.name}
+              {product?.name || ""}
             </h1>
-            <Badge className="bg-success/10 text-success">Aktiv</Badge>
+            {product?.status === "active" && (
+              <Badge className="bg-success/10 text-success">Aktiv</Badge>
+            )}
           </div>
           <p className="text-muted-foreground">
-            <span className="font-mono">{product.sku}</span> • {product.category}
+            <span className="font-mono">{product?.sku || id}</span> • {product?.category || ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -154,7 +119,7 @@ export default function ProductDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">VK-Preis</p>
-              <p className="text-2xl font-bold font-mono">CHF {product.price.toFixed(2)}</p>
+              <p className="text-2xl font-bold font-mono">CHF {(product?.price || 0).toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -165,7 +130,7 @@ export default function ProductDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Marge</p>
-              <p className="text-2xl font-bold text-success font-mono">{product.margin}%</p>
+              <p className="text-2xl font-bold text-success font-mono">{product?.margin || 0}%</p>
             </div>
           </div>
         </div>
@@ -176,7 +141,7 @@ export default function ProductDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Lagerbestand</p>
-              <p className="text-2xl font-bold font-mono">{product.stock} {product.unit}</p>
+              <p className="text-2xl font-bold font-mono">{product?.stock || 0} {product?.unit || ""}</p>
             </div>
           </div>
         </div>
@@ -187,7 +152,7 @@ export default function ProductDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Reserviert</p>
-              <p className="text-2xl font-bold font-mono">{product.reservedStock} {product.unit}</p>
+              <p className="text-2xl font-bold font-mono">{product?.reservedStock || 0} {product?.unit || ""}</p>
             </div>
           </div>
         </div>
@@ -207,43 +172,45 @@ export default function ProductDetail() {
             <TabsContent value="overview" className="space-y-6 mt-6">
               <div className="rounded-xl border border-border bg-card p-6">
                 <h3 className="font-semibold mb-4">Produktinformationen</h3>
-                <p className="text-muted-foreground mb-6">{product.description}</p>
+                <p className="text-muted-foreground mb-6">{product?.description || ""}</p>
                 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-3">
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Artikelnummer</span>
-                      <span className="font-mono font-medium">{product.sku}</span>
+                      <span className="font-mono font-medium">{product?.sku || id}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">EAN/GTIN</span>
-                      <span className="font-mono font-medium">{product.ean}</span>
+                      <span className="font-mono font-medium">{product?.ean || "-"}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Kategorie</span>
-                      <span className="font-medium">{product.category}</span>
+                      <span className="font-medium">{product?.category || ""}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Produkttyp</span>
-                      <Badge className={typeStyles[product.type]}>{typeLabels[product.type]}</Badge>
+                      {product?.type && (
+                        <Badge className={typeStyles[product.type]}>{typeLabels[product.type]}</Badge>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Einheit</span>
-                      <span className="font-medium">{product.unit}</span>
+                      <span className="font-medium">{product?.unit || ""}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Gewicht</span>
-                      <span className="font-mono">{product.weight} kg/{product.unit}</span>
+                      <span className="font-mono">{product?.weight || 0} kg/{product?.unit || ""}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Abmessungen</span>
-                      <span className="font-mono">{product.dimensions}</span>
+                      <span className="font-mono">{product?.dimensions || "-"}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">MwSt.-Satz</span>
-                      <span className="font-mono">{product.taxRate}%</span>
+                      <span className="font-mono">{product?.taxRate || 0}%</span>
                     </div>
                   </div>
                 </div>
@@ -254,19 +221,19 @@ export default function ProductDetail() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Lieferant</span>
-                    <span className="font-medium">{product.supplier}</span>
+                    <span className="font-medium">{product?.supplier || "-"}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Lieferanten-SKU</span>
-                    <span className="font-mono">{product.supplierSku}</span>
+                    <span className="font-mono">{product?.supplierSku || "-"}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Einkaufspreis</span>
-                    <span className="font-mono">CHF {product.costPrice.toFixed(2)}</span>
+                    <span className="font-mono">CHF {(product?.costPrice || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Lieferzeit</span>
-                    <span className="font-mono">{product.leadTime} Tage</span>
+                    <span className="font-mono">{product?.leadTime || 0} Tage</span>
                   </div>
                 </div>
               </div>
@@ -285,12 +252,12 @@ export default function ProductDetail() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span>Lagerbestand</span>
-                    <span className="font-mono font-bold">{product.stock} {product.unit}</span>
+                    <span className="font-mono font-bold">{product?.stock || 0} {product?.unit || ""}</span>
                   </div>
                   <Progress value={stockPercentage} className="h-3" />
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Min: {product.minStock}</span>
-                    <span>Max: {product.maxStock}</span>
+                    <span>Min: {product?.minStock || 0}</span>
+                    <span>Max: {product?.maxStock || 0}</span>
                   </div>
                   
                   <div className="grid gap-4 sm:grid-cols-3 pt-4 border-t border-border">
@@ -300,11 +267,11 @@ export default function ProductDetail() {
                     </div>
                     <div className="text-center p-4 rounded-lg bg-muted/50">
                       <p className="text-sm text-muted-foreground">Reserviert</p>
-                      <p className="text-xl font-bold text-warning font-mono">{product.reservedStock}</p>
+                      <p className="text-xl font-bold text-warning font-mono">{product?.reservedStock || 0}</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-muted/50">
                       <p className="text-sm text-muted-foreground">Lagerwert</p>
-                      <p className="text-xl font-bold font-mono">CHF {(product.stock * product.costPrice).toLocaleString()}</p>
+                      <p className="text-xl font-bold font-mono">CHF {((product?.stock || 0) * (product?.costPrice || 0)).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -355,15 +322,15 @@ export default function ProductDetail() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="p-4 rounded-lg bg-muted/50 text-center">
                     <p className="text-sm text-muted-foreground mb-1">Einkaufspreis</p>
-                    <p className="text-2xl font-bold font-mono">CHF {product.costPrice.toFixed(2)}</p>
+                    <p className="text-2xl font-bold font-mono">CHF {(product?.costPrice || 0).toFixed(2)}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-primary/10 text-center">
                     <p className="text-sm text-muted-foreground mb-1">Verkaufspreis</p>
-                    <p className="text-2xl font-bold font-mono text-primary">CHF {product.price.toFixed(2)}</p>
+                    <p className="text-2xl font-bold font-mono text-primary">CHF {(product?.price || 0).toFixed(2)}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-success/10 text-center">
                     <p className="text-sm text-muted-foreground mb-1">Marge</p>
-                    <p className="text-2xl font-bold font-mono text-success">{product.margin}%</p>
+                    <p className="text-2xl font-bold font-mono text-success">{product?.margin || 0}%</p>
                   </div>
                 </div>
               </div>
@@ -412,7 +379,7 @@ export default function ProductDetail() {
                       </div>
                       <div className="text-right">
                         <p className="font-mono">
-                          {doc.amount ? `CHF ${doc.amount.toLocaleString()}` : `${doc.quantity} ${product.unit}`}
+                          {doc.amount ? `CHF ${doc.amount.toLocaleString()}` : `${doc.quantity} ${product?.unit || ""}`}
                         </p>
                         <p className="text-sm text-muted-foreground">{doc.date}</p>
                       </div>
@@ -433,7 +400,9 @@ export default function ProductDetail() {
               </div>
             </div>
             <div className="text-center">
-              <Badge className={typeStyles[product.type]}>{typeLabels[product.type]}</Badge>
+              {product?.type && (
+                <Badge className={typeStyles[product.type]}>{typeLabels[product.type]}</Badge>
+              )}
             </div>
           </div>
 
@@ -464,11 +433,11 @@ export default function ProductDetail() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Erstellt</span>
-                <span className="font-mono">{product.createdAt}</span>
+                <span className="font-mono">{product?.createdAt || "-"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Aktualisiert</span>
-                <span className="font-mono">{product.updatedAt}</span>
+                <span className="font-mono">{product?.updatedAt || "-"}</span>
               </div>
             </div>
           </div>

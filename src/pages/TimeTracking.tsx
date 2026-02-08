@@ -89,74 +89,6 @@ const employees = [
   { id: "4", name: "Julia Weber" },
 ];
 
-const mockTimeEntrys: TimeEntry[] = [
-  {
-    id: "1",
-    project: "E-Commerce Platform",
-    task: "Frontend Development",
-    duration: 240,
-    date: format(new Date(), "yyyy-MM-dd"),
-    status: "completed",
-    approvalStatus: "pending",
-    employeeName: "Max Mustermann",
-    employeeId: "1",
-  },
-  {
-    id: "2",
-    project: "Mobile Banking App",
-    task: "API Integration",
-    duration: 180,
-    date: format(new Date(), "yyyy-MM-dd"),
-    status: "completed",
-    approvalStatus: "approved",
-    employeeName: "Anna Schmidt",
-    employeeId: "2",
-  },
-  {
-    id: "3",
-    project: "Dashboard Redesign",
-    task: "UI Design",
-    duration: 300,
-    date: format(addDays(new Date(), -1), "yyyy-MM-dd"),
-    status: "completed",
-    approvalStatus: "approved",
-    employeeName: "Max Mustermann",
-    employeeId: "1",
-  },
-  {
-    id: "4",
-    project: "CRM Integration",
-    task: "Testing",
-    duration: 120,
-    date: format(addDays(new Date(), -1), "yyyy-MM-dd"),
-    status: "completed",
-    approvalStatus: "rejected",
-    employeeName: "Thomas Meier",
-    employeeId: "3",
-  },
-  {
-    id: "5",
-    project: "E-Commerce Platform",
-    task: "Bug Fixing",
-    duration: 90,
-    date: format(addDays(new Date(), -2), "yyyy-MM-dd"),
-    status: "completed",
-    approvalStatus: "pending",
-    employeeName: "Julia Weber",
-    employeeId: "4",
-  },
-  {
-    id: "6",
-    project: "Mobile Banking App",
-    task: "Security Audit",
-    duration: 360,
-    date: format(addDays(new Date(), -3), "yyyy-MM-dd"),
-    status: "completed",
-    approvalStatus: "pending",
-    employeeName: "Anna Schmidt",
-    employeeId: "2",
-  },
-];
 
 function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
@@ -172,15 +104,14 @@ function formatTime(seconds: number): string {
 }
 
 export default function TimeTracking() {
-  const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
-  const [isTracking, setIsTracking] = useState(false);
-
   // Fetch data from API
   const { data: apiData } = useQuery({
     queryKey: ["/time-entries"],
     queryFn: () => api.get<any>("/time-entries"),
   });
-  const initialEntries = apiData?.data || mockTimeEntrys;
+  const initialEntries = apiData?.data || [];
+  const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
+  const [isTracking, setIsTracking] = useState(false);
   const [currentTask, setCurrentTask] = useState("");
   const [currentProject, setCurrentProject] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);

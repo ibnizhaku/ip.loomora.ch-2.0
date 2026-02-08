@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { 
   Plus, 
   Search, 
@@ -50,26 +52,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const jobPostings = [
-  { id: 1, title: "Senior Metallbauer EFZ", department: "Produktion", location: "Zürich", applicants: 12, status: "Aktiv", postedDate: "10.01.2024", deadline: "28.02.2024" },
-  { id: 2, title: "Metallbaukonstrukteur/in EFZ", department: "Konstruktion", location: "Zürich", applicants: 8, status: "Aktiv", postedDate: "15.01.2024", deadline: "15.03.2024" },
-  { id: 3, title: "Projektleiter Metallbau", department: "Projektmanagement", location: "Winterthur", applicants: 5, status: "Entwurf", postedDate: "-", deadline: "-" },
-  { id: 4, title: "Monteur Metallbau", department: "Montage", location: "Region Zürich", applicants: 18, status: "Geschlossen", postedDate: "01.12.2023", deadline: "31.01.2024" },
-];
-
-const initialApplicants = [
-  { id: "1", name: "Marco Keller", position: "Senior Metallbauer EFZ", rating: 4.5, status: "Neu", appliedDate: "28.01.2024", experience: "8 Jahre", source: "jobs.ch" },
-  { id: "2", name: "Stefan Brunner", position: "Senior Metallbauer EFZ", rating: 4.0, status: "In Prüfung", appliedDate: "25.01.2024", experience: "12 Jahre", source: "Direktbewerbung" },
-  { id: "3", name: "Lisa Meier", position: "Metallbaukonstrukteur/in EFZ", rating: 4.8, status: "Interview geplant", appliedDate: "22.01.2024", experience: "5 Jahre", source: "LinkedIn" },
-  { id: "4", name: "Thomas Huber", position: "Senior Metallbauer EFZ", rating: 3.5, status: "Abgelehnt", appliedDate: "20.01.2024", experience: "3 Jahre", source: "RAV" },
-  { id: "5", name: "Sandra Weber", position: "Metallbaukonstrukteur/in EFZ", rating: 4.2, status: "Angebot gesendet", appliedDate: "15.01.2024", experience: "7 Jahre", source: "Empfehlung" },
-];
-
-const interviews = [
-  { id: 1, applicant: "Lisa Meier", position: "Metallbaukonstrukteur/in EFZ", date: "05.02.2024", time: "10:00", type: "Vor-Ort", interviewer: "Hans Keller" },
-  { id: 2, applicant: "Stefan Brunner", position: "Senior Metallbauer EFZ", date: "06.02.2024", time: "14:00", type: "Vor-Ort", interviewer: "Thomas Müller" },
-];
-
 const statusConfig: Record<string, { color: string }> = {
   "Aktiv": { color: "bg-success/10 text-success" },
   "Entwurf": { color: "bg-muted text-muted-foreground" },
@@ -84,6 +66,10 @@ const statusConfig: Record<string, { color: string }> = {
 
 const Recruiting = () => {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/recruiting"], queryFn: () => api.get<any>("/recruiting") });
+  const jobPostings = apiData?.jobPostings || [];
+  const initialApplicants = apiData?.applicants || [];
+  const interviews = apiData?.interviews || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [applicants, setApplicants] = useState(initialApplicants);

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -46,74 +48,6 @@ interface Task {
   tags: string[];
 }
 
-const tasks: Task[] = [
-  {
-    id: "1",
-    title: "Landing Page Design fertigstellen",
-    description: "Alle Sektionen der Landing Page finalisieren",
-    project: "E-Commerce Platform",
-    assignee: "LW",
-    priority: "high",
-    status: "in-progress",
-    dueDate: "05.02.2024",
-    tags: ["Design", "Frontend"],
-  },
-  {
-    id: "2",
-    title: "API Endpoints dokumentieren",
-    description: "Swagger-Dokumentation für alle REST-Endpoints",
-    project: "Mobile Banking App",
-    assignee: "TM",
-    priority: "medium",
-    status: "todo",
-    dueDate: "08.02.2024",
-    tags: ["Backend", "Dokumentation"],
-  },
-  {
-    id: "3",
-    title: "Unit Tests schreiben",
-    description: "Tests für Authentication-Modul",
-    project: "Mobile Banking App",
-    assignee: "AS",
-    priority: "high",
-    status: "review",
-    dueDate: "03.02.2024",
-    tags: ["Testing", "Backend"],
-  },
-  {
-    id: "4",
-    title: "Performance-Optimierung",
-    description: "Ladezeiten der Dashboard-Komponenten verbessern",
-    project: "Dashboard Redesign",
-    assignee: "MK",
-    priority: "medium",
-    status: "todo",
-    dueDate: "10.02.2024",
-    tags: ["Performance", "Frontend"],
-  },
-  {
-    id: "5",
-    title: "Kundenfeedback einarbeiten",
-    description: "Änderungen aus dem Review-Meeting umsetzen",
-    project: "CRM Integration",
-    assignee: "SK",
-    priority: "low",
-    status: "done",
-    dueDate: "01.02.2024",
-    tags: ["Review", "UX"],
-  },
-  {
-    id: "6",
-    title: "Datenbank-Migration",
-    description: "Schema-Updates für v2.0",
-    project: "E-Commerce Platform",
-    assignee: "AS",
-    priority: "high",
-    status: "in-progress",
-    dueDate: "06.02.2024",
-    tags: ["Backend", "Database"],
-  },
-];
 
 const statusConfig = {
   todo: { label: "Zu erledigen", color: "text-muted-foreground", icon: Circle },
@@ -129,6 +63,8 @@ const priorityConfig = {
 };
 
 export default function Tasks() {
+  const { data: apiData } = useQuery({ queryKey: ["/tasks"], queryFn: () => api.get<any>("/tasks") });
+  const tasks = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");

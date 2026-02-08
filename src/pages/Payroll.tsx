@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { 
   Search, 
   Filter,
@@ -41,83 +43,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// Schweizer Lohnabrechnung nach GAV Metallbau
-const payrollRuns = [
-  { id: "LR-2024-01", period: "Januar 2024", employees: 6, grossTotal: 35500, netTotal: 29232, status: "Abgeschlossen", runDate: "25.01.2024" },
-  { id: "LR-2024-02", period: "Februar 2024", employees: 6, grossTotal: 35500, netTotal: 29232, status: "In Bearbeitung", runDate: "25.02.2024" },
-  { id: "LR-2023-12", period: "Dezember 2023", employees: 6, grossTotal: 35500, netTotal: 29232, status: "Abgeschlossen", runDate: "22.12.2023" },
-];
-
-// Schweizer Sozialversicherungsbeiträge
-const employeePayroll = [
-  { 
-    id: "1", name: "Thomas Müller", position: "Metallbauer EFZ", 
-    bruttoLohn: 5800, 
-    ahvIvEo: 307.40, // 5.3%
-    alv: 63.80, // 1.1%
-    bvg: 290.00,
-    nbuKtg: 87.00, // NBU 1% + KTG 0.5%
-    quellensteuer: 0,
-    nettoLohn: 5051.80, 
-    status: "Berechnet" 
-  },
-  { 
-    id: "2", name: "Lisa Weber", position: "Metallbaukonstrukteurin EFZ", 
-    bruttoLohn: 6200, 
-    ahvIvEo: 328.60,
-    alv: 68.20,
-    bvg: 320.00,
-    nbuKtg: 93.00,
-    quellensteuer: 0,
-    nettoLohn: 5390.20, 
-    status: "Berechnet" 
-  },
-  { 
-    id: "3", name: "Michael Schneider", position: "Vorarbeiter", 
-    bruttoLohn: 6800, 
-    ahvIvEo: 360.40,
-    alv: 74.80,
-    bvg: 380.00,
-    nbuKtg: 102.00,
-    quellensteuer: 0,
-    nettoLohn: 5882.80, 
-    status: "Prüfung" 
-  },
-  { 
-    id: "4", name: "Sandra Fischer", position: "Kaufm. Angestellte", 
-    bruttoLohn: 5200, 
-    ahvIvEo: 275.60,
-    alv: 57.20,
-    bvg: 260.00,
-    nbuKtg: 78.00,
-    quellensteuer: 0,
-    nettoLohn: 4529.20, 
-    status: "Berechnet" 
-  },
-  { 
-    id: "5", name: "Pedro Santos", position: "Metallbauer EFZ", 
-    bruttoLohn: 5500, 
-    ahvIvEo: 291.50,
-    alv: 60.50,
-    bvg: 275.00,
-    nbuKtg: 82.50,
-    quellensteuer: 412.50, // B-Ausweis
-    nettoLohn: 4378.00, 
-    status: "Berechnet" 
-  },
-  { 
-    id: "6", name: "Hans Keller", position: "Werkstattleiter", 
-    bruttoLohn: 8000, 
-    ahvIvEo: 424.00,
-    alv: 88.00,
-    bvg: 480.00,
-    nbuKtg: 120.00,
-    quellensteuer: 0,
-    nettoLohn: 6888.00, 
-    status: "Berechnet" 
-  },
-];
-
 // GAV Metallbau Lohnklassen
 const gavLohnklassen = [
   { klasse: "A", bezeichnung: "Angelernte Arbeiter", minLohn: 4200, maxLohn: 4800 },
@@ -142,6 +67,9 @@ const formatCHF = (amount: number) => {
 
 const Payroll = () => {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/employees") });
+  const payrollRuns = apiData?.payrollRuns || [];
+  const employeePayroll = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);

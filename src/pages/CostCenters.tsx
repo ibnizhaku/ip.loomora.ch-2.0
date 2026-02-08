@@ -58,68 +58,6 @@ interface CostCenter {
   status: "on-track" | "warning" | "over-budget";
 }
 
-const mockCostCenters: CostCenter[] = [
-  {
-    id: "1",
-    number: "1000",
-    name: "Produktion",
-    manager: "Thomas Müller",
-    budget: 150000,
-    actual: 142000,
-    variance: 8000,
-    variancePercent: 5.3,
-    category: "production",
-    status: "on-track",
-  },
-  {
-    id: "2",
-    number: "2000",
-    name: "Vertrieb & Marketing",
-    manager: "Sarah Weber",
-    budget: 85000,
-    actual: 82500,
-    variance: 2500,
-    variancePercent: 2.9,
-    category: "sales",
-    status: "on-track",
-  },
-  {
-    id: "3",
-    number: "3000",
-    name: "Verwaltung",
-    manager: "Michael Schmidt",
-    budget: 45000,
-    actual: 48000,
-    variance: -3000,
-    variancePercent: -6.7,
-    category: "admin",
-    status: "warning",
-  },
-  {
-    id: "4",
-    number: "4000",
-    name: "IT & Digitalisierung",
-    manager: "Julia Hoffmann",
-    budget: 60000,
-    actual: 72000,
-    variance: -12000,
-    variancePercent: -20,
-    category: "it",
-    status: "over-budget",
-  },
-  {
-    id: "5",
-    number: "5000",
-    name: "Personal & HR",
-    manager: "Andreas Klein",
-    budget: 35000,
-    actual: 33500,
-    variance: 1500,
-    variancePercent: 4.3,
-    category: "hr",
-    status: "on-track",
-  },
-];
 
 const categoryColors = {
   production: "bg-blue-500/10 text-blue-600",
@@ -157,7 +95,7 @@ export default function CostCenters() {
     queryKey: ["/cost-centers"],
     queryFn: () => api.get<any>("/cost-centers"),
   });
-  const costCenters = apiData?.data || mockCostCenters;
+  const costCenters = apiData?.data || [];
 
   const [searchQuery, setSearchQuery] = useState("");
   const [centerList, setCenterList] = useState(costCenters);

@@ -12,27 +12,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
-const accountData = {
-  "1020": {
-    number: "1020",
-    name: "Bank UBS",
-    type: "asset" as const,
-    category: "Aktiven",
-    balance: 125000,
-    openingBalance: 98500,
-    transactions: [
-      { id: "1", date: "31.01.2024", document: "ZE-2024-089", description: "Zahlungseingang RE-2024-078", debit: 15000, credit: 0, balance: 125000 },
-      { id: "2", date: "30.01.2024", document: "ZA-2024-045", description: "Zahlung ER-2024-034", debit: 0, credit: 2500, balance: 110000 },
-      { id: "3", date: "28.01.2024", document: "ZE-2024-088", description: "Zahlungseingang RE-2024-072", debit: 8500, credit: 0, balance: 112500 },
-      { id: "4", date: "25.01.2024", document: "ZA-2024-044", description: "Lohnzahlung Januar", debit: 0, credit: 32000, balance: 104000 },
-      { id: "5", date: "20.01.2024", document: "ZE-2024-085", description: "Zahlungseingang RE-2024-065", debit: 45000, credit: 0, balance: 136000 },
-      { id: "6", date: "15.01.2024", document: "ZA-2024-040", description: "Miete Januar", debit: 0, credit: 3500, balance: 91000 },
-      { id: "7", date: "10.01.2024", document: "ZE-2024-082", description: "Zahlungseingang RE-2024-058", debit: 12000, credit: 0, balance: 94500 },
-      { id: "8", date: "05.01.2024", document: "ZA-2024-038", description: "Versicherungsprämie", debit: 0, credit: 8000, balance: 82500 },
-    ],
-  },
-};
 
 const typeColors = {
   asset: "bg-blue-500/10 text-blue-600",
@@ -54,10 +36,16 @@ export default function ChartOfAccountDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const account = accountData["1020"]; // Mock - would fetch by id
+  const { data: apiData } = useQuery({
+    queryKey: ["/finance/accounts", id],
+    queryFn: () => api.get<any>(`/finance/accounts/${id}`),
+    enabled: !!id,
+  });
   
-  const totalDebit = account.transactions.reduce((acc, t) => acc + t.debit, 0);
-  const totalCredit = account.transactions.reduce((acc, t) => acc + t.credit, 0);
+  const account = apiData?.data || null;
+  
+  const totalDebit = account?.transactions?.reduce((acc: number, t: any) => acc + (t.debit || 0), 0) || 0;
+  const totalCredit = account?.transactions?.reduce((acc: number, t: any) => acc + (t.credit || 0), 0) || 0;
   const netChange = totalDebit - totalCredit;
 
   const formatCHF = (amount: number) => {
@@ -72,9 +60,11 @@ export default function ChartOfAccountDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-lg text-muted-foreground">{account.number}</span>
-            <h1 className="font-display text-3xl font-bold">{account.name}</h1>
-            <Badge className={typeColors[account.type]}>{typeLabels[account.type]}</Badge>
+            <span className="font-mono text-lg text-muted-foreground">{account?.number || id}</span>
+            <h1 className="font-display text-3xl font-bold">{account?.name || ""}</h1>
+            {account?.type && (
+              <Badge className={typeColors[account.type]}>{typeLabels[account.type]}</Badge>
+            )}
           </div>
           <p className="text-muted-foreground">Kontoauszug und Buchungen</p>
         </div>
@@ -96,7 +86,7 @@ export default function ChartOfAccountDetail() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Anfangssaldo</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCHF(account.openingBalance)}</p>
+            <p className="text-2xl font-bold">{formatCHF(account?.openingBalance || 0)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -121,7 +111,7 @@ export default function ChartOfAccountDetail() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <p className="text-2xl font-bold">{formatCHF(account.balance)}</p>
+              <p className="text-2xl font-bold">{formatCHF(account?.balance || 0)}</p>
               {netChange >= 0 ? (
                 <TrendingUp className="h-5 w-5 text-success" />
               ) : (
@@ -152,7 +142,7 @@ export default function ChartOfAccountDetail() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {account.transactions.map((tx, index) => (
+              {(account?.transactions || []).map((tx: any, index: number) => (
                 <TableRow key={tx.id} className="animate-fade-in" style={{ animationDelay: `${index * 30}ms` }}>
                   <TableCell>{tx.date}</TableCell>
                   <TableCell>

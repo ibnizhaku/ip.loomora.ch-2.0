@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Trash2, GripVertical, Plus, Copy, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 interface CheckPoint {
   id: string;
@@ -34,105 +36,6 @@ interface CheckPoint {
   weight: number;
 }
 
-// Mock data for existing templates
-const templatesData: Record<string, {
-  id: string;
-  name: string;
-  category: string;
-  norm: string;
-  execClass: string;
-  description: string;
-  usageCount: number;
-  lastUsed: string;
-  checkPoints: CheckPoint[];
-}> = {
-  "TPL-001": {
-    id: "TPL-001",
-    name: "Schweissnaht-Prüfung EN 1090",
-    category: "schweissen",
-    norm: "en1090-2",
-    execClass: "exc2",
-    description: "Standardprüfung für Schweissnähte nach SN EN 1090-2",
-    usageCount: 45,
-    lastUsed: "29.01.2024",
-    checkPoints: [
-      { id: "1", name: "Sichtprüfung VT", targetValue: "Klasse C", weight: 20 },
-      { id: "2", name: "Nahtvorbereitung", targetValue: "ISO 9692-1", weight: 15 },
-      { id: "3", name: "Nahtdicke a-Mass", targetValue: "a=5mm min", weight: 20 },
-      { id: "4", name: "Nahtlänge", targetValue: "±2mm", weight: 15 },
-      { id: "5", name: "Einbrandtiefe", targetValue: "≥3mm", weight: 15 },
-      { id: "6", name: "Porenfreiheit", targetValue: "Klasse C", weight: 15 },
-    ],
-  },
-  "TPL-002": {
-    id: "TPL-002",
-    name: "Massgenauigkeit Stahlbau",
-    category: "massgenauigkeit",
-    norm: "en1090-2",
-    execClass: "exc2",
-    description: "Prüfung der Massgenauigkeit für Stahlbauteile",
-    usageCount: 38,
-    lastUsed: "28.01.2024",
-    checkPoints: [
-      { id: "1", name: "Längenmasse", targetValue: "±2mm", weight: 25 },
-      { id: "2", name: "Winkelmasse", targetValue: "±1°", weight: 20 },
-      { id: "3", name: "Ebenheit", targetValue: "≤3mm/m", weight: 20 },
-      { id: "4", name: "Lochabstände", targetValue: "±1mm", weight: 20 },
-      { id: "5", name: "Diagonalen", targetValue: "±3mm", weight: 15 },
-    ],
-  },
-  "TPL-003": {
-    id: "TPL-003",
-    name: "Oberflächenbehandlung C3",
-    category: "oberflaeche",
-    norm: "iso12944",
-    execClass: "",
-    description: "Korrosionsschutzprüfung nach ISO 12944 für Kategorie C3",
-    usageCount: 32,
-    lastUsed: "27.01.2024",
-    checkPoints: [
-      { id: "1", name: "Oberflächenvorbereitung", targetValue: "Sa 2½", weight: 25 },
-      { id: "2", name: "Grundierung", targetValue: "≥40μm", weight: 20 },
-      { id: "3", name: "Zwischenbeschichtung", targetValue: "≥40μm", weight: 20 },
-      { id: "4", name: "Deckbeschichtung", targetValue: "≥40μm", weight: 20 },
-      { id: "5", name: "Gesamtschichtdicke", targetValue: "≥120μm", weight: 15 },
-    ],
-  },
-  "TPL-004": {
-    id: "TPL-004",
-    name: "Schraubverbindungen",
-    category: "verbindungen",
-    norm: "en1090-2",
-    execClass: "exc2",
-    description: "Prüfung von Schraubverbindungen im Stahlbau",
-    usageCount: 28,
-    lastUsed: "25.01.2024",
-    checkPoints: [
-      { id: "1", name: "Schraubenqualität", targetValue: "8.8 / 10.9", weight: 25 },
-      { id: "2", name: "Anzugsmoment", targetValue: "M.A.", weight: 30 },
-      { id: "3", name: "Unterlegscheiben", targetValue: "vorhanden", weight: 20 },
-      { id: "4", name: "Korrosionsschutz", targetValue: "feuerverzinkt", weight: 25 },
-    ],
-  },
-  "TPL-005": {
-    id: "TPL-005",
-    name: "Eingangsprüfung Material",
-    category: "wareneingang",
-    norm: "iso9001",
-    execClass: "",
-    description: "Wareneingangskontrolle für Rohmaterial",
-    usageCount: 52,
-    lastUsed: "24.01.2024",
-    checkPoints: [
-      { id: "1", name: "Werkstoffzeugnis", targetValue: "3.1", weight: 20 },
-      { id: "2", name: "Materialkennzeichnung", targetValue: "vorhanden", weight: 15 },
-      { id: "3", name: "Abmessungen", targetValue: "lt. Bestellung", weight: 20 },
-      { id: "4", name: "Oberflächenzustand", targetValue: "i.O.", weight: 15 },
-      { id: "5", name: "Menge", targetValue: "lt. Lieferschein", weight: 15 },
-      { id: "6", name: "Verpackung", targetValue: "unbeschädigt", weight: 15 },
-    ],
-  },
-};
 
 const categoryLabels: Record<string, string> = {
   schweissen: "Schweissen",
@@ -154,14 +57,31 @@ export default function QualityChecklistDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const template = templatesData[id || ""] || templatesData["TPL-001"];
+  const { data: apiData } = useQuery({
+    queryKey: ["/quality", id],
+    queryFn: () => api.get<any>(`/quality/${id}`),
+    enabled: !!id,
+  });
   
-  const [name, setName] = useState(template.name);
-  const [category, setCategory] = useState(template.category);
-  const [norm, setNorm] = useState(template.norm);
-  const [execClass, setExecClass] = useState(template.execClass);
-  const [description, setDescription] = useState(template.description);
-  const [checkPoints, setCheckPoints] = useState<CheckPoint[]>(template.checkPoints);
+  const template = apiData?.data || null;
+  
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [norm, setNorm] = useState("");
+  const [execClass, setExecClass] = useState("");
+  const [description, setDescription] = useState("");
+  const [checkPoints, setCheckPoints] = useState<CheckPoint[]>([]);
+  
+  useEffect(() => {
+    if (template) {
+      setName(template.name || "");
+      setCategory(template.category || "");
+      setNorm(template.norm || "");
+      setExecClass(template.execClass || "");
+      setDescription(template.description || "");
+      setCheckPoints(template.checkPoints || []);
+    }
+  }, [template]);
   
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
@@ -224,7 +144,7 @@ export default function QualityChecklistDetail() {
   };
 
   const handleDelete = () => {
-    toast.success(`Vorlage "${template.id}" gelöscht`);
+    toast.success(`Vorlage "${template?.id || id}" gelöscht`);
     navigate("/quality/checklists");
   };
 
@@ -239,13 +159,15 @@ export default function QualityChecklistDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">{template.id}</h1>
-            <Badge variant="outline">{categoryLabels[template.category] || template.category}</Badge>
-            {template.norm && (
+            <h1 className="font-display text-2xl font-bold">{template?.id || id}</h1>
+            {template?.category && (
+              <Badge variant="outline">{categoryLabels[template.category] || template.category}</Badge>
+            )}
+            {template?.norm && (
               <Badge variant="secondary">{normLabels[template.norm] || template.norm}</Badge>
             )}
           </div>
-          <p className="text-muted-foreground">{template.name}</p>
+          <p className="text-muted-foreground">{template?.name || ""}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleDuplicate}>
@@ -263,9 +185,9 @@ export default function QualityChecklistDetail() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Vorlage löschen?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Möchten Sie die Vorlage "{template.name}" wirklich löschen? 
+                  Möchten Sie die Vorlage "{template?.name || ""}" wirklich löschen? 
                   Diese Aktion kann nicht rückgängig gemacht werden.
-                  Die Vorlage wurde {template.usageCount}x verwendet.
+                  {template?.usageCount !== undefined && ` Die Vorlage wurde ${template.usageCount}x verwendet.`}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -286,7 +208,7 @@ export default function QualityChecklistDetail() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Verwendungen</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{template.usageCount}</p>
+            <p className="text-2xl font-bold">{template?.usageCount || 0}</p>
           </CardContent>
         </Card>
         <Card>
@@ -302,7 +224,7 @@ export default function QualityChecklistDetail() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Zuletzt verwendet</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{template.lastUsed}</p>
+            <p className="text-2xl font-bold">{template?.lastUsed || "-"}</p>
           </CardContent>
         </Card>
       </div>

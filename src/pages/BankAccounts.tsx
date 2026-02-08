@@ -62,56 +62,6 @@ interface Transaction {
   reference?: string;
 }
 
-const mockBankAccounts: BankAccount[] = [
-  {
-    id: "1",
-    name: "Geschäftskonto Hauptkonto",
-    bank: "UBS Switzerland AG",
-    iban: "CH93 0076 2011 6238 5295 7",
-    bic: "UBSWCHZH80A",
-    balance: 145320.50,
-    currency: "CHF",
-    type: "checking",
-    lastSync: "31.01.2024 14:30",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Sparkonto Rücklagen",
-    bank: "Raiffeisen Schweiz",
-    iban: "CH39 8080 8001 2345 6789 0",
-    bic: "RAABORXXX",
-    balance: 50000.00,
-    currency: "CHF",
-    type: "savings",
-    lastSync: "31.01.2024 08:00",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Kreditkarte Business",
-    bank: "Viseca Card Services",
-    iban: "-",
-    bic: "-",
-    balance: -2340.00,
-    currency: "CHF",
-    type: "credit",
-    lastSync: "30.01.2024 23:00",
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Zahlungsverkehr",
-    bank: "PostFinance AG",
-    iban: "CH58 0900 0000 1234 5678 9",
-    bic: "POFICHBEXXX",
-    balance: 28450.00,
-    currency: "CHF",
-    type: "checking",
-    lastSync: "31.01.2024 12:00",
-    status: "active",
-  },
-];
 
 const recentTransactions: Transaction[] = [
   {
@@ -184,14 +134,14 @@ const statusLabels = {
 
 export default function BankAccounts() {
   const navigate = useNavigate();
-  const [selectedAccount, setSelectedAccount] = useState(bankAccounts[0]);
 
   // Fetch data from API
   const { data: apiData } = useQuery({
     queryKey: ["/bank-accounts"],
     queryFn: () => api.get<any>("/bank-accounts"),
   });
-  const bankAccounts = apiData?.data || mockBankAccounts;
+  const bankAccounts = apiData?.data || [];
+  const [selectedAccount, setSelectedAccount] = useState(bankAccounts[0]);
 
   const totalBalance = bankAccounts.reduce((acc, a) => acc + a.balance, 0);
   const unmatchedCount = recentTransactions.filter((t) => t.status === "unmatched").length;

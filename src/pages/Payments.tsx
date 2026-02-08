@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -48,77 +50,6 @@ interface Payment {
   bankAccount: string;
 }
 
-const payments: Payment[] = [
-  {
-    id: "1",
-    type: "incoming",
-    reference: "000000000000000000000000156",
-    counterparty: "Bauherr AG",
-    description: "Zahlung RE-2024-0156",
-    amount: 31970,
-    currency: "CHF",
-    date: "30.01.2024",
-    valueDate: "30.01.2024",
-    status: "matched",
-    linkedDocument: "RE-2024-0156",
-    bankAccount: "UBS Geschäftskonto",
-  },
-  {
-    id: "2",
-    type: "incoming",
-    reference: "000000000000000000000000157",
-    counterparty: "Immobilien Müller",
-    description: "Teilzahlung Balkongeländer",
-    amount: 5000,
-    currency: "CHF",
-    date: "29.01.2024",
-    valueDate: "29.01.2024",
-    status: "matched",
-    linkedDocument: "RE-2024-0157",
-    bankAccount: "UBS Geschäftskonto",
-  },
-  {
-    id: "3",
-    type: "outgoing",
-    reference: "LOOM-2024-0045",
-    counterparty: "Stahl AG Zürich",
-    description: "Lieferung Stahlträger",
-    amount: 9134.45,
-    currency: "CHF",
-    date: "28.01.2024",
-    valueDate: "28.01.2024",
-    status: "completed",
-    linkedDocument: "ERI-2024-001",
-    bankAccount: "UBS Geschäftskonto",
-  },
-  {
-    id: "4",
-    type: "incoming",
-    reference: "",
-    counterparty: "Unbekannt",
-    description: "Überweisung ohne Referenz",
-    amount: 2500,
-    currency: "CHF",
-    date: "27.01.2024",
-    valueDate: "27.01.2024",
-    status: "unmatched",
-    bankAccount: "UBS Geschäftskonto",
-  },
-  {
-    id: "5",
-    type: "outgoing",
-    reference: "LOOM-2024-0046",
-    counterparty: "Verzinkerei Schweiz GmbH",
-    description: "Verzinkung Metalltreppe",
-    amount: 2378.20,
-    currency: "CHF",
-    date: "26.01.2024",
-    valueDate: "26.01.2024",
-    status: "pending",
-    linkedDocument: "ERI-2024-002",
-    bankAccount: "ZKB Geschäftskonto",
-  },
-];
 
 const statusStyles = {
   pending: "bg-warning/10 text-warning",
@@ -135,6 +66,8 @@ const statusLabels = {
 };
 
 export default function Payments() {
+  const { data: apiData } = useQuery({ queryKey: ["/payments"], queryFn: () => api.get<any>("/payments") });
+  const payments = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 

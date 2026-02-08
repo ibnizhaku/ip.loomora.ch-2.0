@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -52,66 +54,6 @@ interface SepaPayment {
   linkedDocument?: string;
 }
 
-const payments: SepaPayment[] = [
-  {
-    id: "1",
-    type: "credit-transfer",
-    reference: "SEPA-2024-0089",
-    recipient: "Software AG",
-    iban: "DE89 3704 0044 0532 0130 00",
-    amount: 2500.00,
-    purpose: "Rechnung ER-2024-044",
-    executionDate: "05.02.2024",
-    status: "pending",
-    linkedDocument: "ER-2024-044",
-  },
-  {
-    id: "2",
-    type: "credit-transfer",
-    reference: "SEPA-2024-0088",
-    recipient: "Office Supplies GmbH",
-    iban: "DE55 1234 5678 9012 3456 78",
-    amount: 850.00,
-    purpose: "Rechnung ER-2024-038",
-    executionDate: "05.02.2024",
-    status: "pending",
-    linkedDocument: "ER-2024-038",
-  },
-  {
-    id: "3",
-    type: "credit-transfer",
-    reference: "SEPA-2024-0087",
-    recipient: "Energie Versorger",
-    iban: "DE44 2345 6789 0123 4567 89",
-    amount: 1200.00,
-    purpose: "Abschlag Februar",
-    executionDate: "01.02.2024",
-    status: "executed",
-  },
-  {
-    id: "4",
-    type: "direct-debit",
-    reference: "SEPA-DD-2024-015",
-    recipient: "Fashion Store GmbH",
-    iban: "DE33 3456 7890 1234 5678 90",
-    amount: 15000.00,
-    purpose: "Rechnung RE-2024-089",
-    executionDate: "10.02.2024",
-    status: "draft",
-    linkedDocument: "RE-2024-089",
-  },
-  {
-    id: "5",
-    type: "credit-transfer",
-    reference: "SEPA-2024-0085",
-    recipient: "Marketing Agentur",
-    iban: "DE22 4567 8901 2345 6789 01",
-    amount: 3500.00,
-    purpose: "Kampagne Q1",
-    executionDate: "28.01.2024",
-    status: "failed",
-  },
-];
 
 const typeStyles = {
   "credit-transfer": "bg-blue-500/10 text-blue-600",
@@ -149,6 +91,8 @@ const statusIcons = {
 
 export default function SepaPayments() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/sepa-payments"], queryFn: () => api.get<any>("/payments") });
+  const payments = apiData?.data || [];
   const [activeTab, setActiveTab] = useState("outgoing");
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentList, setPaymentList] = useState(payments);

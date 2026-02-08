@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -35,7 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const budgetDataByYear: Record<string, typeof budgets> = {
+const budgetDataByYear: Record<string, Budget[]> = {
   "2024": [
     { id: "1", name: "Personalkosten", category: "Operating", period: "2024", planned: 1200000, actual: 480000, forecast: 1180000, status: "on-track" },
     { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2024", planned: 150000, actual: 85000, forecast: 175000, status: "at-risk" },
@@ -70,68 +72,6 @@ interface Budget {
   status: "on-track" | "at-risk" | "over-budget" | "under-utilized";
 }
 
-const budgets: Budget[] = [
-  {
-    id: "1",
-    name: "Personalkosten",
-    category: "Operating",
-    period: "2024",
-    planned: 1200000,
-    actual: 480000,
-    forecast: 1180000,
-    status: "on-track",
-  },
-  {
-    id: "2",
-    name: "Marketing & Werbung",
-    category: "Operating",
-    period: "2024",
-    planned: 150000,
-    actual: 85000,
-    forecast: 175000,
-    status: "at-risk",
-  },
-  {
-    id: "3",
-    name: "IT Infrastruktur",
-    category: "CAPEX",
-    period: "2024",
-    planned: 80000,
-    actual: 95000,
-    forecast: 120000,
-    status: "over-budget",
-  },
-  {
-    id: "4",
-    name: "Reisekosten",
-    category: "Operating",
-    period: "2024",
-    planned: 45000,
-    actual: 12000,
-    forecast: 35000,
-    status: "under-utilized",
-  },
-  {
-    id: "5",
-    name: "Weiterbildung",
-    category: "Operating",
-    period: "2024",
-    planned: 30000,
-    actual: 8500,
-    forecast: 28000,
-    status: "on-track",
-  },
-  {
-    id: "6",
-    name: "Büroausstattung",
-    category: "CAPEX",
-    period: "2024",
-    planned: 25000,
-    actual: 22000,
-    forecast: 25000,
-    status: "on-track",
-  },
-];
 
 const monthlyData = [
   { month: "Jan", planned: 125000, actual: 118000 },
@@ -165,6 +105,8 @@ const statusIcons = {
 
 export default function Budgets() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/budgets"], queryFn: () => api.get<any>("/budgets") });
+  const budgets = apiData?.data || [];
   const [year, setYear] = useState("2024");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "at-risk" | "over-budget" | "under-utilized">("all");

@@ -43,63 +43,6 @@ interface ShopOrder {
   shippingMethod: string;
 }
 
-const mockShopOrders: ShopOrder[] = [
-  {
-    id: "ORD-10234",
-    customer: "Maria Schmidt",
-    email: "m.schmidt@email.de",
-    items: 3,
-    total: 234.50,
-    status: "processing",
-    paymentStatus: "paid",
-    date: "2024-01-19",
-    shippingMethod: "DHL Express",
-  },
-  {
-    id: "ORD-10233",
-    customer: "Thomas Weber",
-    email: "t.weber@email.de",
-    items: 1,
-    total: 89.99,
-    status: "shipped",
-    paymentStatus: "paid",
-    date: "2024-01-18",
-    shippingMethod: "DHL Standard",
-  },
-  {
-    id: "ORD-10232",
-    customer: "Lisa Müller",
-    email: "l.mueller@email.de",
-    items: 5,
-    total: 445.00,
-    status: "delivered",
-    paymentStatus: "paid",
-    date: "2024-01-17",
-    shippingMethod: "DPD",
-  },
-  {
-    id: "ORD-10231",
-    customer: "Michael Fischer",
-    email: "m.fischer@email.de",
-    items: 2,
-    total: 156.80,
-    status: "pending",
-    paymentStatus: "pending",
-    date: "2024-01-19",
-    shippingMethod: "DHL Standard",
-  },
-  {
-    id: "ORD-10230",
-    customer: "Sandra Bauer",
-    email: "s.bauer@email.de",
-    items: 1,
-    total: 49.99,
-    status: "cancelled",
-    paymentStatus: "refunded",
-    date: "2024-01-16",
-    shippingMethod: "-",
-  },
-];
 
 const topProducts = [
   { id: "1", name: "Premium Widget Pro", sales: 234, revenue: 23400, rating: 4.8, stock: 45 },
@@ -148,7 +91,7 @@ export default function Shop() {
     queryKey: ["/ecommerce/orders"],
     queryFn: () => api.get<any>("/ecommerce/orders"),
   });
-  const initialShopOrders = apiData?.data || mockShopOrders;
+  const initialShopOrders = apiData?.data || [];
   const [shopOrders, setShopOrders] = useState<ShopOrder[]>(initialShopOrders);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
 

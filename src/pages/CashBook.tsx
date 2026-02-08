@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -61,97 +63,11 @@ interface CashEntry {
   costCenter?: string;
 }
 
-const entries: CashEntry[] = [
-  {
-    id: "1",
-    date: "31.01.2024",
-    documentNumber: "KB-2024-045",
-    description: "Anfangsbestand Februar",
-    type: "income",
-    amount: 0,
-    runningBalance: 2500,
-    taxRate: 0,
-  },
-  {
-    id: "2",
-    date: "30.01.2024",
-    documentNumber: "KB-2024-044",
-    description: "Barverkauf Lagerware",
-    type: "income",
-    amount: 350,
-    runningBalance: 2500,
-    taxRate: 19,
-    costCenter: "Vertrieb",
-  },
-  {
-    id: "3",
-    date: "29.01.2024",
-    documentNumber: "KB-2024-043",
-    description: "Büromaterial Papeterie",
-    type: "expense",
-    amount: 45.50,
-    runningBalance: 2150,
-    taxRate: 19,
-    costCenter: "Verwaltung",
-  },
-  {
-    id: "4",
-    date: "28.01.2024",
-    documentNumber: "KB-2024-042",
-    description: "Porto und Versand",
-    type: "expense",
-    amount: 25.00,
-    runningBalance: 2195.50,
-    taxRate: 0,
-    costCenter: "Verwaltung",
-  },
-  {
-    id: "5",
-    date: "26.01.2024",
-    documentNumber: "KB-2024-041",
-    description: "Kundenbesuch - Bewirtung",
-    type: "expense",
-    amount: 85.00,
-    runningBalance: 2220.50,
-    taxRate: 19,
-    costCenter: "Vertrieb",
-  },
-  {
-    id: "6",
-    date: "25.01.2024",
-    documentNumber: "KB-2024-040",
-    description: "Bankeinzahlung",
-    type: "expense",
-    amount: 500.00,
-    runningBalance: 2305.50,
-    taxRate: 0,
-  },
-  {
-    id: "7",
-    date: "24.01.2024",
-    documentNumber: "KB-2024-039",
-    description: "Barverkauf Dienstleistung",
-    type: "income",
-    amount: 250.00,
-    runningBalance: 2805.50,
-    taxRate: 19,
-    costCenter: "Vertrieb",
-  },
-  {
-    id: "8",
-    date: "22.01.2024",
-    documentNumber: "KB-2024-038",
-    description: "Tankquittung Firmenwagen",
-    type: "expense",
-    amount: 75.00,
-    runningBalance: 2555.50,
-    taxRate: 19,
-    costCenter: "Fuhrpark",
-  },
-];
 
 export default function CashBook() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/cash-book"], queryFn: () => api.get<any>("/cash-book") });
+  const entries = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [month, setMonth] = useState("2024-01");
   const [entryList, setEntryList] = useState(entries);

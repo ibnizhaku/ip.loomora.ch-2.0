@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { 
   Plus, 
   Search, 
@@ -50,22 +52,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const trainings = [
-  { id: "1", title: "Schweissen Grundkurs MIG/MAG", type: "Workshop", trainer: "Extern", date: "15.02.2024", duration: "2 Tage", participants: 6, maxParticipants: 8, status: "Geplant", cost: 1800 },
-  { id: "2", title: "Arbeitssicherheit SUVA", type: "E-Learning", trainer: "SUVA", date: "01.02.2024", duration: "4 Stunden", participants: 12, maxParticipants: 15, status: "Laufend", cost: 0 },
-  { id: "3", title: "Vorarbeiter-Führung", type: "Coaching", trainer: "Extern", date: "20.02.2024", duration: "1 Tag", participants: 3, maxParticipants: 4, status: "Geplant", cost: 2400 },
-  { id: "4", title: "Erste Hilfe Auffrischung", type: "Workshop", trainer: "Samariter", date: "10.01.2024", duration: "1 Tag", participants: 8, maxParticipants: 10, status: "Abgeschlossen", cost: 800 },
-  { id: "5", title: "Metallbaukonstrukteur Weiterbildung", type: "Zertifizierung", trainer: "SMU", date: "01.03.2024", duration: "5 Tage", participants: 2, maxParticipants: 3, status: "Geplant", cost: 4500 },
-];
-
-const employeeTrainings = [
-  { id: "1", name: "Thomas Müller", completedTrainings: 5, plannedTrainings: 2, certificates: 3, hoursThisYear: 48 },
-  { id: "2", name: "Lisa Weber", completedTrainings: 4, plannedTrainings: 2, certificates: 2, hoursThisYear: 40 },
-  { id: "3", name: "Michael Schneider", completedTrainings: 6, plannedTrainings: 1, certificates: 4, hoursThisYear: 56 },
-  { id: "4", name: "Sandra Fischer", completedTrainings: 3, plannedTrainings: 1, certificates: 1, hoursThisYear: 32 },
-  { id: "5", name: "Hans Keller", completedTrainings: 8, plannedTrainings: 2, certificates: 5, hoursThisYear: 64 },
-];
-
 const typeConfig: Record<string, { color: string; icon: any }> = {
   "Workshop": { color: "bg-primary/10 text-primary", icon: Users },
   "Online-Kurs": { color: "bg-info/10 text-info", icon: Video },
@@ -87,11 +73,20 @@ const formatCHF = (amount: number) => {
 
 const Training = () => {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/training"], queryFn: () => api.get<any>("/training") });
+  const trainings = apiData?.trainings || apiData?.data || [];
+  const employeeTrainings = apiData?.employeeTrainings || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterTrainingStatus, setFilterTrainingStatus] = useState<string[]>([]);
   const [filterTrainingType, setFilterTrainingType] = useState<string[]>([]);
   const [trainingsList, setTrainingsList] = useState(trainings);
+  
+  useEffect(() => {
+    if (trainings.length > 0) {
+      setTrainingsList(trainings);
+    }
+  }, [trainings]);
 
   const totalTrainings = trainingsList.length;
   const totalParticipants = trainingsList.reduce((sum, t) => sum + t.participants, 0);
@@ -235,7 +230,7 @@ const Training = () => {
           <Progress value={budgetPercent} className="h-3" />
           <div className="flex justify-between text-xs text-muted-foreground mt-2">
             <span>Verbleibend: CHF {formatCHF(totalBudget - usedBudget)}</span>
-            <span>{trainings.filter(t => t.status === "Geplant").length} geplante Schulungen</span>
+            <span>{trainingsList.filter(t => t.status === "Geplant").length} geplante Schulungen</span>
           </div>
         </CardContent>
       </Card>

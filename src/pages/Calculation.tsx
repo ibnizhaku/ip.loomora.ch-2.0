@@ -70,82 +70,6 @@ interface Calculation {
   createdAt: string;
 }
 
-const mockCalculations: Calculation[] = [
-  {
-    id: "1",
-    number: "KALK-2024-001",
-    name: "Metalltreppe Villa Sonnenberg",
-    customer: "Bauherr AG",
-    project: "PRJ-2024-015",
-    status: "approved",
-    materialCost: 12450,
-    laborCost: 8600,
-    laborHours: 68,
-    externalCost: 2200,
-    overhead: 2325,
-    margin: 25,
-    discount: 0,
-    totalCost: 25575,
-    sellingPrice: 31970,
-    profitMargin: 20,
-    createdAt: "15.01.2024",
-  },
-  {
-    id: "2",
-    number: "KALK-2024-002",
-    name: "Balkongeländer Residenz Park",
-    customer: "Immobilien Müller",
-    project: "PRJ-2024-018",
-    status: "calculated",
-    materialCost: 3200,
-    laborCost: 2400,
-    laborHours: 19,
-    externalCost: 850,
-    overhead: 645,
-    margin: 30,
-    discount: 5,
-    totalCost: 7095,
-    sellingPrice: 8760,
-    profitMargin: 19,
-    createdAt: "22.01.2024",
-  },
-  {
-    id: "3",
-    number: "KALK-2024-003",
-    name: "Brandschutztüren Industriehalle",
-    customer: "Logistik Center Zürich",
-    status: "draft",
-    materialCost: 8500,
-    laborCost: 3200,
-    laborHours: 25,
-    externalCost: 0,
-    overhead: 1170,
-    margin: 22,
-    discount: 0,
-    totalCost: 12870,
-    sellingPrice: 15700,
-    profitMargin: 18,
-    createdAt: "28.01.2024",
-  },
-  {
-    id: "4",
-    number: "KALK-2024-004",
-    name: "Carport Stahlkonstruktion",
-    customer: "Privat Schneider",
-    status: "rejected",
-    materialCost: 4200,
-    laborCost: 1800,
-    laborHours: 14,
-    externalCost: 600,
-    overhead: 660,
-    margin: 28,
-    discount: 0,
-    totalCost: 7260,
-    sellingPrice: 9290,
-    profitMargin: 22,
-    createdAt: "25.01.2024",
-  },
-];
 
 const statusStyles = {
   draft: "bg-muted text-muted-foreground",
@@ -260,7 +184,7 @@ export default function Calculation() {
     queryKey: ["/calculations"],
     queryFn: () => api.get<any>("/calculations"),
   });
-  const initialCalculations = apiData?.data || mockCalculations;
+  const initialCalculations = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState("all");
   const [calcList, setCalcList] = useState<Calculation[]>(initialCalculations);
   const [bomDialogOpen, setBomDialogOpen] = useState(false);

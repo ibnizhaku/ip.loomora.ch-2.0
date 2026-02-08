@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -45,74 +47,6 @@ interface Quote {
   items: number;
 }
 
-const quotes: Quote[] = [
-  {
-    id: "1",
-    number: "ANG-2024-001",
-    client: "Fashion Store GmbH",
-    project: "E-Commerce Erweiterung",
-    amount: 28500,
-    status: "accepted",
-    createdDate: "15.01.2024",
-    validUntil: "15.02.2024",
-    items: 5,
-  },
-  {
-    id: "2",
-    number: "ANG-2024-002",
-    client: "FinTech Solutions",
-    project: "Mobile App Phase 2",
-    amount: 45000,
-    status: "sent",
-    createdDate: "20.01.2024",
-    validUntil: "20.02.2024",
-    items: 8,
-  },
-  {
-    id: "3",
-    number: "ANG-2024-003",
-    client: "Sales Pro AG",
-    project: "CRM Customization",
-    amount: 12000,
-    status: "draft",
-    createdDate: "25.01.2024",
-    validUntil: "25.02.2024",
-    items: 3,
-  },
-  {
-    id: "4",
-    number: "ANG-2024-004",
-    client: "Tech Innovations",
-    project: "API Gateway",
-    amount: 35000,
-    status: "declined",
-    createdDate: "10.01.2024",
-    validUntil: "10.02.2024",
-    items: 6,
-  },
-  {
-    id: "5",
-    number: "ANG-2024-005",
-    client: "Logistics Plus",
-    project: "Tracking System",
-    amount: 22000,
-    status: "expired",
-    createdDate: "01.01.2024",
-    validUntil: "31.01.2024",
-    items: 4,
-  },
-  {
-    id: "6",
-    number: "ANG-2024-006",
-    client: "Data Analytics Inc.",
-    project: "Dashboard Premium",
-    amount: 18500,
-    status: "sent",
-    createdDate: "28.01.2024",
-    validUntil: "28.02.2024",
-    items: 5,
-  },
-];
 
 const statusConfig = {
   draft: { label: "Entwurf", color: "bg-muted text-muted-foreground", icon: FileText },
@@ -123,6 +57,8 @@ const statusConfig = {
 };
 
 export default function Quotes() {
+  const { data: apiData } = useQuery({ queryKey: ["/quotes"], queryFn: () => api.get<any>("/quotes") });
+  const quotes = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 

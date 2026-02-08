@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -37,68 +39,6 @@ interface Employee {
   avatar?: string;
 }
 
-const employees: Employee[] = [
-  {
-    id: "1",
-    name: "Max Keller",
-    position: "Geschäftsführer",
-    department: "Geschäftsleitung",
-    email: "m.keller@loomora.ch",
-    phone: "+41 79 123 45 67",
-    status: "active",
-    startDate: "15.01.2020",
-  },
-  {
-    id: "2",
-    name: "Anna Meier",
-    position: "Metallbauerin EFZ",
-    department: "Produktion",
-    email: "a.meier@loomora.ch",
-    phone: "+41 78 234 56 78",
-    status: "active",
-    startDate: "01.03.2021",
-  },
-  {
-    id: "3",
-    name: "Thomas Brunner",
-    position: "Projektleiter",
-    department: "Projektmanagement",
-    email: "t.brunner@loomora.ch",
-    phone: "+41 76 345 67 89",
-    status: "vacation",
-    startDate: "15.06.2021",
-  },
-  {
-    id: "4",
-    name: "Lisa Weber",
-    position: "Sachbearbeiterin",
-    department: "Administration",
-    email: "l.weber@loomora.ch",
-    phone: "+41 79 456 78 90",
-    status: "active",
-    startDate: "01.09.2022",
-  },
-  {
-    id: "5",
-    name: "Marco Steiner",
-    position: "Lernender 2. Jahr",
-    department: "Produktion",
-    email: "m.steiner@loomora.ch",
-    phone: "+41 77 567 89 01",
-    status: "active",
-    startDate: "01.08.2023",
-  },
-  {
-    id: "6",
-    name: "Sandra Huber",
-    position: "Montageleiterin",
-    department: "Montage",
-    email: "s.huber@loomora.ch",
-    phone: "+41 78 678 90 12",
-    status: "sick",
-    startDate: "15.04.2022",
-  },
-];
 
 const statusConfig = {
   active: { label: "Aktiv", color: "bg-success/10 text-success" },
@@ -110,6 +50,8 @@ const statusConfig = {
 const departments = ["Alle", "Geschäftsleitung", "Produktion", "Montage", "Projektmanagement", "Administration"];
 
 export default function HR() {
+  const { data: apiData } = useQuery({ queryKey: ["/employees"], queryFn: () => api.get<any>("/employees") });
+  const employees = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("Alle");

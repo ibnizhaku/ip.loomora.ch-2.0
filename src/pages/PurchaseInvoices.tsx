@@ -61,66 +61,6 @@ interface PurchaseInvoice {
   pdfFile?: string;
 }
 
-const mockPurchaseInvoices: PurchaseInvoice[] = [
-  {
-    id: "1",
-    number: "ERI-2024-001",
-    supplierNumber: "R-45678",
-    supplier: "Stahl AG Zürich",
-    invoiceDate: "25.01.2024",
-    dueDate: "24.02.2024",
-    netAmount: 8450,
-    vatAmount: 684.45,
-    grossAmount: 9134.45,
-    currency: "CHF",
-    status: "pending",
-    purchaseOrder: "BE-2024-0045",
-    costCenter: "200 - Produktion",
-  },
-  {
-    id: "2",
-    number: "ERI-2024-002",
-    supplierNumber: "2024-1234",
-    supplier: "Verzinkerei Schweiz GmbH",
-    invoiceDate: "22.01.2024",
-    dueDate: "21.02.2024",
-    netAmount: 2200,
-    vatAmount: 178.20,
-    grossAmount: 2378.20,
-    currency: "CHF",
-    status: "approved",
-    costCenter: "200 - Produktion",
-  },
-  {
-    id: "3",
-    number: "ERI-2024-003",
-    supplierNumber: "INV-2024-0089",
-    supplier: "Schrauben Express AG",
-    invoiceDate: "20.01.2024",
-    dueDate: "19.02.2024",
-    netAmount: 456.80,
-    vatAmount: 36.99,
-    grossAmount: 493.79,
-    currency: "CHF",
-    status: "paid",
-    purchaseOrder: "BE-2024-0042",
-    costCenter: "210 - Kleinmaterial",
-  },
-  {
-    id: "4",
-    number: "ERI-2024-004",
-    supplierNumber: "RE-5567",
-    supplier: "Werkzeug Müller",
-    invoiceDate: "28.01.2024",
-    dueDate: "27.02.2024",
-    netAmount: 1250,
-    vatAmount: 101.25,
-    grossAmount: 1351.25,
-    currency: "CHF",
-    status: "draft",
-    costCenter: "220 - Werkzeuge",
-  },
-];
 
 const statusStyles = {
   draft: "bg-muted text-muted-foreground",
@@ -155,7 +95,7 @@ export default function PurchaseInvoices() {
     queryKey: ["/purchase-invoices"],
     queryFn: () => api.get<any>("/purchase-invoices"),
   });
-  const initialInvoices = apiData?.data || mockPurchaseInvoices;
+  const initialInvoices = apiData?.data || [];
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>(initialInvoices);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

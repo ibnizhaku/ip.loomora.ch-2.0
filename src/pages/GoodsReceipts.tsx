@@ -1,17 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Plus, Search, Filter, Package, CheckCircle, Clock, Eye, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-const receipts = [
-  { id: "WE-2024-001", date: "01.02.2024", supplier: "Material AG", poNumber: "BE-2024-015", items: 5, status: "completed" },
-  { id: "WE-2024-002", date: "02.02.2024", supplier: "Stahlwerk GmbH", poNumber: "BE-2024-018", items: 3, status: "pending" },
-  { id: "WE-2024-003", date: "03.02.2024", supplier: "Elektro Handel", poNumber: "BE-2024-020", items: 8, status: "completed" },
-];
 
 const statusStyles = {
   completed: "bg-success/10 text-success",
@@ -26,6 +22,8 @@ const statusLabels = {
 };
 
 export default function GoodsReceipts() {
+  const { data: apiData } = useQuery({ queryKey: ["/goods-receipts"], queryFn: () => api.get<any>("/goods-receipts") });
+  const receipts = apiData?.data || [];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 

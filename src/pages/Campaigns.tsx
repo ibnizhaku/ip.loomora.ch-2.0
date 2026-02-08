@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,79 +43,6 @@ interface Campaign {
   revenue: number;
 }
 
-const campaigns: Campaign[] = [
-  {
-    id: "1",
-    name: "Herbst-Sale 2024",
-    type: "email",
-    status: "active",
-    startDate: "2024-09-01",
-    endDate: "2024-09-30",
-    budget: 5000,
-    spent: 3200,
-    reach: 45000,
-    clicks: 2340,
-    conversions: 156,
-    revenue: 23400,
-  },
-  {
-    id: "2",
-    name: "Newsletter Q4",
-    type: "email",
-    status: "active",
-    startDate: "2024-10-01",
-    endDate: "2024-12-31",
-    budget: 2000,
-    spent: 450,
-    reach: 12000,
-    clicks: 890,
-    conversions: 45,
-    revenue: 6750,
-  },
-  {
-    id: "3",
-    name: "Social Media Push",
-    type: "social",
-    status: "paused",
-    startDate: "2024-08-15",
-    endDate: "2024-10-15",
-    budget: 8000,
-    spent: 4500,
-    reach: 125000,
-    clicks: 5600,
-    conversions: 234,
-    revenue: 35100,
-  },
-  {
-    id: "4",
-    name: "Google Ads Winter",
-    type: "ppc",
-    status: "draft",
-    startDate: "2024-11-01",
-    endDate: "2024-12-31",
-    budget: 15000,
-    spent: 0,
-    reach: 0,
-    clicks: 0,
-    conversions: 0,
-    revenue: 0,
-  },
-  {
-    id: "5",
-    name: "Influencer Kooperation",
-    type: "influencer",
-    status: "completed",
-    startDate: "2024-07-01",
-    endDate: "2024-08-31",
-    budget: 10000,
-    spent: 10000,
-    reach: 250000,
-    clicks: 12500,
-    conversions: 420,
-    revenue: 63000,
-  },
-];
-
 const statusStyles = {
   active: "bg-success/10 text-success",
   paused: "bg-warning/10 text-warning",
@@ -145,6 +74,8 @@ const getTypeIcon = (type: string) => {
 
 export default function Campaigns() {
   const navigate = useNavigate();
+  const { data: apiData } = useQuery({ queryKey: ["/marketing/campaigns"], queryFn: () => api.get<any>("/marketing/campaigns") });
+  const campaigns = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "draft" | "completed">("all");
   const [activeTab, setActiveTab] = useState("all");
