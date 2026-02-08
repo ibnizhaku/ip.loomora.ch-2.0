@@ -121,21 +121,29 @@ export class CustomersService {
     if (!number) {
       const lastCustomer = await this.prisma.customer.findFirst({
         where: { companyId },
-        orderBy: { number: 'desc' },
+        orderBy: { createdAt: 'desc' },
       });
       
-      const lastNum = lastCustomer?.number 
-        ? parseInt(lastCustomer.number.replace('K-', '')) 
-        : 0;
-      number = `K-${String(lastNum + 1).padStart(3, '0')}`;
+      // Extract number from KD-XXXX format
+      let lastNum = 0;
+      if (lastCustomer?.number) {
+        const match = lastCustomer.number.match(/KD-(\d+)/);
+        if (match) {
+          lastNum = parseInt(match[1], 10);
+        }
+      }
+      number = `KD-${String(lastNum + 1).padStart(4, '0')}`;
     }
 
+    // Handle creditLimit conversion (DTO is number, Prisma expects Decimal)
+    const createData: any = {
+      ...dto,
+      number,
+      companyId,
+    };
+
     return this.prisma.customer.create({
-      data: {
-        ...dto,
-        number,
-        companyId,
-      },
+      data: createData,
     });
   }
 
