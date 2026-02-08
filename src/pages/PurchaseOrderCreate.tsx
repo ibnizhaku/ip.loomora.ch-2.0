@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -62,36 +62,33 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
+import { useSuppliers } from "@/hooks/use-suppliers";
+import { useProjects } from "@/hooks/use-projects";
+import { useProducts } from "@/hooks/use-products";
 
-// Mock suppliers data
-const suppliers = [
-  { id: "1", name: "TechParts International", number: "LF-0001", city: "Zürich", paymentTerms: 30 },
-  { id: "2", name: "Office Supplies Pro", number: "LF-0002", city: "Basel", paymentTerms: 14 },
-  { id: "3", name: "Hardware Express", number: "LF-0003", city: "Bern", paymentTerms: 30 },
-  { id: "4", name: "Component World", number: "LF-0004", city: "Genf", paymentTerms: 45 },
-  { id: "5", name: "Server Solutions", number: "LF-0005", city: "Luzern", paymentTerms: 30 },
-];
+// Types for API data
+interface SupplierData {
+  id: string;
+  number?: string;
+  name: string;
+  city?: string;
+  paymentTermDays?: number;
+}
 
-// Mock projects data
-const projects = [
-  { id: "1", name: "Website Redesign", number: "P-2024-001" },
-  { id: "2", name: "Server Migration", number: "P-2024-002" },
-  { id: "3", name: "Büro Renovation", number: "P-2024-003" },
-  { id: "4", name: "IT-Infrastruktur Upgrade", number: "P-2024-004" },
-  { id: "5", name: "Marketing Kampagne Q1", number: "P-2024-005" },
-];
+interface ProjectData {
+  id: string;
+  number: string;
+  name: string;
+}
 
-// Mock products that can be ordered
-const availableProducts = [
-  { id: "1", sku: "COMP-001", name: "Intel Core i7 Prozessor", unit: "Stk", price: 320, supplierId: "1" },
-  { id: "2", sku: "COMP-002", name: "DDR5 RAM 32GB Kit", unit: "Stk", price: 145, supplierId: "1" },
-  { id: "3", sku: "COMP-003", name: "NVMe SSD 1TB", unit: "Stk", price: 89, supplierId: "1" },
-  { id: "4", sku: "OFF-001", name: "Druckerpapier A4 500 Blatt", unit: "Pkg", price: 8.50, supplierId: "2" },
-  { id: "5", sku: "OFF-002", name: "Kugelschreiber Set (10 Stk)", unit: "Set", price: 12, supplierId: "2" },
-  { id: "6", sku: "HW-001", name: "Netzwerkkabel Cat6 3m", unit: "Stk", price: 5.50, supplierId: "3" },
-  { id: "7", sku: "HW-002", name: "USB-C Hub 7-Port", unit: "Stk", price: 45, supplierId: "3" },
-  { id: "8", sku: "SRV-001", name: "Server Rack 42U", unit: "Stk", price: 890, supplierId: "5" },
-];
+interface ProductData {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  purchasePrice: number;
+  supplierId?: string;
+}
 
 interface OrderItem {
   id: string;
@@ -110,7 +107,7 @@ export default function PurchaseOrderCreate() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"supplier" | "products" | "review">("supplier");
   const [supplierOpen, setSupplierOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<typeof suppliers[0] | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierData | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [expectedDelivery, setExpectedDelivery] = useState("");
@@ -125,17 +122,29 @@ export default function PurchaseOrderCreate() {
   const [sendingProgress, setSendingProgress] = useState(0);
   const [orderNumber, setOrderNumber] = useState("");
 
+  // Fetch data from API
+  const { data: suppliersData, isLoading: suppliersLoading } = useSuppliers({ pageSize: 100 });
+  const { data: projectsData, isLoading: projectsLoading } = useProjects({ pageSize: 100 });
+  const { data: productsData, isLoading: productsLoading } = useProducts({ 
+    search: productSearch, 
+    pageSize: 100 
+  });
+
+  const suppliers = useMemo(() => suppliersData?.data || [], [suppliersData]);
+  const projects = useMemo(() => projectsData?.data || [], [projectsData]);
+  const allProducts = useMemo(() => productsData?.data || [], [productsData]);
+
   // Filter products by selected supplier
   const supplierProducts = selectedSupplier 
-    ? availableProducts.filter(p => p.supplierId === selectedSupplier.id)
-    : availableProducts;
+    ? allProducts.filter((p: any) => p.supplierId === selectedSupplier.id)
+    : allProducts;
 
-  const filteredProducts = supplierProducts.filter(p =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.sku.toLowerCase().includes(productSearch.toLowerCase())
+  const filteredProducts = supplierProducts.filter((p: any) =>
+    p.name?.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.sku?.toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  const addProduct = (product: typeof availableProducts[0]) => {
+  const addProduct = (product: ProductData) => {
     const existingItem = items.find(item => item.productId === product.id);
     if (existingItem) {
       setItems(items.map(item =>
@@ -147,12 +156,12 @@ export default function PurchaseOrderCreate() {
       setItems([...items, {
         id: crypto.randomUUID(),
         productId: product.id,
-        sku: product.sku,
+        sku: product.sku || '',
         name: product.name,
         quantity: 1,
-        unit: product.unit,
-        unitPrice: product.price,
-        total: product.price,
+        unit: product.unit || 'Stk',
+        unitPrice: product.purchasePrice || 0,
+        total: product.purchasePrice || 0,
       }]);
     }
   };
@@ -240,7 +249,11 @@ export default function PurchaseOrderCreate() {
       
       generatePurchaseOrderPDF({
         orderNumber,
-        supplier: selectedSupplier!,
+        supplier: {
+          name: selectedSupplier!.name,
+          number: selectedSupplier!.number || '',
+          city: selectedSupplier!.city || '',
+        },
         items,
         subtotal,
         vat,
@@ -263,7 +276,11 @@ export default function PurchaseOrderCreate() {
       
       generatePurchaseOrderPDF({
         orderNumber,
-        supplier: selectedSupplier!,
+        supplier: {
+          name: selectedSupplier!.name,
+          number: selectedSupplier!.number || '',
+          city: selectedSupplier!.city || '',
+        },
         items,
         subtotal,
         vat,
@@ -421,7 +438,7 @@ export default function PurchaseOrderCreate() {
                                   {supplier.number} • {supplier.city}
                                 </div>
                               </div>
-                              <Badge variant="outline">{supplier.paymentTerms} Tage</Badge>
+                              <Badge variant="outline">{supplier.paymentTermDays || 30} Tage</Badge>
                             </div>
                           </CommandItem>
                         ))}
@@ -446,7 +463,7 @@ export default function PurchaseOrderCreate() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Zahlungsziel:</span>
-                    <span className="ml-2">{selectedSupplier.paymentTerms} Tage</span>
+                    <span className="ml-2">{selectedSupplier.paymentTermDays || 30} Tage</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Verfügbare Artikel:</span>
@@ -520,7 +537,7 @@ export default function PurchaseOrderCreate() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-medium">
-                            CHF {product.price.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                            CHF {(product.purchasePrice || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
                           </span>
                           {inCart && (
                             <Badge variant="default">{inCart.quantity}×</Badge>

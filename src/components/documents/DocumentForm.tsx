@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   QrCode,
   CreditCard,
   Info,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCustomers } from "@/hooks/use-customers";
+import { useProducts } from "@/hooks/use-products";
 
 interface Position {
   id: number;
@@ -67,28 +70,28 @@ interface DocumentFormProps {
   initialData?: any;
 }
 
-const mockCustomers = [
-  { id: "1", name: "TechStart GmbH", contact: "Maria Weber", email: "m.weber@techstart.ch", address: "Industriestrasse 15, 8005 Zürich", uid: "CHE-123.456.789" },
-  { id: "2", name: "Müller & Partner AG", contact: "Stefan Müller", email: "s.mueller@mueller-partner.ch", address: "Bahnhofstrasse 42, 3011 Bern", uid: "CHE-987.654.321" },
-  { id: "3", name: "Digital Solutions AG", contact: "Thomas Meier", email: "t.meier@digital.ch", address: "Seefeldstrasse 88, 8008 Zürich", uid: "CHE-456.789.012" },
-  { id: "4", name: "Metallbau Schweizer AG", contact: "Hans Schweizer", email: "h.schweizer@metallbau.ch", address: "Werkstrasse 22, 4500 Solothurn", uid: "CHE-111.222.333" },
-  { id: "5", name: "Precision Tech Sàrl", contact: "Pierre Dubois", email: "p.dubois@precision.ch", address: "Rue de l'Industrie 5, 1000 Lausanne", uid: "CHE-444.555.666" },
-];
+// Customer type from API (matches src/types/api.ts)
+interface CustomerData {
+  id: string;
+  name: string;
+  companyName?: string;
+  street?: string;
+  zipCode?: string;
+  city?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  vatNumber?: string;
+}
 
-const mockProducts = [
-  { id: "1", name: "Frontend-Entwicklung", unit: "Stunden", price: 150 },
-  { id: "2", name: "Backend-Entwicklung", unit: "Stunden", price: 160 },
-  { id: "3", name: "UI/UX Design", unit: "Stunden", price: 140 },
-  { id: "4", name: "Projektmanagement", unit: "Stunden", price: 130 },
-  { id: "5", name: "Testing & QA", unit: "Stunden", price: 120 },
-  { id: "6", name: "Consulting-Leistungen", unit: "Stunden", price: 180 },
-  { id: "7", name: "Software-Lizenz (Jahres)", unit: "Stück", price: 450 },
-  { id: "8", name: "Schulung", unit: "Tage", price: 1500 },
-  { id: "9", name: "Support-Pauschale", unit: "Pauschal", price: 600 },
-  { id: "10", name: "Metallkonstruktion", unit: "Stunden", price: 95 },
-  { id: "11", name: "Schweissarbeiten", unit: "Stunden", price: 110 },
-  { id: "12", name: "Montage vor Ort", unit: "Stunden", price: 105 },
-];
+// Product type from API
+interface ProductData {
+  id: string;
+  name: string;
+  unit?: string;
+  salePrice?: number;
+  isService?: boolean;
+}
 
 // Swiss VAT rates (MWST-Sätze)
 const vatRates = [
@@ -113,7 +116,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
   const navigate = useNavigate();
   const [customerSearch, setCustomerSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof mockCustomers[0] | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -124,6 +127,13 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
   const [useQrInvoice, setUseQrInvoice] = useState(true);
   const [qrReference, setQrReference] = useState("");
   const [esrParticipant, setEsrParticipant] = useState("");
+
+  // Fetch customers and products from API
+  const { data: customersData, isLoading: customersLoading } = useCustomers({ search: customerSearch, pageSize: 50 });
+  const { data: productsData, isLoading: productsLoading } = useProducts({ search: productSearch, pageSize: 50 });
+
+  const customers = useMemo(() => customersData?.data || [], [customersData]);
+  const products = useMemo(() => productsData?.data || [], [productsData]);
 
   const isQuote = type === "quote";
   const isInvoice = type === "invoice";
@@ -137,25 +147,27 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
   };
   const { title, backPath, sendLabel } = typeConfig[type] || typeConfig.invoice;
 
-  const filteredCustomers = mockCustomers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      c.contact.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      c.uid.toLowerCase().includes(customerSearch.toLowerCase())
+  // Filter customers based on search (API already filters, but we can do additional client-side filtering)
+  const filteredCustomers = customers.filter(
+    (c: any) =>
+      c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      c.contactPerson?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      c.vatNumber?.toLowerCase().includes(customerSearch.toLowerCase())
   );
 
-  const filteredProducts = mockProducts.filter((p) =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase())
+  // Filter products based on search
+  const filteredProducts = products.filter((p: any) =>
+    p.name?.toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  const addPosition = (product: typeof mockProducts[0]) => {
+  const addPosition = (product: ProductData) => {
     const newPosition: Position = {
       id: Date.now(),
       description: product.name,
       quantity: 1,
-      unit: product.unit,
-      price: product.price,
-      total: product.price,
+      unit: product.unit || "Stück",
+      price: product.salePrice || 0,
+      total: product.salePrice || 0,
       vatRate: parseFloat(defaultVatRate),
     };
     setPositions([...positions, newPosition]);
@@ -288,14 +300,16 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                     <div>
                       <p className="font-medium">{selectedCustomer.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {selectedCustomer.contact} • {selectedCustomer.email}
+                        {selectedCustomer.phone || selectedCustomer.email}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {selectedCustomer.address}
+                        {selectedCustomer.street}{selectedCustomer.city ? `, ${selectedCustomer.zipCode} ${selectedCustomer.city}` : ''}
                       </p>
-                      <p className="text-xs font-mono text-muted-foreground">
-                        UID: {selectedCustomer.uid}
-                      </p>
+                      {selectedCustomer.vatNumber && (
+                        <p className="text-xs font-mono text-muted-foreground">
+                          UID: {selectedCustomer.vatNumber}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <Button
@@ -344,11 +358,13 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                             <div className="flex-1">
                               <p className="font-medium">{customer.name}</p>
                               <p className="text-sm text-muted-foreground">
-                                {customer.contact} • {customer.address}
+                                {customer.email} • {customer.city || customer.street}
                               </p>
-                              <p className="text-xs font-mono text-muted-foreground">
-                                {customer.uid}
-                              </p>
+                              {customer.vatNumber && (
+                                <p className="text-xs font-mono text-muted-foreground">
+                                  {customer.vatNumber}
+                                </p>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -406,7 +422,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                                 <p className="text-sm text-muted-foreground">{product.unit}</p>
                               </div>
                             </div>
-                            <span className="font-medium">CHF {product.price.toFixed(2)}</span>
+                            <span className="font-medium">CHF {(product.salePrice || 0).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
@@ -610,7 +626,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                         {selectedCustomer ? (
                           <>
                             <p>{selectedCustomer.name}</p>
-                            <p>{selectedCustomer.address}</p>
+                            <p>{selectedCustomer.street}{selectedCustomer.city ? `, ${selectedCustomer.zipCode} ${selectedCustomer.city}` : ''}</p>
                           </>
                         ) : (
                           <p className="text-muted-foreground italic">Kunde auswählen</p>
@@ -656,7 +672,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                         {selectedCustomer ? (
                           <>
                             <p>{selectedCustomer.name}</p>
-                            <p>{selectedCustomer.address}</p>
+                            <p>{selectedCustomer.street}{selectedCustomer.city ? `, ${selectedCustomer.zipCode} ${selectedCustomer.city}` : ''}</p>
                           </>
                         ) : (
                           <p className="text-muted-foreground italic">—</p>
