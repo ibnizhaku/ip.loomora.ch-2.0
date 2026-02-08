@@ -70,33 +70,202 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('admin123', 12);
   
+  // =====================================================
+  // MULTI-TENANT: Subscription Plan erstellen
+  // =====================================================
+  console.log('📦 Erstelle Subscription Plan...');
+  
+  const basicPlan = await prisma.subscriptionPlan.upsert({
+    where: { id: 'plan-basic' },
+    update: {},
+    create: {
+      id: 'plan-basic',
+      name: 'Basic',
+      description: 'Standard Plan für KMU',
+      priceMonthly: 49.00,
+      priceYearly: 490.00,
+      currency: 'CHF',
+      features: { api_access: false, exports: true, reports: true },
+      limits: { max_users: 10, max_projects: 50, storage_gb: 10 },
+      sortOrder: 1,
+      isActive: true,
+      isDefault: true,
+    },
+  });
+
+  const proPlan = await prisma.subscriptionPlan.upsert({
+    where: { id: 'plan-pro' },
+    update: {},
+    create: {
+      id: 'plan-pro',
+      name: 'Pro',
+      description: 'Erweiterter Plan für wachsende Unternehmen',
+      priceMonthly: 99.00,
+      priceYearly: 990.00,
+      currency: 'CHF',
+      features: { api_access: true, exports: true, reports: true, priority_support: true },
+      limits: { max_users: 25, max_projects: 200, storage_gb: 50 },
+      sortOrder: 2,
+      isActive: true,
+      isDefault: false,
+    },
+  });
+
+  console.log('  ✓ 2 Subscription Pläne erstellt');
+
+  // =====================================================
+  // MULTI-TENANT: Subscription für Company erstellen
+  // =====================================================
+  console.log('📦 Erstelle Subscription...');
+
+  const subscription = await prisma.subscription.upsert({
+    where: { id: 'sub-demo' },
+    update: {},
+    create: {
+      id: 'sub-demo',
+      companyId: company.id,
+      planId: basicPlan.id,
+      status: 'ACTIVE',
+      billingCycle: 'MONTHLY',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: daysFromNow(30),
+    },
+  });
+
+  console.log('  ✓ Subscription erstellt (ACTIVE)');
+
+  // =====================================================
+  // MULTI-TENANT: Rollen erstellen
+  // =====================================================
+  console.log('📦 Erstelle Rollen und Berechtigungen...');
+
+  const allModules = [
+    'customers', 'suppliers', 'products', 'quotes', 'orders',
+    'invoices', 'payments', 'employees', 'projects', 'finance',
+    'documents', 'contracts', 'settings', 'users',
+  ];
+  const allPerms = ['read', 'write', 'delete', 'admin'];
+  const writePerms = ['read', 'write'];
+
+  // Owner Role
+  const ownerRole = await prisma.role.upsert({
+    where: { companyId_name: { companyId: company.id, name: 'Owner' } },
+    update: {},
+    create: {
+      companyId: company.id,
+      name: 'Owner',
+      description: 'Firmeneigentümer mit Vollzugriff',
+      isSystemRole: true,
+      permissions: {
+        create: allModules.flatMap((module) =>
+          allPerms.map((permission) => ({ module, permission })),
+        ),
+      },
+    },
+  });
+
+  // Admin Role
+  const adminRole = await prisma.role.upsert({
+    where: { companyId_name: { companyId: company.id, name: 'Admin' } },
+    update: {},
+    create: {
+      companyId: company.id,
+      name: 'Admin',
+      description: 'Administrator mit Vollzugriff (ohne Abo-Verwaltung)',
+      isSystemRole: true,
+      permissions: {
+        create: allModules
+          .filter((m) => m !== 'settings')
+          .flatMap((module) =>
+            allPerms.map((permission) => ({ module, permission })),
+          ),
+      },
+    },
+  });
+
+  // Member Role
+  const memberRole = await prisma.role.upsert({
+    where: { companyId_name: { companyId: company.id, name: 'Member' } },
+    update: {},
+    create: {
+      companyId: company.id,
+      name: 'Member',
+      description: 'Standard-Mitarbeiter',
+      isSystemRole: true,
+      permissions: {
+        create: allModules
+          .filter((m) => !['settings', 'users', 'finance'].includes(m))
+          .flatMap((module) =>
+            writePerms.map((permission) => ({ module, permission })),
+          ),
+      },
+    },
+  });
+
+  console.log('  ✓ 3 Rollen erstellt (Owner, Admin, Member)');
+
+  // =====================================================
+  // USER erstellen mit status: ACTIVE
+  // =====================================================
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@loomora.ch' },
-    update: {},
+    update: { status: 'ACTIVE' },
     create: {
       email: 'admin@loomora.ch',
       passwordHash,
       firstName: 'Max',
       lastName: 'Keller',
       role: 'ADMIN',
+      status: 'ACTIVE',
       companyId: company.id,
     },
   });
 
   const managerUser = await prisma.user.upsert({
     where: { email: 'manager@loomora.ch' },
-    update: {},
+    update: { status: 'ACTIVE' },
     create: {
       email: 'manager@loomora.ch',
       passwordHash,
       firstName: 'Anna',
       lastName: 'Schmidt',
       role: 'MANAGER',
+      status: 'ACTIVE',
       companyId: company.id,
     },
   });
 
-  console.log('  ✓ Firma und 2 Benutzer erstellt');
+  // =====================================================
+  // MULTI-TENANT: UserCompanyMembership erstellen
+  // =====================================================
+  console.log('📦 Erstelle User-Company Memberships...');
+
+  await prisma.userCompanyMembership.upsert({
+    where: { userId_companyId: { userId: adminUser.id, companyId: company.id } },
+    update: {},
+    create: {
+      userId: adminUser.id,
+      companyId: company.id,
+      roleId: ownerRole.id,
+      isOwner: true,
+      isPrimary: true,
+    },
+  });
+
+  await prisma.userCompanyMembership.upsert({
+    where: { userId_companyId: { userId: managerUser.id, companyId: company.id } },
+    update: {},
+    create: {
+      userId: managerUser.id,
+      companyId: company.id,
+      roleId: adminRole.id,
+      isOwner: false,
+      isPrimary: true,
+    },
+  });
+
+  console.log('  ✓ 2 User-Company Memberships erstellt');
+  console.log('  ✓ Firma, 2 Benutzer und Multi-Tenant Setup erstellt');
 
   // =====================================================
   // 2. DEPARTMENTS
