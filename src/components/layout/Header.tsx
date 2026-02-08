@@ -24,18 +24,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-const mockNotifications = [
-  { id: 1, title: "Neue Rechnung erstellt", description: "Rechnung #2024-0042 wurde erstellt", time: "vor 5 Min", unread: true },
-  { id: 2, title: "Zahlung eingegangen", description: "CHF 1'250.00 von Müller AG", time: "vor 1 Std", unread: true },
-  { id: 3, title: "Projekt aktualisiert", description: "Website Redesign wurde bearbeitet", time: "vor 2 Std", unread: false },
-  { id: 4, title: "Neuer Kommentar", description: "Max hat einen Kommentar hinterlassen", time: "vor 3 Std", unread: false },
-];
+interface Notification {
+  id: number;
+  title: string;
+  description: string;
+  time: string;
+  unread: boolean;
+}
 
 export function Header() {
   const [isDark, setIsDark] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSwitching, setIsSwitching] = useState(false);
   const navigate = useNavigate();
   

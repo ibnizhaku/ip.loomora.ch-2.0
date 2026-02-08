@@ -5,6 +5,32 @@
 
 ---
 
+## 🔑 Test-Login Credentials
+
+| Feld | Wert |
+|------|------|
+| **E-Mail** | `admin@loomora.ch` |
+| **Passwort** | `admin123` |
+| **Company** | Loomora Metallbau AG |
+| **Rolle** | Owner (Vollzugriff) |
+
+> **Server-Deployment:** Nach `git pull` ausführen: `cd /var/www/loomora/backend && npx prisma db seed`
+
+---
+
+## ✅ Mock-Daten Bereinigung (Abgeschlossen)
+
+| Modul | Status | Details |
+|-------|--------|---------|
+| Header Notifications | ✅ | Mock-Daten entfernt |
+| CRM (Customers) | ✅ | API-Hooks aktiv |
+| CRM (Suppliers) | ✅ | API-Hooks + Hard-Delete |
+| Products | ✅ | API-Hooks aktiv |
+| Sales | ✅ | API-Hooks aktiv |
+| Finance | ✅ | API-Hooks aktiv |
+
+---
+
 ## 🔴 Phase 1: Kritisch (Diese Woche)
 
 ### 1.1 Server-Stabilität
@@ -30,7 +56,7 @@
 - [x] **Lieferanten-Detail:** API verknüpft, echte Daten aus DB
 - [x] **Lieferanten-Erstellen:** API verknüpft
 
-### 1.3 Auth & Session
+### 1.4 Auth & Session
 - [ ] **Login-Flow testen** (Company-Auswahl, Token-Refresh)
 - [ ] **Session-Timeout prüfen** (15min Access, 7d Refresh)
 
