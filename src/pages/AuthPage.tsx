@@ -118,7 +118,7 @@ export default function AuthPage() {
 
   // ── Branding panel ──
   const brandingContent = (
-    <div className="relative h-full flex flex-col justify-between p-12">
+    <div className="relative h-full flex flex-col justify-between p-10 lg:p-12 overflow-y-auto">
       <img src={loginBg} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />
       {/* 1. Reduced overlay contrast */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#1a0536]/90 via-[#2d0a5e]/80 to-[#4610A3]/50" />
@@ -130,7 +130,7 @@ export default function AuthPage() {
       </div>
 
       {/* 1. & 3. Headline ~5% smaller, vertically aligned with form title via pt */}
-      <div className="relative z-10 space-y-8">
+      <div className="relative z-10 space-y-6">
         <div className="space-y-3">
           <p className="text-[#b88aed]/80 font-medium tracking-wider text-xs uppercase">
             {isRegister ? "Jetzt kostenlos starten" : "All-in-One Business Software"}
@@ -282,7 +282,7 @@ export default function AuthPage() {
 
   // ── Register form ──
   const registerForm = (
-    <div className="w-full max-w-[440px] px-2" style={{ fontFamily: "'Sora', sans-serif" }}>
+    <div className="w-full max-w-[440px] px-2 pt-6" style={{ fontFamily: "'Sora', sans-serif" }}>
       <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
         <img src={loomoraLogo} alt="Loomora" className="h-12" />
         <p className="text-xs text-muted-foreground tracking-widest uppercase">All-in-One Business Software</p>
@@ -415,7 +415,7 @@ export default function AuthPage() {
 
         {/* Register Form Panel */}
         <motion.div
-          className="w-[45%] h-full flex items-center justify-center p-8 sm:p-14 bg-background overflow-y-auto shrink-0"
+          className="w-[45%] h-full flex items-start justify-center py-8 px-8 sm:px-14 bg-background overflow-y-auto shrink-0"
           animate={{
             opacity: isRegister ? 1 : 0,
           }}
