@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Lock, Mail, ArrowRight, User, Building2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ArrowRight, User, Building2, Shield, BarChart3, Users, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import loomoraLogo from "@/assets/loomora-logo.png";
+import loginBg from "@/assets/login-bg.jpg";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -72,15 +74,12 @@ export default function Register() {
       });
 
       if (result.requiresPayment && result.checkoutUrl) {
-        // Redirect to payment
         toast.info("Weiterleitung zur Zahlung...");
         window.location.href = result.checkoutUrl;
       } else if (result.requiresPayment) {
-        // Show payment required message
         toast.success("Registrierung erfolgreich! Bitte schliessen Sie die Zahlung ab.");
         navigate("/payment-pending");
       } else {
-        // Direct login possible
         toast.success("Registrierung erfolgreich!");
         navigate("/login");
       }
@@ -98,76 +97,121 @@ export default function Register() {
     }
   };
 
+  const features = [
+    { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST" },
+    { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge" },
+    { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung" },
+    { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks" },
+  ];
+
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-background">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary p-12 flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white font-display font-bold text-xl">
-              L
-            </div>
-            <span className="font-display font-bold text-2xl text-white">Loomora</span>
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col justify-between p-12">
+        <img
+          src={loginBg}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1a0536]/95 via-[#2d0a5e]/85 to-[#4610A3]/60" />
+
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-3 rounded-xl bg-white/15 backdrop-blur-sm px-4 py-2">
+            <img src={loomoraLogo} alt="Loomora" className="h-10 brightness-0 invert" />
           </div>
         </div>
-        
-        <div className="space-y-6">
-          <h1 className="text-4xl font-display font-bold text-white leading-tight">
-            Starten Sie jetzt<br />mit Loomora ERP
-          </h1>
-          <p className="text-white/80 text-lg">
-            Registrieren Sie Ihre Firma und erhalten Sie sofortigen Zugang zu allen
-            ERP-Funktionen. Optimal für Schweizer KMU im Metallbau.
-          </p>
-          <div className="flex gap-4">
-            <div className="p-4 rounded-xl bg-white/10">
-              <p className="text-white font-semibold">14 Tage</p>
-              <p className="text-white/70 text-sm">Kostenlos testen</p>
+
+        <div className="relative z-10 space-y-8">
+          <div className="space-y-4">
+            <p className="text-[#b88aed] font-medium tracking-wider text-sm uppercase">
+              Jetzt kostenlos starten
+            </p>
+            <h1 className="text-5xl font-display font-bold text-white leading-[1.15]">
+              Ihre Firma.<br />
+              Ihre Software.<br />
+              Ihr Erfolg.
+            </h1>
+            <p className="text-white/60 text-lg max-w-md">
+              Registrieren Sie sich und erhalten Sie sofort Zugang zu allen
+              Business-Funktionen – massgeschneidert für Schweizer KMU.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 max-w-md">
+            {features.map((f) => (
+              <div
+                key={f.label}
+                className="flex items-start gap-3 rounded-xl bg-white/[0.06] backdrop-blur-sm border border-white/10 p-4 transition-colors hover:bg-white/[0.1]"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#4610A3]/30">
+                  <f.icon className="h-4 w-4 text-[#b88aed]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{f.label}</p>
+                  <p className="text-xs text-white/50">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-6 max-w-md">
+            <div className="flex items-center gap-2 text-white/70">
+              <div className="h-2 w-2 rounded-full bg-green-400" />
+              <span className="text-sm">14 Tage kostenlos</span>
             </div>
-            <div className="p-4 rounded-xl bg-white/10">
-              <p className="text-white font-semibold">Keine</p>
-              <p className="text-white/70 text-sm">Kreditkarte nötig</p>
+            <div className="flex items-center gap-2 text-white/70">
+              <div className="h-2 w-2 rounded-full bg-green-400" />
+              <span className="text-sm">Keine Kreditkarte</span>
             </div>
-            <div className="p-4 rounded-xl bg-white/10">
-              <p className="text-white font-semibold">Swiss</p>
-              <p className="text-white/70 text-sm">Hosting</p>
+            <div className="flex items-center gap-2 text-white/70">
+              <div className="h-2 w-2 rounded-full bg-green-400" />
+              <span className="text-sm">Swiss Hosting</span>
             </div>
           </div>
         </div>
 
-        <p className="text-white/60 text-sm">
-          © 2024 loomora.ch – Alle Rechte vorbehalten
-        </p>
+        <div className="relative z-10 flex items-center justify-between">
+          <p className="text-white/40 text-sm">
+            © 2026 loomora.ch – Alle Rechte vorbehalten
+          </p>
+          <div className="flex gap-6">
+            <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Datenschutz</a>
+            <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Impressum</a>
+          </div>
+        </div>
       </div>
 
       {/* Right Panel - Register Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 overflow-y-auto">
-        <div className="w-full max-w-md space-y-6">
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-12 overflow-y-auto bg-background">
+        <div className="w-full max-w-[420px]" style={{ fontFamily: "'Sora', sans-serif" }}>
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display font-bold text-xl">
-              L
-            </div>
-            <span className="font-display font-bold text-2xl">Loomora</span>
+          <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
+            <img src={loomoraLogo} alt="Loomora" className="h-12" />
+            <p className="text-xs text-muted-foreground tracking-widest uppercase">All-in-One Business Software</p>
           </div>
 
-          <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-display font-bold">Firma registrieren</h2>
-            <p className="text-muted-foreground mt-2">
-              Erstellen Sie Ihren Loomora Account
+          {/* Heading */}
+          <div className="mb-6">
+            <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
+              Konto erstellen
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Registrieren Sie Ihre Firma und starten Sie sofort.
             </p>
           </div>
 
           <form onSubmit={handleRegister} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Vorname</Label>
+            {/* Name */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="firstName" className="text-sm font-medium">Vorname</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="firstName"
                     placeholder="Max"
-                    className="pl-10"
+                    className="pl-11 h-11 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                     value={formData.firstName}
                     onChange={(e) => updateField("firstName", e.target.value)}
                   />
@@ -175,11 +219,12 @@ export default function Register() {
                 {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Nachname</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="lastName" className="text-sm font-medium">Nachname</Label>
                 <Input
                   id="lastName"
                   placeholder="Keller"
+                  className="h-11 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={formData.lastName}
                   onChange={(e) => updateField("lastName", e.target.value)}
                 />
@@ -187,14 +232,15 @@ export default function Register() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Firmenname</Label>
+            {/* Company */}
+            <div className="space-y-1.5">
+              <Label htmlFor="companyName" className="text-sm font-medium">Firmenname</Label>
               <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Building2 className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="companyName"
-                  placeholder="Muster Metallbau AG"
-                  className="pl-10"
+                  placeholder="Muster AG"
+                  className="pl-11 h-11 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={formData.companyName}
                   onChange={(e) => updateField("companyName", e.target.value)}
                 />
@@ -202,39 +248,43 @@ export default function Register() {
               {errors.companyName && <p className="text-xs text-destructive">{errors.companyName}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">E-Mail-Adresse</Label>
+            {/* Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium">E-Mail-Adresse</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="name@firma.ch"
-                  className="pl-10"
+                  className="pl-11 h-11 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={formData.email}
                   onChange={(e) => updateField("email", e.target.value)}
+                  autoComplete="email"
                 />
               </div>
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Passwort</Label>
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium">Passwort</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="pl-10 pr-10"
+                  className="pl-11 pr-11 h-11 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={formData.password}
                   onChange={(e) => updateField("password", e.target.value)}
+                  autoComplete="new-password"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -248,35 +298,42 @@ export default function Register() {
               <p className="text-xs text-muted-foreground">Mindestens 8 Zeichen</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
+            {/* Confirm Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Passwort bestätigen</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="pl-10"
+                  className="pl-11 h-11 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={formData.confirmPassword}
                   onChange={(e) => updateField("confirmPassword", e.target.value)}
+                  autoComplete="new-password"
                 />
               </div>
               {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
             </div>
 
-            <div className="text-xs text-muted-foreground">
+            {/* Terms */}
+            <div className="text-xs text-muted-foreground pt-1">
               Mit der Registrierung akzeptieren Sie unsere{" "}
-              <a href="#" className="text-primary hover:underline">AGB</a> und{" "}
-              <a href="#" className="text-primary hover:underline">Datenschutzerklärung</a>.
+              <a href="#" className="text-[#4610A3] hover:underline font-medium">AGB</a> und{" "}
+              <a href="#" className="text-[#4610A3] hover:underline font-medium">Datenschutzerklärung</a>.
             </div>
 
+            {/* Submit */}
             <Button
               type="submit"
-              className="w-full gap-2"
+              className="w-full h-12 gap-2 font-semibold rounded-xl text-sm bg-[#4610A3] hover:bg-[#370d82] text-white shadow-lg shadow-[#4610A3]/25"
               disabled={isLoading}
             >
               {isLoading ? (
-                "Registrierung..."
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Registrierung...
+                </span>
               ) : (
                 <>
                   Jetzt registrieren
@@ -286,14 +343,20 @@ export default function Register() {
             </Button>
           </form>
 
-          <div className="text-center text-sm text-muted-foreground">
+          {/* Login link */}
+          <div className="text-center text-sm text-muted-foreground mt-6">
             <p>
               Bereits ein Konto?{" "}
-              <Link to="/login" className="text-primary hover:underline font-medium">
+              <Link to="/login" className="text-[#4610A3] hover:underline font-semibold">
                 Jetzt anmelden
               </Link>
             </p>
           </div>
+
+          {/* Mobile Footer */}
+          <p className="lg:hidden text-center text-xs text-muted-foreground pt-8">
+            © 2026 loomora.ch – Alle Rechte vorbehalten
+          </p>
         </div>
       </div>
     </div>
