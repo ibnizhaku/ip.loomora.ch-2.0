@@ -68,7 +68,9 @@ export default function Login() {
 
         {/* Content */}
         <div className="relative z-10">
-          <img src={loomoraLogo} alt="Loomora" className="h-10" />
+          <div className="inline-flex items-center gap-3 rounded-xl bg-white/15 backdrop-blur-sm px-4 py-2">
+            <img src={loomoraLogo} alt="Loomora" className="h-10 brightness-0 invert" />
+          </div>
         </div>
 
         <div className="relative z-10 space-y-8">
