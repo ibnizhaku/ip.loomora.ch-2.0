@@ -122,7 +122,10 @@ export function HeroSection() {
           </motion.div>
         </div>
 
-        {/* Interactive App Preview Mockup */}
+      </div>
+
+      {/* Dashboard Mockup - outside max-w container for full width */}
+      <div className="relative z-10 max-w-[1800px] mx-auto px-6 lg:px-8 pb-20">
         <DashboardMockup />
       </div>
     </section>
