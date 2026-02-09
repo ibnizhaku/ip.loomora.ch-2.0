@@ -398,20 +398,22 @@ export default function AuthPage() {
         {brandingContent}
       </motion.div>
 
-      {/* Login Form Panel - always on the left side behind branding */}
+      {/* Login Form Panel - on the RIGHT when branding is LEFT */}
       <motion.div
-        className="hidden lg:flex lg:w-[45%] absolute inset-y-0 left-0 items-center justify-center p-6 sm:p-12 bg-background"
+        className="hidden lg:flex lg:w-[45%] absolute inset-y-0 right-0 items-center justify-center p-6 sm:p-12 bg-background"
         animate={{ opacity: isRegister ? 0 : 1 }}
         transition={{ duration: 0.25, delay: isRegister ? 0 : 0.15 }}
+        style={{ pointerEvents: isRegister ? "none" : "auto" }}
       >
         {loginForm}
       </motion.div>
 
-      {/* Register Form Panel - always on the right side behind branding */}
+      {/* Register Form Panel - on the LEFT when branding is RIGHT */}
       <motion.div
-        className="hidden lg:flex lg:w-[45%] absolute inset-y-0 right-0 items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto"
+        className="hidden lg:flex lg:w-[45%] absolute inset-y-0 left-0 items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto"
         animate={{ opacity: isRegister ? 1 : 0 }}
         transition={{ duration: 0.25, delay: isRegister ? 0.15 : 0 }}
+        style={{ pointerEvents: isRegister ? "auto" : "none" }}
       >
         {registerForm}
       </motion.div>
