@@ -98,10 +98,10 @@ export default function Register() {
   };
 
   const features = [
-    { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST" },
-    { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge" },
-    { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung" },
-    { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks" },
+    { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST", highlight: true },
+    { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge", highlight: false },
+    { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung", highlight: false },
+    { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks", highlight: false },
   ];
 
   return (
@@ -122,7 +122,7 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="relative z-10 space-y-8">
+        <div className="relative z-10 space-y-6">
           <div className="space-y-4">
             <p className="text-[#b88aed] font-medium tracking-wider text-sm uppercase">
               Jetzt kostenlos starten
@@ -132,7 +132,7 @@ export default function Register() {
               Ihre Software.<br />
               Ihr Erfolg.
             </h1>
-            <p className="text-white/60 text-lg max-w-md">
+            <p className="text-white/60 text-lg max-w-md leading-snug">
               Registrieren Sie sich und erhalten Sie sofort Zugang zu allen
               Business-Funktionen – massgeschneidert für Schweizer KMU.
             </p>
@@ -142,10 +142,20 @@ export default function Register() {
             {features.map((f) => (
               <div
                 key={f.label}
-                className="flex items-start gap-3 rounded-xl bg-white/[0.06] backdrop-blur-sm border border-white/10 p-4 transition-colors hover:bg-white/[0.1]"
+                className={`flex items-start gap-3 rounded-xl backdrop-blur-sm border transition-colors hover:bg-white/[0.1] ${
+                  f.highlight
+                    ? "bg-white/[0.09] border-white/15 p-[18px]"
+                    : "bg-white/[0.06] border-white/10 p-4"
+                }`}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#4610A3]/30">
-                  <f.icon className="h-4 w-4 text-[#b88aed]" />
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    f.highlight ? "bg-[#4610A3]/40" : "bg-[#4610A3]/30"
+                  }`}
+                >
+                  <f.icon
+                    className={`h-4 w-4 ${f.highlight ? "text-[#c9a5f0]" : "text-[#b88aed]"}`}
+                  />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{f.label}</p>
@@ -155,26 +165,29 @@ export default function Register() {
             ))}
           </div>
 
-          <div className="flex gap-6 max-w-md">
-            <div className="flex items-center gap-2 text-white/70">
-              <div className="h-2 w-2 rounded-full bg-green-400" />
+          <div className="flex gap-6 max-w-md mt-2">
+            <div className="flex items-center gap-2 text-white/80">
+              <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
               <span className="text-sm">Benutzerfreundlich</span>
             </div>
-            <div className="flex items-center gap-2 text-white/70">
-              <div className="h-2 w-2 rounded-full bg-green-400" />
+            <div className="flex items-center gap-2 text-white/80">
+              <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
               <span className="text-sm">Swiss Hosting</span>
             </div>
-            <div className="flex items-center gap-2 text-white/70">
-              <div className="h-2 w-2 rounded-full bg-green-400" />
+            <div className="flex items-center gap-2 text-white/80">
+              <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
               <span className="text-sm">Sofort startklar</span>
             </div>
           </div>
         </div>
 
         <div className="relative z-10 flex items-center justify-between">
-          <p className="text-white/40 text-sm">
-            © 2026 loomora.ch – Alle Rechte vorbehalten
-          </p>
+          <div className="space-y-1">
+            <p className="text-white/40 text-sm">
+              © 2026 loomora.ch – Alle Rechte vorbehalten
+            </p>
+            <p className="text-white/25 text-xs">🇨🇭 Entwickelt für Schweizer KMU</p>
+          </div>
           <div className="flex gap-6">
             <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Datenschutz</a>
             <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Impressum</a>
@@ -196,7 +209,7 @@ export default function Register() {
             <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
               Konto erstellen
             </h2>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="text-muted-foreground mt-1.5 text-sm leading-snug">
               Registrieren Sie Ihre Firma und starten Sie sofort.
             </p>
           </div>
@@ -324,9 +337,10 @@ export default function Register() {
             </div>
 
             {/* Submit */}
+            <div className="pt-1" />
             <Button
               type="submit"
-              className="w-full h-12 gap-2 font-semibold rounded-xl text-sm bg-[#4610A3] hover:bg-[#370d82] text-white shadow-lg shadow-[#4610A3]/25"
+              className="w-full h-[52px] gap-2 font-semibold rounded-xl text-[15px] bg-[#4610A3] hover:bg-[#370d82] text-white shadow-lg shadow-[#4610A3]/25"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -354,9 +368,10 @@ export default function Register() {
           </div>
 
           {/* Mobile Footer */}
-          <p className="lg:hidden text-center text-xs text-muted-foreground pt-8">
-            © 2026 loomora.ch – Alle Rechte vorbehalten
-          </p>
+          <div className="lg:hidden text-center text-xs text-muted-foreground pt-8 space-y-1">
+            <p>© 2026 loomora.ch – Alle Rechte vorbehalten</p>
+            <p className="text-muted-foreground/60">🇨🇭 Entwickelt für Schweizer KMU</p>
+          </div>
         </div>
       </div>
     </div>
