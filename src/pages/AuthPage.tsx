@@ -118,19 +118,19 @@ export default function AuthPage() {
 
   // ── Branding panel ──
   const brandingContent = (
-    <div className="relative h-full flex flex-col justify-between p-10 lg:p-12 overflow-y-auto">
+    <div className="relative h-full flex flex-col justify-between items-center p-10 lg:p-12 overflow-y-auto">
       <img src={loginBg} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />
       {/* 1. Reduced overlay contrast */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#1a0536]/90 via-[#2d0a5e]/80 to-[#4610A3]/50" />
 
-      <div className="relative z-10 pt-2">
+      <div className="relative z-10 pt-2 w-full max-w-lg">
         <div className="inline-flex items-center gap-3 rounded-xl bg-white/12 backdrop-blur-sm px-4 py-2">
           <img src={loomoraLogo} alt="Loomora" className="h-9 brightness-0 invert" />
         </div>
       </div>
 
       {/* 1. & 3. Headline ~5% smaller, vertically aligned with form title via pt */}
-      <div className="relative z-10 space-y-6">
+      <div className="relative z-10 space-y-6 max-w-lg">
         <div className="space-y-3">
           <p className="text-[#b88aed]/80 font-medium tracking-wider text-xs uppercase">
             {isRegister ? "Jetzt kostenlos starten" : "All-in-One Business Software"}
@@ -179,7 +179,7 @@ export default function AuthPage() {
         )}
       </div>
 
-      <div className="relative z-10 flex items-center justify-between">
+      <div className="relative z-10 flex items-center justify-between w-full max-w-lg">
         <div className="space-y-0.5">
           <p className="text-white/30 text-xs">© 2026 loomora.ch – Alle Rechte vorbehalten</p>
           <p className="text-white/20 text-[11px]">🇨🇭 Entwickelt für Schweizer KMU</p>
