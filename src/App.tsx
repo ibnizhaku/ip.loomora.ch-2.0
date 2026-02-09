@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DocumentsProvider } from "./contexts/DocumentsContext";
+import AuthAnimatedLayout from "@/components/auth/AuthAnimatedLayout";
 
 // Pages
 import Index from "./pages/Index";
@@ -206,11 +207,13 @@ const App = () => (
         <AuthProvider>
           <DocumentsProvider>
             <Routes>
-              {/* Public Routes - No Auth Required */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              {/* Public Routes - Animated Auth Layout */}
+              <Route element={<AuthAnimatedLayout />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+              </Route>
               <Route path="/select-company" element={<SelectCompany />} />
-              
+
               {/* Protected Routes - Wrapped with Layout */}
               <Route path="/" element={<ProtectedLayout><Index /></ProtectedLayout>} />
               
