@@ -377,7 +377,7 @@ export function HeroSection() {
             {[
               { icon: Shield, text: "Swiss Hosting" },
               { icon: Globe, text: "DSGVO-konform" },
-              { icon: Zap, text: "Setup in 5 Min" },
+              { icon: Zap, text: "Setup in 15 Min" },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-2 text-white/30 text-sm">
                 <item.icon size={16} />
