@@ -487,7 +487,7 @@ export function DashboardMockup() {
       transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
       className="mt-16 w-full"
     >
-      <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(70,16,163,0.25)]">
+      <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(70,16,163,0.25)]" style={{ transform: "perspective(2000px) rotateX(4deg)", transformOrigin: "center bottom" }}>
         {/* Browser chrome */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f8f8f8] border-b border-gray-200">
           <div className="flex gap-1.5">
