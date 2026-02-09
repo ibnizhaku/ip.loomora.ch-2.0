@@ -1,6 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Shield, Zap, Globe, Layers, Lock, Headphones } from "lucide-react";
+import { OptimierenBackground } from "./SectionBackgrounds";
 
 const bentoItems = [
   {
@@ -54,6 +55,7 @@ export function BentoFeaturesSection() {
   return (
     <section id="features" className="relative py-32 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-[#0d0118] to-[#1a0536]" />
+      <OptimierenBackground />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-[#4610A3]/10 rounded-full blur-[150px]" />
 
       <div ref={ref} className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">

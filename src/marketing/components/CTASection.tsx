@@ -2,6 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { VernetzenBackground } from "./SectionBackgrounds";
 
 export function CTASection() {
   const ref = useRef(null);
@@ -11,6 +12,7 @@ export function CTASection() {
   return (
     <section className="relative py-32 overflow-hidden">
       <div className="absolute inset-0 bg-[#0a0015]" />
+      <VernetzenBackground />
 
       <div ref={ref} className="relative z-10 max-w-4xl mx-auto px-6 lg:px-8">
         <motion.div

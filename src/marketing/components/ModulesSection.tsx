@@ -4,6 +4,7 @@ import {
   Users, Receipt, UserCheck, Package, ShoppingCart,
   FolderKanban, FileText, Settings, BarChart3
 } from "lucide-react";
+import { VernetzenBackground } from "./SectionBackgrounds";
 
 const modules = [
   {
@@ -70,6 +71,7 @@ export function ModulesSection() {
     <section id="module" className="relative py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0d0118] via-[#0a0015] to-[#0d0118]" />
+      <VernetzenBackground />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#4610A3]/10 rounded-full blur-[150px]" />
 
       <div ref={ref} className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
