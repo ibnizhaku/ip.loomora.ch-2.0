@@ -119,33 +119,35 @@ export default function Login() {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-[420px] space-y-8">
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-12 bg-background">
+        <div className="w-full max-w-[400px]" style={{ fontFamily: "'Sora', sans-serif" }}>
           {/* Mobile Logo */}
-          <div className="lg:hidden flex flex-col items-center gap-2 mb-4">
-            <img src={loomoraLogo} alt="Loomora" className="h-10" />
-            <p className="text-xs text-muted-foreground">All-in-One Business Software</p>
+          <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
+            <img src={loomoraLogo} alt="Loomora" className="h-12" />
+            <p className="text-xs text-muted-foreground tracking-widest uppercase">All-in-One Business Software</p>
           </div>
 
-          <div>
-            <h2 className="text-2xl font-display font-bold tracking-tight">
-              Willkommen zurück
+          {/* Heading */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
+              Anmelden
             </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Melden Sie sich in Ihrem Konto an
+            <p className="text-muted-foreground mt-2 text-sm">
+              Geben Sie Ihre Zugangsdaten ein, um fortzufahren.
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm">E-Mail</Label>
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">E-Mail-Adresse</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="name@firma.ch"
-                  className="pl-10 h-11"
+                  className="pl-11 h-12 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
@@ -154,24 +156,16 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm">Passwort</Label>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="px-0 h-auto text-xs text-muted-foreground hover:text-primary"
-                >
-                  Passwort vergessen?
-                </Button>
-              </div>
+            {/* Password */}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">Passwort</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="pl-10 pr-10 h-11"
+                  className="pl-11 pr-11 h-12 rounded-xl border-border/60 bg-muted/30 text-sm focus-visible:ring-[#4610A3]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
@@ -181,7 +175,7 @@ export default function Login() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -191,8 +185,19 @@ export default function Login() {
                   )}
                 </Button>
               </div>
+              {/* Passwort vergessen - unter dem Feld */}
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="px-0 h-auto text-xs text-muted-foreground hover:text-[#4610A3]"
+                >
+                  Passwort vergessen?
+                </Button>
+              </div>
             </div>
 
+            {/* Remember me */}
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="remember"
@@ -204,9 +209,10 @@ export default function Login() {
               </Label>
             </div>
 
+            {/* Submit */}
             <Button
               type="submit"
-              className="w-full h-11 gap-2 font-semibold"
+              className="w-full h-12 gap-2 font-semibold rounded-xl text-sm bg-[#4610A3] hover:bg-[#370d82] text-white shadow-lg shadow-[#4610A3]/25"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -223,31 +229,34 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="relative">
+          {/* Divider */}
+          <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
+              <span className="w-full border-t border-border/50" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-3 text-muted-foreground">oder</span>
+              <span className="bg-background px-3 text-muted-foreground tracking-wider">oder</span>
             </div>
           </div>
 
-          <div className="text-center space-y-3">
-            <p className="text-sm text-muted-foreground">
+          {/* Register + Demo */}
+          <div className="space-y-4">
+            <p className="text-center text-sm text-muted-foreground">
               Noch kein Konto?{" "}
-              <Link to="/register" className="text-primary hover:underline font-semibold">
+              <Link to="/register" className="text-[#4610A3] hover:underline font-semibold">
                 Kostenlos registrieren
               </Link>
             </p>
-            <div className="rounded-lg bg-muted/50 border border-border p-3">
-              <p className="text-xs text-muted-foreground">
-                Demo-Zugang: <span className="font-mono font-medium text-foreground">admin@loomora.ch</span> / <span className="font-mono font-medium text-foreground">admin123</span>
+            <div className="rounded-xl bg-muted/40 border border-border/50 p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Demo-Zugang</p>
+              <p className="text-sm font-mono font-medium text-foreground">
+                admin@loomora.ch <span className="text-muted-foreground mx-1">/</span> admin123
               </p>
             </div>
           </div>
 
           {/* Mobile Footer */}
-          <p className="lg:hidden text-center text-xs text-muted-foreground pt-4">
+          <p className="lg:hidden text-center text-xs text-muted-foreground pt-8">
             © 2026 loomora.ch – Alle Rechte vorbehalten
           </p>
         </div>
