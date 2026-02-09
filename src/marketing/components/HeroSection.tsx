@@ -2,228 +2,281 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Play, Shield, Zap, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DashboardMockup } from "./DashboardMockup";
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect } from "react";
 
-// Phase colors: Vernetzen = purple, Optimieren = blue, Wachsen = green
-const PHASES = [
-  { color: [184, 138, 237], accent: [70, 16, 163], label: "Vernetzen" },   // purple
-  { color: [100, 180, 255], accent: [59, 130, 246], label: "Optimieren" }, // blue
-  { color: [74, 222, 128], accent: [34, 197, 94], label: "Wachsen" },     // green
-];
-const PHASE_DURATION = 4000; // ms per phase
-const TRANSITION_DURATION = 1500;
-
-interface Node {
-  x: number; y: number; vx: number; vy: number; size: number;
-  baseSize: number; pulse: number; pulseSpeed: number;
-  hub: boolean; born: number;
-}
-
-function NetworkBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animationId: number;
-    let nodes: Node[] = [];
-    let startTime = performance.now();
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-    };
-
-    const init = () => {
-      resize();
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      const count = Math.min(90, Math.floor((w * h) / 10000));
-      startTime = performance.now();
-      nodes = Array.from({ length: count }, (_, i) => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.25,
-        vy: (Math.random() - 0.5) * 0.25,
-        size: Math.random() * 1.5 + 0.8,
-        baseSize: Math.random() * 1.5 + 0.8,
-        pulse: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.01 + Math.random() * 0.02,
-        hub: i < count * 0.15, // 15% are hub nodes
-        born: 0,
-      }));
-    };
-
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-    const lerpColor = (c1: number[], c2: number[], t: number) =>
-      c1.map((v, i) => Math.round(lerp(v, c2[i], t)));
-
-    const draw = (now: number) => {
-      const elapsed = now - startTime;
-      const totalCycle = PHASES.length * PHASE_DURATION;
-      const cycleTime = elapsed % totalCycle;
-      const phaseIndex = Math.floor(cycleTime / PHASE_DURATION);
-      const nextPhaseIndex = (phaseIndex + 1) % PHASES.length;
-      const phaseProgress = (cycleTime % PHASE_DURATION) / PHASE_DURATION;
-
-      // Smooth transition between phases
-      let blendT = 0;
-      if (phaseProgress > 1 - TRANSITION_DURATION / PHASE_DURATION) {
-        blendT = (phaseProgress - (1 - TRANSITION_DURATION / PHASE_DURATION)) / (TRANSITION_DURATION / PHASE_DURATION);
-        blendT = blendT * blendT * (3 - 2 * blendT); // smoothstep
-      }
-
-      const currentColor = lerpColor(PHASES[phaseIndex].color, PHASES[nextPhaseIndex].color, blendT);
-      const currentAccent = lerpColor(PHASES[phaseIndex].accent, PHASES[nextPhaseIndex].accent, blendT);
-
-      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-
-      // Phase-specific behavior modifiers
-      const isVernetzen = phaseIndex === 0 && blendT < 0.5;
-      const isOptimieren = phaseIndex === 1 && blendT < 0.5;
-      const isWachsen = phaseIndex === 2 && blendT < 0.5;
-
-      const maxDist = isVernetzen ? 180 : isOptimieren ? 140 : 160;
-      const speed = isOptimieren ? 0.6 : isWachsen ? 0.4 : 0.3;
-
-      // Update nodes
-      for (const n of nodes) {
-        n.x += n.vx * speed;
-        n.y += n.vy * speed;
-        n.pulse += n.pulseSpeed;
-        n.size = n.baseSize + Math.sin(n.pulse) * 0.4;
-
-        // Wachsen: hubs pulse bigger
-        if (isWachsen && n.hub) {
-          n.size = n.baseSize * 1.8 + Math.sin(n.pulse * 2) * 0.8;
-        }
-
-        if (n.x < -10) n.x = w + 10;
-        if (n.x > w + 10) n.x = -10;
-        if (n.y < -10) n.y = h + 10;
-        if (n.y > h + 10) n.y = -10;
-      }
-
-      // Optimieren: nodes gently attract to hubs
-      if (isOptimieren) {
-        const hubs = nodes.filter(n => n.hub);
-        for (const n of nodes) {
-          if (n.hub) continue;
-          let closestHub = hubs[0];
-          let closestDist = Infinity;
-          for (const hub of hubs) {
-            const d = Math.hypot(n.x - hub.x, n.y - hub.y);
-            if (d < closestDist) { closestDist = d; closestHub = hub; }
-          }
-          if (closestDist < 250) {
-            const strength = 0.0003 * (1 - closestDist / 250);
-            n.vx += (closestHub.x - n.x) * strength;
-            n.vy += (closestHub.y - n.y) * strength;
-          }
-        }
-      }
-
-      // Wachsen: gentle repulsion to spread out
-      if (isWachsen) {
-        for (const n of nodes) {
-          n.vx += (Math.random() - 0.5) * 0.01;
-          n.vy += (Math.random() - 0.5) * 0.01;
-        }
-      }
-
-      // Damping
-      for (const n of nodes) {
-        n.vx *= 0.999;
-        n.vy *= 0.999;
-      }
-
-      // Draw connections
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[i].x - nodes[j].x;
-          const dy = nodes[i].y - nodes[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < maxDist) {
-            const base = (1 - dist / maxDist);
-            let alpha = base * 0.18;
-            let lineWidth = 0.5;
-
-            // Optimieren: hub connections are brighter
-            if (isOptimieren && (nodes[i].hub || nodes[j].hub)) {
-              alpha = base * 0.4;
-              lineWidth = 1;
-            }
-            // Wachsen: pulsing connections
-            if (isWachsen) {
-              alpha *= 1 + 0.3 * Math.sin(elapsed * 0.003 + i);
-            }
-
-            ctx.beginPath();
-            ctx.moveTo(nodes[i].x, nodes[i].y);
-            ctx.lineTo(nodes[j].x, nodes[j].y);
-            ctx.strokeStyle = `rgba(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]}, ${alpha})`;
-            ctx.lineWidth = lineWidth;
-            ctx.stroke();
-
-            // Optimieren: data packets traveling along connections
-            if (isOptimieren && (nodes[i].hub || nodes[j].hub) && base > 0.5) {
-              const packetT = ((elapsed * 0.001 + i * 0.3) % 1);
-              const px = nodes[i].x + (nodes[j].x - nodes[i].x) * packetT;
-              const py = nodes[i].y + (nodes[j].y - nodes[i].y) * packetT;
-              ctx.beginPath();
-              ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-              ctx.fillStyle = `rgba(${currentAccent[0]}, ${currentAccent[1]}, ${currentAccent[2]}, ${0.6 * base})`;
-              ctx.fill();
-            }
-          }
-        }
-      }
-
-      // Draw nodes
-      for (const n of nodes) {
-        // Glow for hubs
-        if (n.hub) {
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, n.size * 4, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${currentAccent[0]}, ${currentAccent[1]}, ${currentAccent[2]}, 0.04)`;
-          ctx.fill();
-        }
-
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
-        const a = n.hub ? 0.5 : 0.25;
-        ctx.fillStyle = `rgba(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]}, ${a})`;
-        ctx.fill();
-      }
-
-      animationId = requestAnimationFrame(draw);
-    };
-
-    init();
-    animationId = requestAnimationFrame(draw);
-    window.addEventListener("resize", init);
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", init);
-    };
-  }, []);
-
+// ─── Animated IT Circuit Illustration ───
+function CircuitBackground() {
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity: 0.7 }}
-    />
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <svg
+        viewBox="0 0 1920 1080"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute inset-0 w-full h-full"
+        preserveAspectRatio="xMidYMid slice"
+        style={{ opacity: 0.35 }}
+      >
+        <defs>
+          {/* Gradient for traces */}
+          <linearGradient id="traceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4610A3" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#b88aed" stopOpacity="0.3" />
+          </linearGradient>
+          <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7c3aed" stopOpacity="0" />
+            <stop offset="50%" stopColor="#b88aed" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0" />
+          </linearGradient>
+          {/* Node glow filter */}
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="softGlow">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* ── VERNETZEN: Left side - nodes connecting ── */}
+        <g className="vernetzen-group">
+          {/* Main circuit traces - left network */}
+          <motion.path
+            d="M-50 200 H200 V400 H350 V300 H500"
+            stroke="url(#traceGrad)" strokeWidth="1.5" strokeLinecap="round"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 3, ease: "easeInOut", delay: 0.5 }}
+          />
+          <motion.path
+            d="M-50 500 H150 V350 H300 V500 H450 V400"
+            stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 3, ease: "easeInOut", delay: 0.8 }}
+          />
+          <motion.path
+            d="M100 100 V250 H250 V150 H400 V350"
+            stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 2.5, ease: "easeInOut", delay: 1 }}
+          />
+          <motion.path
+            d="M-50 700 H200 V600 H350 V700 H500 V550"
+            stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round" strokeDasharray="4 6"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 3, ease: "easeInOut", delay: 1.2 }}
+          />
+
+          {/* Connection nodes - Vernetzen */}
+          {[
+            { cx: 200, cy: 200 }, { cx: 200, cy: 400 }, { cx: 350, cy: 300 },
+            { cx: 150, cy: 350 }, { cx: 300, cy: 500 }, { cx: 100, cy: 250 },
+            { cx: 250, cy: 150 }, { cx: 200, cy: 600 }, { cx: 350, cy: 700 },
+          ].map((node, i) => (
+            <motion.g key={`vn-${i}`}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 1.5 + i * 0.15 }}
+            >
+              <motion.circle cx={node.cx} cy={node.cy} r="6" fill="#4610A3" filter="url(#glow)"
+                animate={{ r: [6, 8, 6] }}
+                transition={{ duration: 2 + i * 0.3, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <circle cx={node.cx} cy={node.cy} r="2.5" fill="#b88aed" />
+              {/* Connection ring */}
+              <motion.circle cx={node.cx} cy={node.cy} r="12" stroke="#b88aed" strokeWidth="0.5" fill="none" strokeOpacity="0.3"
+                animate={{ r: [12, 18, 12], strokeOpacity: [0.3, 0, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
+              />
+            </motion.g>
+          ))}
+
+          {/* Data flow particles on left traces */}
+          <motion.circle r="2" fill="#b88aed" filter="url(#glow)">
+            <animateMotion dur="4s" repeatCount="indefinite" path="M-50 200 H200 V400 H350 V300 H500" />
+          </motion.circle>
+          <motion.circle r="1.5" fill="#7c3aed" filter="url(#glow)">
+            <animateMotion dur="5s" repeatCount="indefinite" path="M-50 500 H150 V350 H300 V500 H450 V400" />
+          </motion.circle>
+        </g>
+
+        {/* ── OPTIMIEREN: Center - efficient hub structure ── */}
+        <g className="optimieren-group">
+          {/* Central hub traces */}
+          <motion.path
+            d="M700 300 H960 V540 H700 V300" stroke="#7c3aed" strokeWidth="1" strokeOpacity="0.3" fill="none"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 2, delay: 2 }}
+          />
+          {/* Radial connections from center hub */}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
+            const rad = (angle * Math.PI) / 180;
+            const cx = 830 + Math.cos(rad) * 200;
+            const cy = 420 + Math.sin(rad) * 200;
+            return (
+              <motion.line key={`opt-${i}`}
+                x1="830" y1="420" x2={cx} y2={cy}
+                stroke="#7c3aed" strokeWidth="0.8" strokeOpacity="0.2"
+                strokeDasharray="3 5"
+                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                transition={{ duration: 1.5, delay: 2.5 + i * 0.1 }}
+              />
+            );
+          })}
+
+          {/* Central hub node */}
+          <motion.g initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.6, delay: 2.2 }}>
+            <motion.circle cx="830" cy="420" r="20" fill="#4610A3" fillOpacity="0.15" filter="url(#softGlow)"
+              animate={{ r: [20, 25, 20] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <circle cx="830" cy="420" r="10" fill="#4610A3" fillOpacity="0.3" />
+            <circle cx="830" cy="420" r="4" fill="#b88aed" />
+            {/* Gear/optimize symbol */}
+            <motion.circle cx="830" cy="420" r="30" stroke="#b88aed" strokeWidth="0.5" fill="none" strokeDasharray="4 4"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              style={{ transformOrigin: "830px 420px" }}
+            />
+          </motion.g>
+
+          {/* Satellite nodes around hub */}
+          {[0, 60, 120, 180, 240, 300].map((angle, i) => {
+            const rad = (angle * Math.PI) / 180;
+            const cx = 830 + Math.cos(rad) * 140;
+            const cy = 420 + Math.sin(rad) * 140;
+            return (
+              <motion.g key={`sat-${i}`}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 2.8 + i * 0.12 }}
+              >
+                <circle cx={cx} cy={cy} r="5" fill="#7c3aed" fillOpacity="0.4" />
+                <circle cx={cx} cy={cy} r="2" fill="#b88aed" />
+              </motion.g>
+            );
+          })}
+
+          {/* Orbiting data packets */}
+          <circle r="2" fill="#b88aed" filter="url(#glow)" cx="970" cy="420">
+            <animateTransform attributeName="transform" type="rotate" from="0 830 420" to="360 830 420" dur="8s" repeatCount="indefinite" />
+          </circle>
+        </g>
+
+        {/* ── WACHSEN: Right side - expanding network ── */}
+        <g className="wachsen-group">
+          <motion.path
+            d="M1400 200 H1550 V350 H1700 V250 H1850 V400 H1970"
+            stroke="url(#traceGrad)" strokeWidth="1.5" strokeLinecap="round"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 3, ease: "easeInOut", delay: 3.5 }}
+          />
+          <motion.path
+            d="M1350 500 H1500 V650 H1650 V500 H1800 V700 H1970"
+            stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 3, ease: "easeInOut", delay: 3.8 }}
+          />
+          <motion.path
+            d="M1450 400 V550 H1600 V450 H1750 V600 H1900"
+            stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round" strokeDasharray="4 6"
+            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+            transition={{ duration: 2.5, ease: "easeInOut", delay: 4 }}
+          />
+
+          {/* Growing nodes - right side */}
+          {[
+            { cx: 1550, cy: 350 }, { cx: 1700, cy: 250 }, { cx: 1850, cy: 400 },
+            { cx: 1500, cy: 650 }, { cx: 1650, cy: 500 }, { cx: 1800, cy: 700 },
+            { cx: 1600, cy: 450 }, { cx: 1750, cy: 600 },
+          ].map((node, i) => (
+            <motion.g key={`wn-${i}`}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 4 + i * 0.2 }}
+            >
+              <motion.circle cx={node.cx} cy={node.cy} r="5" fill="#4610A3" filter="url(#glow)"
+                animate={{ r: [5, 7, 5] }}
+                transition={{ duration: 2.5 + i * 0.2, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <circle cx={node.cx} cy={node.cy} r="2" fill="#b88aed" />
+              {/* Growth rings */}
+              <motion.circle cx={node.cx} cy={node.cy} r="10" stroke="#4610A3" strokeWidth="0.5" fill="none"
+                animate={{ r: [10, 25, 10], strokeOpacity: [0.4, 0, 0.4] }}
+                transition={{ duration: 4, repeat: Infinity, delay: i * 0.5 }}
+              />
+            </motion.g>
+          ))}
+
+          {/* Data flow on right */}
+          <motion.circle r="2" fill="#b88aed" filter="url(#glow)">
+            <animateMotion dur="4.5s" repeatCount="indefinite" path="M1400 200 H1550 V350 H1700 V250 H1850 V400 H1970" />
+          </motion.circle>
+        </g>
+
+        {/* ── Cross-connections between zones ── */}
+        <motion.path
+          d="M500 300 C600 350, 650 400, 700 400"
+          stroke="#7c3aed" strokeWidth="0.8" strokeOpacity="0.15" fill="none"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+          transition={{ duration: 2, delay: 3 }}
+        />
+        <motion.path
+          d="M960 420 C1050 400, 1200 350, 1400 300"
+          stroke="#7c3aed" strokeWidth="0.8" strokeOpacity="0.15" fill="none"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+          transition={{ duration: 2, delay: 3.5 }}
+        />
+        <motion.path
+          d="M500 550 C600 500, 700 480, 750 450"
+          stroke="#7c3aed" strokeWidth="0.5" strokeOpacity="0.1" fill="none" strokeDasharray="3 6"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+          transition={{ duration: 2, delay: 3.2 }}
+        />
+        <motion.path
+          d="M910 500 C1000 550, 1200 600, 1350 500"
+          stroke="#7c3aed" strokeWidth="0.5" strokeOpacity="0.1" fill="none" strokeDasharray="3 6"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+          transition={{ duration: 2, delay: 3.7 }}
+        />
+
+        {/* ── Decorative elements ── */}
+        {/* Small floating dots scattered */}
+        {Array.from({ length: 30 }).map((_, i) => {
+          const x = 100 + Math.random() * 1700;
+          const y = 100 + Math.random() * 800;
+          return (
+            <motion.circle key={`dot-${i}`} cx={x} cy={y} r="1" fill="#b88aed" fillOpacity="0.15"
+              animate={{ fillOpacity: [0.1, 0.3, 0.1] }}
+              transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5 }}
+            />
+          );
+        })}
+
+        {/* Small circuit board squares */}
+        {[
+          { x: 280, y: 250 }, { x: 450, y: 400 }, { x: 1480, y: 300 },
+          { x: 1720, y: 550 }, { x: 800, y: 280 }, { x: 860, cy: 560 },
+        ].map((sq, i) => (
+          <motion.rect key={`sq-${i}`}
+            x={sq.x - 4} y={(sq as any).cy || sq.y - 4}
+            width="8" height="8" rx="1"
+            stroke="#7c3aed" strokeWidth="0.5" fill="none" strokeOpacity="0.2"
+            initial={{ scale: 0 }} animate={{ scale: 1 }}
+            transition={{ duration: 0.3, delay: 2 + i * 0.3 }}
+          />
+        ))}
+      </svg>
+    </div>
   );
 }
 
-// Cycling text animation for the slogan
+// ─── Cycling text for slogan ───
 function CyclingSlogan() {
   const words = ["Vernetzen.", "Optimieren.", "Wachsen."];
   const colors = ["from-[#b88aed] to-[#4610A3]", "from-[#60a5fa] to-[#3b82f6]", "from-[#4ade80] to-[#22c55e]"];
@@ -232,7 +285,7 @@ function CyclingSlogan() {
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex(prev => (prev + 1) % words.length);
-    }, PHASE_DURATION);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -262,8 +315,8 @@ export function HeroSection() {
       {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0015] via-[#1a0536] to-[#0d0118]" />
       
-      {/* Network animation */}
-      <NetworkBackground />
+      {/* Circuit illustration */}
+      <CircuitBackground />
 
       {/* Floating orbs */}
       <motion.div
