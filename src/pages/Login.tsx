@@ -44,10 +44,10 @@ export default function Login() {
   };
 
   const features = [
-    { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST" },
-    { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge" },
-    { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung" },
-    { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks" },
+    { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST", highlight: true },
+    { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge", highlight: false },
+    { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung", highlight: false },
+    { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks", highlight: false },
   ];
 
   return (
@@ -78,12 +78,12 @@ export default function Login() {
             <p className="text-[#b88aed] font-medium tracking-wider text-sm uppercase">
               All-in-One Business Software
             </p>
-            <h1 className="text-5xl font-display font-bold text-white leading-[1.15]">
+            <h1 className="text-[2.85rem] font-display font-bold text-white leading-[1.15]">
               Alles was Ihr<br />
               Unternehmen<br />
               braucht.
             </h1>
-            <p className="text-white/60 text-lg max-w-md">
+            <p className="text-white/70 text-lg max-w-md">
               Von der Offerte bis zur Lohnabrechnung – eine Plattform
               für Schweizer KMU.
             </p>
@@ -93,10 +93,20 @@ export default function Login() {
             {features.map((f) => (
               <div
                 key={f.label}
-                className="flex items-start gap-3 rounded-xl bg-white/[0.06] backdrop-blur-sm border border-white/10 p-4 transition-colors hover:bg-white/[0.1]"
+                className={`flex items-start gap-3 rounded-xl backdrop-blur-sm border transition-colors hover:bg-white/[0.1] ${
+                  f.highlight
+                    ? "bg-white/[0.09] border-white/15 p-[18px]"
+                    : "bg-white/[0.06] border-white/10 p-4"
+                }`}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#4610A3]/30">
-                  <f.icon className="h-4 w-4 text-[#b88aed]" />
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    f.highlight ? "bg-[#4610A3]/40" : "bg-[#4610A3]/30"
+                  }`}
+                >
+                  <f.icon
+                    className={`h-4 w-4 ${f.highlight ? "text-[#c9a5f0]" : "text-[#b88aed]"}`}
+                  />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{f.label}</p>
@@ -108,9 +118,12 @@ export default function Login() {
         </div>
 
         <div className="relative z-10 flex items-center justify-between">
-          <p className="text-white/40 text-sm">
-            © 2026 loomora.ch – Alle Rechte vorbehalten
-          </p>
+          <div className="space-y-1">
+            <p className="text-white/40 text-sm">
+              © 2026 loomora.ch – Alle Rechte vorbehalten
+            </p>
+            <p className="text-white/25 text-xs">🇨🇭 Entwickelt für Schweizer KMU</p>
+          </div>
           <div className="flex gap-6">
             <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Datenschutz</a>
             <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Impressum</a>
@@ -247,18 +260,19 @@ export default function Login() {
                 Kostenlos registrieren
               </Link>
             </p>
-            <div className="rounded-xl bg-muted/40 border border-border/50 p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Demo-Zugang</p>
-              <p className="text-sm font-mono font-medium text-foreground">
-                admin@loomora.ch <span className="text-muted-foreground mx-1">/</span> admin123
+            <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-center">
+              <p className="text-[10px] text-muted-foreground/70 mb-0.5">Demo-Zugang</p>
+              <p className="text-xs font-mono text-muted-foreground">
+                admin@loomora.ch <span className="text-muted-foreground/60 mx-1">/</span> admin123
               </p>
             </div>
           </div>
 
           {/* Mobile Footer */}
-          <p className="lg:hidden text-center text-xs text-muted-foreground pt-8">
-            © 2026 loomora.ch – Alle Rechte vorbehalten
-          </p>
+          <div className="lg:hidden text-center text-xs text-muted-foreground pt-8 space-y-1">
+            <p>© 2026 loomora.ch – Alle Rechte vorbehalten</p>
+            <p className="text-muted-foreground/60">🇨🇭 Entwickelt für Schweizer KMU</p>
+          </div>
         </div>
       </div>
     </div>
