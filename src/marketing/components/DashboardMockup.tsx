@@ -504,7 +504,7 @@ export function DashboardMockup() {
         </div>
 
         {/* App content */}
-        <div className="aspect-[16/9] bg-[#f4f5f7] flex text-[11px]" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div className="bg-[#f4f5f7] flex text-[11px]" style={{ fontFamily: "'Inter', sans-serif", aspectRatio: "16/9" }}>
           {/* Sidebar */}
           <div className="w-[200px] bg-white border-r border-gray-100 flex flex-col shrink-0">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
@@ -559,18 +559,20 @@ export function DashboardMockup() {
             </div>
 
             {/* Module content with animation */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeModule}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1 flex flex-col overflow-hidden"
-              >
-                <ActiveView />
-              </motion.div>
-            </AnimatePresence>
+            <div className="flex-1 relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeModule}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute inset-0 flex flex-col overflow-hidden"
+                >
+                  <ActiveView />
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
