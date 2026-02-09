@@ -485,7 +485,7 @@ export function DashboardMockup() {
       initial={{ opacity: 0, y: 60, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-      className="mt-20 w-full px-4"
+      className="mt-20 max-w-[1400px] mx-auto"
     >
       <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(70,16,163,0.25)]">
         {/* Browser chrome */}
