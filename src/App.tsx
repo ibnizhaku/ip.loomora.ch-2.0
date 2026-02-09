@@ -9,7 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DocumentsProvider } from "./contexts/DocumentsContext";
-import AuthAnimatedLayout from "@/components/auth/AuthAnimatedLayout";
+import AuthPage from "./pages/AuthPage";
 
 // Pages
 import Index from "./pages/Index";
@@ -172,8 +172,8 @@ import Help from "./pages/Help";
 import GoodsReceipts from "./pages/GoodsReceipts";
 import GoodsReceiptCreate from "./pages/GoodsReceiptCreate";
 import GoodsReceiptDetail from "./pages/GoodsReceiptDetail";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+
+
 import SelectCompany from "./pages/SelectCompany";
 import NotFound from "./pages/NotFound";
 
@@ -207,11 +207,9 @@ const App = () => (
         <AuthProvider>
           <DocumentsProvider>
             <Routes>
-              {/* Public Routes - Animated Auth Layout */}
-              <Route element={<AuthAnimatedLayout />}>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-              </Route>
+              {/* Public Routes - Auth with panel swap */}
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/register" element={<AuthPage />} />
               <Route path="/select-company" element={<SelectCompany />} />
 
               {/* Protected Routes - Wrapped with Layout */}
