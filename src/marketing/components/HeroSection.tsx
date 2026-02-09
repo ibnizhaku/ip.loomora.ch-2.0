@@ -1,6 +1,33 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Play, Shield, Zap, Globe } from "lucide-react";
+import { ArrowRight, Play, Shield, Zap, Globe, LayoutDashboard, Users, FileText, Wallet, UserCog, Package, ChevronRight, TrendingUp, TrendingDown, Clock, Bell, Search, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import loomoraLogo from "@/assets/loomora-logo.png";
+
+const sidebarItems = [
+  { icon: LayoutDashboard, label: "Dashboard", active: true },
+  { icon: Users, label: "Kunden", active: false },
+  { icon: FileText, label: "Rechnungen", active: false },
+  { icon: Wallet, label: "Finanzen", active: false },
+  { icon: UserCog, label: "HR", active: false },
+  { icon: Package, label: "Lager", active: false },
+];
+
+const kpis = [
+  { label: "Umsatz", value: "CHF 284'500", change: "+12.5%", up: true, color: "#4610A3" },
+  { label: "Offene Posten", value: "CHF 18'200", change: "3 Rechnungen", up: false, color: "#e67e22" },
+  { label: "Neue Kunden", value: "24", change: "+8 diesen Monat", up: true, color: "#27ae60" },
+  { label: "Projekte", value: "12", change: "4 aktiv", up: true, color: "#3498db" },
+];
+
+const chartData = [35, 52, 48, 65, 58, 72, 85, 68, 78, 92, 55, 98];
+const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+const activities = [
+  { text: "Rechnung #1042 an Müller AG gesendet", time: "vor 12 Min", color: "#4610A3" },
+  { text: "Neuer Kunde: Weber GmbH erfasst", time: "vor 34 Min", color: "#27ae60" },
+  { text: "Zahlung CHF 4'800 von Schmid & Co", time: "vor 1 Std", color: "#3498db" },
+  { text: "Projekt 'Büro Zürich' abgeschlossen", time: "vor 2 Std", color: "#e67e22" },
+];
 
 export function HeroSection() {
   const navigate = useNavigate();
@@ -121,59 +148,171 @@ export function HeroSection() {
           </motion.div>
         </div>
 
-        {/* App Preview Mockup */}
+        {/* App Preview Mockup - Light Mode Realistic Dashboard */}
         <motion.div
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
           className="mt-20 max-w-5xl mx-auto"
         >
-          <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-[#1a0536]/50 backdrop-blur-sm shadow-[0_0_60px_rgba(70,16,163,0.2)]">
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(70,16,163,0.25)]">
             {/* Browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-white/5 border-b border-white/10">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f8f8f8] border-b border-gray-200">
               <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-400/60" />
-                <div className="w-3 h-3 rounded-full bg-yellow-400/60" />
-                <div className="w-3 h-3 rounded-full bg-green-400/60" />
+                <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+                <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+                <div className="w-3 h-3 rounded-full bg-[#28c840]" />
               </div>
               <div className="flex-1 flex justify-center">
-                <div className="bg-white/5 rounded-lg px-4 py-1 text-white/30 text-xs">
-                  app.loomora.ch
+                <div className="bg-white rounded-lg px-4 py-1 text-gray-400 text-[11px] border border-gray-200 flex items-center gap-2">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+                  app.loomora.ch/dashboard
                 </div>
               </div>
             </div>
-            {/* Placeholder dashboard */}
-            <div className="aspect-[16/9] bg-gradient-to-br from-[#1a0536] to-[#0d0118] p-8">
-              <div className="grid grid-cols-4 gap-4 h-full">
-                {/* Sidebar skeleton */}
-                <div className="col-span-1 bg-white/5 rounded-xl p-4 space-y-3">
-                  <div className="h-8 bg-white/10 rounded-lg w-3/4" />
-                  <div className="space-y-2 mt-6">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className={`h-6 rounded-lg ${i === 1 ? "bg-[#4610A3]/40 w-full" : "bg-white/5 w-5/6"}`} />
-                    ))}
+
+            {/* Dashboard content - Light mode */}
+            <div className="aspect-[16/9] bg-[#f4f5f7] flex text-[11px]" style={{ fontFamily: "'Inter', sans-serif" }}>
+              {/* Sidebar */}
+              <div className="w-[200px] bg-white border-r border-gray-100 flex flex-col shrink-0">
+                {/* Logo */}
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                  <img src={loomoraLogo} alt="Loomora" className="h-5" />
+                </div>
+                {/* Nav */}
+                <div className="p-2 space-y-0.5 flex-1">
+                  {sidebarItems.map((item) => (
+                    <div
+                      key={item.label}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-default transition-colors ${
+                        item.active
+                          ? "bg-[#4610A3]/10 text-[#4610A3] font-medium"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <item.icon size={14} />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* User */}
+                <div className="p-3 border-t border-gray-100 flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#4610A3] to-[#7c3aed] flex items-center justify-center text-white text-[9px] font-bold">
+                    ML
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] font-medium text-gray-800 truncate">Marco Lehmann</div>
+                    <div className="text-[8px] text-gray-400">Admin</div>
                   </div>
                 </div>
-                {/* Main content skeleton */}
-                <div className="col-span-3 space-y-4">
-                  <div className="flex gap-4">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="flex-1 bg-white/5 rounded-xl p-4 space-y-2">
-                        <div className="h-4 bg-white/10 rounded w-1/2" />
-                        <div className="h-8 bg-white/10 rounded w-3/4" />
+              </div>
+
+              {/* Main content */}
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Top bar */}
+                <div className="h-11 bg-white border-b border-gray-100 flex items-center justify-between px-5 shrink-0">
+                  <div>
+                    <span className="text-gray-800 font-semibold text-[13px]">Dashboard</span>
+                    <span className="text-gray-400 text-[10px] ml-2">Montag, 9. Februar 2026</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 text-gray-400">
+                      <Search size={12} />
+                      <span className="text-[10px]">Suchen...</span>
+                    </div>
+                    <div className="relative">
+                      <Bell size={14} className="text-gray-400" />
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
+                    </div>
+                    <button className="flex items-center gap-1 bg-[#4610A3] text-white px-2.5 py-1.5 rounded-lg text-[10px] font-medium">
+                      <Plus size={10} />
+                      Neu
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dashboard body */}
+                <div className="flex-1 p-4 space-y-3 overflow-hidden">
+                  {/* KPI Cards */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {kpis.map((kpi) => (
+                      <div key={kpi.label} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-gray-400 text-[9px] font-medium uppercase tracking-wider">{kpi.label}</span>
+                          <div className={`flex items-center gap-0.5 text-[8px] font-medium ${kpi.up ? "text-emerald-600" : "text-amber-600"}`}>
+                            {kpi.up ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
+                            {kpi.change}
+                          </div>
+                        </div>
+                        <div className="text-gray-900 font-bold text-[15px]">{kpi.value}</div>
+                        <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: "68%", backgroundColor: kpi.color }} />
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <div className="bg-white/5 rounded-xl p-4 flex-1 h-48">
-                    <div className="h-4 bg-white/10 rounded w-1/4 mb-4" />
-                    <div className="flex gap-2 items-end h-32">
-                      {[40, 65, 45, 80, 55, 70, 90, 60, 75, 85, 50, 95].map((h, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 bg-gradient-to-t from-[#4610A3]/60 to-[#b88aed]/40 rounded-t"
-                          style={{ height: `${h}%` }}
-                        />
-                      ))}
+
+                  {/* Chart + Activity */}
+                  <div className="grid grid-cols-3 gap-3 flex-1">
+                    {/* Revenue Chart */}
+                    <div className="col-span-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-gray-800 font-semibold text-[12px]">Monatsumsatz 2026</div>
+                          <div className="text-gray-400 text-[9px] mt-0.5">Umsatzentwicklung in CHF</div>
+                        </div>
+                        <div className="flex gap-3 text-[8px]">
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-sm bg-[#4610A3]" />
+                            <span className="text-gray-500">Umsatz</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-sm bg-[#b88aed]/40" />
+                            <span className="text-gray-500">Vorjahr</span>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Chart bars */}
+                      <div className="flex items-end gap-[6px] h-[100px]">
+                        {chartData.map((h, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full flex gap-[2px]" style={{ height: `${h}%` }}>
+                              <div className="flex-1 bg-gradient-to-t from-[#4610A3] to-[#7c3aed] rounded-t-sm" />
+                              <div className="flex-1 bg-[#b88aed]/25 rounded-t-sm" style={{ height: `${Math.max(30, h - 15)}%`, alignSelf: "flex-end" }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-[6px] mt-1.5">
+                        {months.map((m) => (
+                          <div key={m} className="flex-1 text-center text-[7px] text-gray-400">{m}</div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Activity Feed */}
+                    <div className="col-span-1 bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-gray-800 font-semibold text-[12px]">Letzte Aktivitäten</div>
+                        <ChevronRight size={12} className="text-gray-300" />
+                      </div>
+                      <div className="space-y-2.5 flex-1">
+                        {activities.map((a, i) => (
+                          <div key={i} className="flex gap-2.5 items-start">
+                            <div className="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-gray-700 text-[10px] leading-tight">{a.text}</div>
+                              <div className="text-gray-400 text-[8px] flex items-center gap-1 mt-0.5">
+                                <Clock size={7} />
+                                {a.time}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-gray-100">
+                        <button className="text-[#4610A3] text-[9px] font-medium hover:underline">Alle anzeigen →</button>
+                      </div>
                     </div>
                   </div>
                 </div>
