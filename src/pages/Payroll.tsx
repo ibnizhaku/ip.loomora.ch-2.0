@@ -69,7 +69,7 @@ const Payroll = () => {
   const navigate = useNavigate();
   const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/employees") });
   const payrollRuns = apiData?.payrollRuns || [];
-  const employeePayroll = apiData?.data || [];
+  const employeePayroll: any[] = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
@@ -82,7 +82,7 @@ const Payroll = () => {
   const totalAHV = employeePayroll.reduce((sum, e) => sum + e.ahvIvEo, 0);
   const totalBVG = employeePayroll.reduce((sum, e) => sum + e.bvg, 0);
 
-  const uniquePositions = [...new Set(employeePayroll.map(e => e.position))];
+  const uniquePositions = Array.from(new Set(employeePayroll.map((e: any) => String(e.position))));
   const activeFilters = filterStatus.length + filterPosition.length;
 
   const handleStatClick = (filter: string | null) => {

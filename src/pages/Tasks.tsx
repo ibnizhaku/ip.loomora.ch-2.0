@@ -66,7 +66,7 @@ const priorityConfig = {
 export default function Tasks() {
   const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/tasks"], queryFn: () => api.get<any>("/tasks") });
-  const tasks = apiData?.data || [];
+  const tasks: any[] = apiData?.data || [];
   const navigate = useNavigate();
 
   const deleteMutation = useMutation({
@@ -84,7 +84,7 @@ export default function Tasks() {
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [projectFilters, setProjectFilters] = useState<string[]>([]);
 
-  const allProjects = [...new Set(tasks.map(t => t.project))];
+  const allProjects = Array.from(new Set(tasks.map((t: any) => String(t.project))));
   const hasActiveFilters = priorityFilters.length > 0 || projectFilters.length > 0;
 
   const filteredTasks = tasks.filter((t) => {
