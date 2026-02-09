@@ -155,18 +155,18 @@ export default function Register() {
             ))}
           </div>
 
-          <div className="flex gap-6 max-w-md">
-            <div className="flex items-center gap-2 text-white/70">
-              <div className="h-2 w-2 rounded-full bg-green-400" />
-              <span className="text-sm">14 Tage kostenlos</span>
+          <div className="flex gap-3 max-w-md">
+            <div className="flex-1 rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 text-center">
+              <p className="text-white font-semibold text-sm">Benutzerfreundlich</p>
+              <p className="text-white/50 text-xs mt-0.5">Intuitiv & einfach</p>
             </div>
-            <div className="flex items-center gap-2 text-white/70">
-              <div className="h-2 w-2 rounded-full bg-green-400" />
-              <span className="text-sm">Keine Kreditkarte</span>
+            <div className="flex-1 rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 text-center">
+              <p className="text-white font-semibold text-sm">Swiss Hosting</p>
+              <p className="text-white/50 text-xs mt-0.5">Daten in der Schweiz</p>
             </div>
-            <div className="flex items-center gap-2 text-white/70">
-              <div className="h-2 w-2 rounded-full bg-green-400" />
-              <span className="text-sm">Swiss Hosting</span>
+            <div className="flex-1 rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 text-center">
+              <p className="text-white font-semibold text-sm">Sofort startklar</p>
+              <p className="text-white/50 text-xs mt-0.5">Keine Installation</p>
             </div>
           </div>
         </div>
