@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DocumentsProvider } from "./contexts/DocumentsContext";
 import AuthPage from "./pages/AuthPage";
+import MarketingPage from "./marketing/MarketingPage";
 
 // Pages
 import Index from "./pages/Index";
@@ -207,7 +208,8 @@ const App = () => (
         <AuthProvider>
           <DocumentsProvider>
             <Routes>
-              {/* Public Routes - Auth with panel swap */}
+              {/* Public Routes */}
+              <Route path="/website" element={<MarketingPage />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/register" element={<AuthPage />} />
               <Route path="/select-company" element={<SelectCompany />} />
