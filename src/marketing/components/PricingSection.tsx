@@ -2,6 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { Check, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { WachsenBackground } from "./SectionBackgrounds";
 
 const plans = [
   {
@@ -65,6 +66,7 @@ export function PricingSection() {
   return (
     <section id="preise" className="relative py-32 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-[#1a0536] via-[#0d0118] to-[#0a0015]" />
+      <WachsenBackground />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#4610A3]/8 rounded-full blur-[200px]" />
 
       <div ref={ref} className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">

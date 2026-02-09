@@ -50,25 +50,25 @@ function CircuitBackground() {
             d="M-50 200 H200 V400 H350 V300 H500"
             stroke="url(#traceGrad)" strokeWidth="1.5" strokeLinecap="round"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.5, ease: "easeInOut", delay: 0.2 }}
+            transition={{ duration: 0.8, ease: "easeInOut", delay: 0.1 }}
           />
           <motion.path
             d="M-50 500 H150 V350 H300 V500 H450 V400"
             stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.5, ease: "easeInOut", delay: 0.4 }}
+            transition={{ duration: 0.8, ease: "easeInOut", delay: 0.15 }}
           />
           <motion.path
             d="M100 100 V250 H250 V150 H400 V350"
             stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.2, ease: "easeInOut", delay: 0.5 }}
+            transition={{ duration: 0.6, ease: "easeInOut", delay: 0.2 }}
           />
           <motion.path
             d="M-50 700 H200 V600 H350 V700 H500 V550"
             stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round" strokeDasharray="4 6"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.5, ease: "easeInOut", delay: 0.6 }}
+            transition={{ duration: 0.8, ease: "easeInOut", delay: 0.25 }}
           />
 
           {/* Connection nodes - Vernetzen */}
@@ -80,26 +80,26 @@ function CircuitBackground() {
             <motion.g key={`vn-${i}`}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.7 + i * 0.08 }}
+              transition={{ duration: 0.15, delay: 0.3 + i * 0.03 }}
             >
               <motion.circle cx={node.cx} cy={node.cy} r="6" fill="#4610A3" filter="url(#glow)"
                 animate={{ r: [6, 8, 6] }}
-                transition={{ duration: 2 + i * 0.3, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 1.2 + i * 0.15, repeat: Infinity, ease: "easeInOut" }}
               />
               <circle cx={node.cx} cy={node.cy} r="2.5" fill="#b88aed" />
               <motion.circle cx={node.cx} cy={node.cy} r="12" stroke="#b88aed" strokeWidth="0.5" fill="none" strokeOpacity="0.3"
                 animate={{ r: [12, 18, 12], strokeOpacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.3 }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15 }}
               />
             </motion.g>
           ))}
 
           {/* Data flow particles on left traces */}
           <motion.circle r="2" fill="#b88aed" filter="url(#glow)">
-            <animateMotion dur="2.5s" repeatCount="indefinite" path="M-50 200 H200 V400 H350 V300 H500" />
+            <animateMotion dur="1.5s" repeatCount="indefinite" path="M-50 200 H200 V400 H350 V300 H500" />
           </motion.circle>
           <motion.circle r="1.5" fill="#7c3aed" filter="url(#glow)">
-            <animateMotion dur="3s" repeatCount="indefinite" path="M-50 500 H150 V350 H300 V500 H450 V400" />
+            <animateMotion dur="1.8s" repeatCount="indefinite" path="M-50 500 H150 V350 H300 V500 H450 V400" />
           </motion.circle>
         </g>
 
@@ -108,7 +108,7 @@ function CircuitBackground() {
           <motion.path
             d="M700 300 H960 V540 H700 V300" stroke="#7c3aed" strokeWidth="1" strokeOpacity="0.3" fill="none"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1, delay: 0.8 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
           />
           {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
             const rad = (angle * Math.PI) / 180;
@@ -120,21 +120,21 @@ function CircuitBackground() {
                 stroke="#7c3aed" strokeWidth="0.8" strokeOpacity="0.2"
                 strokeDasharray="3 5"
                 initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-                transition={{ duration: 0.8, delay: 1 + i * 0.05 }}
+                transition={{ duration: 0.4, delay: 0.35 + i * 0.03 }}
               />
             );
           })}
 
-          <motion.g initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.4, delay: 0.9 }}>
+          <motion.g initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.2, delay: 0.35 }}>
             <motion.circle cx="830" cy="420" r="20" fill="#4610A3" fillOpacity="0.15" filter="url(#softGlow)"
               animate={{ r: [20, 25, 20] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
             />
             <circle cx="830" cy="420" r="10" fill="#4610A3" fillOpacity="0.3" />
             <circle cx="830" cy="420" r="4" fill="#b88aed" />
             <motion.circle cx="830" cy="420" r="30" stroke="#b88aed" strokeWidth="0.5" fill="none" strokeDasharray="4 4"
               animate={{ rotate: 360 }}
-              transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
               style={{ transformOrigin: "830px 420px" }}
             />
           </motion.g>
@@ -145,9 +145,9 @@ function CircuitBackground() {
             const cy = 420 + Math.sin(rad) * 140;
             return (
               <motion.g key={`sat-${i}`}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3, delay: 1.2 + i * 0.06 }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.15, delay: 0.5 + i * 0.03 }}
               >
                 <circle cx={cx} cy={cy} r="5" fill="#7c3aed" fillOpacity="0.4" />
                 <circle cx={cx} cy={cy} r="2" fill="#b88aed" />
@@ -156,7 +156,7 @@ function CircuitBackground() {
           })}
 
           <circle r="2" fill="#b88aed" filter="url(#glow)" cx="970" cy="420">
-            <animateTransform attributeName="transform" type="rotate" from="0 830 420" to="360 830 420" dur="5s" repeatCount="indefinite" />
+            <animateTransform attributeName="transform" type="rotate" from="0 830 420" to="360 830 420" dur="3s" repeatCount="indefinite" />
           </circle>
         </g>
 
@@ -166,19 +166,19 @@ function CircuitBackground() {
             d="M1400 200 H1550 V350 H1700 V250 H1850 V400 H1970"
             stroke="url(#traceGrad)" strokeWidth="1.5" strokeLinecap="round"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.5, ease: "easeInOut", delay: 1.2 }}
+            transition={{ duration: 0.7, ease: "easeInOut", delay: 0.5 }}
           />
           <motion.path
             d="M1350 500 H1500 V650 H1650 V500 H1800 V700 H1970"
             stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.5, ease: "easeInOut", delay: 1.4 }}
+            transition={{ duration: 0.7, ease: "easeInOut", delay: 0.55 }}
           />
           <motion.path
             d="M1450 400 V550 H1600 V450 H1750 V600 H1900"
             stroke="url(#traceGrad)" strokeWidth="1" strokeLinecap="round" strokeDasharray="4 6"
             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1.2, ease: "easeInOut", delay: 1.5 }}
+            transition={{ duration: 0.6, ease: "easeInOut", delay: 0.6 }}
           />
 
           {[
@@ -189,22 +189,22 @@ function CircuitBackground() {
             <motion.g key={`wn-${i}`}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3, delay: 1.6 + i * 0.08 }}
+              transition={{ duration: 0.15, delay: 0.65 + i * 0.03 }}
             >
               <motion.circle cx={node.cx} cy={node.cy} r="5" fill="#4610A3" filter="url(#glow)"
                 animate={{ r: [5, 7, 5] }}
-                transition={{ duration: 2 + i * 0.2, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 1.2 + i * 0.1, repeat: Infinity, ease: "easeInOut" }}
               />
               <circle cx={node.cx} cy={node.cy} r="2" fill="#b88aed" />
               <motion.circle cx={node.cx} cy={node.cy} r="10" stroke="#4610A3" strokeWidth="0.5" fill="none"
                 animate={{ r: [10, 25, 10], strokeOpacity: [0.4, 0, 0.4] }}
-                transition={{ duration: 3, repeat: Infinity, delay: i * 0.3 }}
+                transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.15 }}
               />
             </motion.g>
           ))}
 
           <motion.circle r="2" fill="#b88aed" filter="url(#glow)">
-            <animateMotion dur="2.5s" repeatCount="indefinite" path="M1400 200 H1550 V350 H1700 V250 H1850 V400 H1970" />
+            <animateMotion dur="1.5s" repeatCount="indefinite" path="M1400 200 H1550 V350 H1700 V250 H1850 V400 H1970" />
           </motion.circle>
         </g>
 
@@ -213,25 +213,25 @@ function CircuitBackground() {
           d="M500 300 C600 350, 650 400, 700 400"
           stroke="#7c3aed" strokeWidth="0.8" strokeOpacity="0.15" fill="none"
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-          transition={{ duration: 1, delay: 1.2 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
         />
         <motion.path
           d="M960 420 C1050 400, 1200 350, 1400 300"
           stroke="#7c3aed" strokeWidth="0.8" strokeOpacity="0.15" fill="none"
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-          transition={{ duration: 1, delay: 1.4 }}
+          transition={{ duration: 0.5, delay: 0.55 }}
         />
         <motion.path
           d="M500 550 C600 500, 700 480, 750 450"
           stroke="#7c3aed" strokeWidth="0.5" strokeOpacity="0.1" fill="none" strokeDasharray="3 6"
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-          transition={{ duration: 1, delay: 1.3 }}
+          transition={{ duration: 0.5, delay: 0.52 }}
         />
         <motion.path
           d="M910 500 C1000 550, 1200 600, 1350 500"
           stroke="#7c3aed" strokeWidth="0.5" strokeOpacity="0.1" fill="none" strokeDasharray="3 6"
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-          transition={{ duration: 1, delay: 1.5 }}
+          transition={{ duration: 0.5, delay: 0.58 }}
         />
 
         {/* Decorative dots */}
@@ -241,7 +241,7 @@ function CircuitBackground() {
           return (
             <motion.circle key={`dot-${i}`} cx={x} cy={y} r="1" fill="#b88aed" fillOpacity="0.15"
               animate={{ fillOpacity: [0.1, 0.3, 0.1] }}
-              transition={{ duration: 2 + Math.random() * 3, repeat: Infinity, delay: Math.random() * 2 }}
+              transition={{ duration: 1.2 + Math.random() * 1.5, repeat: Infinity, delay: Math.random() * 0.8 }}
             />
           );
         })}
@@ -256,7 +256,7 @@ function CircuitBackground() {
             width="8" height="8" rx="1"
             stroke="#7c3aed" strokeWidth="0.5" fill="none" strokeOpacity="0.2"
             initial={{ scale: 0 }} animate={{ scale: 1 }}
-            transition={{ duration: 0.2, delay: 0.8 + i * 0.15 }}
+            transition={{ duration: 0.1, delay: 0.3 + i * 0.06 }}
           />
         ))}
       </svg>

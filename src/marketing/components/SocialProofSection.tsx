@@ -1,6 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Star } from "lucide-react";
+import { FlowDotsBackground } from "./SectionBackgrounds";
 
 const logos = [
   "Müller AG", "Weber GmbH", "Schmid & Co", "Fischer Technik",
@@ -38,6 +39,7 @@ export function SocialProofSection() {
   return (
     <section className="relative py-20 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a0015] to-[#0d0118]" />
+      <FlowDotsBackground />
 
       <div ref={ref} className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
         {/* Logo ticker */}
