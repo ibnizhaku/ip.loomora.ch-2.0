@@ -12,10 +12,10 @@ import loomoraLogo from "@/assets/loomora-logo.png";
 import loginBg from "@/assets/login-bg.jpg";
 
 const features = [
-  { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST", highlight: true },
-  { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge", highlight: false },
-  { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung", highlight: false },
-  { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks", highlight: false },
+  { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST" },
+  { icon: Users, label: "CRM & Vertrieb", desc: "Kunden, Angebote, Aufträge" },
+  { icon: Shield, label: "HR & Lohn", desc: "Mitarbeiter, Lohnabrechnung" },
+  { icon: Zap, label: "Projekte", desc: "Planung, Zeiterfassung, Tasks" },
 ];
 
 export default function AuthPage() {
@@ -116,62 +116,63 @@ export default function AuthPage() {
     }
   };
 
-  // Branding panel content
+  // ── Branding panel ──
   const brandingContent = (
     <div className="relative h-full flex flex-col justify-between p-12">
       <img src={loginBg} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden="true" />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#1a0536]/95 via-[#2d0a5e]/85 to-[#4610A3]/60" />
+      {/* 1. Reduced overlay contrast */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1a0536]/90 via-[#2d0a5e]/80 to-[#4610A3]/50" />
 
-      <div className="relative z-10">
-        <div className="inline-flex items-center gap-3 rounded-xl bg-white/15 backdrop-blur-sm px-4 py-2">
-          <img src={loomoraLogo} alt="Loomora" className="h-10 brightness-0 invert" />
+      <div className="relative z-10 pt-2">
+        <div className="inline-flex items-center gap-3 rounded-xl bg-white/12 backdrop-blur-sm px-4 py-2">
+          <img src={loomoraLogo} alt="Loomora" className="h-9 brightness-0 invert" />
         </div>
       </div>
 
-      <div className="relative z-10 space-y-6">
-        <div className="space-y-4">
-          <p className="text-[#b88aed] font-medium tracking-wider text-sm uppercase">
+      {/* 1. & 3. Headline ~5% smaller, vertically aligned with form title via pt */}
+      <div className="relative z-10 space-y-8">
+        <div className="space-y-3">
+          <p className="text-[#b88aed]/80 font-medium tracking-wider text-xs uppercase">
             {isRegister ? "Jetzt kostenlos starten" : "All-in-One Business Software"}
           </p>
-          <h1 className={`font-display font-bold text-white leading-[1.15] ${isRegister ? "text-5xl" : "text-[2.85rem]"}`}>
+          <h1 className="text-[2.6rem] font-display font-bold text-white leading-[1.15]">
             {isRegister ? (
               <>Ihre Firma.<br />Ihre Software.<br />Ihr Erfolg.</>
             ) : (
               <>Alles was Ihr<br />Unternehmen<br />braucht.</>
             )}
           </h1>
-          <p className={`text-lg max-w-md ${isRegister ? "text-white/60 leading-snug" : "text-white/70"}`}>
+          <p className={`text-base max-w-md leading-relaxed ${isRegister ? "text-white/50" : "text-white/55"}`}>
             {isRegister
               ? "Registrieren Sie sich und erhalten Sie sofort Zugang zu allen Business-Funktionen – massgeschneidert für Schweizer KMU."
               : "Von der Offerte bis zur Lohnabrechnung – eine Plattform für Schweizer KMU."}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-w-md">
+        {/* 4. Feature tiles: reduced visual weight, no highlight, more gap */}
+        <div className="grid grid-cols-2 gap-2.5 max-w-md mt-2">
           {features.map((f) => (
             <div
               key={f.label}
-              className={`flex items-start gap-3 rounded-xl backdrop-blur-sm border transition-colors hover:bg-white/[0.1] ${
-                f.highlight ? "bg-white/[0.09] border-white/15 p-[18px]" : "bg-white/[0.06] border-white/10 p-4"
-              }`}
+              className="flex items-start gap-2.5 rounded-lg bg-white/[0.04] backdrop-blur-sm border border-white/[0.07] px-3.5 py-3 transition-colors hover:bg-white/[0.07]"
             >
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${f.highlight ? "bg-[#4610A3]/40" : "bg-[#4610A3]/30"}`}>
-                <f.icon className={`h-4 w-4 ${f.highlight ? "text-[#c9a5f0]" : "text-[#b88aed]"}`} />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#4610A3]/25">
+                <f.icon className="h-3.5 w-3.5 text-[#b88aed]/80" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">{f.label}</p>
-                <p className="text-xs text-white/50">{f.desc}</p>
+                <p className="text-[13px] font-medium text-white/85">{f.label}</p>
+                <p className="text-[11px] text-white/40">{f.desc}</p>
               </div>
             </div>
           ))}
         </div>
 
         {isRegister && (
-          <div className="flex gap-6 max-w-md mt-2">
+          <div className="flex gap-5 max-w-md">
             {["Benutzerfreundlich", "Swiss Hosting", "Sofort startklar"].map((t) => (
-              <div key={t} className="flex items-center gap-2 text-white/80">
-                <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
-                <span className="text-sm">{t}</span>
+              <div key={t} className="flex items-center gap-2 text-white/70">
+                <div className="h-2 w-2 rounded-full bg-green-400/80" />
+                <span className="text-[13px]">{t}</span>
               </div>
             ))}
           </div>
@@ -179,29 +180,30 @@ export default function AuthPage() {
       </div>
 
       <div className="relative z-10 flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-white/40 text-sm">© 2026 loomora.ch – Alle Rechte vorbehalten</p>
-          <p className="text-white/25 text-xs">🇨🇭 Entwickelt für Schweizer KMU</p>
+        <div className="space-y-0.5">
+          <p className="text-white/30 text-xs">© 2026 loomora.ch – Alle Rechte vorbehalten</p>
+          <p className="text-white/20 text-[11px]">🇨🇭 Entwickelt für Schweizer KMU</p>
         </div>
-        <div className="flex gap-6">
-          <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Datenschutz</a>
-          <a href="#" className="text-white/40 hover:text-white/70 text-sm transition-colors">Impressum</a>
+        <div className="flex gap-5">
+          <a href="#" className="text-white/30 hover:text-white/60 text-xs transition-colors">Datenschutz</a>
+          <a href="#" className="text-white/30 hover:text-white/60 text-xs transition-colors">Impressum</a>
         </div>
       </div>
     </div>
   );
 
-  // Login form
+  // ── Login form ──
   const loginForm = (
-    <div className="w-full max-w-[400px]" style={{ fontFamily: "'Sora', sans-serif" }}>
+    <div className="w-full max-w-[420px] px-2" style={{ fontFamily: "'Sora', sans-serif" }}>
       <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
         <img src={loomoraLogo} alt="Loomora" className="h-12" />
         <p className="text-xs text-muted-foreground tracking-widest uppercase">All-in-One Business Software</p>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>Anmelden</h2>
-        <p className="text-muted-foreground mt-2 text-sm">Geben Sie Ihre Zugangsdaten ein, um fortzufahren.</p>
+      {/* 2. & 3. Bigger title, more spacing */}
+      <div className="mb-10">
+        <h2 className="text-[2rem] font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>Anmelden</h2>
+        <p className="text-muted-foreground mt-2.5 text-sm">Geben Sie Ihre Zugangsdaten ein, um fortzufahren.</p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-5">
@@ -262,10 +264,11 @@ export default function AuthPage() {
           Noch kein Konto?{" "}
           <button onClick={toggleMode} className="text-[#4610A3] hover:underline font-semibold">Kostenlos registrieren</button>
         </p>
-        <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-center">
-          <p className="text-[10px] text-muted-foreground/70 mb-0.5">Demo-Zugang</p>
-          <p className="text-xs font-mono text-muted-foreground">
-            admin@loomora.ch <span className="text-muted-foreground/60 mx-1">/</span> admin123
+        {/* 4. Demo access clearly secondary */}
+        <div className="rounded-lg bg-muted/20 border border-border/30 p-2.5 text-center">
+          <p className="text-[10px] text-muted-foreground/60 mb-0.5">Demo-Zugang</p>
+          <p className="text-[11px] font-mono text-muted-foreground/70">
+            admin@loomora.ch <span className="text-muted-foreground/40 mx-1">/</span> admin123
           </p>
         </div>
       </div>
@@ -277,16 +280,17 @@ export default function AuthPage() {
     </div>
   );
 
-  // Register form
+  // ── Register form ──
   const registerForm = (
-    <div className="w-full max-w-[420px]" style={{ fontFamily: "'Sora', sans-serif" }}>
+    <div className="w-full max-w-[440px] px-2" style={{ fontFamily: "'Sora', sans-serif" }}>
       <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
         <img src={loomoraLogo} alt="Loomora" className="h-12" />
         <p className="text-xs text-muted-foreground tracking-widest uppercase">All-in-One Business Software</p>
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>Konto erstellen</h2>
+      {/* 2. & 3. Bigger title, tighter subline */}
+      <div className="mb-8">
+        <h2 className="text-[2rem] font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>Konto erstellen</h2>
         <p className="text-muted-foreground mt-1.5 text-sm leading-snug">Registrieren Sie Ihre Firma und starten Sie sofort.</p>
       </div>
 
@@ -363,8 +367,9 @@ export default function AuthPage() {
           <a href="#" className="text-[#4610A3] hover:underline font-medium">Datenschutzerklärung</a>.
         </div>
 
-        <div className="pt-1" />
-        <Button type="submit" className="w-full h-[52px] gap-2 font-semibold rounded-xl text-[15px] bg-[#4610A3] hover:bg-[#370d82] text-white shadow-lg shadow-[#4610A3]/25" disabled={isRegLoading}>
+        {/* 5. Register button: bigger CTA, more spacing above */}
+        <div className="pt-2" />
+        <Button type="submit" className="w-full h-[54px] gap-2 font-semibold rounded-xl text-[15px] bg-[#4610A3] hover:bg-[#370d82] text-white shadow-lg shadow-[#4610A3]/25" disabled={isRegLoading}>
           {isRegLoading ? (
             <span className="flex items-center gap-2">
               <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -374,7 +379,8 @@ export default function AuthPage() {
         </Button>
       </form>
 
-      <div className="text-center text-sm text-muted-foreground mt-6">
+      {/* More spacing below button */}
+      <div className="text-center text-sm text-muted-foreground mt-8">
         <p>Bereits ein Konto?{" "}
           <button onClick={toggleMode} className="text-[#4610A3] hover:underline font-semibold">Jetzt anmelden</button>
         </p>
@@ -393,7 +399,7 @@ export default function AuthPage() {
       <div className="hidden lg:flex h-screen relative">
         {/* Login Form Panel */}
         <motion.div
-          className="w-[45%] h-full flex items-center justify-center p-6 sm:p-12 bg-background shrink-0"
+          className="w-[45%] h-full flex items-center justify-center p-8 sm:p-14 bg-background shrink-0"
           animate={{
             x: isRegister ? 0 : "122.2%",
             opacity: isRegister ? 0 : 1,
@@ -409,7 +415,7 @@ export default function AuthPage() {
 
         {/* Register Form Panel */}
         <motion.div
-          className="w-[45%] h-full flex items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto shrink-0"
+          className="w-[45%] h-full flex items-center justify-center p-8 sm:p-14 bg-background overflow-y-auto shrink-0"
           animate={{
             opacity: isRegister ? 1 : 0,
           }}
@@ -421,7 +427,7 @@ export default function AuthPage() {
           {registerForm}
         </motion.div>
 
-        {/* Branding Panel - slides between left and right */}
+        {/* Branding Panel */}
         <motion.div
           className="w-[55%] h-full overflow-hidden shrink-0 z-20"
           style={{ position: "absolute", top: 0, bottom: 0 }}
@@ -432,7 +438,7 @@ export default function AuthPage() {
         </motion.div>
       </div>
 
-      {/* Mobile: show active form only */}
+      {/* Mobile */}
       <div className="lg:hidden w-full min-h-screen flex items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto">
         {isRegister ? registerForm : loginForm}
       </div>
