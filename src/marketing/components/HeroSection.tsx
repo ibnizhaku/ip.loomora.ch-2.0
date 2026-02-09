@@ -125,9 +125,12 @@ export function HeroSection() {
       </div>
 
       {/* Dashboard Mockup - full width below hero content */}
-      <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 lg:px-8 pb-20">
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-32">
         <DashboardMockup />
       </div>
+
+      {/* Bottom fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#0a0015] to-transparent z-20 pointer-events-none" />
     </section>
   );
 }

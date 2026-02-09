@@ -482,21 +482,35 @@ export function DashboardMockup() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 60, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 1, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="mt-16 w-full"
+      style={{ perspective: "2000px" }}
     >
-      <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(70,16,163,0.25)]">
+      {/* Glow behind mockup */}
+      <div className="absolute -inset-10 bg-gradient-to-b from-[#4610A3]/30 via-[#7c3aed]/20 to-transparent rounded-[40px] blur-[80px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[60%] bg-[#4610A3]/15 rounded-full blur-[120px] pointer-events-none" />
+
+      <div
+        className="relative rounded-2xl overflow-hidden border border-white/[0.15] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_80px_-20px_rgba(70,16,163,0.5),0_0_120px_rgba(70,16,163,0.15)]"
+        style={{
+          transform: "rotateX(2deg)",
+          transformOrigin: "center bottom",
+        }}
+      >
+        {/* Glossy top edge highlight */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-10 pointer-events-none" />
+        
         {/* Browser chrome */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f8f8f8] border-b border-gray-200">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1e] border-b border-white/[0.06]">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
             <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
             <div className="w-3 h-3 rounded-full bg-[#28c840]" />
           </div>
           <div className="flex-1 flex justify-center">
-            <div className="bg-white rounded-lg px-4 py-1 text-gray-400 text-[11px] border border-gray-200 flex items-center gap-2">
+            <div className="bg-white/[0.06] rounded-lg px-4 py-1 text-white/40 text-[11px] border border-white/[0.08] flex items-center gap-2 min-w-[260px] justify-center">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
               app.loomora.ch/{activeModule === "dashboard" ? "dashboard" : activeModule}
             </div>
@@ -576,8 +590,19 @@ export function DashboardMockup() {
           </div>
         </div>
       </div>
-      {/* Reflection */}
-      <div className="h-40 bg-gradient-to-b from-white/[0.02] to-transparent rounded-b-2xl" />
+
+      {/* Reflection / fade out */}
+      <div
+        className="h-24 mt-[-1px] rounded-b-2xl overflow-hidden opacity-30 pointer-events-none"
+        style={{
+          transform: "rotateX(-2deg) scaleY(-1)",
+          transformOrigin: "center top",
+          maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)",
+        }}
+      >
+        <div className="h-full bg-gradient-to-b from-[#4610A3]/10 to-transparent" />
+      </div>
     </motion.div>
   );
 }
