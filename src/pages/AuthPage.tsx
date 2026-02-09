@@ -388,38 +388,52 @@ export default function AuthPage() {
   );
 
   return (
-    <div className="min-h-screen flex bg-background overflow-hidden relative">
-      {/* Branding Panel - slides between left (login) and right (register) */}
-      <motion.div
-        className="hidden lg:flex lg:w-[55%] absolute inset-y-0 z-20 overflow-hidden"
-        animate={{ left: isRegister ? "45%" : "0%" }}
-        transition={{ type: "spring", stiffness: 300, damping: 35 }}
-      >
-        {brandingContent}
-      </motion.div>
+    <div className="min-h-screen bg-background overflow-hidden relative">
+      {/* Desktop layout */}
+      <div className="hidden lg:flex h-screen relative">
+        {/* Login Form Panel */}
+        <motion.div
+          className="w-[45%] h-full flex items-center justify-center p-6 sm:p-12 bg-background shrink-0"
+          animate={{
+            x: isRegister ? 0 : "122.2%",
+            opacity: isRegister ? 0 : 1,
+          }}
+          transition={{
+            x: { type: "spring", stiffness: 300, damping: 35 },
+            opacity: { duration: 0.2, delay: isRegister ? 0 : 0.15 },
+          }}
+          style={{ pointerEvents: isRegister ? "none" : "auto", position: "absolute", left: 0, top: 0, bottom: 0 }}
+        >
+          {loginForm}
+        </motion.div>
 
-      {/* Login Form Panel - on the RIGHT when branding is LEFT */}
-      <motion.div
-        className="hidden lg:flex lg:w-[45%] absolute inset-y-0 right-0 items-center justify-center p-6 sm:p-12 bg-background"
-        animate={{ opacity: isRegister ? 0 : 1 }}
-        transition={{ duration: 0.25, delay: isRegister ? 0 : 0.15 }}
-        style={{ pointerEvents: isRegister ? "none" : "auto" }}
-      >
-        {loginForm}
-      </motion.div>
+        {/* Register Form Panel */}
+        <motion.div
+          className="w-[45%] h-full flex items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto shrink-0"
+          animate={{
+            opacity: isRegister ? 1 : 0,
+          }}
+          transition={{
+            opacity: { duration: 0.2, delay: isRegister ? 0.15 : 0 },
+          }}
+          style={{ pointerEvents: isRegister ? "auto" : "none", position: "absolute", left: 0, top: 0, bottom: 0 }}
+        >
+          {registerForm}
+        </motion.div>
 
-      {/* Register Form Panel - on the LEFT when branding is RIGHT */}
-      <motion.div
-        className="hidden lg:flex lg:w-[45%] absolute inset-y-0 left-0 items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto"
-        animate={{ opacity: isRegister ? 1 : 0 }}
-        transition={{ duration: 0.25, delay: isRegister ? 0.15 : 0 }}
-        style={{ pointerEvents: isRegister ? "auto" : "none" }}
-      >
-        {registerForm}
-      </motion.div>
+        {/* Branding Panel - slides between left and right */}
+        <motion.div
+          className="w-[55%] h-full overflow-hidden shrink-0 z-20"
+          style={{ position: "absolute", top: 0, bottom: 0 }}
+          animate={{ left: isRegister ? "45%" : "0%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 35 }}
+        >
+          {brandingContent}
+        </motion.div>
+      </div>
 
       {/* Mobile: show active form only */}
-      <div className="lg:hidden w-full flex items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto">
+      <div className="lg:hidden w-full min-h-screen flex items-center justify-center p-6 sm:p-12 bg-background overflow-y-auto">
         {isRegister ? registerForm : loginForm}
       </div>
     </div>
