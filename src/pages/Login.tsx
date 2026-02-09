@@ -64,7 +64,7 @@ export default function Login() {
           aria-hidden="true"
         />
         {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-teal-900/70" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1a0536]/95 via-[#2d0a5e]/85 to-[#4610A3]/60" />
 
         {/* Content */}
         <div className="relative z-10">
@@ -73,7 +73,7 @@ export default function Login() {
 
         <div className="relative z-10 space-y-8">
           <div className="space-y-4">
-            <p className="text-teal-400 font-medium tracking-wider text-sm uppercase">
+            <p className="text-[#b88aed] font-medium tracking-wider text-sm uppercase">
               All-in-One Business Software
             </p>
             <h1 className="text-5xl font-display font-bold text-white leading-[1.15]">
@@ -93,8 +93,8 @@ export default function Login() {
                 key={f.label}
                 className="flex items-start gap-3 rounded-xl bg-white/[0.06] backdrop-blur-sm border border-white/10 p-4 transition-colors hover:bg-white/[0.1]"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/20">
-                  <f.icon className="h-4 w-4 text-teal-400" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#4610A3]/30">
+                  <f.icon className="h-4 w-4 text-[#b88aed]" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{f.label}</p>
