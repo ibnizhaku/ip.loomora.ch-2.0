@@ -1,23 +1,28 @@
-import { motion, useInView, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 
 function AnimatedCounter({ target, suffix = "", prefix = "" }: { target: number; suffix?: string; prefix?: string }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
   const [display, setDisplay] = useState("0");
+  const hasDecimal = target % 1 !== 0;
 
   useEffect(() => {
     if (!isInView) return;
-    const motionVal = { value: 0 };
-    const controls = animate(motionVal, { value: target }, {
-      duration: 2,
-      ease: [0.16, 1, 0.3, 1],
-      onUpdate: (latest) => {
-        setDisplay(Math.round(latest.value).toLocaleString("de-CH"));
-      },
-    });
-    return () => controls.stop();
-  }, [isInView, target]);
+    const duration = 2000;
+    const start = performance.now();
+
+    function step(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = eased * target;
+      setDisplay(hasDecimal ? current.toFixed(1) : Math.round(current).toString());
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }, [isInView, target, hasDecimal]);
 
   return (
     <span ref={ref}>
