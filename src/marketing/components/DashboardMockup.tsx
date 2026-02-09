@@ -482,10 +482,10 @@ export function DashboardMockup() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 60, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-      className="mt-20 w-full"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+      className="mt-16 w-full"
     >
       <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(70,16,163,0.25)]">
         {/* Browser chrome */}
@@ -504,7 +504,7 @@ export function DashboardMockup() {
         </div>
 
         {/* App content */}
-        <div className="bg-[#f4f5f7] flex text-[11px]" style={{ fontFamily: "'Inter', sans-serif", aspectRatio: "16/9" }}>
+        <div className="bg-[#f4f5f7] flex text-[12px]" style={{ fontFamily: "'Inter', sans-serif", aspectRatio: "16/9" }}>
           {/* Sidebar */}
           <div className="w-[200px] bg-white border-r border-gray-100 flex flex-col shrink-0">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
