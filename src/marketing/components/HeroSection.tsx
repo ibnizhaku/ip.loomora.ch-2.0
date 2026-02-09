@@ -7,7 +7,7 @@ export function HeroSection() {
   const navigate = useNavigate();
 
   return (
-    <section id="hero" className="relative min-h-screen flex items-center overflow-hidden">
+    <section id="hero" className="relative min-h-screen overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0015] via-[#1a0536] to-[#0d0118]" />
       
@@ -34,7 +34,7 @@ export function HeroSection() {
         backgroundSize: "60px 60px"
       }} />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-32 pb-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-40 pb-10">
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge */}
           <motion.div
@@ -124,8 +124,8 @@ export function HeroSection() {
 
       </div>
 
-      {/* Dashboard Mockup - outside max-w container for full width */}
-      <div className="relative z-10 max-w-[1800px] mx-auto px-6 lg:px-8 pb-20">
+      {/* Dashboard Mockup - full width below hero content */}
+      <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 lg:px-8 pb-20">
         <DashboardMockup />
       </div>
     </section>
