@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import loomoraLogo from "@/assets/loomora-logo.png";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,7 +30,6 @@ export default function Login() {
       const result = await login({ email, password });
       
       if (result.requiresCompanySelection) {
-        // User has multiple companies, redirect to selection
         navigate("/select-company", { state: { from: location.state?.from } });
       } else {
         toast.success("Erfolgreich angemeldet");
@@ -48,39 +48,36 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-1/2 bg-primary p-12 flex-col justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white font-display font-bold text-xl">
-              L
-            </div>
-            <span className="font-display font-bold text-2xl text-white">Loomora</span>
+            <img src={loomoraLogo} alt="Loomora" className="h-12" />
           </div>
         </div>
         
         <div className="space-y-6">
           <h1 className="text-4xl font-display font-bold text-white leading-tight">
-            Ihr Metallbau-ERP<br />für die Schweiz
+            All-in-One<br />Business Software
           </h1>
           <p className="text-white/80 text-lg">
             Projekte, Finanzen, HR und mehr – alles in einer modernen Plattform.
-            Konform mit GAV Metallbau und Schweizer Normen.
+            Massgeschneidert für Schweizer KMU.
           </p>
           <div className="flex gap-4">
             <div className="p-4 rounded-xl bg-white/10">
-              <p className="text-white font-semibold">CHF</p>
-              <p className="text-white/70 text-sm">Schweizer Währung</p>
+              <p className="text-white font-semibold">CRM</p>
+              <p className="text-white/70 text-sm">Kundenmanagement</p>
             </div>
             <div className="p-4 rounded-xl bg-white/10">
-              <p className="text-white font-semibold">KMU</p>
-              <p className="text-white/70 text-sm">Kontenrahmen</p>
+              <p className="text-white font-semibold">ERP</p>
+              <p className="text-white/70 text-sm">Ressourcenplanung</p>
             </div>
             <div className="p-4 rounded-xl bg-white/10">
-              <p className="text-white font-semibold">GAV</p>
-              <p className="text-white/70 text-sm">Metallbau</p>
+              <p className="text-white font-semibold">HR</p>
+              <p className="text-white/70 text-sm">Personalwesen</p>
             </div>
           </div>
         </div>
 
         <p className="text-white/60 text-sm">
-          © 2024 loomora.ch – Alle Rechte vorbehalten
+          © 2026 loomora.ch – Alle Rechte vorbehalten
         </p>
       </div>
 
@@ -89,10 +86,7 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display font-bold text-xl">
-              L
-            </div>
-            <span className="font-display font-bold text-2xl">Loomora</span>
+            <img src={loomoraLogo} alt="Loomora" className="h-12" />
           </div>
 
           <div className="text-center lg:text-left">
@@ -197,6 +191,11 @@ export default function Login() {
               Demo: <span className="font-mono">admin@loomora.ch</span> / <span className="font-mono">admin123</span>
             </p>
           </div>
+
+          {/* Mobile Footer */}
+          <p className="lg:hidden text-center text-xs text-muted-foreground">
+            © 2026 loomora.ch – Alle Rechte vorbehalten
+          </p>
         </div>
       </div>
     </div>
