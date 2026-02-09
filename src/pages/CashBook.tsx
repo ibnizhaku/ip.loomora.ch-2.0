@@ -67,14 +67,14 @@ interface CashEntry {
 export default function CashBook() {
   const navigate = useNavigate();
   const { data: apiData } = useQuery({ queryKey: ["/cash-book"], queryFn: () => api.get<any>("/cash-book") });
-  const entries = apiData?.data || [];
+  const entries: any[] = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [month, setMonth] = useState("2024-01");
   const [entryList, setEntryList] = useState(entries);
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [filterCostCenter, setFilterCostCenter] = useState<string[]>([]);
 
-  const costCenterOptions = [...new Set(entries.filter(e => e.costCenter).map(e => e.costCenter!))];
+  const costCenterOptions = Array.from(new Set(entries.filter((e: any) => e.costCenter).map((e: any) => String(e.costCenter))));
 
   const filteredEntries = entryList.filter((entry) => {
     const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||

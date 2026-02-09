@@ -68,7 +68,7 @@ const Recruiting = () => {
   const navigate = useNavigate();
   const { data: apiData } = useQuery({ queryKey: ["/recruiting"], queryFn: () => api.get<any>("/recruiting") });
   const jobPostings = apiData?.jobPostings || [];
-  const initialApplicants = apiData?.applicants || [];
+  const initialApplicants: any[] = apiData?.applicants || [];
   const interviews = apiData?.interviews || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -82,7 +82,7 @@ const Recruiting = () => {
     a.status === "In Prüfung" || a.status === "Interview geplant"
   ).length;
   const newThisWeek = applicants.filter(a => a.status === "Neu").length;
-  const uniqueSources = [...new Set(initialApplicants.map(a => a.source))];
+  const uniqueSources = Array.from(new Set(initialApplicants.map((a: any) => String(a.source))));
   const activeFilters = filterStatus.length + filterSource.length;
 
   const handleStatClick = (filter: string | null) => {
