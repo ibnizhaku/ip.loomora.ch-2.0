@@ -2,6 +2,99 @@ import { motion } from "framer-motion";
 import { ArrowRight, Play, Shield, Zap, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DashboardMockup } from "./DashboardMockup";
+import { useEffect, useRef } from "react";
+
+function NetworkBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationId: number;
+    let particles: { x: number; y: number; vx: number; vy: number; size: number }[] = [];
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    };
+
+    const init = () => {
+      resize();
+      const count = Math.min(80, Math.floor((canvas.offsetWidth * canvas.offsetHeight) / 12000));
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * canvas.offsetWidth,
+        y: Math.random() * canvas.offsetHeight,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        size: Math.random() * 1.5 + 0.5,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      const maxDist = 150;
+
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+      }
+
+      // Draw connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < maxDist) {
+            const alpha = (1 - dist / maxDist) * 0.15;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(184, 138, 237, ${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw particles
+      for (const p of particles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(184, 138, 237, 0.25)";
+        ctx.fill();
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    init();
+    draw();
+    window.addEventListener("resize", init);
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener("resize", init);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ opacity: 0.6 }}
+    />
+  );
+}
 
 export function HeroSection() {
   const navigate = useNavigate();
@@ -11,6 +104,9 @@ export function HeroSection() {
       {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0015] via-[#1a0536] to-[#0d0118]" />
       
+      {/* Network animation */}
+      <NetworkBackground />
+
       {/* Floating orbs */}
       <motion.div
         animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
