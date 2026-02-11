@@ -15,7 +15,8 @@ import {
   X,
   FileText,
   Image,
-  File
+  File,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,20 +28,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-
-const projects = [
-  { id: "1", name: "E-Commerce Platform" },
-  { id: "2", name: "Mobile Banking App" },
-  { id: "3", name: "Dashboard Redesign" },
-  { id: "4", name: "CRM Integration" },
-];
-
-const teamMembers = [
-  { id: "1", name: "Anna Schmidt", initials: "AS" },
-  { id: "2", name: "Thomas Müller", initials: "TM" },
-  { id: "3", name: "Michael Keller", initials: "MK" },
-  { id: "4", name: "Sarah Weber", initials: "SW" },
-];
+import { useCreateTask } from "@/hooks/use-tasks";
+import { useProjects } from "@/hooks/use-projects";
+import { useEmployees } from "@/hooks/use-employees";
 
 const availableTags = [
   "Frontend", "Backend", "Design", "Testing", "Dokumentation", 
@@ -49,74 +39,23 @@ const availableTags = [
 
 export default function TaskCreate() {
   const navigate = useNavigate();
-  const [subtasks, setSubtasks] = useState<{ id: number; title: string }[]>([]);
-  const [newSubtask, setNewSubtask] = useState("");
+  const createTask = useCreateTask();
+  const { data: projectsData } = useProjects({ pageSize: 100 });
+  const { data: employeesData } = useEmployees({ pageSize: 100 });
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState<string>("");
+  const [assigneeId, setAssigneeId] = useState<string>("");
+  const [status, setStatus] = useState("TODO");
+  const [priority, setPriority] = useState("MEDIUM");
+  const [dueDate, setDueDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [attachments, setAttachments] = useState<{ name: string; size: string; type: string }[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
-  const getFileIcon = (type: string) => {
-    if (type.startsWith("image/")) return Image;
-    if (type === "application/pdf") return FileText;
-    return File;
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const newAttachments = Array.from(files).map(file => ({
-        name: file.name,
-        size: formatFileSize(file.size),
-        type: file.type,
-      }));
-      setAttachments(prev => [...prev, ...newAttachments]);
-      toast({
-        title: "Dateien hinzugefügt",
-        description: `${files.length} Datei(en) wurden hinzugefügt.`,
-      });
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const files = e.dataTransfer.files;
-    if (files) {
-      const newAttachments = Array.from(files).map(file => ({
-        name: file.name,
-        size: formatFileSize(file.size),
-        type: file.type,
-      }));
-      setAttachments(prev => [...prev, ...newAttachments]);
-      toast({
-        title: "Dateien hinzugefügt",
-        description: `${files.length} Datei(en) wurden hinzugefügt.`,
-      });
-    }
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const addSubtask = () => {
-    if (newSubtask.trim()) {
-      setSubtasks([...subtasks, { id: Date.now(), title: newSubtask.trim() }]);
-      setNewSubtask("");
-    }
-  };
-
-  const removeSubtask = (id: number) => {
-    setSubtasks(subtasks.filter(s => s.id !== id));
-  };
+  const projects = projectsData?.data || [];
+  const employees = employeesData?.data || [];
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => 
@@ -127,8 +66,33 @@ export default function TaskCreate() {
   };
 
   const handleSubmit = () => {
-    // Would save the task here
-    navigate("/tasks");
+    if (!title.trim()) {
+      toast({ title: "Fehler", description: "Bitte geben Sie einen Titel ein.", variant: "destructive" });
+      return;
+    }
+
+    createTask.mutate({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      projectId: projectId || undefined,
+      assigneeId: assigneeId || undefined,
+      status: status as any,
+      priority: priority as any,
+      dueDate: dueDate || undefined,
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
+    }, {
+      onSuccess: () => {
+        toast({ title: "Aufgabe erstellt", description: "Die Aufgabe wurde erfolgreich erstellt." });
+        navigate("/tasks");
+      },
+      onError: (error: any) => {
+        toast({ 
+          title: "Fehler", 
+          description: error?.message || "Die Aufgabe konnte nicht erstellt werden.", 
+          variant: "destructive" 
+        });
+      },
+    });
   };
 
   return (
@@ -143,8 +107,8 @@ export default function TaskCreate() {
           <p className="text-muted-foreground">Erstellen Sie eine neue Aufgabe</p>
         </div>
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2" onClick={handleSubmit}>
-          <Save className="h-4 w-4" />
+        <Button className="gap-2" onClick={handleSubmit} disabled={createTask.isPending}>
+          {createTask.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Aufgabe erstellen
         </Button>
       </div>
@@ -164,6 +128,8 @@ export default function TaskCreate() {
                   id="title" 
                   placeholder="Aufgabentitel eingeben..." 
                   className="text-lg"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -172,60 +138,10 @@ export default function TaskCreate() {
                   id="description" 
                   placeholder="Beschreiben Sie die Aufgabe im Detail..."
                   rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Subtasks */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Unteraufgaben</CardTitle>
-              <span className="text-sm text-muted-foreground">
-                {subtasks.length} Unteraufgaben
-              </span>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="Neue Unteraufgabe..."
-                  value={newSubtask}
-                  onChange={(e) => setNewSubtask(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSubtask()}
-                />
-                <Button onClick={addSubtask} disabled={!newSubtask.trim()}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              {subtasks.length > 0 && (
-                <div className="space-y-2">
-                  {subtasks.map((subtask, index) => (
-                    <div 
-                      key={subtask.id}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 animate-fade-in"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <div className="h-5 w-5 rounded border-2 border-muted-foreground/30" />
-                      <span className="flex-1">{subtask.title}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8"
-                        onClick={() => removeSubtask(subtask.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {subtasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Noch keine Unteraufgaben hinzugefügt
-                </p>
-              )}
             </CardContent>
           </Card>
 
@@ -255,82 +171,6 @@ export default function TaskCreate() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Attachments */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Paperclip className="h-5 w-5" />
-                Anhänge
-              </CardTitle>
-              {attachments.length > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  {attachments.length} Datei(en)
-                </span>
-              )}
-            </CardHeader>
-            <CardContent>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                multiple
-                className="hidden"
-              />
-              
-              {attachments.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {attachments.map((file, index) => {
-                    const FileIcon = getFileIcon(file.type);
-                    return (
-                      <div 
-                        key={index} 
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 animate-fade-in"
-                      >
-                        <div className="flex items-center gap-3">
-                          <FileIcon className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium text-sm">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">{file.size}</p>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => removeAttachment(index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              
-              <div 
-                className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Paperclip className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Dateien hierher ziehen oder klicken zum Auswählen
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  Dateien auswählen
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
@@ -346,12 +186,12 @@ export default function TaskCreate() {
                   <FolderKanban className="h-4 w-4" />
                   Projekt
                 </Label>
-                <Select>
+                <Select value={projectId} onValueChange={setProjectId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Projekt auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map((project) => (
+                    {projects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
                       </SelectItem>
@@ -367,18 +207,20 @@ export default function TaskCreate() {
                   <User className="h-4 w-4" />
                   Zugewiesen an
                 </Label>
-                <Select>
+                <Select value={assigneeId} onValueChange={setAssigneeId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Mitarbeiter auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {teamMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
+                    {employees.map((emp: any) => (
+                      <SelectItem key={emp.id} value={emp.id}>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">{member.initials}</AvatarFallback>
+                            <AvatarFallback className="text-xs">
+                              {emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}
+                            </AvatarFallback>
                           </Avatar>
-                          {member.name}
+                          {emp.firstName} {emp.lastName}
                         </div>
                       </SelectItem>
                     ))}
@@ -396,15 +238,15 @@ export default function TaskCreate() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select defaultValue="todo">
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todo">Zu erledigen</SelectItem>
-                    <SelectItem value="in-progress">In Bearbeitung</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="done">Erledigt</SelectItem>
+                    <SelectItem value="TODO">Zu erledigen</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Bearbeitung</SelectItem>
+                    <SelectItem value="REVIEW">Review</SelectItem>
+                    <SelectItem value="DONE">Erledigt</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -414,33 +256,27 @@ export default function TaskCreate() {
                   <Flag className="h-4 w-4" />
                   Priorität
                 </Label>
-                <Select defaultValue="medium">
+                <Select value={priority} onValueChange={setPriority}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">
+                    <SelectItem value="LOW">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-muted-foreground" />
                         Niedrig
                       </div>
                     </SelectItem>
-                    <SelectItem value="medium">
+                    <SelectItem value="MEDIUM">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-info" />
                         Mittel
                       </div>
                     </SelectItem>
-                    <SelectItem value="high">
+                    <SelectItem value="HIGH">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-warning" />
                         Hoch
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="critical">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-destructive" />
-                        Kritisch
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -459,12 +295,8 @@ export default function TaskCreate() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Startdatum</Label>
-                <Input type="date" />
-              </div>
-              <div className="space-y-2">
                 <Label>Fälligkeitsdatum</Label>
-                <Input type="date" />
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
             </CardContent>
           </Card>
@@ -480,11 +312,15 @@ export default function TaskCreate() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Geschätzte Stunden</Label>
-                <Input type="number" placeholder="0" min="0" step="0.5" />
+                <Input 
+                  type="number" 
+                  placeholder="0" 
+                  min="0" 
+                  step="0.5" 
+                  value={estimatedHours}
+                  onChange={(e) => setEstimatedHours(e.target.value)}
+                />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Die Zeiterfassung kann nach dem Erstellen der Aufgabe gestartet werden.
-              </p>
             </CardContent>
           </Card>
         </div>
