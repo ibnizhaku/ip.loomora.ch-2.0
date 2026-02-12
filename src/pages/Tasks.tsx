@@ -13,9 +13,9 @@ import {
   Clock,
   AlertCircle,
   Calendar,
-  User,
-  Tag,
   X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,20 +35,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  project: string;
-  assignee: string;
-  priority: "high" | "medium" | "low";
-  status: "todo" | "in-progress" | "review" | "done";
-  dueDate: string;
-  tags: string[];
-}
-
+import { TaskListItem } from "@/components/tasks/TaskListItem";
 
 const statusConfig = {
   todo: { label: "Zu erledigen", color: "text-muted-foreground", icon: Circle },
@@ -98,6 +91,7 @@ export default function Tasks() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [projectFilters, setProjectFilters] = useState<string[]>([]);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const allProjects = Array.from(new Set(tasks.map((t: any) => String(t.project))));
   const hasActiveFilters = priorityFilters.length > 0 || projectFilters.length > 0;
@@ -111,6 +105,10 @@ export default function Tasks() {
     const matchesProject = projectFilters.length === 0 || projectFilters.includes(t.project);
     return matchesSearch && matchesStatus && matchesPriority && matchesProject;
   });
+
+  // Split into active and completed tasks
+  const activeTasks = filteredTasks.filter((t) => t.status !== "done" && t.status !== "DONE");
+  const completedTasks = filteredTasks.filter((t) => t.status === "done" || t.status === "DONE");
 
   const togglePriorityFilter = (priority: string) => {
     setPriorityFilters(prev => 
@@ -130,10 +128,10 @@ export default function Tasks() {
   };
 
   const tasksByStatus = {
-    todo: tasks.filter((t) => t.status === "todo").length,
-    "in-progress": tasks.filter((t) => t.status === "in-progress").length,
-    review: tasks.filter((t) => t.status === "review").length,
-    done: tasks.filter((t) => t.status === "done").length,
+    todo: tasks.filter((t) => t.status === "todo" || t.status === "TODO").length,
+    "in-progress": tasks.filter((t) => t.status === "in-progress" || t.status === "IN_PROGRESS").length,
+    review: tasks.filter((t) => t.status === "review" || t.status === "REVIEW").length,
+    done: tasks.filter((t) => t.status === "done" || t.status === "DONE").length,
   };
 
   return (
@@ -255,118 +253,77 @@ export default function Tasks() {
         </Popover>
       </div>
 
-      {/* Task List */}
+      {/* Active Task List */}
       <div className="space-y-3">
-        {filteredTasks.map((task, index) => {
-          const sc = statusConfig[task.status] || defaultStatusCfg;
-          const StatusIcon = sc.icon;
-          return (
-            <div
-              key={task.id}
-              className={cn(
-                "group flex items-start gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
+        {activeTasks.map((task, index) => (
+          <TaskListItem
+            key={task.id}
+            task={task}
+            index={index}
+            statusConfig={statusConfig}
+            priorityConfig={priorityConfig}
+            defaultStatusCfg={defaultStatusCfg}
+            defaultPriorityCfg={defaultPriorityCfg}
+            onNavigate={(id) => navigate(`/tasks/${id}`)}
+            onToggleStatus={(taskId, currentStatus) => {
+              const newStatus = currentStatus === "done" || currentStatus === "DONE" ? "TODO" : "DONE";
+              statusToggleMutation.mutate({ taskId, newStatus });
+            }}
+            onDelete={(taskId) => {
+              if (confirm("Aufgabe wirklich löschen?")) {
+                deleteMutation.mutate(taskId);
+              }
+            }}
+          />
+        ))}
+        {activeTasks.length === 0 && completedTasks.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <p className="text-muted-foreground">Keine Aufgaben gefunden</p>
+          </div>
+        )}
+      </div>
+
+      {/* Completed Tasks - Collapsible */}
+      {completedTasks.length > 0 && (
+        <Collapsible open={showCompleted} onOpenChange={setShowCompleted}>
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 w-full py-3 px-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors text-left">
+              {showCompleted ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => navigate(`/tasks/${task.id}`)}
-            >
-              <Checkbox
-                checked={task.status === "done"}
-                className="mt-1"
-                onClick={(e) => e.stopPropagation()}
-                onCheckedChange={() => {
-                  const newStatus = task.status === "done" ? "TODO" : "DONE";
-                  statusToggleMutation.mutate({ taskId: task.id, newStatus });
+              <CheckCircle2 className="h-4 w-4 text-success" />
+              <span className="font-medium text-sm">
+                Erledigte Aufgaben ({completedTasks.length})
+              </span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 mt-3">
+            {completedTasks.map((task, index) => (
+              <TaskListItem
+                key={task.id}
+                task={task}
+                index={index}
+                statusConfig={statusConfig}
+                priorityConfig={priorityConfig}
+                defaultStatusCfg={defaultStatusCfg}
+                defaultPriorityCfg={defaultPriorityCfg}
+                onNavigate={(id) => navigate(`/tasks/${id}`)}
+                onToggleStatus={(taskId, currentStatus) => {
+                  const newStatus = currentStatus === "done" || currentStatus === "DONE" ? "TODO" : "DONE";
+                  statusToggleMutation.mutate({ taskId, newStatus });
+                }}
+                onDelete={(taskId) => {
+                  if (confirm("Aufgabe wirklich löschen?")) {
+                    deleteMutation.mutate(taskId);
+                  }
                 }}
               />
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3
-                      className={cn(
-                        "font-medium hover:text-primary transition-colors",
-                        task.status === "done" && "line-through text-muted-foreground"
-                      )}
-                    >
-                      {task.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {task.description}
-                    </p>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/tasks/${task.id}`)}>Details anzeigen</DropdownMenuItem>
-                      <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                      <DropdownMenuItem>Status ändern</DropdownMenuItem>
-                      <DropdownMenuItem>Zuweisen</DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm("Aufgabe wirklich löschen?")) {
-                            deleteMutation.mutate(task.id);
-                          }
-                        }}
-                      >
-                        Löschen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <Badge
-                    variant="outline"
-                    className={cn("gap-1", sc.color)}
-                  >
-                    <StatusIcon className="h-3 w-3" />
-                    {sc.label}
-                  </Badge>
-                  <Badge className={(priorityConfig[task.priority] || defaultPriorityCfg).color}>
-                    {(priorityConfig[task.priority] || defaultPriorityCfg).label}
-                  </Badge>
-
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {task.dueDate}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs bg-secondary">
-                        {task.assignee}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-
-                  <div className="hidden sm:flex items-center gap-1 ml-auto">
-                    {task.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground mt-2">
-                  {task.project}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 }

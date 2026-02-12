@@ -12,6 +12,8 @@ import {
   MessageSquare,
   Paperclip,
   Plus,
+  Eye,
+  Download,
   Trash2,
   Copy,
   Pause,
@@ -531,14 +533,16 @@ export default function ProjectDetail() {
           {projectDocs.length > 0 && (
             <div className="space-y-2">
               {projectDocs.map((file: any) => {
-                const FileIcon = getFileIcon(file.mimeType || '');
+                const DocFileIcon = getFileIcon(file.mimeType || '');
+                const isImage = (file.mimeType || '').startsWith('image/');
+                const isPdf = file.mimeType === 'application/pdf';
                 return (
                   <div
                     key={file.id}
                     className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card group"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <FileIcon className="h-5 w-5 text-muted-foreground" />
+                      <DocFileIcon className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{file.name}</p>
@@ -546,14 +550,30 @@ export default function ProjectDetail() {
                         {formatFileSize(file.fileSize || 0)} · {file.createdAt ? new Date(file.createdAt).toLocaleDateString('de-CH') : ''}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeFile(file.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {file.fileUrl && (isImage || isPdf) && (
+                        <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" title="Vorschau">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </a>
+                      )}
+                      {file.fileUrl && (
+                        <a href={file.fileUrl} download={file.name} title="Herunterladen">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </a>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removeFile(file.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
