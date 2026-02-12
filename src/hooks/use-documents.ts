@@ -288,3 +288,15 @@ export function useDocumentStats() {
     },
   });
 }
+
+// Share document
+export function useShareDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { emails?: string[]; expiresInDays?: number } }) =>
+      api.post<{ shareUrl: string; token: string }>(`/documents/${id}/share`, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['dms-documents', id] });
+    },
+  });
+}

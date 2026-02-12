@@ -172,3 +172,14 @@ export function useContractStats() {
     },
   });
 }
+
+// Duplicate contract
+export function useDuplicateContract() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<Contract>(`/contracts/${id}/duplicate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+    },
+  });
+}

@@ -151,6 +151,64 @@ export function useConvertQuoteToOrder() {
   });
 }
 
+// Delete quote
+export function useDeleteQuote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/quotes/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quotes'] }),
+  });
+}
+
+// Send quote
+export function useSendQuote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<Quote>(`/quotes/${id}/send`),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['quotes', id] });
+    },
+  });
+}
+
+// Quote statistics
+export function useQuoteStats() {
+  return useQuery({
+    queryKey: ['quotes', 'stats'],
+    queryFn: () => api.get<{ total: number; draft: number; sent: number; confirmed: number; rejected: number }>('/quotes/stats'),
+  });
+}
+
+// Delete order
+export function useDeleteOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/orders/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
+  });
+}
+
+// Order statistics
+export function useOrderStats() {
+  return useQuery({
+    queryKey: ['orders', 'stats'],
+    queryFn: () => api.get<{ total: number; draft: number; sent: number; confirmed: number; cancelled: number; totalValue: number }>('/orders/stats'),
+  });
+}
+
+// Create delivery note from order
+export function useCreateDeliveryNoteFromOrderAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.post(`/orders/${orderId}/create-delivery-note`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['delivery-notes'] });
+    },
+  });
+}
+
 // Fetch orders
 export function useOrders(params: { status?: string; customerId?: string; search?: string } = {}) {
   const searchParams = new URLSearchParams();

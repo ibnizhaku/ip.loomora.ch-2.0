@@ -164,3 +164,23 @@ export function useIncomeStatement(params: { startDate?: string; endDate?: strin
     queryFn: () => api.get<IncomeStatement>(`/finance/income-statement?${searchParams.toString()}`),
   });
 }
+
+// Monthly summary (12 months income/expense)
+interface MonthlySummary {
+  month: string;
+  income: number;
+  expense: number;
+  profit: number;
+}
+
+export function useFinanceMonthlySummary(params?: { year?: number }) {
+  return useQuery({
+    queryKey: ['finance', 'monthly-summary', params],
+    queryFn: () => {
+      const searchParams = new URLSearchParams();
+      if (params?.year) searchParams.set('year', String(params.year));
+      const query = searchParams.toString();
+      return api.get<MonthlySummary[]>(`/finance/monthly-summary${query ? `?${query}` : ''}`);
+    },
+  });
+}
