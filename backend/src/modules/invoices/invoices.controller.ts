@@ -120,7 +120,7 @@ export class InvoicesController {
     const emailSent = await this.emailService.sendInvoice(invoice, pdfBuffer);
     
     // Mark as sent
-    await this.invoicesService.sendInvoice(id, user.companyId);
+    await this.invoicesService.sendInvoice(id, user.companyId, user.userId);
     
     return {
       success: true,

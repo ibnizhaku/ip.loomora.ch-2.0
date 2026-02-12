@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProjectDto, UpdateProjectDto, ProjectQueryDto } from './dto/project.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/dto/notification.dto';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findAll(companyId: string, query: ProjectQueryDto) {
     const { page = 1, pageSize = 10, search, sortBy = 'createdAt', sortOrder = 'desc', status, priority } = query;
@@ -285,9 +291,9 @@ export class ProjectsService {
   // Project Members
   async addMember(projectId: string, companyId: string, dto: { employeeId: string; role?: string }) {
     // Verify project belongs to company
-    await this.findById(projectId, companyId);
+    const project = await this.findById(projectId, companyId);
 
-    return this.prisma.projectMember.create({
+    const member = await this.prisma.projectMember.create({
       data: {
         projectId,
         employeeId: dto.employeeId,
@@ -299,6 +305,27 @@ export class ProjectsService {
         },
       },
     });
+
+    // Send notification if employee has a user account
+    const employeeUser = await this.prisma.user.findFirst({
+      where: { employeeId: dto.employeeId, companyId },
+      select: { id: true },
+    });
+
+    if (employeeUser) {
+      await this.notificationsService.create(companyId, {
+        title: 'Projektteam',
+        message: `Sie wurden dem Projekt "${project.name}" hinzugefügt`,
+        type: NotificationType.INFO,
+        category: 'project',
+        actionUrl: `/projects/${projectId}`,
+        userId: employeeUser.id,
+        sourceType: 'project',
+        sourceId: projectId,
+      });
+    }
+
+    return member;
   }
 
   async removeMember(projectId: string, companyId: string, memberId: string) {

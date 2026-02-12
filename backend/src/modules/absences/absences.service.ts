@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAbsenceDto, UpdateAbsenceDto, AbsenceQueryDto } from './dto/absence.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/dto/notification.dto';
 
 @Injectable()
 export class AbsencesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findAll(companyId: string, query: AbsenceQueryDto) {
     const { page = 1, pageSize = 10, search, sortBy = 'startDate', sortOrder = 'desc', status, type, employeeId } = query;
@@ -80,13 +86,18 @@ export class AbsencesService {
   async update(id: string, dto: UpdateAbsenceDto) {
     const absence = await this.prisma.absence.findUnique({
       where: { id },
+      include: {
+        employee: {
+          select: { id: true, firstName: true, lastName: true, companyId: true, user: { select: { id: true } } },
+        },
+      },
     });
 
     if (!absence) {
       throw new NotFoundException('Absence not found');
     }
 
-    return this.prisma.absence.update({
+    const updated = await this.prisma.absence.update({
       where: { id },
       data: {
         type: dto.type,
@@ -99,6 +110,35 @@ export class AbsencesService {
         approvedAt: dto.status === 'APPROVED' ? new Date() : undefined,
       },
     });
+
+    // Send notification if status changed to APPROVED or REJECTED
+    if (dto.status && absence.status !== dto.status && absence.employee?.user?.id) {
+      if (dto.status === 'APPROVED') {
+        await this.notificationsService.create(absence.employee.companyId, {
+          title: 'Abwesenheit genehmigt',
+          message: `Ihr Urlaubsantrag vom ${absence.startDate.toLocaleDateString('de-CH')} wurde genehmigt`,
+          type: NotificationType.SUCCESS,
+          category: 'hr',
+          actionUrl: `/absences/${id}`,
+          userId: absence.employee.user.id,
+          sourceType: 'absence',
+          sourceId: id,
+        });
+      } else if (dto.status === 'REJECTED') {
+        await this.notificationsService.create(absence.employee.companyId, {
+          title: 'Abwesenheit abgelehnt',
+          message: `Ihr Urlaubsantrag vom ${absence.startDate.toLocaleDateString('de-CH')} wurde abgelehnt`,
+          type: NotificationType.WARNING,
+          category: 'hr',
+          actionUrl: `/absences/${id}`,
+          userId: absence.employee.user.id,
+          sourceType: 'absence',
+          sourceId: id,
+        });
+      }
+    }
+
+    return updated;
   }
 
   async delete(id: string) {

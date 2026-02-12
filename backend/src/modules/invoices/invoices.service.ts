@@ -1,15 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceDto, UpdateInvoiceDto, RecordPaymentDto } from './dto/invoice.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { InvoiceStatus, PaymentStatus, PaymentType } from '@prisma/client';
 import { mapInvoiceResponse } from '../../common/mappers/response.mapper';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/dto/notification.dto';
 
 @Injectable()
 export class InvoicesService {
   private readonly VAT_RATE = 0.081;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findAll(companyId: string, query: PaginationDto & { status?: string; customerId?: string; overdue?: string }) {
     const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId, overdue } = query;
@@ -326,9 +332,10 @@ export class InvoicesService {
     });
   }
 
-  async sendInvoice(id: string, companyId: string) {
+  async sendInvoice(id: string, companyId: string, userId: string) {
     const invoice = await this.prisma.invoice.findFirst({
       where: { id, companyId },
+      include: { customer: { select: { name: true } } },
     });
 
     if (!invoice) {
@@ -339,10 +346,26 @@ export class InvoicesService {
       throw new BadRequestException('Only draft invoices can be sent');
     }
 
-    return this.prisma.invoice.update({
+    const updated = await this.prisma.invoice.update({
       where: { id },
       data: { status: InvoiceStatus.SENT },
     });
+
+    // Send notification to invoice creator
+    if (invoice.createdById && invoice.createdById !== userId) {
+      await this.notificationsService.create(companyId, {
+        title: 'Rechnung versendet',
+        message: `Rechnung ${invoice.number} an ${invoice.customer?.name || 'Kunde'} wurde versendet`,
+        type: NotificationType.SUCCESS,
+        category: 'invoice',
+        actionUrl: `/invoices/${id}`,
+        userId: invoice.createdById,
+        sourceType: 'invoice',
+        sourceId: id,
+      });
+    }
+
+    return updated;
   }
 
   async cancelInvoice(id: string, companyId: string) {

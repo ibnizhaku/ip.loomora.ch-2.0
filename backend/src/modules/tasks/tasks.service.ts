@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto, UpdateTaskDto, TaskQueryDto } from './dto/task.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/dto/notification.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findAll(companyId: string, query: TaskQueryDto) {
     const { page = 1, pageSize = 10, search, sortBy = 'createdAt', sortOrder = 'desc', status, priority, projectId, assigneeId } = query;
@@ -128,6 +134,20 @@ export class TasksService {
         tags: true,
       },
     });
+
+    // Send notification if task is assigned
+    if (dto.assigneeId && dto.assigneeId !== userId) {
+      await this.notificationsService.create(companyId, {
+        title: 'Neue Aufgabe zugewiesen',
+        message: `Ihnen wurde die Aufgabe "${task.title}" zugewiesen`,
+        type: NotificationType.INFO,
+        category: 'task',
+        actionUrl: `/tasks/${task.id}`,
+        userId: dto.assigneeId,
+        sourceType: 'task',
+        sourceId: task.id,
+      });
+    }
 
     return task;
   }
