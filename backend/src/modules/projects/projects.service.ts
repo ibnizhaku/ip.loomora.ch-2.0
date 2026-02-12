@@ -282,6 +282,32 @@ export class ProjectsService {
     return project;
   }
 
+  // Project Members
+  async addMember(projectId: string, companyId: string, dto: { employeeId: string; role?: string }) {
+    // Verify project belongs to company
+    await this.findById(projectId, companyId);
+
+    return this.prisma.projectMember.create({
+      data: {
+        projectId,
+        employeeId: dto.employeeId,
+        role: dto.role || 'MEMBER',
+      },
+      include: {
+        employee: {
+          select: { id: true, firstName: true, lastName: true, position: true },
+        },
+      },
+    });
+  }
+
+  async removeMember(projectId: string, companyId: string, memberId: string) {
+    // Verify project belongs to company
+    await this.findById(projectId, companyId);
+
+    return this.prisma.projectMember.delete({ where: { id: memberId } });
+  }
+
   // Statistics for dashboard
   async getStats(companyId: string) {
     const [total, active, completed, paused] = await Promise.all([

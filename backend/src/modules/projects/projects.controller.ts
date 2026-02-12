@@ -70,4 +70,24 @@ export class ProjectsController {
   delete(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.projectsService.delete(id, user.companyId);
   }
+
+  @Post(':id/members')
+  @ApiOperation({ summary: 'Add member to project' })
+  addMember(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body() dto: { employeeId: string; role?: string },
+  ) {
+    return this.projectsService.addMember(id, user.companyId, dto);
+  }
+
+  @Delete(':id/members/:memberId')
+  @ApiOperation({ summary: 'Remove member from project' })
+  removeMember(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.projectsService.removeMember(id, user.companyId, memberId);
+  }
 }
