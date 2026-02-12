@@ -205,6 +205,20 @@ export class ProjectsService {
       },
     });
 
+    // Notification an neuen Projektleiter
+    if (managerUserId && managerUserId !== userId) {
+      await this.notificationsService.create(companyId, {
+        title: 'Projektleitung zugewiesen',
+        message: `Sie wurden als Projektleiter für "${project.name}" (${number}) eingesetzt`,
+        type: NotificationType.INFO,
+        category: 'project',
+        actionUrl: `/projects/${project.id}`,
+        userId: managerUserId,
+        sourceType: 'project',
+        sourceId: project.id,
+      });
+    }
+
     return project;
   }
 
@@ -227,7 +241,7 @@ export class ProjectsService {
       }
     }
 
-    return this.prisma.project.update({
+    const updated = await this.prisma.project.update({
       where: { id },
       data: {
         name: dto.name,
@@ -242,6 +256,22 @@ export class ProjectsService {
         managerId: dto.managerId,
       },
     });
+
+    // Notification an neuen Projektleiter (nur wenn geändert)
+    if (dto.managerId && dto.managerId !== project.managerId) {
+      await this.notificationsService.create(companyId, {
+        title: 'Projektleitung zugewiesen',
+        message: `Sie wurden als Projektleiter für "${project.name}" eingesetzt`,
+        type: NotificationType.INFO,
+        category: 'project',
+        actionUrl: `/projects/${id}`,
+        userId: dto.managerId,
+        sourceType: 'project',
+        sourceId: id,
+      });
+    }
+
+    return updated;
   }
 
   async delete(id: string, companyId: string) {
