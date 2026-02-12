@@ -344,24 +344,153 @@
 | 14 | **Products** | `margin` + `availableStock` computed Fields fehlen im Backend | 🟡 MITTEL | Backend berechnen |
 | 15 | **Products** | `lowStock` in Stats — prüfen ob Backend es liefert | 🟡 MITTEL | Backend prüfen |
 | 16 | **Suppliers** | `avgRating` ist hardcoded `0` | 🟢 NIEDRIG | Später implementieren |
-| 17 | **Pagination** | `totalPages` in Frontend-Types, Backend evtl. nicht | 🟡 MITTEL | `createPaginatedResponse` prüfen |
+| 17 | **Pagination** | `totalPages` in Frontend-Types, Backend `PaginatedResponseDto` hat es ✅ | ✅ OK | Gelöst |
+| 18 | **Time Entries** | Stats-Feldnamen: Frontend `todayHours/weekHours/monthHours`, Backend `today/week/month` (in Minuten!) | 🔴 KRITISCH | Feldnamen + Einheit angleichen |
+| 19 | **Time Entries** | Frontend erwartet `billableHours` + `projectBreakdown[]`, Backend liefert `weekBreakdown[]` | 🔴 KRITISCH | Backend erweitern |
+| 20 | **Time Entries** | Frontend hat `useApprovalStats()` → `GET /time-entries/approval-stats`, Backend hat diesen Endpunkt evtl. nicht | ⚠️ PRÜFEN | Controller prüfen |
+| 21 | **Delivery Notes** | Frontend Status hat `CANCELLED`, Backend prüfen ob Status existiert | ⚠️ PRÜFEN | Prisma Enum prüfen |
+| 22 | **Credit Notes** | Frontend Status `ISSUED/APPLIED`, Backend prüfen ob diese Status existieren | ⚠️ PRÜFEN | Prisma Enum prüfen |
+| 23 | **Reminders** | Frontend `totalAmount` als Feld, Backend prüfen ob berechnet | ⚠️ PRÜFEN | Service prüfen |
+| 24 | **Marketing** | `useMarketingStats()` ruft 2 Endpunkte parallel auf: `/campaigns/stats` + `/leads/stats` — beide müssen existieren | ⚠️ PRÜFEN | Controller prüfen |
+| 25 | **E-Commerce** | `useEcommerceStats()` ruft 2 Endpunkte parallel: `/ecommerce/orders/stats` + `/ecommerce/reviews/stats` | ⚠️ PRÜFEN | Controller prüfen |
+
+---
+
+## 📊 ZUSÄTZLICHE MODUL-DETAILS
+
+### ⏱ MODUL: Zeiterfassung (Time Entries) ⚠️ KRITISCH
+
+#### Stats-Vergleich
+
+| Feld | Frontend erwartet (`TimeEntryStats`) | Backend liefert (`getStats`) | Status |
+|------|--------------------------------------|------------------------------|--------|
+| `todayHours` | ✅ Stunden (float) | ❌ `today` in **Minuten** (int) | ⚠️ **MISMATCH** — Einheit + Name |
+| `weekHours` | ✅ Stunden | ❌ `week` in Minuten | ⚠️ **MISMATCH** |
+| `monthHours` | ✅ Stunden | ❌ `month` in Minuten | ⚠️ **MISMATCH** |
+| `billableHours` | ✅ erwartet | ❌ nicht berechnet | ⚠️ **MISMATCH** — fehlt |
+| `projectBreakdown[]` | ✅ `{ projectId, projectName, hours }` | ❌ Backend liefert `weekBreakdown[]` `{ date, dayName, minutes, hours }` | ⚠️ **MISMATCH** — komplett anderes Format |
+
+### 📝 MODUL: Verträge (Contracts) ✅
+
+#### Stats-Vergleich
+
+| Feld | Frontend erwartet | Backend liefert | Status |
+|------|------------------|-----------------|--------|
+| `totalContracts` | ✅ | ✅ | ✅ OK |
+| `activeContracts` | ✅ | ✅ | ✅ OK |
+| `expiringThisMonth` | ✅ | ✅ | ✅ OK |
+| `totalValue` | ✅ | ✅ | ✅ OK |
+| `monthlyRecurring` | ✅ | ✅ | ✅ OK |
+
+### 📝 MODUL: Gutschriften (Credit Notes)
+
+#### Endpunkte
+
+| Frontend Hook | Pfad | Status |
+|--------------|------|--------|
+| `useCreditNotes()` | `GET /credit-notes` | ✅ |
+| `useCreditNote(id)` | `GET /credit-notes/:id` | ✅ |
+| `useCreateCreditNote()` | `POST /credit-notes` | ✅ |
+| `useCreateCreditNoteFromInvoice()` | `POST /credit-notes/from-invoice/:invoiceId?reason=...` | ⚠️ PRÜFEN — Query-Param `reason` vs. Body |
+| `useUpdateCreditNote()` | `PUT /credit-notes/:id` | ✅ |
+| `useDeleteCreditNote()` | `DELETE /credit-notes/:id` | ✅ |
+| ❌ Kein Stats-Hook | — | ⚠️ Falls Dashboard CreditNote-Stats braucht |
+
+### 📬 MODUL: Mahnungen (Reminders)
+
+#### Endpunkte
+
+| Frontend Hook | Pfad | Backend | Status |
+|--------------|------|---------|--------|
+| `useReminders()` | `GET /reminders` | ✅ | ✅ |
+| `useReminder(id)` | `GET /reminders/:id` | ✅ | ✅ |
+| `useReminderStatistics()` | `GET /reminders/statistics` | ⚠️ PRÜFEN | Controller hat evtl. `/stats` statt `/statistics` |
+| `useOverdueInvoices()` | `GET /reminders/overdue-invoices` | ⚠️ PRÜFEN | Muss als separate Route existieren |
+| `useCreateReminder()` | `POST /reminders` | ✅ | ✅ |
+| `useCreateBatchReminders()` | `POST /reminders/batch` | ⚠️ PRÜFEN | Muss als Route existieren |
+| `useSendReminder()` | `POST /reminders/:id/send` + Body `{ method, recipientEmail }` | ⚠️ PRÜFEN | Body-Format muss matchen |
+
+### 🛒 MODUL: Einkaufsbestellungen (Purchase Orders)
+
+#### Endpunkte — PRÜFEN
+
+| Frontend Hook | Pfad | Status |
+|--------------|------|--------|
+| `usePurchaseOrderStatistics()` | `GET /purchase-orders/statistics` | ⚠️ PRÜFEN — Backend evtl. `/stats` |
+
+### 🧾 MODUL: Einkaufsrechnungen (Purchase Invoices)
+
+#### Endpunkte — PRÜFEN
+
+| Frontend Hook | Pfad | Status |
+|--------------|------|--------|
+| `usePurchaseInvoiceStatistics()` | `GET /purchase-invoices/statistics` | ⚠️ PRÜFEN — Backend evtl. `/stats` |
+| `useExtractOcrData()` | `POST /purchase-invoices/extract-ocr` | ⚠️ PRÜFEN — OCR-Service implementiert? |
+
+### 🔧 MODUL: Service-Tickets
+
+#### Endpunkte — PRÜFEN
+
+| Frontend Hook | Pfad | Status |
+|--------------|------|--------|
+| `useServiceStatistics()` | `GET /service-tickets/statistics` | ⚠️ PRÜFEN — Backend evtl. `/stats` |
+| `useUpcomingMaintenance()` | `GET /service-tickets/upcoming-maintenance` | ⚠️ PRÜFEN |
+| `useTechnicianAvailability()` | `GET /service-tickets/technician-availability/:id` | ⚠️ PRÜFEN |
+
+### 🎯 MODUL: Marketing
+
+#### Endpunkte — PRÜFEN
+
+| Frontend Hook | Pfad | Status |
+|--------------|------|--------|
+| `useMarketingStats()` | `GET /marketing/campaigns/stats` + `GET /marketing/leads/stats` | ⚠️ PRÜFEN — 2 separate Endpunkte nötig |
+| `useConvertLead()` | `POST /marketing/leads/convert` | ⚠️ PRÜFEN |
+| `useSendEmailCampaign()` | `POST /marketing/email-campaigns/:id/send` | ⚠️ PRÜFEN |
+
+### 🛍 MODUL: E-Commerce
+
+#### Endpunkte — PRÜFEN
+
+| Frontend Hook | Pfad | Status |
+|--------------|------|--------|
+| `useEcommerceStats()` | `GET /ecommerce/orders/stats` + `GET /ecommerce/reviews/stats` | ⚠️ PRÜFEN — 2 Endpunkte |
+| `useValidateDiscountCode()` | `POST /ecommerce/discounts/validate` | ⚠️ PRÜFEN |
+| `useCancelShopOrder()` | `POST /ecommerce/orders/:id/cancel` | ⚠️ PRÜFEN |
 
 ---
 
 ## 📌 PRIORITÄTS-REIHENFOLGE FÜR FIXES
 
-### Sofort (🔴 KRITISCH)
-1. Tasks Status-Enum synchronisieren
-2. Tasks Stats `overdue` hinzufügen
-3. Tasks Sub-Resource Hooks im Frontend erstellen
-4. Employee Stats Feldnamen angleichen
-5. Quote Stats `total` = Anzahl (nicht CHF)
+### Sofort (🔴 KRITISCH) — 7 Probleme
+1. Tasks Status-Enum synchronisieren (`CANCELLED` vs `REVIEW`)
+2. Tasks Stats `overdue` hinzufügen, `review` entfernen
+3. Tasks Sub-Resource Hooks im Frontend erstellen (10 Hooks)
+4. Employee Stats Feldnamen angleichen (`totalEmployees` → `total`)
+5. Employee Stats `newThisMonth` + `departmentBreakdown[]` im Backend
+6. Quote Stats `total` = Anzahl statt CHF-Summe
+7. Time Entry Stats: Feldnamen + Einheit (Minuten→Stunden) + fehlende Felder
 
-### Bald (🟡 MITTEL)
-6. Invoice-Hooks konsolidieren
-7. Task Interface für Subtask-Typ korrigieren
-8. Pagination `totalPages` sicherstellen
-9. Product computed fields
+### Bald (🟡 MITTEL) — 6 Probleme
+8. Invoice-Hooks konsolidieren (`use-invoices.ts` + `use-sales.ts`)
+9. Task Interface für Subtask-Typ korrigieren
+10. Invoice Item-Interface vereinheitlichen
+11. Product computed fields (`margin`, `availableStock`)
+12. Quotes `rejected` vs `CANCELLED` Status-Mapping
+13. Tasks `estimatedHours` + `completedAt` synchronisieren
 
-### Später (🟢 NIEDRIG)
-10. Supplier Rating implementieren
+### Prüfen (⚠️) — 12 Punkte
+14. Reminders: `/statistics` vs `/stats` Pfad-Konvention
+15. Purchase Orders: `/statistics` vs `/stats`
+16. Purchase Invoices: `/statistics` vs `/stats` + OCR-Service
+17. Service-Tickets: `/statistics` + Maintenance + Technician-Availability
+18. Marketing: 2 separate Stats-Endpunkte + Lead-Conversion + Email-Send
+19. E-Commerce: 2 Stats-Endpunkte + Discount-Validate + Order-Cancel
+20. Delivery Notes: `CANCELLED` Status im Prisma-Enum
+21. Credit Notes: `ISSUED`/`APPLIED` Status im Prisma-Enum
+22. Credit Note: `reason` als Query-Param vs Body
+23. Time Entries: `approval-stats` Endpunkt existiert?
+24. Reminders: `overdue-invoices` + `batch` Routen
+25. Reminders: `send` Body-Format prüfen
+
+### Später (🟢 NIEDRIG) — 1 Problem
+26. Supplier `avgRating` implementieren
