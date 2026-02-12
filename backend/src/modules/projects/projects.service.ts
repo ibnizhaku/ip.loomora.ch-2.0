@@ -124,6 +124,42 @@ export class ProjectsService {
 
     const number = `PRJ-${new Date().getFullYear()}-${String(company.projectCounter).padStart(4, '0')}`;
 
+    // Map Employee-ID to User-ID if managerId is provided (Frontend sends Employee-ID)
+    let managerUserId = dto.managerId || null;
+    if (dto.managerId) {
+      // Try Employee-ID first (Frontend sends this)
+      const managerUser = await this.prisma.user.findFirst({
+        where: { 
+          employeeId: dto.managerId,
+          OR: [
+            { memberships: { some: { companyId } } },
+            { companyId }
+          ]
+        },
+        select: { id: true },
+      });
+      if (managerUser) {
+        managerUserId = managerUser.id;
+      } else {
+        // Fallback: Check if it's already a User-ID
+        const directUser = await this.prisma.user.findFirst({
+          where: { 
+            id: dto.managerId,
+            OR: [
+              { memberships: { some: { companyId } } },
+              { companyId }
+            ]
+          },
+          select: { id: true },
+        });
+        if (directUser) {
+          managerUserId = directUser.id;
+        } else {
+          throw new NotFoundException('Projektleiter nicht gefunden oder nicht Mitglied dieser Company');
+        }
+      }
+    }
+
     const project = await this.prisma.project.create({
       data: {
         number,
@@ -137,7 +173,7 @@ export class ProjectsService {
         budget: dto.budget,
         hourlyRate: dto.hourlyRate,
         createdById: userId,
-        managerId: dto.managerId,
+        managerId: managerUserId,
         companyId,
         members: dto.members
           ? {
