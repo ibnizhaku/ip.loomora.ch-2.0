@@ -257,7 +257,7 @@ export default function DiscountDetail() {
                   {discountData.recentUsage.map((usage, index) => (
                     <TableRow key={index}>
                       <TableCell>{new Date(usage.date).toLocaleDateString("de-CH")}</TableCell>
-                      <TableCell>{typeof usage.customer === 'object' ? usage.customer?.name || usage.customer?.companyName : usage.customer}</TableCell>
+                      <TableCell>{typeof usage.customer === 'object' ? (usage.customer as any)?.name || (usage.customer as any)?.companyName : usage.customer}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{usage.order}</Badge>
                       </TableCell>

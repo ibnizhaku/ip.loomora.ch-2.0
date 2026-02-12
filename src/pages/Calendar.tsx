@@ -543,11 +543,11 @@ export default function Calendar() {
                             <div className="flex -space-x-2">
                               {event.attendees.slice(0, 4).map((attendee) => (
                                 <Avatar
-                                  key={typeof attendee === 'object' ? attendee?.id || attendee?.name : attendee}
+                                key={typeof attendee === 'object' ? (attendee as any)?.id || (attendee as any)?.name : attendee}
                                   className="h-7 w-7 ring-2 ring-card"
                                 >
                                   <AvatarFallback className="text-xs bg-secondary">
-                                    {typeof attendee === 'object' ? (attendee?.name?.[0] || attendee?.email?.[0] || '?') : (attendee?.[0] || '?')}
+                                    {typeof attendee === 'object' ? ((attendee as any)?.name?.[0] || (attendee as any)?.email?.[0] || '?') : ((attendee as string)?.[0] || '?')}
                                   </AvatarFallback>
                                 </Avatar>
                               ))}

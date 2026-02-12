@@ -389,7 +389,7 @@ export default function Creditors() {
                 {openBills.map((bill) => (
                   <TableRow key={bill.id}>
                     <TableCell className="font-mono text-sm">{bill.id}</TableCell>
-                    <TableCell className="font-medium">{typeof bill.creditor === 'object' ? bill.creditor?.name || bill.creditor?.companyName : bill.creditor}</TableCell>
+                    <TableCell className="font-medium">{typeof bill.creditor === 'object' ? (bill.creditor as any)?.name || (bill.creditor as any)?.companyName : bill.creditor}</TableCell>
                     <TableCell className="text-right font-medium">
                       CHF {bill.amount.toLocaleString("de-CH")}
                     </TableCell>

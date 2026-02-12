@@ -409,7 +409,7 @@ export default function Debtors() {
                 {openInvoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-mono text-sm">{invoice.id}</TableCell>
-                    <TableCell className="font-medium">{typeof invoice.debtor === 'object' ? invoice.debtor?.name || invoice.debtor?.companyName : invoice.debtor}</TableCell>
+                    <TableCell className="font-medium">{typeof invoice.debtor === 'object' ? (invoice.debtor as any)?.name || (invoice.debtor as any)?.companyName : invoice.debtor}</TableCell>
                     <TableCell className="text-right font-medium">
                       CHF {invoice.amount.toLocaleString("de-CH")}
                     </TableCell>

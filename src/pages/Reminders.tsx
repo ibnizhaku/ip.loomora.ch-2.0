@@ -558,7 +558,7 @@ const Reminders = () => {
                           {invoice.id}
                         </Link>
                       </TableCell>
-                      <TableCell>{typeof invoice.customer === 'object' ? invoice.customer?.name || invoice.customer?.companyName : invoice.customer}</TableCell>
+                      <TableCell>{typeof invoice.customer === 'object' ? (invoice.customer as any)?.name || (invoice.customer as any)?.companyName : invoice.customer}</TableCell>
                       <TableCell>{invoice.dueDate}</TableCell>
                       <TableCell>
                         <Badge className="bg-destructive/10 text-destructive">
@@ -650,8 +650,8 @@ const Reminders = () => {
                       const nextLevel = levelConfig[Math.min(r.level + 1, 5)] || levelConfig[1];
                       return (
                         <TableRow key={r.id}>
-                          <TableCell className="font-medium">{typeof r.customer === 'object' ? r.customer?.name || r.customer?.companyName : (r.customer || "")}</TableCell>
-                          <TableCell>{typeof r.invoice === 'object' ? r.invoice?.number || r.invoice?.id : (r.invoice || "")}</TableCell>
+                          <TableCell className="font-medium">{typeof r.customer === 'object' ? (r.customer as any)?.name || (r.customer as any)?.companyName : (r.customer || "")}</TableCell>
+                          <TableCell>{typeof r.invoice === 'object' ? (r.invoice as any)?.number || (r.invoice as any)?.id : (r.invoice || "")}</TableCell>
                           <TableCell>
                             <Badge className={currentLevel.color}>
                               {currentLevel.label}
@@ -751,7 +751,7 @@ const Reminders = () => {
                   <div className="space-y-1">
                     {selectedReminderData.map((r) => (
                       <div key={r.id} className="text-sm flex justify-between">
-                        <span>{typeof r.customer === 'object' ? r.customer?.name || r.customer?.companyName : r.customer}</span>
+                        <span>{typeof r.customer === 'object' ? (r.customer as any)?.name || (r.customer as any)?.companyName : r.customer}</span>
                         <span className="text-muted-foreground">{r.customerEmail}</span>
                       </div>
                     ))}
@@ -776,7 +776,7 @@ const Reminders = () => {
                     CHE-123.456.789 MWST
                   </div>
                   <div className="mt-8">
-                    <strong>{typeof selectedReminderData[0]?.customer === 'object' ? selectedReminderData[0]?.customer?.name || selectedReminderData[0]?.customer?.companyName : selectedReminderData[0]?.customer}</strong><br />
+                    <strong>{typeof selectedReminderData[0]?.customer === 'object' ? (selectedReminderData[0]?.customer as any)?.name || (selectedReminderData[0]?.customer as any)?.companyName : selectedReminderData[0]?.customer}</strong><br />
                     z.Hd. Buchhaltung<br />
                     Kundenstrasse 10<br />
                     8000 Zürich
@@ -806,7 +806,7 @@ const Reminders = () => {
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="py-2">{typeof selectedReminderData[0]?.invoice === 'object' ? selectedReminderData[0]?.invoice?.number || selectedReminderData[0]?.invoice?.id : selectedReminderData[0]?.invoice}</td>
+                        <td className="py-2">{typeof selectedReminderData[0]?.invoice === 'object' ? (selectedReminderData[0]?.invoice as any)?.number || (selectedReminderData[0]?.invoice as any)?.id : selectedReminderData[0]?.invoice}</td>
                         <td className="py-2">{selectedReminderData[0]?.dueDate}</td>
                         <td className="text-right py-2">{formatCHF(selectedReminderData[0]?.amount || 0)}</td>
                       </tr>
@@ -1012,7 +1012,7 @@ const Reminders = () => {
                 >
                   <div>
                     <p className="font-medium">{invoice.id}</p>
-                    <p className="text-sm text-muted-foreground">{typeof invoice.customer === 'object' ? invoice.customer?.name || invoice.customer?.companyName : invoice.customer}</p>
+                    <p className="text-sm text-muted-foreground">{typeof invoice.customer === 'object' ? (invoice.customer as any)?.name || (invoice.customer as any)?.companyName : invoice.customer}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{formatCHF(invoice.amount)}</p>
