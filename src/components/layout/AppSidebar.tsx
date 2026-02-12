@@ -271,6 +271,12 @@ const hrItems: NavItem[] = [
     icon: GraduationCap,
   },
   {
+    title: "Abteilungen",
+    url: "/departments",
+    icon: Building2,
+    keywords: ["department", "abteilung", "team"],
+  },
+  {
     title: "Organigramm",
     url: "/orgchart",
     icon: Network,
