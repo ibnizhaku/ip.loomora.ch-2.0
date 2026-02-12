@@ -70,64 +70,7 @@ interface OnboardingItem {
 }
 
 
-const employeeData = {
-  id: "MA-001",
-  firstName: "Anna",
-  lastName: "Schmidt",
-  position: "Senior Entwicklerin",
-  department: "Entwicklung",
-  status: "Aktiv",
-  email: "anna.schmidt@loomora.de",
-  phone: "+49 170 1234567",
-  address: "Musterstraße 15, 10115 Berlin",
-  birthDate: "15.03.1990",
-  startDate: "01.04.2021",
-  manager: "Max Keller",
-  employmentType: "Vollzeit",
-  salary: {
-    gross: 72000,
-    net: 48000
-  },
-  vacation: {
-    total: 30,
-    taken: 12,
-    remaining: 18
-  },
-  workingHours: {
-    weekly: 40,
-    thisMonth: 152,
-    overtime: 8
-  },
-  skills: [
-    { name: "React", level: 95 },
-    { name: "TypeScript", level: 90 },
-    { name: "Node.js", level: 85 },
-    { name: "Python", level: 70 },
-    { name: "AWS", level: 75 },
-  ],
-  certifications: [
-    { name: "AWS Certified Developer", date: "2023" },
-    { name: "Scrum Master", date: "2022" },
-  ],
-  education: [
-    { degree: "M.Sc. Informatik", institution: "TU Berlin", year: "2015" },
-    { degree: "B.Sc. Informatik", institution: "TU Berlin", year: "2013" },
-  ],
-  projects: [
-    { name: "E-Commerce Plattform", role: "Lead Developer", status: "Aktiv" },
-    { name: "Mobile App", role: "Developer", status: "Aktiv" },
-    { name: "CRM System", role: "Developer", status: "Abgeschlossen" },
-  ],
-  documents: [
-    { name: "Arbeitsvertrag.pdf", date: "01.04.2021" },
-    { name: "Gehaltsnachweis_Jan_2024.pdf", date: "31.01.2024" },
-    { name: "Zeugnis_AWS.pdf", date: "15.06.2023" },
-  ],
-  timeOff: [
-    { type: "Urlaub", from: "15.02.2024", to: "22.02.2024", days: 6, status: "Genehmigt" },
-    { type: "Urlaub", from: "24.12.2023", to: "31.12.2023", days: 5, status: "Genommen" },
-  ]
-};
+// employeeData is built from backend data inside the component (mock removed)
 
 const EmployeeDetail = () => {
   const { id } = useParams();
@@ -159,6 +102,38 @@ const EmployeeDetail = () => {
       </div>
     );
   }
+
+  // Map backend data to component format (replaces hardcoded mock)
+  const employeeData = {
+    id: employee.number || employee.id,
+    firstName: employee.firstName || '',
+    lastName: employee.lastName || '',
+    position: employee.position || 'Keine Angabe',
+    department: employee.department?.name || 'Keine Abteilung',
+    status: employee.status === 'ACTIVE' ? 'Aktiv' : employee.status === 'INACTIVE' ? 'Inaktiv' : employee.status || 'Aktiv',
+    email: employee.email || '',
+    phone: employee.phone || employee.mobile || '',
+    address: [employee.street, [employee.zip, employee.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || '',
+    birthDate: employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString('de-CH') : '-',
+    startDate: employee.hireDate ? new Date(employee.hireDate).toLocaleDateString('de-CH') : '-',
+    manager: employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : '-',
+    employmentType: employee.employmentType || 'Vollzeit',
+    salary: { gross: Number(employee.salary) || 0, net: Math.round((Number(employee.salary) || 0) * 0.78) },
+    vacation: { total: employee.vacationDays || 25, taken: employee.vacationTaken || 0, remaining: (employee.vacationDays || 25) - (employee.vacationTaken || 0) },
+    workingHours: { weekly: employee.workloadPercent ? Math.round(employee.workloadPercent * 0.42) : 42, thisMonth: 0, overtime: 0 },
+    skills: employee.skills || [],
+    certifications: employee.certifications || [],
+    education: employee.education || [],
+    projects: employee.projects || [],
+    documents: employee.documents || [],
+    timeOff: employee.absences?.map((a: any) => ({
+      type: a.type || 'Urlaub',
+      from: a.startDate ? new Date(a.startDate).toLocaleDateString('de-CH') : '',
+      to: a.endDate ? new Date(a.endDate).toLocaleDateString('de-CH') : '',
+      days: a.days || 0,
+      status: a.status || 'Genehmigt',
+    })) || [],
+  };
 
   // Calculate onboarding progress
   const completedCount = onboardingItems.filter(item => item.completed).length;
