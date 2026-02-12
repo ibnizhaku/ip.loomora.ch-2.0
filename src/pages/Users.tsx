@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useUsers, useDeleteUser, type User } from "@/hooks/use-users";
 import {
   Plus,
   Search,
@@ -60,16 +59,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "manager" | "user" | "viewer";
-  status: "active" | "inactive" | "pending";
-  lastLogin: string;
-  twoFactor: boolean;
-  avatar?: string;
-}
 
 
 const roleConfig = {
@@ -87,40 +76,15 @@ const statusConfig = {
 
 export default function Users() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: apiData } = useQuery({ queryKey: ["/users"], queryFn: () => api.get<any>("/users") });
-  const users = (apiData?.data || []).map((raw: any) => ({
-    ...raw,
-    name: raw.name || raw.firstName && raw.lastName ? `${raw.firstName} ${raw.lastName}` : raw.firstName || raw.email || "–",
-    email: raw.email || "–",
-    role: (raw.role || "user").toLowerCase(),
-    status: raw.isActive === false ? "inactive" : (raw.status || "active").toLowerCase(),
-    lastLogin: raw.lastLogin ? new Date(raw.lastLogin).toLocaleDateString("de-CH") : "–",
-    twoFactor: raw.twoFactor || raw.twoFactorEnabled || false,
-  }));
+  const { data: apiData } = useUsers();
+  const deleteMutation = useDeleteUser();
+  const users: User[] = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [twoFactorFilter, setTwoFactorFilter] = useState<boolean | null>(null);
-  const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [filterUserStatus, setFilterUserStatus] = useState<string[]>([]);
   const [filterUserRole, setFilterUserRole] = useState<string[]>([]);
-  const [inviteForm, setInviteForm] = useState({
-    email: "",
-    name: "",
-    role: "user" as User["role"],
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/users/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/users"] });
-      toast.success("Benutzer erfolgreich gelöscht");
-    },
-    onError: () => {
-      toast.error("Fehler beim Löschen");
-    },
-  });
 
   const activeFilters = filterUserStatus.length + filterUserRole.length;
 
@@ -157,18 +121,6 @@ export default function Users() {
     return matchesSearch && matchesStatus && matchesRole && matches2FA && matchesFilterStatus && matchesFilterRole;
   });
 
-  const handleInvite = () => {
-    if (!inviteForm.email || !inviteForm.name) {
-      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
-      return;
-    }
-    
-    toast.success("Einladung gesendet", {
-      description: `${inviteForm.name} (${inviteForm.email}) wurde eingeladen`
-    });
-    setShowInviteDialog(false);
-    setInviteForm({ email: "", name: "", role: "user" });
-  };
 
   const handleRowClick = (userId: string) => {
     navigate(`/users/${userId}`);
@@ -186,9 +138,9 @@ export default function Users() {
             Verwalten Sie Benutzer und Zugriffsrechte
           </p>
         </div>
-        <Button className="gap-2" onClick={() => setShowInviteDialog(true)}>
+        <Button className="gap-2" onClick={() => navigate("/users/new")}>
           <Plus className="h-4 w-4" />
-          Benutzer einladen
+          Benutzer erstellen
         </Button>
       </div>
 
@@ -468,64 +420,6 @@ export default function Users() {
         </Table>
       </div>
 
-      {/* Invite Dialog */}
-      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Benutzer einladen</DialogTitle>
-            <DialogDescription>
-              Senden Sie eine Einladung per E-Mail an einen neuen Benutzer.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="inviteName">Name *</Label>
-              <Input
-                id="inviteName"
-                placeholder="Max Mustermann"
-                value={inviteForm.name}
-                onChange={(e) => setInviteForm(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="inviteEmail">E-Mail *</Label>
-              <Input
-                id="inviteEmail"
-                type="email"
-                placeholder="max@firma.ch"
-                value={inviteForm.email}
-                onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="inviteRole">Rolle</Label>
-              <Select
-                value={inviteForm.role}
-                onValueChange={(value: User["role"]) => setInviteForm(prev => ({ ...prev, role: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="user">Benutzer</SelectItem>
-                  <SelectItem value="viewer">Betrachter</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleInvite}>
-              <Send className="mr-2 h-4 w-4" />
-              Einladung senden
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
