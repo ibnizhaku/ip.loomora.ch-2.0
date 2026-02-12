@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Download, FileText, Image, File, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +32,48 @@ export default function DocumentPreview() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: document, isLoading, error } = useDMSDocument(id);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [blobLoading, setBlobLoading] = useState(false);
+
+  // Fetch file with auth token and create blob URL
+  useEffect(() => {
+    if (!document?.id) return;
+
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    setBlobLoading(true);
+    const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+    fetch(`${API_BASE}/documents/${document.id}/download`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Download fehlgeschlagen');
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      })
+      .catch(() => setBlobUrl(null))
+      .finally(() => setBlobLoading(false));
+
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document?.id]);
+
+  const handleDownload = () => {
+    if (!blobUrl || !document) return;
+    const a = window.document.createElement('a');
+    a.href = blobUrl;
+    a.download = document.name;
+    window.document.body.appendChild(a);
+    a.click();
+    window.document.body.removeChild(a);
+  };
 
   if (isLoading) {
     return (
@@ -88,13 +131,11 @@ export default function DocumentPreview() {
           </div>
         </div>
         <div className="flex gap-2">
-          {document.fileUrl && (
-            <a href={document.fileUrl} download={document.name}>
-              <Button className="gap-2">
-                <Download className="h-4 w-4" />
-                Download
-              </Button>
-            </a>
+          {blobUrl && (
+            <Button className="gap-2" onClick={handleDownload}>
+              <Download className="h-4 w-4" />
+              Download
+            </Button>
           )}
         </div>
       </div>
@@ -102,18 +143,22 @@ export default function DocumentPreview() {
       {/* Preview Area */}
       <Card>
         <CardContent className="p-0">
-          {canPreview && document.fileUrl ? (
+          {blobLoading ? (
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          ) : canPreview && blobUrl ? (
             <div className="w-full min-h-[70vh] bg-muted/30 rounded-lg overflow-hidden">
               {isPdf ? (
                 <iframe
-                  src={document.fileUrl}
+                  src={blobUrl}
                   className="w-full h-[75vh] border-0"
                   title={`Vorschau: ${document.name}`}
                 />
               ) : (
                 <div className="flex items-center justify-center p-8">
                   <img
-                    src={document.fileUrl}
+                    src={blobUrl}
                     alt={document.name}
                     className="max-w-full max-h-[70vh] object-contain rounded-lg"
                   />
@@ -126,15 +171,13 @@ export default function DocumentPreview() {
                 <File className="h-20 w-20 mx-auto text-muted-foreground mb-4" />
                 <p className="text-lg font-medium mb-1">{document.name}</p>
                 <p className="text-muted-foreground mb-6">
-                  Dieser Dateityp kann nicht in der Vorschau angezeigt werden.
+                  {blobUrl ? "Dieser Dateityp kann nicht in der Vorschau angezeigt werden." : "Datei konnte nicht geladen werden."}
                 </p>
-                {document.fileUrl && (
-                  <a href={document.fileUrl} download={document.name}>
-                    <Button className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Datei herunterladen
-                    </Button>
-                  </a>
+                {blobUrl && (
+                  <Button className="gap-2" onClick={handleDownload}>
+                    <Download className="h-4 w-4" />
+                    Datei herunterladen
+                  </Button>
                 )}
               </div>
             </div>
