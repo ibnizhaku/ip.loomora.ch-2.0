@@ -39,24 +39,52 @@ export class DashboardService {
     };
   }
 
-  async getRecentActivity(companyId: string) {
+  async getRecentActivity(companyId: string, options?: { type?: string; limit?: number }) {
+    const limit = Math.min(options?.limit || 5, 50);
+    const type = options?.type;
+
     const [invoices, projects, tasks] = await Promise.all([
-      this.prisma.invoice.findMany({
-        where: { companyId },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: { customer: { select: { name: true } } },
-      }),
-      this.prisma.project.findMany({
-        where: { companyId },
-        orderBy: { updatedAt: 'desc' },
-        take: 5,
-      }),
-      this.prisma.task.findMany({
-        where: { companyId, status: 'DONE' },
-        orderBy: { updatedAt: 'desc' },
-        take: 5,
-      }),
+      !type || type === 'invoice'
+        ? this.prisma.invoice.findMany({
+            where: { companyId },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              createdAt: true,
+              customer: { select: { id: true, name: true } },
+            },
+          })
+        : [],
+      !type || type === 'project'
+        ? this.prisma.project.findMany({
+            where: { companyId },
+            orderBy: { updatedAt: 'desc' },
+            take: limit,
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              updatedAt: true,
+            },
+          })
+        : [],
+      !type || type === 'task'
+        ? this.prisma.task.findMany({
+            where: { companyId, status: 'DONE' },
+            orderBy: { updatedAt: 'desc' },
+            take: limit,
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              updatedAt: true,
+              assignee: { select: { id: true, firstName: true, lastName: true } },
+            },
+          })
+        : [],
     ]);
 
     return { invoices, projects, tasks };
