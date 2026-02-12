@@ -70,6 +70,12 @@ export class ContractsController {
     return this.contractsService.remove(id, user.companyId);
   }
 
+  @Post(':id/duplicate')
+  @ApiOperation({ summary: 'Duplicate contract' })
+  duplicate(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.contractsService.duplicate(id, user.companyId);
+  }
+
   @Post(':id/renew')
   @ApiOperation({ summary: 'Renew contract' })
   renew(

@@ -57,4 +57,45 @@ export class CustomersController {
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.customersService.remove(id, user.companyId);
   }
+
+  // ========================
+  // CUSTOMER CONTACTS
+  // ========================
+
+  @Get(':id/contacts')
+  @ApiOperation({ summary: 'Get contacts for a customer' })
+  getContacts(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.customersService.getContacts(id, user.companyId);
+  }
+
+  @Post(':id/contacts')
+  @ApiOperation({ summary: 'Add a contact to a customer' })
+  addContact(
+    @Param('id') id: string,
+    @Body() dto: { firstName: string; lastName: string; email?: string; phone?: string; position?: string; isPrimary?: boolean },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.customersService.addContact(id, user.companyId, dto);
+  }
+
+  @Put(':id/contacts/:contactId')
+  @ApiOperation({ summary: 'Update a customer contact' })
+  updateContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+    @Body() dto: { firstName?: string; lastName?: string; email?: string; phone?: string; position?: string; isPrimary?: boolean },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.customersService.updateContact(id, contactId, user.companyId, dto);
+  }
+
+  @Delete(':id/contacts/:contactId')
+  @ApiOperation({ summary: 'Remove a customer contact' })
+  removeContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.customersService.removeContact(id, contactId, user.companyId);
+  }
 }

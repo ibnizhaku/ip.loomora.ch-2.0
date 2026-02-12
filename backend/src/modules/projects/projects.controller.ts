@@ -59,6 +59,12 @@ export class ProjectsController {
     return this.projectsService.update(id, user.companyId, dto);
   }
 
+  @Post(':id/duplicate')
+  @ApiOperation({ summary: 'Duplicate project' })
+  duplicate(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+    return this.projectsService.duplicate(id, user.companyId, user.userId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete project' })
   delete(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {

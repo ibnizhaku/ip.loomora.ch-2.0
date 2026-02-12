@@ -519,4 +519,44 @@ export class DocumentsService {
 
     return created;
   }
+
+  async shareDocument(id: string, companyId: string, dto: { emails?: string[]; expiresInDays?: number; permission?: string; expiresAt?: string }) {
+    const document = await this.prisma.dMSDocument.findFirst({
+      where: { id, companyId },
+    });
+    if (!document) throw new NotFoundException('Document not found');
+
+    // Generate share token
+    const crypto = require('crypto');
+    const shareToken = crypto.randomBytes(32).toString('hex');
+
+    // Support both expiresInDays (frontend) and expiresAt (direct)
+    let expiresAt: Date;
+    if (dto.expiresAt) {
+      expiresAt = new Date(dto.expiresAt);
+    } else if (dto.expiresInDays) {
+      expiresAt = new Date(Date.now() + dto.expiresInDays * 24 * 60 * 60 * 1000);
+    } else {
+      expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days default
+    }
+
+    // Update document with share info
+    await this.prisma.dMSDocument.update({
+      where: { id },
+      data: {
+        sharedWith: dto.emails || [],
+        shareToken,
+        sharePermission: dto.permission || 'VIEW',
+        shareExpiresAt: expiresAt,
+      },
+    });
+
+    return {
+      shareUrl: `/api/documents/shared/${shareToken}`,
+      token: shareToken,
+      sharedWith: dto.emails || [],
+      permission: dto.permission || 'VIEW',
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
 }

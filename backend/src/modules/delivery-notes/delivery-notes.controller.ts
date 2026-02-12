@@ -31,6 +31,12 @@ export class DeliveryNotesController {
     });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get delivery note statistics' })
+  getStats(@CurrentUser() user: any) {
+    return this.deliveryNotesService.getStats(user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get delivery note by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: any) {

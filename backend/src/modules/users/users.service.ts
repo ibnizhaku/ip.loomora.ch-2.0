@@ -60,8 +60,11 @@ export class UsersService {
 
     const mappedData = data.map(user => ({
       id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
       name: `${user.firstName} ${user.lastName}`,
       email: user.email,
+      phone: user.phone,
       role: (user.memberships[0]?.role?.name || user.role || 'user').toLowerCase(),
       status: user.status === 'PENDING' ? 'pending' : user.isActive ? 'active' : 'inactive',
       lastLogin: user.lastLoginAt
@@ -69,6 +72,7 @@ export class UsersService {
         : '',
       twoFactor: user.twoFactorEnabled,
       avatar: user.avatarUrl,
+      avatarUrl: user.avatarUrl,
       isOwner: user.memberships[0]?.isOwner || false,
       employeeId: user.employeeId,
       employeeNumber: user.employee?.number,

@@ -274,13 +274,54 @@ model CompanySettings {
   exchangeRates  Json?
 
   // E-Mail/SMTP
-  smtpHost     String?
-  smtpPort     Int?
-  smtpUser     String?
-  smtpPassword String?
-  smtpFrom     String?
-  smtpFromName String?
-  smtpSsl      Boolean @default(true)
+  smtpHost       String?
+  smtpPort       Int?
+  smtpUser       String?
+  smtpPassword   String?
+  smtpFrom       String?
+  smtpFromName   String?
+  smtpSsl        Boolean @default(true)
+  smtpEncryption String? @default("TLS")
+
+  // Dokumente / Nummernkreise
+  invoicePrefix         String? @default("RE-")
+  invoiceNextNumber     Int?    @default(1)
+  quotePrefix           String? @default("AN-")
+  quoteNextNumber       Int?    @default(1)
+  orderPrefix           String? @default("AU-")
+  orderNextNumber       Int?    @default(1)
+  deliveryNotePrefix    String? @default("LS-")
+  creditNotePrefix      String? @default("GS-")
+  purchaseOrderPrefix   String? @default("BE-")
+  customerPrefix        String? @default("KD-")
+  customerNextNumber    Int?    @default(1)
+  projectPrefix         String? @default("PRJ-")
+  projectNextNumber     Int?    @default(1)
+
+  // PDF-Optionen
+  logoPosition          String? @default("top-left")
+  pdfLogoPosition       String? @default("top-left")
+  headerColor           String? @default("#1a1a2e")
+  footerLeft            String?
+  footerRight           String?
+  pdfFooterText         String?
+  pdfShowBankDetails    Boolean @default(true)
+  pdfDefaultLanguage    String? @default("de")
+  enableQrInvoice       Boolean @default(true)
+  enablePdfA            Boolean @default(true)
+  defaultPaymentTerms   Int?    @default(30)
+
+  // Benachrichtigungen
+  emailNotifications    Boolean @default(true)
+  invoiceReminders      Boolean @default(true)
+  projectUpdates        Boolean @default(true)
+  notifyOnNewInvoice    Boolean @default(true)
+  notifyOnPaymentReceived Boolean @default(true)
+  notifyOnContractExpiring Boolean @default(true)
+  notifyDaysBeforeExpiry  Int?    @default(30)
+
+  // API
+  apiKeyHash            String?
 
   // Sicherheit
   twoFactorEnabled    Boolean @default(false)
@@ -3887,6 +3928,12 @@ model DMSDocument {
   companyId   String
   uploadedById String
   uploadedBy  User     @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  
+  // Sharing
+  sharedWith      String[]  @default([])
+  shareToken      String?   @unique
+  sharePermission String?   @default("VIEW")
+  shareExpiresAt  DateTime?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

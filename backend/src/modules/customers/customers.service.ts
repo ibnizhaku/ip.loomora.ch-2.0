@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -232,5 +232,82 @@ export class CustomersService {
     const totalRevenue = Array.from(revenueMap.values()).reduce((sum, val) => sum + val, 0);
 
     return { total, active, prospects, totalRevenue };
+  }
+
+  // ========================
+  // CUSTOMER CONTACTS
+  // ========================
+
+  async getContacts(customerId: string, companyId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, companyId },
+    });
+    if (!customer) throw new NotFoundException('Customer not found');
+
+    return this.prisma.contact.findMany({
+      where: { customerId },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async addContact(customerId: string, companyId: string, dto: {
+    firstName: string; lastName: string; email?: string; phone?: string; position?: string; isPrimary?: boolean;
+  }) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, companyId },
+    });
+    if (!customer) throw new NotFoundException('Customer not found');
+
+    // If isPrimary, unset other primary contacts
+    if (dto.isPrimary) {
+      await this.prisma.contact.updateMany({
+        where: { customerId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+    }
+
+    return this.prisma.contact.create({
+      data: {
+        customerId,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        phone: dto.phone,
+        position: dto.position,
+        isPrimary: dto.isPrimary || false,
+      },
+    });
+  }
+
+  async updateContact(customerId: string, contactId: string, companyId: string, dto: {
+    firstName?: string; lastName?: string; email?: string; phone?: string; position?: string; isPrimary?: boolean;
+  }) {
+    const customer = await this.prisma.customer.findFirst({ where: { id: customerId, companyId } });
+    if (!customer) throw new NotFoundException('Customer not found');
+
+    const contact = await this.prisma.contact.findFirst({ where: { id: contactId, customerId } });
+    if (!contact) throw new NotFoundException('Contact not found');
+
+    if (dto.isPrimary) {
+      await this.prisma.contact.updateMany({
+        where: { customerId, isPrimary: true, id: { not: contactId } },
+        data: { isPrimary: false },
+      });
+    }
+
+    return this.prisma.contact.update({
+      where: { id: contactId },
+      data: dto,
+    });
+  }
+
+  async removeContact(customerId: string, contactId: string, companyId: string) {
+    const customer = await this.prisma.customer.findFirst({ where: { id: customerId, companyId } });
+    if (!customer) throw new NotFoundException('Customer not found');
+
+    const contact = await this.prisma.contact.findFirst({ where: { id: contactId, customerId } });
+    if (!contact) throw new NotFoundException('Contact not found');
+
+    return this.prisma.contact.delete({ where: { id: contactId } });
   }
 }

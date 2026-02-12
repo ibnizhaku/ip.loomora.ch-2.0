@@ -214,8 +214,47 @@ export class ContractsService {
     });
   }
 
+  async duplicate(id: string, companyId: string) {
+    const source = await this.prisma.contract.findFirst({
+      where: { id, companyId },
+    });
+    if (!source) throw new NotFoundException('Contract not found');
+
+    const year = new Date().getFullYear();
+    const lastContract = await this.prisma.contract.findFirst({
+      where: { companyId },
+      orderBy: { contractNumber: 'desc' },
+    });
+    const lastNum = lastContract?.contractNumber
+      ? parseInt(lastContract.contractNumber.split('-')[1] || '0')
+      : 0;
+    const contractNumber = `V-${String(lastNum + 1).padStart(4, '0')}-${year}`;
+
+    return this.prisma.contract.create({
+      data: {
+        contractNumber,
+        name: source.name ? `${source.name} (Kopie)` : 'Kopie',
+        description: source.description,
+        type: source.type,
+        customerId: source.customerId,
+        responsibleId: source.responsibleId,
+        status: 'DRAFT' as any,
+        value: source.value,
+        startDate: source.startDate,
+        endDate: source.endDate,
+        renewalPeriodMonths: source.renewalPeriodMonths,
+        noticePeriodDays: source.noticePeriodDays,
+        autoRenew: source.autoRenew,
+        companyId,
+      },
+      include: {
+        customer: { select: { id: true, name: true, companyName: true } },
+      },
+    });
+  }
+
   async getStats(companyId: string) {
-    const [total, active, expiringSoon, totalValue] = await Promise.all([
+    const [total, active, expiringSoon, totalValue, monthlyContracts] = await Promise.all([
       this.prisma.contract.count({ where: { companyId } }),
       this.prisma.contract.count({ where: { companyId, status: ContractStatus.ACTIVE } }),
       this.prisma.contract.count({
@@ -232,13 +271,28 @@ export class ContractsService {
         where: { companyId, status: ContractStatus.ACTIVE },
         _sum: { value: true },
       }),
+      // Monthly recurring: contracts with billingCycle = MONTHLY
+      this.prisma.contract.aggregate({
+        where: { companyId, status: ContractStatus.ACTIVE, billingCycle: 'MONTHLY' },
+        _sum: { value: true },
+      }),
     ]);
 
+    const totalVal = Number(totalValue._sum.value || 0);
+    const monthlyRecurring = Number(monthlyContracts._sum.value || 0);
+
     return {
+      // Frontend field names
+      totalContracts: total,
+      activeContracts: active,
+      expiringThisMonth: expiringSoon,
+      totalValue: totalVal,
+      monthlyRecurring,
+      // Also keep old field names for backward compatibility
       total,
       active,
       expiringSoon,
-      totalActiveValue: totalValue._sum.value || 0,
+      totalActiveValue: totalVal,
     };
   }
 

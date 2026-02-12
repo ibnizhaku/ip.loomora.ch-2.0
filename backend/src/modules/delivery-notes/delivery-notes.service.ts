@@ -161,6 +161,16 @@ export class DeliveryNotesService {
     return this.prisma.deliveryNote.delete({ where: { id } });
   }
 
+  async getStats(companyId: string) {
+    const [total, draft, shipped, delivered] = await Promise.all([
+      this.prisma.deliveryNote.count({ where: { companyId } }),
+      this.prisma.deliveryNote.count({ where: { companyId, status: 'DRAFT' } }),
+      this.prisma.deliveryNote.count({ where: { companyId, status: 'SHIPPED' } }),
+      this.prisma.deliveryNote.count({ where: { companyId, status: 'DELIVERED' } }),
+    ]);
+    return { total, draft, shipped, delivered };
+  }
+
   // Convert from order
   async createFromOrder(orderId: string, companyId: string) {
     const order = await this.prisma.order.findFirst({

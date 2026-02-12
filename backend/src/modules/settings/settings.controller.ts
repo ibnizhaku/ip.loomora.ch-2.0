@@ -29,4 +29,10 @@ export class SettingsController {
   testSmtp(@CurrentUser() user: CurrentUserPayload) {
     return this.settingsService.testSmtp(user.companyId);
   }
+
+  @Post('generate-api-key')
+  @ApiOperation({ summary: 'Generate new API key' })
+  generateApiKey(@CurrentUser() user: CurrentUserPayload) {
+    return this.settingsService.generateApiKey(user.companyId);
+  }
 }

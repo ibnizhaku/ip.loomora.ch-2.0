@@ -91,6 +91,12 @@ export class FinanceController {
   // FINANCIAL REPORTS
   // =====================
 
+  @Get('monthly-summary')
+  @ApiOperation({ summary: 'Get monthly income/expense summary (last 12 months)' })
+  getMonthlySummary(@CurrentUser() user: CurrentUserPayload) {
+    return this.financeService.getMonthlySummary(user.companyId);
+  }
+
   @Get('balance-sheet')
   @ApiOperation({ summary: 'Get balance sheet' })
   getBalanceSheet(@CurrentUser() user: CurrentUserPayload) {

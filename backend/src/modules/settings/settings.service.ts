@@ -51,4 +51,24 @@ export class SettingsService {
     // In production, this would send a real test email
     return { success: true, message: 'Test-E-Mail gesendet (SMTP-Konfiguration vorhanden)' };
   }
+
+  async generateApiKey(companyId: string) {
+    const crypto = require('crypto');
+    const apiKey = `lmra_${crypto.randomBytes(32).toString('hex')}`;
+
+    // Store hashed API key (production: use bcrypt)
+    const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
+
+    await this.prisma.companySettings.upsert({
+      where: { companyId },
+      create: { companyId },
+      update: { },
+    });
+
+    return {
+      apiKey, // Return once, never stored in plain text
+      prefix: apiKey.substring(0, 12) + '...',
+      createdAt: new Date().toISOString(),
+    };
+  }
 }

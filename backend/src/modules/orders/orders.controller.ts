@@ -27,6 +27,12 @@ export class OrdersController {
     return this.ordersService.findAll(user.companyId, query);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get order statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.ordersService.getStats(user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
@@ -53,6 +59,12 @@ export class OrdersController {
   @ApiOperation({ summary: 'Create invoice from order' })
   createInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.ordersService.createInvoice(id, user.companyId, user.userId);
+  }
+
+  @Post(':id/create-delivery-note')
+  @ApiOperation({ summary: 'Create delivery note from order' })
+  createDeliveryNote(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.ordersService.createDeliveryNote(id, user.companyId, user.userId);
   }
 
   @Delete(':id')

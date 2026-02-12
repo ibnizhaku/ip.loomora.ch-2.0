@@ -329,6 +329,36 @@ export class QuotesService {
     });
   }
 
+  async sendQuote(id: string, companyId: string) {
+    const quote = await this.prisma.quote.findFirst({
+      where: { id, companyId },
+    });
+    if (!quote) throw new NotFoundException('Quote not found');
+    if (quote.status !== DocumentStatus.DRAFT) {
+      throw new BadRequestException('Only draft quotes can be sent');
+    }
+    return this.prisma.quote.update({
+      where: { id },
+      data: { status: DocumentStatus.SENT },
+      include: { customer: true, items: true },
+    });
+  }
+
+  async getStats(companyId: string) {
+    const [draft, sent, confirmed, rejected, totalAgg] = await Promise.all([
+      this.prisma.quote.count({ where: { companyId, status: DocumentStatus.DRAFT } }),
+      this.prisma.quote.count({ where: { companyId, status: DocumentStatus.SENT } }),
+      this.prisma.quote.count({ where: { companyId, status: DocumentStatus.CONFIRMED } }),
+      this.prisma.quote.count({ where: { companyId, status: DocumentStatus.CANCELLED } }),
+      this.prisma.quote.aggregate({
+        where: { companyId },
+        _sum: { total: true },
+      }),
+    ]);
+    const total = Number(totalAgg._sum.total || 0);
+    return { draft, sent, confirmed, rejected, total };
+  }
+
   async remove(id: string, companyId: string) {
     const quote = await this.prisma.quote.findFirst({
       where: { id, companyId },

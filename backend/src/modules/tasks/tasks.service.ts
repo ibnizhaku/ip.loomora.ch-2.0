@@ -67,6 +67,18 @@ export class TasksService {
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         tags: true,
         subtasks: { orderBy: { createdAt: 'asc' } },
+        comments: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+          },
+        },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedBy: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
         timeEntries: {
           orderBy: { date: 'desc' },
           take: 10,

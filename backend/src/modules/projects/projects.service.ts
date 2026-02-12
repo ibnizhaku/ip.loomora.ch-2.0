@@ -162,7 +162,7 @@ export class ProjectsService {
     // Validate manager if being changed
     if (dto.managerId && dto.managerId !== project.managerId) {
       const manager = await this.prisma.user.findFirst({
-        where: { id: dto.managerId, companyMemberships: { some: { companyId } } },
+        where: { id: dto.managerId, memberships: { some: { companyId } } },
       });
       if (!manager) {
         throw new NotFoundException('Manager nicht gefunden oder nicht Mitglied dieser Company');
@@ -197,6 +197,37 @@ export class ProjectsService {
 
     await this.prisma.project.delete({ where: { id } });
     return { success: true };
+  }
+
+  async duplicate(id: string, companyId: string, userId: string) {
+    const source = await this.prisma.project.findFirst({
+      where: { id, companyId },
+      include: { members: true },
+    });
+    if (!source) throw new NotFoundException('Project not found');
+
+    const company = await this.prisma.company.update({
+      where: { id: companyId },
+      data: { projectCounter: { increment: 1 } },
+    });
+    const number = `PRJ-${new Date().getFullYear()}-${String(company.projectCounter).padStart(4, '0')}`;
+
+    const project = await this.prisma.project.create({
+      data: {
+        number,
+        name: `${source.name} (Kopie)`,
+        description: source.description,
+        customerId: source.customerId,
+        status: 'PLANNING',
+        priority: source.priority,
+        budget: source.budget,
+        createdById: userId,
+        managerId: source.managerId,
+        companyId,
+      },
+    });
+
+    return project;
   }
 
   // Statistics for dashboard

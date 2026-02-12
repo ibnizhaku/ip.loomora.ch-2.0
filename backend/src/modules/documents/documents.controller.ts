@@ -206,4 +206,13 @@ export class DocumentsController {
   ) {
     return this.documentsService.createVersion(id, user.companyId, user.userId, data);
   }
+
+  @Post(':id/share')
+  async shareDocument(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: { emails?: string[]; expiresInDays?: number; permission?: string; expiresAt?: string },
+  ) {
+    return this.documentsService.shareDocument(id, user.companyId, dto);
+  }
 }

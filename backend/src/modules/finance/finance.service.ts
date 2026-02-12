@@ -280,4 +280,56 @@ export class FinanceService {
       },
     };
   }
+
+  // Monthly summary for Finance dashboard chart
+  async getMonthlySummary(companyId: string) {
+    const months: string[] = [];
+    const now = new Date();
+
+    // Last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(d.toISOString().slice(0, 7)); // "YYYY-MM"
+    }
+
+    const result = await Promise.all(
+      months.map(async (monthStr) => {
+        const [year, month] = monthStr.split('-').map(Number);
+        const start = new Date(year, month - 1, 1);
+        const end = new Date(year, month, 0, 23, 59, 59);
+
+        const [incomeAgg, expenseAgg] = await Promise.all([
+          this.prisma.invoice.aggregate({
+            where: {
+              companyId,
+              status: 'PAID',
+              updatedAt: { gte: start, lte: end },
+            },
+            _sum: { totalAmount: true },
+          }),
+          this.prisma.purchaseInvoice.aggregate({
+            where: {
+              companyId,
+              status: 'PAID',
+              updatedAt: { gte: start, lte: end },
+            },
+            _sum: { totalAmount: true },
+          }),
+        ]);
+
+        const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+        const income = Number(incomeAgg._sum.totalAmount || 0);
+        const expense = Number(expenseAgg._sum.totalAmount || 0);
+        return {
+          month: monthNames[month - 1],
+          income,
+          expense,
+          profit: income - expense,
+        };
+      }),
+    );
+
+    return result;
+  }
 }

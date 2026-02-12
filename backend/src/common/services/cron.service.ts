@@ -16,7 +16,7 @@ export class CronService {
     
     try {
       const companies = await this.prisma.company.findMany({
-        where: { isActive: true },
+        where: {},
         select: { id: true, name: true },
       });
 
@@ -54,7 +54,7 @@ export class CronService {
     
     try {
       const companies = await this.prisma.company.findMany({
-        where: { isActive: true },
+        where: {},
         select: { id: true },
       });
 
@@ -102,7 +102,7 @@ export class CronService {
     
     try {
       const companies = await this.prisma.company.findMany({
-        where: { isActive: true },
+        where: {},
         select: { id: true, name: true },
       });
 

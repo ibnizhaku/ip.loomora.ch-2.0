@@ -27,6 +27,12 @@ export class QuotesController {
     return this.quotesService.findAll(user.companyId, query);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get quote statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.quotesService.getStats(user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get quote by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
@@ -47,6 +53,12 @@ export class QuotesController {
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.quotesService.update(id, user.companyId, dto);
+  }
+
+  @Post(':id/send')
+  @ApiOperation({ summary: 'Send quote (set status to SENT)' })
+  sendQuote(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.quotesService.sendQuote(id, user.companyId);
   }
 
   @Post(':id/convert-to-order')

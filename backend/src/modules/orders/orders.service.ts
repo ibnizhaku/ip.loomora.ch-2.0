@@ -348,6 +348,72 @@ export class OrdersService {
     return String((10 - carry) % 10);
   }
 
+  async getStats(companyId: string) {
+    const [total, draft, sent, confirmed, cancelled, totalAgg] = await Promise.all([
+      this.prisma.order.count({ where: { companyId } }),
+      this.prisma.order.count({ where: { companyId, status: DocumentStatus.DRAFT } }),
+      this.prisma.order.count({ where: { companyId, status: DocumentStatus.SENT } }),
+      this.prisma.order.count({ where: { companyId, status: DocumentStatus.CONFIRMED } }),
+      this.prisma.order.count({ where: { companyId, status: DocumentStatus.CANCELLED } }),
+      this.prisma.order.aggregate({
+        where: { companyId },
+        _sum: { total: true },
+      }),
+    ]);
+    return {
+      total,
+      draft,
+      sent,
+      confirmed,
+      cancelled,
+      totalValue: Number(totalAgg._sum.total || 0),
+    };
+  }
+
+  async createDeliveryNote(id: string, companyId: string, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id, companyId },
+        include: { items: true, customer: true },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+
+      // Generate delivery note number
+      const year = new Date().getFullYear();
+      const lastDN = await tx.deliveryNote.findFirst({
+        where: { companyId, number: { startsWith: `LS-${year}` } },
+        orderBy: { number: 'desc' },
+      });
+      const lastNum = lastDN?.number ? parseInt(lastDN.number.split('-')[2] || '0') : 0;
+      const dnNumber = `LS-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+      const deliveryNote = await tx.deliveryNote.create({
+        data: {
+          number: dnNumber,
+          customerId: order.customerId,
+          orderId: order.id,
+          status: 'DRAFT' as any,
+          date: new Date(),
+          deliveryAddress: `${order.customer?.street || ''}, ${order.customer?.zipCode || ''} ${order.customer?.city || ''}`.trim(),
+          companyId,
+          items: {
+            create: order.items.map((item, index) => ({
+              position: item.position || index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+            })),
+          },
+        },
+        include: { customer: true, items: true },
+      });
+
+      return deliveryNote;
+    });
+  }
+
   async remove(id: string, companyId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id, companyId },
