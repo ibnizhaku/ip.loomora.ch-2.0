@@ -1,28 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
-interface Company {
+export interface Company {
   id: string;
   name: string;
+  slug?: string;
   legalName?: string;
-  vatNumber?: string;
-  uid?: string;
-  address?: string;
+  street?: string;
+  zipCode?: string;
   city?: string;
-  postalCode?: string;
   country?: string;
   phone?: string;
   email?: string;
   website?: string;
-  logoUrl?: string;
-  bankName?: string;
+  vatNumber?: string;
   iban?: string;
   bic?: string;
+  bankName?: string;
+  logoUrl?: string;
   qrIban?: string;
   defaultCurrency?: string;
   fiscalYearStart?: number;
   timezone?: string;
+  status?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 const QUERY_KEY = 'company';

@@ -237,9 +237,24 @@ model Company {
   leads         Lead[]
   campaigns     Campaign[]
   
+  teamMembers   CompanyTeamMember[]
+  
   @@index([status])
   @@index([slug])
   @@map("companies")
+}
+
+model CompanyTeamMember {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  role        String
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@map("company_team_members")
 }
 
 // ============================================

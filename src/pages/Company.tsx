@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Building2,
   MapPin,
@@ -11,6 +11,8 @@ import {
   Upload,
   UserPlus,
   Trash2,
+  Save,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,20 +24,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-const companyStats = [
-  { label: "Mitarbeiter", value: "24", icon: Users },
-  { label: "Gegründet", value: "2020", icon: Calendar },
-  { label: "Projekte", value: "156", icon: FileText },
-  { label: "Kunden", value: "89", icon: Building2 },
-];
-
-const initialTeamMembers = [
-  { id: "1", name: "Max Keller", role: "CEO", initials: "MK" },
-  { id: "2", name: "Anna Schmidt", role: "CTO", initials: "AS" },
-  { id: "3", name: "Thomas Müller", role: "CFO", initials: "TM" },
-  { id: "4", name: "Lisa Weber", role: "Head of Design", initials: "LW" },
-];
+import { useCompany, useUpdateCompany } from "@/hooks/use-company";
+import { useDashboardStats } from "@/hooks/use-dashboard";
+import { useCompanyTeam, useAddTeamMember, useRemoveTeamMember } from "@/hooks/use-company-team";
 
 const roleOptions = [
   "CEO", "CTO", "CFO", "COO", 
@@ -43,39 +34,183 @@ const roleOptions = [
   "Teamleiter", "Projektmanager", "Abteilungsleiter"
 ];
 
+interface FormData {
+  name: string;
+  legalName: string;
+  street: string;
+  zipCode: string;
+  city: string;
+  phone: string;
+  email: string;
+  website: string;
+  vatNumber: string;
+  iban: string;
+  bic: string;
+  bankName: string;
+  description: string;
+}
+
+const emptyForm: FormData = {
+  name: "",
+  legalName: "",
+  street: "",
+  zipCode: "",
+  city: "",
+  phone: "",
+  email: "",
+  website: "",
+  vatNumber: "",
+  iban: "",
+  bic: "",
+  bankName: "",
+  description: "",
+};
+
 export default function Company() {
-  const [teamMembers, setTeamMembers] = useState(initialTeamMembers);
+  const { data: company, isLoading, error } = useCompany();
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const updateCompany = useUpdateCompany();
+
+  const { data: teamMembers = [], isLoading: teamLoading } = useCompanyTeam();
+  const addTeamMember = useAddTeamMember();
+  const removeTeamMember = useRemoveTeamMember();
+
+  const [form, setForm] = useState<FormData>(emptyForm);
+  const [isDirty, setIsDirty] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", role: "" });
 
-  const handleAddMember = () => {
+  // Sync form with backend data
+  useEffect(() => {
+    if (company) {
+      setForm({
+        name: company.name || "",
+        legalName: company.legalName || "",
+        street: company.street || "",
+        zipCode: company.zipCode || "",
+        city: company.city || "",
+        phone: company.phone || "",
+        email: company.email || "",
+        website: company.website || "",
+        vatNumber: company.vatNumber || "",
+        iban: company.iban || "",
+        bic: company.bic || "",
+        bankName: company.bankName || "",
+        description: "",
+      });
+      setIsDirty(false);
+    }
+  }, [company]);
+
+  const handleChange = (field: keyof FormData, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setIsDirty(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateCompany.mutateAsync({
+        name: form.name || undefined,
+        legalName: form.legalName || undefined,
+        street: form.street || undefined,
+        zipCode: form.zipCode || undefined,
+        city: form.city || undefined,
+        phone: form.phone || undefined,
+        email: form.email || undefined,
+        website: form.website || undefined,
+        vatNumber: form.vatNumber || undefined,
+        iban: form.iban || undefined,
+        bic: form.bic || undefined,
+        bankName: form.bankName || undefined,
+      });
+      toast.success("Unternehmensdaten gespeichert");
+      setIsDirty(false);
+    } catch (err: any) {
+      toast.error("Fehler beim Speichern", {
+        description: err?.message || "Bitte versuchen Sie es erneut",
+      });
+    }
+  };
+
+  const handleAddMember = async () => {
     if (!newMember.name || !newMember.role) {
       toast.error("Bitte füllen Sie alle Felder aus");
       return;
     }
 
-    const initials = newMember.name.split(" ").map(n => n[0]).join("").toUpperCase();
-    const newId = Date.now().toString();
-    
-    setTeamMembers(prev => [...prev, {
-      id: newId,
-      name: newMember.name,
-      role: newMember.role,
-      initials
-    }]);
-
-    toast.success("Mitglied hinzugefügt", {
-      description: `${newMember.name} wurde dem Führungsteam hinzugefügt`
-    });
-    
-    setShowAddDialog(false);
-    setNewMember({ name: "", role: "" });
+    try {
+      await addTeamMember.mutateAsync({ name: newMember.name, role: newMember.role });
+      toast.success("Mitglied hinzugefügt", {
+        description: `${newMember.name} wurde dem Führungsteam hinzugefügt`
+      });
+      setShowAddDialog(false);
+      setNewMember({ name: "", role: "" });
+    } catch (err: any) {
+      toast.error("Fehler beim Hinzufügen", { description: err?.message });
+    }
   };
 
-  const handleRemoveMember = (id: string, name: string) => {
-    setTeamMembers(prev => prev.filter(m => m.id !== id));
-    toast.info(`${name} wurde entfernt`);
+  const handleRemoveMember = async (id: string, name: string) => {
+    try {
+      await removeTeamMember.mutateAsync(id);
+      toast.info(`${name} wurde entfernt`);
+    } catch (err: any) {
+      toast.error("Fehler beim Entfernen", { description: err?.message });
+    }
   };
+
+  // Dynamic stats from backend
+  const companyStats = [
+    { label: "Mitarbeiter", value: statsLoading ? "—" : "—", icon: Users },
+    { label: "Gegründet", value: company?.createdAt ? new Date(company.createdAt).getFullYear().toString() : "—", icon: Calendar },
+    { label: "Projekte", value: statsLoading ? "—" : String(stats?.activeProjects ?? "—"), icon: FileText },
+    { label: "Kunden", value: statsLoading ? "—" : String(stats?.customerCount ?? "—"), icon: Building2 },
+  ];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-display text-3xl font-bold tracking-tight">
+              Unternehmensprofil
+            </h1>
+            <p className="text-muted-foreground">
+              Verwalten Sie Ihre Unternehmensinformationen
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-display text-3xl font-bold tracking-tight">
+              Unternehmensprofil
+            </h1>
+            <p className="text-muted-foreground">
+              Verwalten Sie Ihre Unternehmensinformationen
+            </p>
+          </div>
+        </div>
+        <div className="text-center py-24 text-muted-foreground">
+          <p>Fehler beim Laden der Unternehmensdaten.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Logo initial from company name
+  const logoInitial = (company?.name || "?")[0].toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -89,6 +224,16 @@ export default function Company() {
             Verwalten Sie Ihre Unternehmensinformationen
           </p>
         </div>
+        {isDirty && (
+          <Button onClick={handleSave} disabled={updateCompany.isPending}>
+            {updateCompany.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Speichern
+          </Button>
+        )}
       </div>
 
       {/* Company Header Card */}
@@ -96,29 +241,29 @@ export default function Company() {
         <div className="flex flex-col sm:flex-row items-start gap-6">
           <div className="relative">
             <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-display text-3xl font-bold">
-              L
+              {logoInitial}
             </div>
             <button className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-secondary border border-border hover:bg-muted transition-colors">
               <Upload className="h-4 w-4" />
             </button>
           </div>
           <div className="flex-1">
-            <h2 className="font-display text-2xl font-bold">Loomora GmbH</h2>
+            <h2 className="font-display text-2xl font-bold">{company?.name || "—"}</h2>
             <p className="text-muted-foreground">
-              Innovative Softwarelösungen für moderne Unternehmen
+              {company?.legalName || "Unternehmensbeschreibung nicht hinterlegt"}
             </p>
             <div className="flex flex-wrap gap-4 mt-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
-                München, Deutschland
+                {company?.city ? `${company.city}, ${company.country || "CH"}` : "—"}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Globe className="h-4 w-4" />
-                www.loomora.de
+                {company?.website || "—"}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-4 w-4" />
-                info@loomora.de
+                {company?.email || "—"}
               </div>
             </div>
           </div>
@@ -159,44 +304,68 @@ export default function Company() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Firmenname</Label>
-                <Input defaultValue="Loomora GmbH" />
+                <Input
+                  value={form.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Rechtsform</Label>
-                <Input defaultValue="GmbH" />
+                <Label>Rechtsform / Juristischer Name</Label>
+                <Input
+                  value={form.legalName}
+                  onChange={(e) => handleChange("legalName", e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Adresse</Label>
-              <Input defaultValue="Maximilianstraße 35a" />
+              <Input
+                value={form.street}
+                onChange={(e) => handleChange("street", e.target.value)}
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>PLZ</Label>
-                <Input defaultValue="80539" />
+                <Input
+                  value={form.zipCode}
+                  onChange={(e) => handleChange("zipCode", e.target.value)}
+                />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Stadt</Label>
-                <Input defaultValue="München" />
+                <Input
+                  value={form.city}
+                  onChange={(e) => handleChange("city", e.target.value)}
+                />
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Telefon</Label>
-                <Input defaultValue="+49 89 12345678" />
+                <Input
+                  value={form.phone}
+                  onChange={(e) => handleChange("phone", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>E-Mail</Label>
-                <Input defaultValue="info@loomora.de" />
+                <Input
+                  value={form.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Website</Label>
-              <Input defaultValue="https://www.loomora.de" />
+              <Input
+                value={form.website}
+                onChange={(e) => handleChange("website", e.target.value)}
+              />
             </div>
           </div>
         </div>
@@ -210,29 +379,36 @@ export default function Company() {
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Handelsregister</Label>
-                <Input defaultValue="HRB 123456" />
+                <Label>USt-IdNr. / UID</Label>
+                <Input
+                  value={form.vatNumber}
+                  onChange={(e) => handleChange("vatNumber", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Registergericht</Label>
-                <Input defaultValue="München" />
+                <Label>Bankname</Label>
+                <Input
+                  value={form.bankName}
+                  onChange={(e) => handleChange("bankName", e.target.value)}
+                />
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>USt-IdNr.</Label>
-                <Input defaultValue="DE123456789" />
+                <Label>IBAN</Label>
+                <Input
+                  value={form.iban}
+                  onChange={(e) => handleChange("iban", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Steuernummer</Label>
-                <Input defaultValue="143/123/12345" />
+                <Label>BIC</Label>
+                <Input
+                  value={form.bic}
+                  onChange={(e) => handleChange("bic", e.target.value)}
+                />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Geschäftsführer</Label>
-              <Input defaultValue="Max Keller, Anna Schmidt" />
             </div>
 
             <Separator />
@@ -241,7 +417,9 @@ export default function Company() {
               <Label>Unternehmensbeschreibung</Label>
               <Textarea
                 rows={4}
-                defaultValue="Loomora GmbH ist ein führender Anbieter von Unternehmenssoftware. Wir entwickeln maßgeschneiderte Lösungen für Projektmanagement, Zeiterfassung und Ressourcenplanung."
+                value={form.description}
+                onChange={(e) => handleChange("description", e.target.value)}
+                placeholder="Beschreibung Ihres Unternehmens..."
               />
             </div>
           </div>
@@ -258,35 +436,48 @@ export default function Company() {
           </Button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {teamMembers.map((member, index) => (
-            <div
-              key={member.id}
-              className={cn(
-                "flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in group relative"
-              )}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                  {member.initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="font-medium">{member.name}</p>
-                <p className="text-sm text-muted-foreground">{member.role}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 h-7 w-7 text-destructive"
-                onClick={() => handleRemoveMember(member.id, member.name)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
+        {teamLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : teamMembers.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>Noch keine Teammitglieder hinzugefügt.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {teamMembers.map((member, index) => {
+              const initials = member.name.split(" ").map(n => n[0]).join("").toUpperCase();
+              return (
+                <div
+                  key={member.id}
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 transition-all animate-fade-in group relative"
+                  )}
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-medium">{member.name}</p>
+                    <p className="text-sm text-muted-foreground">{member.role}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 h-7 w-7 text-destructive"
+                    onClick={() => handleRemoveMember(member.id, member.name)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Add Member Dialog */}
@@ -329,8 +520,12 @@ export default function Company() {
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleAddMember}>
-              <UserPlus className="mr-2 h-4 w-4" />
+            <Button onClick={handleAddMember} disabled={addTeamMember.isPending}>
+              {addTeamMember.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="mr-2 h-4 w-4" />
+              )}
               Hinzufügen
             </Button>
           </DialogFooter>

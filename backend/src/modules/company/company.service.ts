@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UpdateCompanyDto } from './dto/company.dto';
+import { UpdateCompanyDto, CreateTeamMemberDto } from './dto/company.dto';
 
 @Injectable()
 export class CompanyService {
@@ -31,5 +31,52 @@ export class CompanyService {
       where: { id },
       data: dto,
     });
+  }
+
+  // --- Team Members ---
+
+  async getTeamMembers(companyId: string) {
+    return this.prisma.companyTeamMember.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        avatarUrl: true,
+      },
+    });
+  }
+
+  async addTeamMember(companyId: string, dto: CreateTeamMemberDto) {
+    return this.prisma.companyTeamMember.create({
+      data: {
+        companyId,
+        name: dto.name,
+        role: dto.role,
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        avatarUrl: true,
+      },
+    });
+  }
+
+  async removeTeamMember(companyId: string, memberId: string) {
+    const member = await this.prisma.companyTeamMember.findFirst({
+      where: { id: memberId, companyId },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Teammitglied nicht gefunden');
+    }
+
+    await this.prisma.companyTeamMember.delete({
+      where: { id: memberId },
+    });
+
+    return { success: true };
   }
 }
