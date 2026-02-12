@@ -142,7 +142,7 @@ export class DashboardService {
         : [],
       !type || type === 'task'
         ? this.prisma.task.findMany({
-            where: { companyId, status: 'DONE' },
+            where: { companyId },
             orderBy: { updatedAt: 'desc' },
             take: limit,
             select: {

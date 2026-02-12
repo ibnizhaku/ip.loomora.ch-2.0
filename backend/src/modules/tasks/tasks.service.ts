@@ -97,8 +97,17 @@ export class TasksService {
   }
 
   async create(companyId: string, userId: string, dto: CreateTaskDto) {
+    // Generate task number (T-0001, T-0002, ...)
+    const company = await this.prisma.company.update({
+      where: { id: companyId },
+      data: { taskCounter: { increment: 1 } },
+    });
+
+    const number = `T-${String(company.taskCounter).padStart(4, '0')}`;
+
     const task = await this.prisma.task.create({
       data: {
+        number,
         title: dto.title,
         description: dto.description,
         projectId: dto.projectId,
@@ -296,6 +305,28 @@ export class TasksService {
     if (!attachment) throw new NotFoundException('Attachment not found');
     await this.prisma.taskAttachment.delete({ where: { id: attachmentId } });
     return { success: true };
+  }
+
+  // Time Entries
+  async createTimeEntry(taskId: string, companyId: string, userId: string, dto: { duration: number; description?: string }) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+
+    return this.prisma.timeEntry.create({
+      data: {
+        duration: dto.duration,
+        description: dto.description,
+        date: new Date(),
+        taskId,
+        userId,
+        companyId,
+        projectId: task.projectId,
+        isBillable: false,
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
   }
 
   // Statistics

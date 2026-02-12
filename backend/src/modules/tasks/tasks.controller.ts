@@ -146,6 +146,20 @@ export class TasksController {
   }
 
   // ========================
+  // TIME ENTRIES
+  // ========================
+
+  @Post(':id/time-entries')
+  @ApiOperation({ summary: 'Create a time entry for a task' })
+  createTimeEntry(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body() dto: { duration: number; description?: string },
+  ) {
+    return this.tasksService.createTimeEntry(id, user.companyId, user.userId, dto);
+  }
+
+  // ========================
   // ATTACHMENTS
   // ========================
 

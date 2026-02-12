@@ -24,8 +24,9 @@ export class CalendarController {
 
   @Get()
   @ApiOperation({ summary: 'Get all calendar events' })
-  findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: EventQueryDto) {
-    return this.calendarService.findAll(user.companyId, query);
+  async findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: EventQueryDto) {
+    const events = await this.calendarService.findAll(user.companyId, query);
+    return { data: events };
   }
 
   @Get(':id')

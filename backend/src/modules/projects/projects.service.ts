@@ -135,14 +135,30 @@ export class ProjectsService {
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         budget: dto.budget,
+        hourlyRate: dto.hourlyRate,
         createdById: userId,
         managerId: dto.managerId,
         companyId,
+        members: dto.members
+          ? {
+              create: dto.members.map((employeeId) => ({
+                employeeId,
+                role: 'MEMBER',
+              })),
+            }
+          : undefined,
       },
       include: {
         customer: true,
         manager: {
           select: { id: true, firstName: true, lastName: true },
+        },
+        members: {
+          include: {
+            employee: {
+              select: { id: true, firstName: true, lastName: true, position: true },
+            },
+          },
         },
       },
     });

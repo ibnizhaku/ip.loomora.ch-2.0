@@ -205,6 +205,7 @@ model Company {
   purchaseCounter   Int       @default(0)
   projectCounter    Int       @default(0)
   employeeCounter   Int       @default(0)
+  taskCounter       Int       @default(0)
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -1685,6 +1686,7 @@ model Project {
   
   budget          Decimal? @db.Decimal(12, 2)
   spent           Decimal  @default(0) @db.Decimal(12, 2)
+  hourlyRate      Decimal? @db.Decimal(10, 2)
   
   progress        Int      @default(0)  // 0-100
   
@@ -1750,6 +1752,7 @@ model ProjectMember {
 
 model Task {
   id              String   @id @default(cuid())
+  number          String?  @unique
   title           String
   description     String?
   
