@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
+import MarketingPage from "./marketing/MarketingPage";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DocumentsProvider } from "./contexts/DocumentsContext";
 
@@ -448,6 +449,9 @@ const App = () => (
               <Route path="/quality/checklists/new" element={<ProtectedLayout><QualityChecklistCreate /></ProtectedLayout>} />
               <Route path="/quality/checklists/:id" element={<ProtectedLayout><QualityChecklistDetail /></ProtectedLayout>} />
               <Route path="/quality/:id" element={<ProtectedLayout><QualityCheckDetail /></ProtectedLayout>} />
+              
+              {/* Marketing Website */}
+              <Route path="/website" element={<MarketingPage />} />
               
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
