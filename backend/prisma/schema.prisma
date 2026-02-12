@@ -244,6 +244,7 @@ model Company {
   
   teamMembers   CompanyTeamMember[]
   companySettings CompanySettings?
+  notifications Notification[]
   
   @@index([status])
   @@index([slug])
@@ -623,6 +624,9 @@ model User {
   taskComments      TaskComment[]    @relation("TaskCommentAuthor")
   taskAttachments   TaskAttachment[] @relation("TaskAttachmentUploader")
   
+  // Notification relations
+  notifications     Notification[]   @relation("UserNotifications")
+  
   // Employee relation (optional link)
   employeeId        String?   @unique
   employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
@@ -644,21 +648,6 @@ model Setting {
   
   @@unique([companyId, key])
   @@map("settings")
-}
-
-model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  message     String
-  type        String   // info, warning, error, success
-  isRead      Boolean  @default(false)
-  link        String?
-  
-  createdAt   DateTime @default(now())
-  
-  @@index([userId])
-  @@map("notifications")
 }
 
 // ============================================
@@ -4076,5 +4065,44 @@ model AuditLog {
   @@index([createdAt])
   @@index([retentionUntil])
   @@map("audit_logs")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        NotificationType @default(INFO)
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  category    String   @default("system")
+  actionUrl   String?
+  
+  // Relations
+  userId      String
+  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Metadata
+  sourceType  String?
+  sourceId    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, companyId])
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("notifications")
 }
 

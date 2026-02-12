@@ -63,6 +63,8 @@ import { BankImportModule } from './modules/bank-import/bank-import.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 // Chat Messages
 import { MessagesModule } from './modules/messages/messages.module';
+// Notifications
+import { NotificationsModule } from './modules/notifications/notifications.module';
 // Audit Log
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 // Subscriptions & Payments
@@ -142,6 +144,8 @@ import { SettingsModule } from './modules/settings/settings.module';
     DocumentsModule,
     // Chat Messages
     MessagesModule,
+    // Notifications
+    NotificationsModule,
     // Audit Log (Global)
     AuditLogModule,
     // Subscriptions & Payments
