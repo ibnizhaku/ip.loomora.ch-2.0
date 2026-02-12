@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from "@/hooks/use-notifications";
+import { formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
 import {
   Popover,
   PopoverContent,
@@ -24,25 +27,23 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-interface Notification {
-  id: number;
-  title: string;
-  description: string;
-  time: string;
-  unread: boolean;
-}
-
 export function Header() {
   const [isDark, setIsDark] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSwitching, setIsSwitching] = useState(false);
   const navigate = useNavigate();
   
   const { user, activeCompany, availableCompanies, logout, switchCompany } = useAuth();
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  // Real notification data from API
+  const { data: notificationsData } = useNotifications({ pageSize: 10 });
+  const { data: unreadData } = useUnreadNotificationCount();
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+
+  const notifications = notificationsData?.data || [];
+  const unreadCount = unreadData?.count || 0;
 
   // Get user initials
   const userInitials = user 
@@ -89,12 +90,12 @@ export function Header() {
     }
   };
 
-  const markAsRead = (id: number) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  const markAsRead = (id: string) => {
+    markAsReadMutation.mutate(id);
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    markAllAsReadMutation.mutate();
   };
 
   const handleLogout = async () => {
@@ -228,21 +229,24 @@ export function Header() {
                   <div
                     key={notification.id}
                     className={`p-4 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition-colors ${
-                      notification.unread ? "bg-primary/5" : ""
+                      !notification.read ? "bg-primary/5" : ""
                     }`}
-                    onClick={() => markAsRead(notification.id)}
+                    onClick={() => {
+                      if (!notification.read) markAsRead(notification.id);
+                      if (notification.actionUrl) navigate(notification.actionUrl);
+                    }}
                   >
                     <div className="flex items-start gap-3">
-                      {notification.unread && (
+                      {!notification.read && (
                         <span className="mt-1.5 h-2 w-2 rounded-full bg-primary flex-shrink-0" />
                       )}
-                      <div className={notification.unread ? "" : "ml-5"}>
+                      <div className={!notification.read ? "" : "ml-5"}>
                         <p className="text-sm font-medium">{notification.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {notification.description}
+                          {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {notification.time}
+                          {formatDistanceToNow(new Date(notification.time), { addSuffix: true, locale: de })}
                         </p>
                       </div>
                     </div>
