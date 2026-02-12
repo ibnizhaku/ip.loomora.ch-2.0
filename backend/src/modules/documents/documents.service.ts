@@ -249,7 +249,7 @@ export class DocumentsService {
       data: { storageUrl },
     });
 
-    return { ...doc, storageUrl };
+    return { ...doc, storageUrl, fileUrl: storageUrl };
   }
 
   async findAllDocuments(companyId: string, params: DocumentSearchDto) {
@@ -307,8 +307,14 @@ export class DocumentsService {
       this.prisma.dMSDocument.count({ where }),
     ]);
 
+    // Map storageUrl to fileUrl for frontend compatibility
+    const mappedData = data.map(doc => ({
+      ...doc,
+      fileUrl: doc.storageUrl,
+    }));
+
     return {
-      data,
+      data: mappedData,
       total,
       page,
       pageSize,
@@ -338,7 +344,7 @@ export class DocumentsService {
       throw new NotFoundException('Dokument nicht gefunden');
     }
 
-    return document;
+    return { ...document, fileUrl: document.storageUrl };
   }
 
   async updateDocument(id: string, companyId: string, dto: UpdateDocumentDto) {
