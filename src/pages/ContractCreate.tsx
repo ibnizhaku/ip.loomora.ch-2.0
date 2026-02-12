@@ -44,7 +44,7 @@ export default function ContractCreate() {
     setIsSaving(true);
     try {
       const result = await createContract.mutateAsync({
-        name: title,
+        title: title,
         customerId: customer,
         type: contractType.toUpperCase(),
         value: parseFloat(value) || 0,

@@ -238,7 +238,7 @@ const PurchaseInvoiceDetail = () => {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{entry.date}</span>
                         <span>•</span>
-                        <span>{typeof entry.user === 'object' ? entry.user?.name || entry.user?.email : entry.user}</span>
+                        <span>{typeof entry.user === 'object' ? (entry.user as any)?.name || (entry.user as any)?.email : entry.user}</span>
                       </div>
                     </div>
                   </div>

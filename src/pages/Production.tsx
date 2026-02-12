@@ -431,7 +431,7 @@ export default function Production() {
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">Team</p>
-                  <p className="text-sm">{order.assignedTeam.map(m => typeof m === 'object' ? m?.name || m?.firstName : m).join(", ")}</p>
+                  <p className="text-sm">{order.assignedTeam.map(m => typeof m === 'object' ? (m as any)?.name || (m as any)?.firstName : m).join(", ")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
