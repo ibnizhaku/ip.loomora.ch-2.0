@@ -56,6 +56,8 @@ import PayrollCreate from "./pages/PayrollCreate";
 import Absences from "./pages/Absences";
 import AbsenceDetail from "./pages/AbsenceDetail";
 import AbsenceCreate from "./pages/AbsenceCreate";
+import Departments from "./pages/Departments";
+import DepartmentCreate from "./pages/DepartmentCreate";
 import Recruiting from "./pages/Recruiting";
 import CandidateDetail from "./pages/CandidateDetail";
 import JobPostingCreate from "./pages/JobPostingCreate";
@@ -395,6 +397,8 @@ const App = () => (
               <Route path="/absences" element={<ProtectedLayout><Absences /></ProtectedLayout>} />
               <Route path="/absences/new" element={<ProtectedLayout><AbsenceCreate /></ProtectedLayout>} />
               <Route path="/absences/:id" element={<ProtectedLayout><AbsenceDetail /></ProtectedLayout>} />
+              <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
+              <Route path="/departments/new" element={<ProtectedLayout><DepartmentCreate /></ProtectedLayout>} />
               <Route path="/recruiting" element={<ProtectedLayout><Recruiting /></ProtectedLayout>} />
               <Route path="/recruiting/new" element={<ProtectedLayout><JobPostingCreate /></ProtectedLayout>} />
               <Route path="/recruiting/:id" element={<ProtectedLayout><CandidateDetail /></ProtectedLayout>} />
