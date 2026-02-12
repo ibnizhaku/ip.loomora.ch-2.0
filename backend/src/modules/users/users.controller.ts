@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -22,5 +22,47 @@ export class UsersController {
   @ApiOperation({ summary: 'Get user by ID' })
   findOne(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.usersService.findById(id, user.companyId);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create new user in company' })
+  create(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+      role?: string;
+      createEmployee?: boolean;
+      position?: string;
+      departmentId?: string;
+      hireDate?: string;
+    },
+  ) {
+    return this.usersService.create(user.companyId, dto);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update user' })
+  update(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body() dto: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+      isActive?: boolean;
+    },
+  ) {
+    return this.usersService.update(id, user.companyId, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Remove user from company' })
+  remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+    return this.usersService.delete(id, user.companyId);
   }
 }

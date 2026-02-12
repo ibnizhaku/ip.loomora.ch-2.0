@@ -523,6 +523,10 @@ model User {
   // Chat relations
   chatMessages      ChatMessage[] @relation("ChatMessageAuthor")
   
+  // Employee relation (optional link)
+  employeeId        String?   @unique
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  
   @@index([companyId])
   @@index([email])
   @@index([status])
@@ -1891,6 +1895,9 @@ model Employee {
   
   // DMS relations
   documents       DMSDocument[] @relation("EmployeeDocuments")
+  
+  // User relation (optional link back)
+  user            User?
   
   @@unique([companyId, number])
   @@index([companyId])
