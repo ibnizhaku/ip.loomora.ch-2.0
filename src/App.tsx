@@ -174,6 +174,7 @@ import GoodsReceipts from "./pages/GoodsReceipts";
 import GoodsReceiptCreate from "./pages/GoodsReceiptCreate";
 import GoodsReceiptDetail from "./pages/GoodsReceiptDetail";
 import Departments from "./pages/Departments";
+import DepartmentCreate from "./pages/DepartmentCreate";
 
 
 import SelectCompany from "./pages/SelectCompany";
@@ -369,6 +370,7 @@ const App = () => (
               <Route path="/training/:id" element={<ProtectedLayout><TrainingDetail /></ProtectedLayout>} />
               <Route path="/orgchart" element={<ProtectedLayout><Orgchart /></ProtectedLayout>} />
               <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
+              <Route path="/departments/new" element={<ProtectedLayout><DepartmentCreate /></ProtectedLayout>} />
               
               {/* Administration */}
               <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
