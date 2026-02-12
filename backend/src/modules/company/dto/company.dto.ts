@@ -66,6 +66,11 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   bankName?: string;
+
+  @ApiPropertyOptional({ example: 'Innovative Softwarelösungen für moderne Unternehmen' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
 
 export class CreateTeamMemberDto {

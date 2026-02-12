@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useCompany, useUpdateCompany } from "@/hooks/use-company";
 import { useDashboardStats } from "@/hooks/use-dashboard";
 import { useCompanyTeam, useAddTeamMember, useRemoveTeamMember } from "@/hooks/use-company-team";
+import { useEmployees } from "@/hooks/use-employees";
 import { useAuth } from "@/contexts/AuthContext";
 
 const roleOptions = [
@@ -76,6 +77,8 @@ export default function Company() {
   const { data: teamMembers = [], isLoading: teamLoading } = useCompanyTeam();
   const addTeamMember = useAddTeamMember();
   const removeTeamMember = useRemoveTeamMember();
+  const { data: employeesData } = useEmployees({ pageSize: 200 });
+  const employees = employeesData?.data || [];
 
   const [form, setForm] = useState<FormData>(emptyForm);
   const [isDirty, setIsDirty] = useState(false);
@@ -166,7 +169,7 @@ export default function Company() {
 
   // Dynamic stats from backend
   const companyStats = [
-    { label: "Mitarbeiter", value: statsLoading ? "—" : "—", icon: Users },
+    { label: "Mitarbeiter", value: statsLoading ? "—" : String(stats?.employeeCount ?? "—"), icon: Users },
     { label: "Gegründet", value: company?.createdAt ? new Date(company.createdAt).getFullYear().toString() : "—", icon: Calendar },
     { label: "Projekte", value: statsLoading ? "—" : String(stats?.activeProjects ?? "—"), icon: FileText },
     { label: "Kunden", value: statsLoading ? "—" : String(stats?.customerCount ?? "—"), icon: Building2 },
@@ -496,13 +499,32 @@ export default function Company() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="memberName">Name *</Label>
-              <Input
-                id="memberName"
-                placeholder="Max Mustermann"
+              <Label>Mitarbeiter auswählen *</Label>
+              <Select
                 value={newMember.name}
-                onChange={(e) => setNewMember(prev => ({ ...prev, name: e.target.value }))}
-              />
+                onValueChange={(value) => {
+                  const emp = employees.find(e => `${e.firstName} ${e.lastName}` === value);
+                  setNewMember(prev => ({
+                    ...prev,
+                    name: value,
+                    role: emp?.position || prev.role,
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Mitarbeiter wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => {
+                    const fullName = `${emp.firstName} ${emp.lastName}`;
+                    return (
+                      <SelectItem key={emp.id} value={fullName}>
+                        {fullName}{emp.position ? ` — ${emp.position}` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="memberRole">Rolle / Position *</Label>

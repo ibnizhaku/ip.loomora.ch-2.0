@@ -6,6 +6,7 @@ interface DashboardStats {
   openInvoices: number;
   activeProjects: number;
   customerCount: number;
+  employeeCount: number;
   revenueChange: string;
   utilizationRate: number;
 }

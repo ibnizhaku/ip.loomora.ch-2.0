@@ -33,6 +33,17 @@ export class CompanyService {
     });
   }
 
+  // --- Logo ---
+
+  async updateLogo(companyId: string, file: Express.Multer.File) {
+    const logoUrl = `/api/uploads/logos/${file.filename}`;
+
+    return this.prisma.company.update({
+      where: { id: companyId },
+      data: { logoUrl },
+    });
+  }
+
   // --- Team Members ---
 
   async getTeamMembers(companyId: string) {

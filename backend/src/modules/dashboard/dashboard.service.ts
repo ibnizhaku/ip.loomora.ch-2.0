@@ -12,6 +12,7 @@ export class DashboardService {
       activeProjects,
       totalInvoices,
       paidInvoices,
+      employeeCount,
     ] = await Promise.all([
       this.prisma.customer.count({ where: { companyId, isActive: true } }),
       this.prisma.project.count({ where: { companyId, status: 'ACTIVE' } }),
@@ -23,6 +24,7 @@ export class DashboardService {
         where: { companyId, status: 'PAID' },
         _sum: { totalAmount: true },
       }),
+      this.prisma.employee.count({ where: { companyId } }),
     ]);
 
     const totalRevenue = Number(paidInvoices._sum.totalAmount || 0);
@@ -33,6 +35,7 @@ export class DashboardService {
       openInvoices,
       activeProjects,
       customerCount,
+      employeeCount,
       // Calculated percentages
       revenueChange: '+12.5%', // Would be calculated from historical data
       utilizationRate: 87,
