@@ -139,3 +139,25 @@ export function useDuplicateProject() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+export function useAddProjectMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, employeeId, role }: { projectId: string; employeeId: string; role?: string }) =>
+      api.post(`/projects/${projectId}/members`, { employeeId, role }),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, projectId] });
+    },
+  });
+}
+
+export function useRemoveProjectMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
+      api.delete(`/projects/${projectId}/members/${memberId}`),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, projectId] });
+    },
+  });
+}

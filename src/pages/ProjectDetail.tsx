@@ -33,7 +33,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ProjectChat } from "@/components/project/ProjectChat";
-import { useProject, useDeleteProject, useUpdateProject } from "@/hooks/use-projects";
+import { useProject, useDeleteProject, useUpdateProject, useAddProjectMember, useRemoveProjectMember } from "@/hooks/use-projects";
+import { useEmployees } from "@/hooks/use-employees";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -54,6 +55,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useDropzone } from "react-dropzone";
 import { useDMSDocuments, useUploadDocument, useDeleteDocument } from "@/hooks/use-documents";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PLANNING: { label: "Planung", color: "bg-muted text-muted-foreground" },
@@ -80,6 +90,11 @@ export default function ProjectDetail() {
   const updateProject = useUpdateProject();
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const addMember = useAddProjectMember();
+  const removeMember = useRemoveProjectMember();
+  const { data: employeesData } = useEmployees({ search: memberSearch, pageSize: 20 });
 
   // Load project documents from backend
   const { data: projectDocsData } = useDMSDocuments({ projectId: id });
@@ -200,6 +215,8 @@ export default function ProjectDetail() {
 
   // Team und Tasks aus Backend-Daten aufbereiten
   const team = project.members?.map((m: any) => ({
+    id: m.id,
+    employeeId: m.employee?.id,
     initials: `${m.employee?.firstName?.[0] || ''}${m.employee?.lastName?.[0] || ''}`,
     name: `${m.employee?.firstName || ''} ${m.employee?.lastName || ''}`,
     role: m.employee?.position || 'Mitarbeiter',
@@ -469,7 +486,7 @@ export default function ProjectDetail() {
         <TabsContent value="team" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Teammitglieder ({team.length})</h3>
-            <Button size="sm" variant="outline" className="gap-2">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAddMemberDialog(true)}>
               <Plus className="h-4 w-4" />
               Mitglied hinzufügen
             </Button>
@@ -484,18 +501,37 @@ export default function ProjectDetail() {
             <div className="grid gap-4 sm:grid-cols-3">
               {team.map((member: any) => (
                 <div
-                  key={member.initials}
-                  className="rounded-xl border border-border bg-card p-4 flex items-center gap-4"
+                  key={member.id || member.initials}
+                  className="rounded-xl border border-border bg-card p-4 flex items-center gap-4 group relative"
                 >
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-primary/10 text-primary font-medium">
                       {member.initials}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium">{member.name}</p>
                     <p className="text-sm text-muted-foreground">{member.role}</p>
                   </div>
+                  {member.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7 text-destructive"
+                      onClick={() => {
+                        if (!id) return;
+                        removeMember.mutate(
+                          { projectId: id, memberId: member.id },
+                          {
+                            onSuccess: () => toast.success(`${member.name} entfernt`),
+                            onError: () => toast.error('Fehler beim Entfernen'),
+                          }
+                        );
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -616,6 +652,70 @@ export default function ProjectDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={showAddMemberDialog} onOpenChange={setShowAddMemberDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mitglied hinzufügen</DialogTitle>
+            <DialogDescription>
+              Wählen Sie einen Mitarbeiter aus, um ihn dem Projekt hinzuzufügen.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Mitarbeiter suchen..."
+            value={memberSearch}
+            onChange={(e) => setMemberSearch(e.target.value)}
+          />
+          <div className="max-h-64 overflow-y-auto space-y-2">
+            {employeesData?.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Keine Mitarbeiter gefunden</p>
+            )}
+            {employeesData?.data?.map((emp: any) => {
+              const alreadyMember = team.some((m: any) => m.employeeId === emp.id);
+              return (
+                <button
+                  key={emp.id}
+                  disabled={alreadyMember || addMember.isPending}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  onClick={() => {
+                    if (!id) return;
+                    addMember.mutate(
+                      { projectId: id, employeeId: emp.id },
+                      {
+                        onSuccess: () => {
+                          toast.success(`${emp.firstName} ${emp.lastName} hinzugefügt`);
+                          setShowAddMemberDialog(false);
+                          setMemberSearch('');
+                        },
+                        onError: () => toast.error('Fehler beim Hinzufügen'),
+                      }
+                    );
+                  }}
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      {emp.firstName?.[0]}{emp.lastName?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium text-sm">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{emp.position || 'Mitarbeiter'}</p>
+                  </div>
+                  {alreadyMember && (
+                    <Badge variant="outline" className="ml-auto text-xs">Bereits im Team</Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAddMemberDialog(false); setMemberSearch(''); }}>
+              Abbrechen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
