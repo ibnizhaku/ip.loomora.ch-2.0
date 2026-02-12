@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/dto/notification.dto';
 import { CreateMessageDto, UpdateMessageDto, ToggleReactionDto } from './dto/message.dto';
-import { parseMentions } from './chat.utils';
+import { parseMentions, parsePlainTextMentions } from './chat.utils';
 
 @Injectable()
 export class MessagesService {
@@ -18,9 +18,48 @@ export class MessagesService {
     }
 
     // Parse mentions from content
-    const mentionedUserIds = dto.mentionedUserIds?.length
+    let mentionedUserIds = dto.mentionedUserIds?.length
       ? dto.mentionedUserIds
       : parseMentions(dto.content);
+
+    // Fallback: Plain-text mentions (@Name ohne userId)
+    if (mentionedUserIds.length === 0 && dto.projectId) {
+      const plainMentions = parsePlainTextMentions(dto.content);
+      if (plainMentions.length > 0) {
+        // Resolve names to user IDs from project members
+        const project = await this.prisma.project.findUnique({
+          where: { id: dto.projectId },
+          include: {
+            members: {
+              include: {
+                employee: {
+                  include: {
+                    user: { select: { id: true, firstName: true, lastName: true } },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (project) {
+          const resolvedIds: string[] = [];
+          for (const mentionName of plainMentions) {
+            const nameParts = mentionName.split(' ');
+            const member = project.members.find((m) => {
+              const empUser = m.employee?.user;
+              if (!empUser) return false;
+              const fullName = `${empUser.firstName} ${empUser.lastName}`;
+              return fullName.toLowerCase() === mentionName.toLowerCase();
+            });
+            if (member?.employee?.user?.id) {
+              resolvedIds.push(member.employee.user.id);
+            }
+          }
+          mentionedUserIds = resolvedIds;
+        }
+      }
+    }
 
     const message = await this.prisma.chatMessage.create({
       data: {
