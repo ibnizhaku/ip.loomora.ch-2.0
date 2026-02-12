@@ -173,6 +173,7 @@ import Help from "./pages/Help";
 import GoodsReceipts from "./pages/GoodsReceipts";
 import GoodsReceiptCreate from "./pages/GoodsReceiptCreate";
 import GoodsReceiptDetail from "./pages/GoodsReceiptDetail";
+import Departments from "./pages/Departments";
 
 
 import SelectCompany from "./pages/SelectCompany";
@@ -367,6 +368,7 @@ const App = () => (
               <Route path="/training/new" element={<ProtectedLayout><TrainingCreate /></ProtectedLayout>} />
               <Route path="/training/:id" element={<ProtectedLayout><TrainingDetail /></ProtectedLayout>} />
               <Route path="/orgchart" element={<ProtectedLayout><Orgchart /></ProtectedLayout>} />
+              <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
               
               {/* Administration */}
               <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
