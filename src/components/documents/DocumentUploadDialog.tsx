@@ -21,6 +21,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useUploadDocument } from "@/hooks/use-documents";
 
 interface UploadFile {
   id: string;
@@ -30,12 +31,14 @@ interface UploadFile {
 }
 
 interface DocumentUploadDialogProps {
-  onFilesUploaded: (files: {
+  onFilesUploaded?: (files: {
     id: string;
     name: string;
     type: "pdf" | "doc" | "image" | "spreadsheet";
     size: string;
   }[]) => void;
+  projectId?: string;
+  folderId?: string;
   trigger?: React.ReactNode;
 }
 
@@ -69,11 +72,12 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 };
 
-export function DocumentUploadDialog({ onFilesUploaded, trigger }: DocumentUploadDialogProps) {
+export function DocumentUploadDialog({ onFilesUploaded, projectId, folderId, trigger }: DocumentUploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadDocument = useUploadDocument();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -112,46 +116,60 @@ export function DocumentUploadDialog({ onFilesUploaded, trigger }: DocumentUploa
     setFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const simulateUpload = async () => {
+  const handleUpload = async () => {
+    const uploadedResults: { id: string; name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[] = [];
+
     for (const uploadFile of files) {
       if (uploadFile.status !== "pending") continue;
 
       setFiles((prev) =>
         prev.map((f) =>
-          f.id === uploadFile.id ? { ...f, status: "uploading" } : f
+          f.id === uploadFile.id ? { ...f, status: "uploading", progress: 30 } : f
         )
       );
 
-      // Simulate upload progress
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+      try {
+        const result = await uploadDocument.mutateAsync({
+          file: uploadFile.file,
+          ...(folderId ? { folderId } : {}),
+          ...(projectId ? { projectId } : {}),
+        });
+
         setFiles((prev) =>
-          prev.map((f) => (f.id === uploadFile.id ? { ...f, progress } : f))
+          prev.map((f) =>
+            f.id === uploadFile.id ? { ...f, status: "complete", progress: 100 } : f
+          )
         );
-      }
 
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.id === uploadFile.id ? { ...f, status: "complete", progress: 100 } : f
-        )
-      );
+        uploadedResults.push({
+          id: (result as any)?.id || uploadFile.id,
+          name: uploadFile.file.name,
+          type: getFileType(uploadFile.file),
+          size: formatFileSize(uploadFile.file.size),
+        });
+      } catch (err: any) {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadFile.id ? { ...f, status: "error", progress: 0 } : f
+          )
+        );
+        toast.error(`Fehler beim Hochladen von "${uploadFile.file.name}": ${err.message || "Unbekannter Fehler"}`);
+      }
     }
 
-    // Call the callback with uploaded files
-    const uploadedFiles = files.map((f) => ({
-      id: f.id,
-      name: f.file.name,
-      type: getFileType(f.file),
-      size: formatFileSize(f.file.size),
-    }));
+    if (uploadedResults.length > 0) {
+      onFilesUploaded?.(uploadedResults);
+      toast.success(`${uploadedResults.length} Datei(en) hochgeladen`);
+    }
 
-    onFilesUploaded(uploadedFiles);
-    toast.success(`${files.length} Datei(en) hochgeladen`);
-    setOpen(false);
-    setFiles([]);
+    // Close dialog if all uploads completed
+    const hasErrors = files.some((f) => f.status === "error");
+    if (!hasErrors) {
+      setOpen(false);
+      setFiles([]);
+    }
   };
 
-  const allComplete = files.length > 0 && files.every((f) => f.status === "complete");
   const hasFiles = files.length > 0;
 
   return (
@@ -232,6 +250,9 @@ export function DocumentUploadDialog({ onFilesUploaded, trigger }: DocumentUploa
                     {uploadFile.status === "uploading" && (
                       <Progress value={uploadFile.progress} className="h-1 mt-1" />
                     )}
+                    {uploadFile.status === "error" && (
+                      <p className="text-xs text-destructive mt-1">Fehler beim Hochladen</p>
+                    )}
                   </div>
                   {uploadFile.status === "complete" ? (
                     <CheckCircle className="h-5 w-5 text-success" />
@@ -259,7 +280,7 @@ export function DocumentUploadDialog({ onFilesUploaded, trigger }: DocumentUploa
             Abbrechen
           </Button>
           <Button
-            onClick={simulateUpload}
+            onClick={handleUpload}
             disabled={!hasFiles || files.some((f) => f.status === "uploading")}
           >
             {files.some((f) => f.status === "uploading")

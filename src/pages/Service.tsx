@@ -141,7 +141,21 @@ export default function Service() {
     queryKey: ["/service-tickets"],
     queryFn: () => api.get<any>("/service-tickets"),
   });
-  const initialTickets = apiData?.data || [];
+  const initialTickets: ServiceTicket[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    number: raw.number || "",
+    title: raw.title || raw.subject || "–",
+    customer: raw.customer?.companyName || raw.customer?.name || raw.customerName || "–",
+    type: (raw.type || "repair").toLowerCase(),
+    priority: (raw.priority || "normal").toLowerCase(),
+    status: (raw.status || "open").toLowerCase().replace("-", "_"),
+    assignedTo: raw.assignedTo || raw.assignedUser?.name || undefined,
+    scheduledDate: raw.scheduledDate ? new Date(raw.scheduledDate).toLocaleDateString("de-CH") : undefined,
+    completedDate: raw.completedDate ? new Date(raw.completedDate).toLocaleDateString("de-CH") : undefined,
+    estimatedHours: Number(raw.estimatedHours || 0),
+    actualHours: raw.actualHours != null ? Number(raw.actualHours) : undefined,
+    description: raw.description || "",
+  }));
   const [statusFilter, setStatusFilter] = useState("all");
   const [ticketList, setTicketList] = useState<ServiceTicket[]>(initialTickets);
 
@@ -177,9 +191,9 @@ export default function Service() {
   const urgentTickets = ticketList.filter((t) => t.priority === "urgent" || t.priority === "high").length;
 
   const filteredTickets = ticketList.filter((ticket) => {
-    const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.customer.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (ticket.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ticket.number || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ticket.customer || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -450,14 +464,14 @@ export default function Service() {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold">{ticket.title}</h3>
-                    <Badge className={typeStyles[ticket.type]}>
-                      {typeLabels[ticket.type]}
+                    <Badge className={typeStyles[ticket.type] || typeStyles.repair}>
+                      {typeLabels[ticket.type] || ticket.type}
                     </Badge>
-                    <Badge className={statusStyles[ticket.status]}>
-                      {statusLabels[ticket.status]}
+                    <Badge className={statusStyles[ticket.status] || statusStyles.open}>
+                      {statusLabels[ticket.status] || ticket.status}
                     </Badge>
-                    <Badge className={priorityStyles[ticket.priority]}>
-                      {priorityLabels[ticket.priority]}
+                    <Badge className={priorityStyles[ticket.priority] || priorityStyles.normal}>
+                      {priorityLabels[ticket.priority] || ticket.priority}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">

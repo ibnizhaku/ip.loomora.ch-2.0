@@ -84,11 +84,23 @@ export default function Contracts() {
   const queryClient = useQueryClient();
 
   // Fetch data from API
-  const { data: apiData } = useQuery({
+  const { data: apiData, isLoading } = useQuery({
     queryKey: ["/contracts"],
     queryFn: () => api.get<any>("/contracts"),
   });
-  const initialContracts = apiData?.data || [];
+  const initialContracts: Contract[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    number: raw.number || "",
+    title: raw.title || raw.name || "–",
+    client: raw.customer?.companyName || raw.customer?.name || raw.client || "–",
+    type: (raw.type || "service").toLowerCase(),
+    value: Number(raw.value || raw.total || 0),
+    status: (raw.status || "draft").toLowerCase(),
+    startDate: raw.startDate ? new Date(raw.startDate).toLocaleDateString("de-CH") : "–",
+    endDate: raw.endDate ? new Date(raw.endDate).toLocaleDateString("de-CH") : "–",
+    autoRenewal: raw.autoRenewal || false,
+    daysLeft: raw.daysLeft,
+  }));
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [autoRenewalFilter, setAutoRenewalFilter] = useState<boolean | null>(null);
@@ -97,16 +109,16 @@ export default function Contracts() {
   const hasActiveFilters = typeFilters.length > 0 || autoRenewalFilter !== null;
 
   const filteredContracts = contractList.filter((c) => {
-    const matchesSearch = c.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.client.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (c.number || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.client || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
     const matchesType = typeFilters.length === 0 || typeFilters.includes(c.type);
     const matchesAutoRenewal = autoRenewalFilter === null || c.autoRenewal === autoRenewalFilter;
     return matchesSearch && matchesStatus && matchesType && matchesAutoRenewal;
   });
 
-  const totalValue = contractList.filter((c) => c.status === "active").reduce((acc, c) => acc + c.value, 0);
+  const totalValue = contractList.filter((c) => c.status === "active").reduce((acc, c) => acc + (c.value || 0), 0);
   const expiringCount = contractList.filter((c) => c.status === "expiring").length;
   const activeCount = contractList.filter((c) => c.status === "active").length;
 
@@ -184,7 +196,7 @@ export default function Contracts() {
               <FileText className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{contractList.length}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : contractList.length}</p>
               <p className="text-sm text-muted-foreground">Verträge gesamt</p>
             </div>
           </div>
@@ -201,7 +213,7 @@ export default function Contracts() {
               <CheckCircle className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{activeCount}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : activeCount}</p>
               <p className="text-sm text-muted-foreground">Aktive Verträge</p>
             </div>
           </div>
@@ -218,7 +230,7 @@ export default function Contracts() {
               <AlertTriangle className="h-5 w-5 text-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{expiringCount}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : expiringCount}</p>
               <p className="text-sm text-muted-foreground">Laufen bald aus</p>
             </div>
           </div>
@@ -229,7 +241,9 @@ export default function Contracts() {
               <Euro className="h-5 w-5 text-info" />
             </div>
             <div>
-              <p className="text-2xl font-bold">CHF {totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${totalValue.toLocaleString()}`}
+              </p>
               <p className="text-sm text-muted-foreground">Aktiver Wert</p>
             </div>
           </div>
@@ -367,7 +381,8 @@ export default function Contracts() {
           </TableHeader>
           <TableBody>
             {filteredContracts.map((contract, index) => {
-              const StatusIcon = statusConfig[contract.status].icon;
+              const sc = statusConfig[contract.status] || statusConfig.active;
+              const StatusIcon = sc.icon;
               return (
                 <TableRow
                   key={contract.id}
@@ -390,14 +405,14 @@ export default function Contracts() {
                   </TableCell>
                   <TableCell>{contract.client}</TableCell>
                   <TableCell>
-                    <Badge className={typeConfig[contract.type].color}>
-                      {typeConfig[contract.type].label}
+                    <Badge className={(typeConfig[contract.type] || { color: "bg-muted text-muted-foreground", label: contract.type }).color}>
+                      {(typeConfig[contract.type] || { color: "bg-muted text-muted-foreground", label: contract.type }).label}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", statusConfig[contract.status].color)}>
+                    <Badge className={cn("gap-1", sc.color)}>
                       <StatusIcon className="h-3 w-3" />
-                      {statusConfig[contract.status].label}
+                      {sc.label}
                     </Badge>
                   </TableCell>
                   <TableCell>

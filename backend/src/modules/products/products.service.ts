@@ -8,7 +8,9 @@ export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto & { categoryId?: string; isService?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', categoryId, isService } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', categoryId, isService } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -190,5 +192,23 @@ export class ProductsService {
         companyId,
       },
     });
+  }
+
+  async getStats(companyId: string) {
+    const [total, active, inactive, services, products] = await Promise.all([
+      this.prisma.product.count({ where: { companyId } }),
+      this.prisma.product.count({ where: { companyId, isActive: true } }),
+      this.prisma.product.count({ where: { companyId, isActive: false } }),
+      this.prisma.product.count({ where: { companyId, isService: true } }),
+      this.prisma.product.findMany({
+        where: { companyId, isService: false },
+        select: { stockQuantity: true, minStock: true },
+      }),
+    ]);
+
+    // Count low stock items
+    const lowStock = products.filter(p => p.stockQuantity <= p.minStock).length;
+
+    return { total, active, inactive, services, lowStock };
   }
 }

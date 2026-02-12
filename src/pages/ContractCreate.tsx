@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, FileText } from "lucide-react";
+import { ArrowLeft, Save, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useCreateContract } from "@/hooks/use-contracts";
+import { useCustomers } from "@/hooks/use-customers";
 
 export default function ContractCreate() {
   const navigate = useNavigate();
+  const createContract = useCreateContract();
+  const { data: customersData } = useCustomers({ pageSize: 200 });
+  const customers = customersData?.data || [];
+
   const [title, setTitle] = useState("");
   const [customer, setCustomer] = useState("");
   const [contractType, setContractType] = useState("");
@@ -21,14 +27,45 @@ export default function ContractCreate() {
   const [autoRenewal, setAutoRenewal] = useState(false);
   const [noticePeriod, setNoticePeriod] = useState("");
   const [description, setDescription] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const noticePeriodMap: Record<string, number> = {
+    "1-month": 30,
+    "3-months": 90,
+    "6-months": 180,
+    "end-of-year": 365,
+  };
+
+  const handleSave = async () => {
     if (!title || !customer || !contractType || !startDate || !endDate) {
       toast.error("Bitte füllen Sie die Pflichtfelder aus");
       return;
     }
-    toast.success("Vertrag erstellt");
-    navigate("/contracts");
+    setIsSaving(true);
+    try {
+      const result = await createContract.mutateAsync({
+        name: title,
+        customerId: customer,
+        type: contractType.toUpperCase(),
+        value: parseFloat(value) || 0,
+        startDate,
+        endDate,
+        autoRenew: autoRenewal,
+        noticePeriodDays: noticePeriodMap[noticePeriod] || undefined,
+        description,
+        status: "DRAFT",
+      });
+      toast.success("Vertrag erstellt");
+      if (result?.id) {
+        navigate(`/contracts/${result.id}`);
+      } else {
+        navigate("/contracts");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Erstellen");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -67,11 +104,9 @@ export default function ContractCreate() {
                   <SelectValue placeholder="Kunde wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fashion-store">Fashion Store GmbH</SelectItem>
-                  <SelectItem value="fintech">FinTech Solutions</SelectItem>
-                  <SelectItem value="sales-pro">Sales Pro AG</SelectItem>
-                  <SelectItem value="tech-innovations">Tech Innovations</SelectItem>
-                  <SelectItem value="logistics-plus">Logistics Plus</SelectItem>
+                  {customers.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -160,8 +195,8 @@ export default function ContractCreate() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2" onClick={handleSave}>
-          <Save className="h-4 w-4" />
+        <Button className="gap-2" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Vertrag anlegen
         </Button>
       </div>

@@ -12,7 +12,9 @@ export class InvoicesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto & { status?: string; customerId?: string; overdue?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId, overdue } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId, overdue } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -396,5 +398,222 @@ export class InvoicesService {
       openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
       daysOverdue: Math.max(0, Math.floor((Date.now() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24))),
     }));
+  }
+
+  async getStats(companyId: string) {
+    const [totalAgg, paidAgg, pendingAgg, overdueAgg] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: { companyId },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { companyId, status: InvoiceStatus.PAID },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { companyId, status: InvoiceStatus.SENT },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { companyId, status: InvoiceStatus.OVERDUE },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      total: Number(totalAgg._sum.totalAmount) || 0,
+      paid: Number(paidAgg._sum.totalAmount) || 0,
+      pending: Number(pendingAgg._sum.totalAmount) || 0,
+      overdue: Number(overdueAgg._sum.totalAmount) || 0,
+    };
+  }
+
+  // Auto-Overdue Check (run daily via cron or manually)
+  async checkOverdue(companyId: string, userId?: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const overdueInvoices = await this.prisma.invoice.findMany({
+      where: {
+        companyId,
+        status: { in: [InvoiceStatus.SENT, InvoiceStatus.PARTIAL] },
+        dueDate: { lt: today },
+      },
+    });
+
+    const updated = await this.prisma.$transaction(
+      overdueInvoices.map((invoice) =>
+        this.prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { status: InvoiceStatus.OVERDUE },
+        })
+      )
+    );
+
+    // Audit log
+    if (userId && overdueInvoices.length > 0) {
+      await this.prisma.auditLog.create({
+        data: {
+          module: 'INVOICES',
+          entityType: 'INVOICE',
+          action: 'UPDATE',
+          description: `${overdueInvoices.length} invoices marked as OVERDUE`,
+          metadata: { invoiceIds: overdueInvoices.map(i => i.id) },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+    }
+
+    return {
+      updated: updated.length,
+      invoices: updated.map(i => ({ id: i.id, number: i.number })),
+    };
+  }
+
+  // Create invoice from time entries (billable hours)
+  async createFromTimeEntries(companyId: string, userId: string, params: {
+    projectId?: string;
+    customerId: string;
+    startDate: string;
+    endDate: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      // Find billable time entries
+      const where: any = {
+        companyId,
+        isBillable: true,
+        date: {
+          gte: new Date(params.startDate),
+          lte: new Date(params.endDate),
+        },
+      };
+
+      if (params.projectId) {
+        where.projectId = params.projectId;
+      }
+
+      const timeEntries = await tx.timeEntry.findMany({
+        where,
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          project: { select: { name: true } },
+          task: { select: { title: true } },
+        },
+        orderBy: [{ date: 'asc' }, { userId: 'asc' }],
+      });
+
+      if (timeEntries.length === 0) {
+        throw new BadRequestException('Keine abrechenbaren Stunden im gewählten Zeitraum');
+      }
+
+      // Group by user and calculate items
+      const userGroups = new Map<string, any[]>();
+      timeEntries.forEach(entry => {
+        const key = entry.userId;
+        if (!userGroups.has(key)) userGroups.set(key, []);
+        userGroups.get(key)!.push(entry);
+      });
+
+      const items = [];
+      let position = 1;
+
+      for (const [userId, entries] of userGroups.entries()) {
+        const totalHours = entries.reduce((sum, e) => sum + e.duration, 0) / 60; // minutes to hours
+        const hourlyRate = Number(entries[0].hourlyRate || 100); // Default 100 CHF
+        const userName = `${entries[0].user.firstName} ${entries[0].user.lastName}`;
+        const total = totalHours * hourlyRate;
+
+        items.push({
+          position,
+          description: `${userName} - ${totalHours.toFixed(2)}h à CHF ${hourlyRate.toFixed(2)}`,
+          quantity: totalHours,
+          unit: 'Std',
+          unitPrice: hourlyRate,
+          discount: 0,
+          vatRate: 8.1,
+          vatAmount: total * 0.081,
+          total: total,
+        });
+        position++;
+      }
+
+      // Calculate totals
+      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+      const vatAmount = subtotal * 0.081;
+      const totalAmount = subtotal + vatAmount;
+
+      // Generate invoice number
+      const year = new Date().getFullYear();
+      const lastInvoice = await tx.invoice.findFirst({
+        where: { companyId, number: { startsWith: `RE-${year}` } },
+        orderBy: { number: 'desc' },
+      });
+      
+      const lastNum = lastInvoice?.number ? parseInt(lastInvoice.number.split('-')[2] || '0') : 0;
+      const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+      // Generate QR reference
+      const invoiceCount = await tx.invoice.count({ where: { companyId } });
+      const referenceBase = `${companyId.substring(0, 8)}${String(invoiceCount + 1).padStart(10, '0')}`;
+      const checkDigit = this.calculateMod10CheckDigit(referenceBase);
+      const qrReference = referenceBase + checkDigit;
+
+      // Create invoice
+      const invoice = await tx.invoice.create({
+        data: {
+          number: invoiceNumber,
+          customerId: params.customerId,
+          projectId: params.projectId,
+          status: InvoiceStatus.DRAFT,
+          date: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          subtotal,
+          vatAmount,
+          totalAmount,
+          paidAmount: 0,
+          qrReference,
+          notes: `Stundenabrechnung ${params.startDate} - ${params.endDate}`,
+          companyId,
+          createdById: userId,
+          items: {
+            create: items,
+          },
+        },
+        include: {
+          customer: true,
+          items: true,
+        },
+      });
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          module: 'INVOICES',
+          entityType: 'INVOICE',
+          action: 'CREATE',
+          description: `Invoice ${invoice.number} created from ${timeEntries.length} time entries (${(items.reduce((s, i) => s + i.quantity, 0)).toFixed(2)}h)`,
+          metadata: { timeEntryIds: timeEntries.map(e => e.id), totalHours: items.reduce((s, i) => s + i.quantity, 0) },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+
+      return invoice;
+    });
+  }
+
+  // Calculate Swiss MOD10 check digit (used in createInvoice and createFromTimeEntries)
+  private calculateMod10CheckDigit(reference: string): string {
+    const table = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
+    let carry = 0;
+    
+    for (const char of reference) {
+      carry = table[(carry + parseInt(char)) % 10];
+    }
+    
+    return String((10 - carry) % 10);
   }
 }

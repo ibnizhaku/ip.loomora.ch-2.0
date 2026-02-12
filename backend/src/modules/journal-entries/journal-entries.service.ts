@@ -11,6 +11,16 @@ import {
 export class JournalEntriesService {
   constructor(private prisma: PrismaService) {}
 
+  // Swiss KMU Chart of Accounts (simplified)
+  private readonly ACCOUNTS = {
+    BANK: '1020',           // Bank
+    DEBTORS: '1100',        // Debitoren
+    CREDITORS: '2000',      // Kreditoren
+    VAT_PAYABLE: '2200',    // Geschuldete MwSt
+    REVENUE: '3000',        // Umsatzerlöse
+    EXPENSE: '4000',        // Aufwand
+  };
+
   async findAll(companyId: string, params: {
     page?: number;
     pageSize?: number;
@@ -350,5 +360,97 @@ export class JournalEntriesService {
 
     // Filter out zero balances
     return balances.filter(b => b.debitTotal !== 0 || b.creditTotal !== 0);
+  }
+
+  // Helper: Create automatic journal entry for invoice (when sent)
+  async createInvoiceJournalEntry(invoice: any, companyId: string, tx?: any) {
+    const prisma = tx || this.prisma;
+
+    // Get or create default accounts
+    const [debtorAccount, revenueAccount, vatAccount] = await Promise.all([
+      prisma.chartOfAccount.findFirst({ where: { companyId, number: this.ACCOUNTS.DEBTORS } }),
+      prisma.chartOfAccount.findFirst({ where: { companyId, number: this.ACCOUNTS.REVENUE } }),
+      prisma.chartOfAccount.findFirst({ where: { companyId, number: this.ACCOUNTS.VAT_PAYABLE } }),
+    ]);
+
+    if (!debtorAccount || !revenueAccount || !vatAccount) {
+      // Accounts not configured, skip auto-booking
+      return null;
+    }
+
+    const year = new Date(invoice.date).getFullYear();
+    const count = await prisma.journalEntryExtended.count({
+      where: { companyId, date: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) } },
+    });
+    const number = `JB-${year}-${String(count + 1).padStart(5, '0')}`;
+
+    const subtotal = Number(invoice.subtotal);
+    const vatAmount = Number(invoice.vatAmount);
+    const totalAmount = Number(invoice.totalAmount);
+
+    return prisma.journalEntryExtended.create({
+      data: {
+        companyId,
+        number,
+        date: invoice.date || new Date(),
+        description: `Rechnung ${invoice.number}`,
+        reference: invoice.number,
+        documentType: 'INVOICE',
+        documentId: invoice.id,
+        status: 'POSTED',
+        totalAmount,
+        postedAt: new Date(),
+        lines: {
+          create: [
+            { accountId: debtorAccount.id, debit: totalAmount, credit: 0, description: `Rechnung ${invoice.number}`, sortOrder: 0 },
+            { accountId: revenueAccount.id, debit: 0, credit: subtotal, description: 'Umsatzerlös', sortOrder: 1 },
+            { accountId: vatAccount.id, debit: 0, credit: vatAmount, description: 'MwSt 8.1%', sortOrder: 2 },
+          ],
+        },
+      },
+    });
+  }
+
+  // Helper: Create automatic journal entry for payment
+  async createPaymentJournalEntry(payment: any, companyId: string, tx?: any) {
+    const prisma = tx || this.prisma;
+
+    const [bankAccount, debtorAccount] = await Promise.all([
+      prisma.chartOfAccount.findFirst({ where: { companyId, number: this.ACCOUNTS.BANK } }),
+      prisma.chartOfAccount.findFirst({ where: { companyId, number: this.ACCOUNTS.DEBTORS } }),
+    ]);
+
+    if (!bankAccount || !debtorAccount) {
+      return null;
+    }
+
+    const year = new Date(payment.paymentDate).getFullYear();
+    const count = await prisma.journalEntryExtended.count({
+      where: { companyId, date: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) } },
+    });
+    const number = `JB-${year}-${String(count + 1).padStart(5, '0')}`;
+
+    const amount = Number(payment.amount);
+
+    return prisma.journalEntryExtended.create({
+      data: {
+        companyId,
+        number,
+        date: payment.paymentDate || new Date(),
+        description: `Zahlungseingang ${payment.number}`,
+        reference: payment.reference || payment.number,
+        documentType: 'PAYMENT',
+        documentId: payment.id,
+        status: 'POSTED',
+        totalAmount: amount,
+        postedAt: new Date(),
+        lines: {
+          create: [
+            { accountId: bankAccount.id, debit: amount, credit: 0, description: `Zahlung ${payment.number}`, sortOrder: 0 },
+            { accountId: debtorAccount.id, debit: 0, credit: amount, description: 'Debitorenausgleich', sortOrder: 1 },
+          ],
+        },
+      },
+    });
   }
 }

@@ -23,7 +23,9 @@ import {
   Receipt,
   AlertTriangle,
   RotateCcw,
+  Loader2,
 } from "lucide-react";
+import { useQuote } from "@/hooks/use-sales";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,36 +77,52 @@ import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
-const initialQuoteData = {
-  id: "ANG-2024-0042",
-  status: "Gesendet",
-  customer: {
-    name: "TechStart GmbH",
-    contact: "Maria Weber",
-    email: "m.weber@techstart.de",
-    phone: "+49 30 12345678",
-    address: "Innovationsstraße 15, 10115 Berlin"
-  },
-  project: "E-Commerce Plattform",
-  createdAt: "15.01.2024",
-  validUntil: "15.02.2024",
-  positions: [
-    { id: 1, description: "Frontend-Entwicklung", quantity: 80, unit: "Stunden", price: 120, total: 9600 },
-    { id: 2, description: "Backend-Entwicklung", quantity: 60, unit: "Stunden", price: 130, total: 7800 },
-    { id: 3, description: "UI/UX Design", quantity: 40, unit: "Stunden", price: 110, total: 4400 },
-    { id: 4, description: "Projektmanagement", quantity: 20, unit: "Stunden", price: 100, total: 2000 },
-    { id: 5, description: "Testing & QA", quantity: 30, unit: "Stunden", price: 95, total: 2850 },
-  ],
-  subtotal: 26650,
-  tax: 2158.65,
-  total: 28808.65,
-  notes: "Zahlungsziel: 14 Tage nach Rechnungsstellung. Bei Auftragserteilung innerhalb der Gültigkeitsfrist gewähren wir 3% Skonto.",
-  history: [
-    { date: "15.01.2024 14:30", action: "Angebot erstellt", user: "Max Keller" },
-    { date: "15.01.2024 15:45", action: "Angebot per E-Mail versendet", user: "Max Keller" },
-    { date: "18.01.2024 10:20", action: "Kunde hat Angebot geöffnet", user: "System" },
-  ]
+// Status mapping from backend enum to German display labels
+const quoteStatusMap: Record<string, string> = {
+  DRAFT: "Entwurf",
+  SENT: "Gesendet",
+  CONFIRMED: "Angenommen",
+  CANCELLED: "Abgelehnt",
 };
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function mapQuoteToView(quote: any) {
+  const items = quote.items || [];
+  return {
+    id: quote.number || quote.id,
+    status: quoteStatusMap[quote.status] || quote.status || "Entwurf",
+    customer: {
+      id: quote.customer?.id,
+      name: quote.customer?.name || "Unbekannt",
+      contact: quote.customer?.contactPerson || quote.customer?.companyName || "",
+      email: quote.customer?.email || "",
+      phone: quote.customer?.phone || "",
+      address: [quote.customer?.street, [quote.customer?.zipCode, quote.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+    },
+    project: quote.project?.name || "",
+    createdAt: formatDate(quote.issueDate || quote.createdAt),
+    validUntil: formatDate(quote.validUntil),
+    positions: items.map((item: any, idx: number) => ({
+      id: item.id || idx + 1,
+      description: item.description || "",
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || "Stück",
+      price: Number(item.unitPrice) || 0,
+      total: Number(item.total) || 0,
+    })),
+    subtotal: Number(quote.subtotal) || 0,
+    tax: Number(quote.vatAmount) || 0,
+    total: Number(quote.total) || 0,
+    notes: quote.notes || "",
+    history: [] as { date: string; action: string; user: string }[],
+  };
+}
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground", icon: FileText },
@@ -116,22 +134,39 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 const QuoteDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: rawQuote, isLoading, error } = useQuote(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
-  const [quoteData, setQuoteData] = useState(initialQuoteData);
-  const [historyEntries, setHistoryEntries] = useState(initialQuoteData.history);
-  
-  // Dialog states
+  const [historyEntries, setHistoryEntries] = useState<{ date: string; action: string; user: string }[]>([]);
+
+  // ALL useState hooks MUST be before any conditional returns (React rules of hooks)
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertStep, setConvertStep] = useState(1);
   const [statusChangeOpen, setStatusChangeOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  
-  // Conversion form
   const [orderDeliveryDate, setOrderDeliveryDate] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [createDeliveryNote, setCreateDeliveryNote] = useState(false);
   const [createInvoice, setCreateInvoice] = useState(false);
-  const [newStatus, setNewStatus] = useState(quoteData.status);
+  const [newStatus, setNewStatus] = useState("");
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !rawQuote) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Angebot nicht gefunden</p>
+        <Link to="/quotes" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const quoteData = mapQuoteToView(rawQuote);
   
   const status = statusConfig[quoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
@@ -202,36 +237,13 @@ const QuoteDetail = () => {
 
   // Konvertierung durchführen
   const handleConvert = () => {
-    // Generate new order number
-    const orderNumber = `AUF-2024-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`;
-    
-    // Update quote status
-    setQuoteData(prev => ({ ...prev, status: "Angenommen" }));
-    addHistoryEntry(`In Auftrag ${orderNumber} umgewandelt`);
-    
-    toast.success(`Auftrag ${orderNumber} wurde erstellt`);
-    
-    if (createDeliveryNote) {
-      const lsNumber = `LS-2024-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`;
-      addHistoryEntry(`Lieferschein ${lsNumber} erstellt`);
-      toast.success(`Lieferschein ${lsNumber} wurde erstellt`);
-    }
-    
-    if (createInvoice) {
-      const invoiceNumber = `RE-2024-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`;
-      addHistoryEntry(`Rechnung ${invoiceNumber} erstellt`);
-      toast.success(`Rechnung ${invoiceNumber} wurde erstellt`);
-    }
-    
+    addHistoryEntry("In Auftrag umgewandelt");
+    toast.success("Auftrag wurde erstellt");
     setConvertDialogOpen(false);
-    
-    // Optional: Navigate to order
-    // navigate(`/orders/${orderNumber}`);
   };
 
   // Status ändern
   const handleStatusChange = () => {
-    setQuoteData(prev => ({ ...prev, status: newStatus }));
     addHistoryEntry(`Status geändert zu "${newStatus}"`);
     toast.success("Status aktualisiert");
     setStatusChangeOpen(false);
@@ -439,7 +451,7 @@ const QuoteDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/customers/1" className="font-medium hover:text-primary">
+                  <Link to={`/customers/${quoteData.customer.id || ''}`} className="font-medium hover:text-primary">
                     {quoteData.customer.name}
                   </Link>
                   <p className="text-sm text-muted-foreground">{quoteData.customer.contact}</p>

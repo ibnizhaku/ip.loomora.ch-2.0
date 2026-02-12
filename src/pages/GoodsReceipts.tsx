@@ -71,7 +71,7 @@ export default function GoodsReceipts() {
                 <TableCell>{receipt.date}</TableCell>
                 <TableCell className="font-medium">{receipt.supplier}</TableCell>
                 <TableCell className="font-mono text-sm">{receipt.poNumber}</TableCell>
-                <TableCell>{receipt.items}</TableCell>
+                <TableCell>{Array.isArray(receipt.items) ? receipt.items.length : (receipt.items || 0)}</TableCell>
                 <TableCell>
                   <Badge className={statusStyles[receipt.status as keyof typeof statusStyles]}>
                     {statusLabels[receipt.status as keyof typeof statusLabels]}

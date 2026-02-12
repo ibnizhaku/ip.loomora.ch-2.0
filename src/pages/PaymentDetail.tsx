@@ -1,51 +1,75 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Banknote, Building2, FileText, CheckCircle2, Clock, AlertCircle, Send } from "lucide-react";
+import { ArrowLeft, Banknote, Building2, FileText, CheckCircle2, Clock, AlertCircle, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { usePayment } from "@/hooks/use-payments";
 
-const zahlungData = {
-  id: "ZA-2024-0234",
-  typ: "Kreditorenzahlung",
-  datum: "29.01.2024",
-  valuta: "30.01.2024",
-  status: "ausgeführt",
-  betrag: 12450.00,
-  währung: "CHF",
-  zahlungsart: "SEPA-Überweisung",
-  referenz: "INV-2024-EK-0089",
-  verwendungszweck: "Lieferantenrechnung Stahlprofile Januar 2024",
-  // Empfänger
-  empfänger: "Stahl Müller AG",
-  empfängerKonto: "CH93 0076 2011 6238 5295 7",
-  empfängerBank: "Zürcher Kantonalbank",
-  empfängerBIC: "ZKBKCHZZ80A",
-  // Absender
-  absenderKonto: "CH12 0483 5012 3456 7800 0",
-  absenderBank: "Credit Suisse",
-  // Buchung
-  buchungNr: "BU-2024-0891",
-  sollKonto: "2000",
-  sollBezeichnung: "Kreditoren CHF",
-  habenKonto: "1020",
-  habenBezeichnung: "Bank Credit Suisse",
+// Status mapping from backend enum to German display
+const paymentStatusMap: Record<string, { label: string; color: string; icon: any }> = {
+  PENDING: { label: "Entwurf", color: "bg-muted text-muted-foreground", icon: Clock },
+  COMPLETED: { label: "Ausgeführt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  FAILED: { label: "Fehlgeschlagen", color: "bg-destructive/10 text-destructive", icon: AlertCircle },
+  CANCELLED: { label: "Storniert", color: "bg-muted text-muted-foreground", icon: AlertCircle },
 };
 
-const zugehörigeRechnungen = [
-  { nr: "ER-2024-0089", datum: "15.01.2024", lieferant: "Stahl Müller AG", betrag: 12450.00, status: "bezahlt" },
-];
-
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  entwurf: { label: "Entwurf", color: "bg-muted text-muted-foreground", icon: Clock },
-  freigegeben: { label: "Freigegeben", color: "bg-info/10 text-info", icon: CheckCircle2 },
-  ausgeführt: { label: "Ausgeführt", color: "bg-success/10 text-success", icon: CheckCircle2 },
-  fehlgeschlagen: { label: "Fehlgeschlagen", color: "bg-destructive/10 text-destructive", icon: AlertCircle },
+const methodLabels: Record<string, string> = {
+  BANK_TRANSFER: "Überweisung",
+  CASH: "Bargeld",
+  CREDIT_CARD: "Kreditkarte",
+  QR_BILL: "QR-Rechnung",
+  OTHER: "Sonstige",
 };
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function mapPaymentToView(payment: any) {
+  const amount = Number(payment.amount) || 0;
+  const isOutgoing = payment.type === "OUTGOING";
+  
+  return {
+    id: payment.number || payment.id,
+    typ: isOutgoing ? "Kreditorenzahlung" : "Debitorenzahlung",
+    datum: formatDate(payment.paymentDate || payment.createdAt),
+    valuta: formatDate(payment.paymentDate),
+    status: payment.status || "PENDING",
+    betrag: amount,
+    währung: payment.currency || "CHF",
+    zahlungsart: methodLabels[payment.method] || payment.method || "Überweisung",
+    referenz: payment.reference || payment.qrReference || "—",
+    verwendungszweck: payment.notes || "—",
+    // Empfänger
+    empfänger: isOutgoing
+      ? (payment.supplier?.name || "—")
+      : (payment.customer?.name || "—"),
+    empfängerKonto: payment.bankAccount?.iban || "—",
+    empfängerBank: payment.bankAccount?.bankName || "—",
+    empfängerBIC: payment.bankAccount?.bic || "—",
+    // Absender
+    absenderKonto: payment.bankAccount?.iban || "—",
+    absenderBank: payment.bankAccount?.bankName || "—",
+    // Buchung (nicht immer vorhanden)
+    buchungNr: "",
+    sollKonto: "",
+    sollBezeichnung: "",
+    habenKonto: "",
+    habenBezeichnung: "",
+    // Related invoice
+    invoice: payment.invoice,
+    purchaseInvoice: payment.purchaseInvoice,
+  };
+}
 
 export default function PaymentDetail() {
   const { id } = useParams();
+  const { data: rawPayment, isLoading, error } = usePayment(id || "");
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -54,7 +78,26 @@ export default function PaymentDetail() {
     }).format(value);
   };
 
-  const StatusIcon = statusConfig[zahlungData.status].icon;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !rawPayment) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Zahlung nicht gefunden</p>
+        <Link to="/payments" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const zahlungData = mapPaymentToView(rawPayment);
+  const statusInfo = paymentStatusMap[zahlungData.status] || paymentStatusMap.PENDING;
+  const StatusIcon = statusInfo.icon;
 
   return (
     <div className="space-y-6">
@@ -68,9 +111,9 @@ export default function PaymentDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">{zahlungData.id}</h1>
-            <Badge className={statusConfig[zahlungData.status].color}>
+            <Badge className={statusInfo.color}>
               <StatusIcon className="mr-1 h-3 w-3" />
-              {statusConfig[zahlungData.status].label}
+              {statusInfo.label}
             </Badge>
             <Badge variant="outline">{zahlungData.typ}</Badge>
           </div>
@@ -158,84 +201,56 @@ export default function PaymentDetail() {
         </Card>
       </div>
 
-      {/* Buchung */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Banknote className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Buchhaltung (Schweizer KMU-Kontenrahmen)</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <span className="text-sm text-muted-foreground">Buchung:</span>
-            <Link to={`/journal-entries/${zahlungData.buchungNr}`} className="text-primary hover:underline">
-              {zahlungData.buchungNr}
-            </Link>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Seite</TableHead>
-                <TableHead>Konto</TableHead>
-                <TableHead>Bezeichnung</TableHead>
-                <TableHead className="text-right">Betrag CHF</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Soll</TableCell>
-                <TableCell className="font-mono">{zahlungData.sollKonto}</TableCell>
-                <TableCell>{zahlungData.sollBezeichnung}</TableCell>
-                <TableCell className="text-right">{formatCurrency(zahlungData.betrag)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Haben</TableCell>
-                <TableCell className="font-mono">{zahlungData.habenKonto}</TableCell>
-                <TableCell>{zahlungData.habenBezeichnung}</TableCell>
-                <TableCell className="text-right">{formatCurrency(zahlungData.betrag)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Zugehörige Rechnungen */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Zugehörige Einkaufsrechnungen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Rechnung</TableHead>
-                <TableHead>Datum</TableHead>
-                <TableHead>Lieferant</TableHead>
-                <TableHead className="text-right">Betrag</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {zugehörigeRechnungen.map((r, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <Link to={`/purchase-invoices/${r.nr}`} className="text-primary hover:underline font-medium">
-                      {r.nr}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{r.datum}</TableCell>
-                  <TableCell>{r.lieferant}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(r.betrag)}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-success/10 text-success">Bezahlt</Badge>
-                  </TableCell>
+      {/* Related Invoices */}
+      {(zahlungData.invoice || zahlungData.purchaseInvoice) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Zugehörige Rechnungen</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rechnung</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead className="text-right">Betrag</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {zahlungData.invoice && (
+                  <TableRow>
+                    <TableCell>
+                      <Link to={`/invoices/${zahlungData.invoice.id}`} className="text-primary hover:underline font-medium">
+                        {zahlungData.invoice.number || zahlungData.invoice.id}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{formatDate(zahlungData.invoice.issueDate)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(zahlungData.invoice.total) || 0)}</TableCell>
+                    <TableCell>
+                      <Badge className="bg-success/10 text-success">Verknüpft</Badge>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {zahlungData.purchaseInvoice && (
+                  <TableRow>
+                    <TableCell>
+                      <Link to={`/purchase-invoices/${zahlungData.purchaseInvoice.id}`} className="text-primary hover:underline font-medium">
+                        {zahlungData.purchaseInvoice.number || zahlungData.purchaseInvoice.id}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{formatDate(zahlungData.purchaseInvoice.issueDate)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(zahlungData.purchaseInvoice.total) || 0)}</TableCell>
+                    <TableCell>
+                      <Badge className="bg-success/10 text-success">Verknüpft</Badge>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Meta */}
       <Card>

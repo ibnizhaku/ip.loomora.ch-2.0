@@ -101,7 +101,24 @@ export default function Production() {
     queryKey: ["/production-orders"],
     queryFn: () => api.get<any>("/production-orders"),
   });
-  const initialOrders = apiData?.data || [];
+  const initialOrders: ProductionOrder[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    number: raw.number || "",
+    name: raw.name || raw.title || "–",
+    project: raw.project?.name || raw.project || undefined,
+    bomNumber: raw.bomNumber || raw.bom?.number || undefined,
+    status: (raw.status || "planned").toLowerCase().replace("-", "_"),
+    priority: (raw.priority || "normal").toLowerCase(),
+    plannedStart: raw.plannedStart || raw.startDate ? new Date(raw.plannedStart || raw.startDate).toLocaleDateString("de-CH") : "–",
+    plannedEnd: raw.plannedEnd || raw.endDate ? new Date(raw.plannedEnd || raw.endDate).toLocaleDateString("de-CH") : "–",
+    actualStart: raw.actualStart ? new Date(raw.actualStart).toLocaleDateString("de-CH") : undefined,
+    actualEnd: raw.actualEnd ? new Date(raw.actualEnd).toLocaleDateString("de-CH") : undefined,
+    plannedHours: Number(raw.plannedHours || 0),
+    actualHours: Number(raw.actualHours || 0),
+    progress: Number(raw.progress || 0),
+    assignedTeam: raw.assignedTeam || [],
+    workstation: raw.workstation || "–",
+  }));
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderList, setOrderList] = useState<ProductionOrder[]>(initialOrders);
 
@@ -109,12 +126,12 @@ export default function Production() {
   const inProgressOrders = orderList.filter((o) => o.status === "in_progress").length;
   const plannedOrders = orderList.filter((o) => o.status === "planned").length;
   const completedOrders = orderList.filter((o) => o.status === "completed").length;
-  const totalPlannedHours = orderList.reduce((sum, o) => sum + o.plannedHours, 0);
-  const totalActualHours = orderList.reduce((sum, o) => sum + o.actualHours, 0);
+  const totalPlannedHours = orderList.reduce((sum, o) => sum + (o.plannedHours || 0), 0);
+  const totalActualHours = orderList.reduce((sum, o) => sum + (o.actualHours || 0), 0);
 
   const filteredOrders = orderList.filter((order) => {
-    const matchesSearch = order.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (order.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (order.number || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -414,7 +431,7 @@ export default function Production() {
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">Team</p>
-                  <p className="text-sm">{order.assignedTeam.join(", ")}</p>
+                  <p className="text-sm">{order.assignedTeam.map(m => typeof m === 'object' ? m?.name || m?.firstName : m).join(", ")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

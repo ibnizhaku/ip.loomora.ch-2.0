@@ -79,8 +79,11 @@ export default function EmailMarketing() {
   const avgClickRate = totalOpens > 0 ? (totalClicks / totalOpens) * 100 : 0;
   const sentCount = newsletters.filter((n) => n.status === "sent").length;
 
+  const defaultStatusStyle = "bg-muted text-muted-foreground";
+  const defaultStatusLabel = "Unbekannt";
+
   const filteredNewsletters = newsletters.filter((newsletter) => {
-    const matchesSearch = newsletter.subject.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (newsletter.subject || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || newsletter.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -257,8 +260,8 @@ export default function EmailMarketing() {
                       {newsletter.subject}
                     </TableCell>
                     <TableCell>
-                      <Badge className={statusStyles[newsletter.status]}>
-                        {statusLabels[newsletter.status]}
+                      <Badge className={statusStyles[newsletter.status] || defaultStatusStyle}>
+                        {statusLabels[newsletter.status] || defaultStatusLabel}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -286,7 +289,7 @@ export default function EmailMarketing() {
                       {newsletter.clicks > 0 ? newsletter.clicks.toLocaleString("de-CH") : "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {newsletter.opens > 0
+                      {newsletter.opens > 0 && newsletter.recipients > 0
                         ? `${((newsletter.opens / newsletter.recipients) * 100).toFixed(1)}%`
                         : "-"}
                     </TableCell>
@@ -443,11 +446,11 @@ export default function EmailMarketing() {
                     </div>
                   </div>
                   <Progress 
-                    value={(list.active / list.subscribers) * 100} 
+                    value={list.subscribers > 0 ? (list.active / list.subscribers) * 100 : 0} 
                     className="mt-4" 
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {((list.active / list.subscribers) * 100).toFixed(1)}% aktive Rate
+                    {list.subscribers > 0 ? ((list.active / list.subscribers) * 100).toFixed(1) : "0.0"}% aktive Rate
                   </p>
                 </CardContent>
               </Card>

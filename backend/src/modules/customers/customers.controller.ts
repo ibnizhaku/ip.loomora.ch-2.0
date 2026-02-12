@@ -13,6 +13,12 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get customer statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.customersService.getStats(user.companyId);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all customers' })
   @ApiQuery({ name: 'page', required: false, type: Number })

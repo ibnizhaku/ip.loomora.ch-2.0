@@ -132,12 +132,31 @@ const EmployeeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Fetch data from API
-  const { data: apiData } = useQuery({
-    queryKey: ["/employees"],
-    queryFn: () => api.get<any>("/employees"),
+  // Fetch employee from API
+  const { data: employee, isLoading, error } = useQuery({
+    queryKey: ["/employees", id],
+    queryFn: () => api.get<any>(`/employees/${id}`),
+    enabled: !!id,
   });
-  const initialOnboardingItems = apiData?.data || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !employee) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Mitarbeiter nicht gefunden</p>
+        <Link to="/hr" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const initialOnboardingItems: OnboardingItem[] = [];
 
   const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>(initialOnboardingItems);
   const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);
@@ -145,7 +164,7 @@ const EmployeeDetail = () => {
   // Calculate onboarding progress
   const completedCount = onboardingItems.filter(item => item.completed).length;
   const totalCount = onboardingItems.length;
-  const onboardingProgress = Math.round((completedCount / totalCount) * 100);
+  const onboardingProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Group onboarding items by category
   const groupedItems = onboardingItems.reduce((acc, item) => {

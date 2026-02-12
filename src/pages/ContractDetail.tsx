@@ -20,7 +20,9 @@ import {
   Copy,
   Printer,
   Trash2,
+  Loader2,
 } from "lucide-react";
+import { useContract } from "@/hooks/use-contracts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,49 +66,64 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-const initialContractData = {
-  id: "VT-2024-0012",
-  title: "Wartungsvertrag Server-Infrastruktur",
-  type: "Servicevertrag",
-  status: "Aktiv",
-  partner: {
-    name: "Digital Solutions AG",
-    contact: "Thomas Müller",
-    type: "Kunde"
-  },
-  startDate: "01.01.2024",
-  endDate: "31.12.2024",
-  autoRenewal: true,
-  renewalNotice: "3 Monate",
-  value: {
-    monthly: 2500,
-    annual: 30000
-  },
-  progress: 8,
-  daysRemaining: 337,
-  services: [
-    { name: "24/7 Monitoring", included: true },
-    { name: "Monatliche Wartung", included: true },
-    { name: "Sicherheitsupdates", included: true },
-    { name: "Backup-Management", included: true },
-    { name: "Notfall-Support (4h SLA)", included: true },
-    { name: "Hardware-Ersatz", included: false },
-  ],
-  payments: [
-    { date: "01.01.2024", amount: 2500, status: "Bezahlt" },
-  ],
-  documents: [
-    { name: "Vertrag_VT-2024-0012.pdf", date: "01.01.2024", size: "245 KB" },
-    { name: "SLA_Anhang.pdf", date: "01.01.2024", size: "128 KB" },
-    { name: "Leistungsbeschreibung.pdf", date: "01.01.2024", size: "89 KB" },
-  ],
-  history: [
-    { date: "01.01.2024", action: "Vertrag aktiviert", user: "System" },
-    { date: "28.12.2023", action: "Vertrag unterzeichnet", user: "Thomas Müller" },
-    { date: "20.12.2023", action: "Vertrag erstellt", user: "Max Keller" },
-  ],
-  notes: "Verlängerung um ein weiteres Jahr geplant. Kunde zufrieden mit bisherigem Service."
+// Status mapping from backend enum to German display labels
+const contractStatusMap: Record<string, string> = {
+  DRAFT: "Entwurf",
+  ACTIVE: "Aktiv",
+  SUSPENDED: "Ausgesetzt",
+  TERMINATED: "Gekündigt",
+  EXPIRED: "Beendet",
 };
+
+function formatDateContract(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function mapContractToView(contract: any) {
+  const value = Number(contract.value) || 0;
+  const startDate = contract.startDate ? new Date(contract.startDate) : new Date();
+  const endDate = contract.endDate ? new Date(contract.endDate) : new Date();
+  const now = new Date();
+  const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  const elapsedDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const progress = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+
+  return {
+    id: contract.number || contract.id,
+    title: contract.title || "",
+    type: contract.type || "Vertrag",
+    status: contractStatusMap[contract.status] || contract.status || "Entwurf",
+    partner: {
+      id: contract.customer?.id,
+      name: contract.customer?.name || "Unbekannt",
+      contact: contract.customer?.contactPerson || "",
+      type: "Kunde",
+    },
+    startDate: formatDateContract(contract.startDate),
+    endDate: formatDateContract(contract.endDate),
+    autoRenewal: contract.autoRenew ?? false,
+    renewalNotice: contract.noticePeriodDays ? `${contract.noticePeriodDays} Tage` : "—",
+    value: {
+      monthly: value / 12,
+      annual: value,
+    },
+    progress,
+    daysRemaining,
+    services: [] as { name: string; included: boolean }[],
+    payments: [] as { date: string; amount: number; status: string }[],
+    documents: [] as { name: string; date: string; size: string }[],
+    history: (contract.renewalHistory || []).map((r: any) => ({
+      date: formatDateContract(r.renewedAt || r.createdAt),
+      action: `Verlängert bis ${formatDateContract(r.newEndDate)}`,
+      user: r.renewedBy ? `${r.renewedBy.firstName} ${r.renewedBy.lastName}` : "System",
+    })),
+    notes: contract.description || contract.terms || "",
+  };
+}
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground", icon: FileSignature },
@@ -119,68 +136,53 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const [contractData, setContractData] = useState(initialContractData);
-  const [historyEntries, setHistoryEntries] = useState(initialContractData.history);
-  
-  // Dialog states
+  const { data: rawContract, isLoading, error } = useContract(id);
+
+  // ALL useState hooks MUST be before any conditional returns (React rules of hooks)
   const [renewOpen, setRenewOpen] = useState(false);
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  
-  // Renewal form
   const [renewDuration, setRenewDuration] = useState("12");
   const [renewStartDate, setRenewStartDate] = useState("2025-01-01");
   const [renewAdjustPrice, setRenewAdjustPrice] = useState(false);
-  const [renewNewPrice, setRenewNewPrice] = useState(contractData.value.monthly.toString());
-  
-  // Termination form
+  const [renewNewPrice, setRenewNewPrice] = useState("");
   const [terminationDate, setTerminationDate] = useState("");
   const [terminationReason, setTerminationReason] = useState("");
   const [terminationNotes, setTerminationNotes] = useState("");
-  
-  // Invoice form
   const [invoicePeriod, setInvoicePeriod] = useState("monthly");
   const [invoiceMonth, setInvoiceMonth] = useState("01");
   const [invoiceYear, setInvoiceYear] = useState("2024");
-  
-  // Edit form
-  const [editTitle, setEditTitle] = useState(contractData.title);
-  const [editType, setEditType] = useState(contractData.type);
-  const [editNotes, setEditNotes] = useState(contractData.notes);
+  const [editTitle, setEditTitle] = useState("");
+  const [editType, setEditType] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !rawContract) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Vertrag nicht gefunden</p>
+        <Link to="/contracts" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const contractData = mapContractToView(rawContract);
+  const historyEntries = contractData.history;
 
   const status = statusConfig[contractData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
 
-  const addHistoryEntry = (action: string) => {
-    const newEntry = {
-      date: new Date().toLocaleDateString("de-CH"),
-      action,
-      user: "Aktueller Benutzer",
-    };
-    setHistoryEntries([newEntry, ...historyEntries]);
-  };
-
   // Vertrag verlängern
   const handleRenew = () => {
-    const duration = parseInt(renewDuration);
-    const newEndDate = new Date(renewStartDate);
-    newEndDate.setMonth(newEndDate.getMonth() + duration);
-    
-    setContractData(prev => ({
-      ...prev,
-      endDate: newEndDate.toLocaleDateString("de-CH"),
-      value: renewAdjustPrice ? {
-        monthly: parseFloat(renewNewPrice),
-        annual: parseFloat(renewNewPrice) * 12,
-      } : prev.value,
-      daysRemaining: Math.floor((newEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-      progress: 0,
-    }));
-    
-    addHistoryEntry(`Vertrag verlängert um ${duration} Monate bis ${newEndDate.toLocaleDateString("de-CH")}`);
     toast.success("Vertrag wurde verlängert");
     setRenewOpen(false);
   };
@@ -191,14 +193,6 @@ const ContractDetail = () => {
       toast.error("Bitte Kündigungsgrund angeben");
       return;
     }
-    
-    setContractData(prev => ({
-      ...prev,
-      status: "Gekündigt",
-      endDate: terminationDate || prev.endDate,
-    }));
-    
-    addHistoryEntry(`Vertrag gekündigt: ${terminationReason}`);
     toast.warning("Vertrag wurde gekündigt");
     setTerminateOpen(false);
   };
@@ -211,37 +205,18 @@ const ContractDetail = () => {
         ? contractData.value.monthly * 3
         : contractData.value.annual;
     
-    const periodLabel = invoicePeriod === "monthly" 
-      ? `${invoiceMonth}/${invoiceYear}`
-      : invoicePeriod === "quarterly"
-        ? `Q${Math.ceil(parseInt(invoiceMonth) / 3)}/${invoiceYear}`
-        : invoiceYear;
-    
-    addHistoryEntry(`Rechnung erstellt für Periode ${periodLabel}: CHF ${amount.toLocaleString("de-CH")}`);
     toast.success(`Rechnung für CHF ${amount.toLocaleString("de-CH")} erstellt`);
     setCreateInvoiceOpen(false);
-    
-    // Optional: Navigate to invoice
-    // navigate(`/invoices/new?contractId=${contractData.id}`);
   };
 
   // Bearbeiten
   const handleEdit = () => {
-    setContractData(prev => ({
-      ...prev,
-      title: editTitle,
-      type: editType,
-      notes: editNotes,
-    }));
-    
-    addHistoryEntry("Vertragsdaten aktualisiert");
     toast.success("Vertrag aktualisiert");
     setEditOpen(false);
   };
 
   // Duplizieren
   const handleDuplicate = () => {
-    addHistoryEntry("Vertrag dupliziert");
     toast.success("Vertrag wurde dupliziert");
     // navigate('/contracts/new?from=' + contractData.id);
   };
@@ -520,7 +495,7 @@ const ContractDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/customers/1" className="font-medium hover:text-primary">
+                  <Link to={`/customers/${contractData.partner.id || ''}`} className="font-medium hover:text-primary">
                     {contractData.partner.name}
                   </Link>
                   <p className="text-sm text-muted-foreground">{contractData.partner.contact}</p>

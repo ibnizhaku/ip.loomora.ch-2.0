@@ -8,10 +8,11 @@ export class TimeEntriesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, userId: string, query: TimeEntryQueryDto) {
-    const { page = 1, pageSize = 50, startDate, endDate, projectId, approvalStatus } = query;
+    const { page = 1, pageSize = 50, startDate, endDate, projectId, approvalStatus, employeeId } = query;
     const { skip, take } = this.prisma.getPagination(page, pageSize);
 
-    const where: any = { companyId, userId };
+    // If employeeId is provided (admin filtering), use it; otherwise scope to current user
+    const where: any = { companyId, userId: employeeId || userId };
 
     if (startDate && endDate) {
       where.date = {

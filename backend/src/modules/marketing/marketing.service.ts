@@ -19,7 +19,9 @@ export class MarketingService {
 
   // ============== CAMPAIGNS ==============
   async findAllCampaigns(companyId: string, query: PaginationDto) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -129,8 +131,10 @@ export class MarketingService {
   }
 
   // ============== LEADS ==============
-  async findAllLeads(companyId: string, query: PaginationDto & { status?: string; source?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, source } = query;
+  async findAllLeads(companyId: string, query: PaginationDto & { status?: string; source?: string; assignedToId?: string; campaignId?: string }) {
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, source, assignedToId, campaignId } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -149,6 +153,14 @@ export class MarketingService {
 
     if (source) {
       where.source = source;
+    }
+
+    if (assignedToId) {
+      where.assignedToId = assignedToId;
+    }
+
+    if (campaignId) {
+      where.campaignId = campaignId;
     }
 
     const [data, total] = await Promise.all([
@@ -368,7 +380,9 @@ export class MarketingService {
 
   // ============== EMAIL CAMPAIGNS ==============
   async findAllEmailCampaigns(companyId: string, query: PaginationDto) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };

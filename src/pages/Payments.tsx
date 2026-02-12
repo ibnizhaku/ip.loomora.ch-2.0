@@ -38,30 +38,83 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
+interface PaymentRaw {
+  id: string;
+  type?: string;
+  direction?: string;
+  reference?: string;
+  counterparty?: string;
+  customer?: { id: string; name: string; companyName?: string };
+  supplier?: { id: string; name: string; companyName?: string };
+  description?: string;
+  notes?: string;
+  amount?: number;
+  total?: number;
+  currency?: string;
+  date?: string;
+  paymentDate?: string;
+  createdAt?: string;
+  valueDate?: string;
+  status?: string;
+  linkedDocument?: string;
+  invoice?: { id: string; number: string };
+  bankAccount?: string;
+  method?: string;
+}
+
 interface Payment {
   id: string;
-  type: "incoming" | "outgoing";
+  type: string;
   reference: string;
   counterparty: string;
   description: string;
   amount: number;
-  currency: "CHF" | "EUR";
+  currency: string;
   date: string;
   valueDate: string;
-  status: "pending" | "completed" | "matched" | "unmatched";
+  status: string;
   linkedDocument?: string;
   bankAccount: string;
 }
 
+function mapPayment(raw: PaymentRaw): Payment {
+  const s = (raw.status || "PENDING").toUpperCase();
+  let status = "pending";
+  if (s === "COMPLETED" || s === "PAID") status = "completed";
+  else if (s === "MATCHED") status = "matched";
+  else if (s === "UNMATCHED") status = "unmatched";
 
-const statusStyles = {
+  const direction = (raw.type || raw.direction || "INCOMING").toUpperCase();
+  const type = direction === "OUTGOING" ? "outgoing" : "incoming";
+
+  return {
+    id: raw.id,
+    type,
+    reference: raw.reference || raw.invoice?.number || "–",
+    counterparty: raw.counterparty || raw.customer?.companyName || raw.customer?.name || raw.supplier?.companyName || raw.supplier?.name || "–",
+    description: raw.description || raw.notes || "–",
+    amount: Number(raw.amount || raw.total || 0),
+    currency: raw.currency || "CHF",
+    date: raw.date || raw.paymentDate || raw.createdAt
+      ? new Date(raw.date || raw.paymentDate || raw.createdAt || "").toLocaleDateString("de-CH")
+      : "–",
+    valueDate: raw.valueDate
+      ? new Date(raw.valueDate).toLocaleDateString("de-CH")
+      : "–",
+    status,
+    linkedDocument: raw.linkedDocument || raw.invoice?.number,
+    bankAccount: raw.bankAccount || raw.method || "–",
+  };
+}
+
+const statusStyles: Record<string, string> = {
   pending: "bg-warning/10 text-warning",
   completed: "bg-success/10 text-success",
   matched: "bg-info/10 text-info",
   unmatched: "bg-destructive/10 text-destructive",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   pending: "Ausstehend",
   completed: "Ausgeführt",
   matched: "Zugeordnet",
@@ -70,8 +123,8 @@ const statusLabels = {
 
 export default function Payments() {
   const queryClient = useQueryClient();
-  const { data: apiData } = useQuery({ queryKey: ["/payments"], queryFn: () => api.get<any>("/payments") });
-  const payments = apiData?.data || [];
+  const { data: apiData, isLoading } = useQuery({ queryKey: ["/payments"], queryFn: () => api.get<any>("/payments") });
+  const payments: Payment[] = (apiData?.data || []).map(mapPayment);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
@@ -134,7 +187,7 @@ export default function Payments() {
             <div>
               <p className="text-sm text-muted-foreground">Eingänge</p>
               <p className="text-2xl font-bold text-success">
-                CHF {totalIncoming.toLocaleString()}
+                {isLoading ? "—" : `CHF ${totalIncoming.toLocaleString()}`}
               </p>
             </div>
           </div>
@@ -147,7 +200,7 @@ export default function Payments() {
             <div>
               <p className="text-sm text-muted-foreground">Ausgänge</p>
               <p className="text-2xl font-bold text-destructive">
-                CHF {totalOutgoing.toLocaleString()}
+                {isLoading ? "—" : `CHF ${totalOutgoing.toLocaleString()}`}
               </p>
             </div>
           </div>
@@ -160,7 +213,7 @@ export default function Payments() {
             <div>
               <p className="text-sm text-muted-foreground">Saldo</p>
               <p className="text-2xl font-bold">
-                CHF {(totalIncoming - totalOutgoing).toLocaleString()}
+                {isLoading ? "—" : `CHF ${(totalIncoming - totalOutgoing).toLocaleString()}`}
               </p>
             </div>
           </div>
@@ -172,7 +225,9 @@ export default function Payments() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Nicht zugeordnet</p>
-              <p className="text-2xl font-bold text-warning">{unmatchedPayments.length}</p>
+              <p className="text-2xl font-bold text-warning">
+                {isLoading ? "—" : unmatchedPayments.length}
+              </p>
             </div>
           </div>
         </div>
@@ -226,8 +281,8 @@ export default function Payments() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{payment.counterparty}</h3>
-                        <Badge className={statusStyles[payment.status]}>
-                          {statusLabels[payment.status]}
+                        <Badge className={statusStyles[payment.status] || statusStyles.pending}>
+                          {statusLabels[payment.status] || "Ausstehend"}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">

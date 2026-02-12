@@ -219,52 +219,85 @@ export class CreditNotesService {
   }
 
   // Create credit note from invoice (for returns/corrections)
-  async createFromInvoice(invoiceId: string, companyId: string, reason: string) {
-    const invoice = await this.prisma.invoice.findFirst({
-      where: { id: invoiceId, companyId },
-      include: { items: true, customer: true },
-    });
+  async createFromInvoice(invoiceId: string, companyId: string, reason: string, userId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findFirst({
+        where: { id: invoiceId, companyId },
+        include: { items: true, customer: true },
+      });
 
-    if (!invoice) {
-      throw new NotFoundException('Rechnung nicht gefunden');
-    }
+      if (!invoice) {
+        throw new NotFoundException('Rechnung nicht gefunden');
+      }
 
-    const count = await this.prisma.creditNote.count({ where: { companyId } });
-    const year = new Date().getFullYear();
-    const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
+      // Check if credit note already exists for this invoice
+      const existingCreditNote = await tx.creditNote.findFirst({
+        where: { invoiceId, companyId },
+      });
 
-    return this.prisma.creditNote.create({
-      data: {
-        companyId,
-        customerId: invoice.customerId,
-        invoiceId: invoice.id,
-        number,
-        status: CreditNoteStatus.DRAFT,
-        reason: reason as any,
-        issueDate: new Date(),
-        subtotal: invoice.subtotal,
-        vatRate: this.VAT_RATE,
-        vatAmount: invoice.vatAmount,
-        totalAmount: invoice.totalAmount,
-        items: {
-          create: invoice.items.map((item, index) => ({
-            productId: item.productId,
-            quantity: Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            unit: item.unit || 'Stk',
-            description: item.description,
-            vatRate: Number(item.vatRate),
-            vatAmount: Number(item.vatAmount),
-            total: Number(item.total),
-            position: index + 1,
-          })),
+      if (existingCreditNote) {
+        throw new BadRequestException(`Credit note ${existingCreditNote.number} already exists for invoice ${invoice.number}`);
+      }
+
+      // Generate credit note number
+      const count = await tx.creditNote.count({ where: { companyId } });
+      const year = new Date().getFullYear();
+      const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
+
+      const creditNote = await tx.creditNote.create({
+        data: {
+          companyId,
+          customerId: invoice.customerId,
+          invoiceId: invoice.id,
+          number,
+          status: CreditNoteStatus.DRAFT,
+          reason: reason as any,
+          reasonText: reason,
+          issueDate: new Date(),
+          subtotal: invoice.subtotal,
+          vatRate: this.VAT_RATE,
+          vatAmount: invoice.vatAmount,
+          totalAmount: invoice.totalAmount,
+          items: {
+            create: invoice.items.map((item, index) => ({
+              productId: item.productId,
+              quantity: Number(item.quantity),
+              unitPrice: Number(item.unitPrice),
+              unit: item.unit || 'Stk',
+              description: item.description,
+              vatRate: Number(item.vatRate),
+              vatAmount: Number(item.vatAmount),
+              total: Number(item.total),
+              position: index + 1,
+            })),
+          },
         },
-      },
-      include: {
-        customer: true,
-        invoice: { select: { id: true, number: true } },
-        items: { include: { product: true } },
-      },
+        include: {
+          customer: true,
+          invoice: { select: { id: true, number: true } },
+          items: { include: { product: true } },
+        },
+      });
+
+      // Audit log
+      if (userId) {
+        await tx.auditLog.create({
+          data: {
+            module: 'INVOICES',
+            entityType: 'CREDIT_NOTE',
+            entityId: creditNote.id,
+            action: 'CREATE',
+            description: `Credit Note ${creditNote.number} created from Invoice ${invoice.number}. Reason: ${reason}`,
+            oldValues: { sourceType: 'INVOICE', invoiceId: invoice.id, invoiceNumber: invoice.number },
+            newValues: { creditNoteId: creditNote.id, creditNoteNumber: creditNote.number, reason },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      }
+
+      return creditNote;
     });
   }
 }

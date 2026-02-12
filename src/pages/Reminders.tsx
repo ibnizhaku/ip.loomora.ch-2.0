@@ -149,20 +149,20 @@ const Reminders = () => {
 
   const filteredReminders = reminders.filter((r) => {
     const matchesSearch =
-      r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.invoice.toLowerCase().includes(searchTerm.toLowerCase());
+      (r.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.customer || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.invoice || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesLevel = levelFilters.length === 0 || levelFilters.includes(r.level);
     return matchesSearch && matchesLevel;
   });
 
   const selectedReminderData = reminders.filter((r) => selectedReminders.includes(r.id));
   const totalAmount = selectedReminderData.reduce((sum, r) => sum + r.amount, 0);
-  const totalFees = selectedReminderData.reduce((sum, r) => sum + levelConfig[Math.min(r.level + 1, 5)].fee, 0);
+  const totalFees = selectedReminderData.reduce((sum, r) => sum + (levelConfig[Math.min(r.level + 1, 5)] || levelConfig[1]).fee, 0);
   const grandTotal = totalAmount + totalFees;
 
   const totalOutstanding = reminders.reduce((sum, r) => sum + r.amount, 0);
-  const avgOverdue = Math.round(reminders.reduce((sum, r) => sum + r.daysOverdue, 0) / reminders.length);
+  const avgOverdue = reminders.length > 0 ? Math.round(reminders.reduce((sum, r) => sum + r.daysOverdue, 0) / reminders.length) : 0;
   const inkassoCount = reminders.filter((r) => r.level >= 4).length;
 
   const stats = [
@@ -242,14 +242,15 @@ const Reminders = () => {
 
   const handleSendNextReminder = (reminder: Reminder) => {
     const nextLevel = Math.min(reminder.level + 1, 5);
-    const fee = levelConfig[nextLevel].fee;
+    const levelInfo = levelConfig[nextLevel] || levelConfig[1];
+    const fee = levelInfo.fee;
     setReminders((prev) =>
       prev.map((r) =>
         r.id === reminder.id ? { ...r, level: nextLevel } : r
       )
     );
     toast.success(
-      `${levelConfig[nextLevel].label} für ${reminder.customer} gesendet` +
+      `${levelInfo.label} für ${reminder.customer || ""} gesendet` +
       (fee > 0 ? ` (+ CHF ${fee.toFixed(2)} Mahngebühr)` : "")
     );
   };
@@ -437,7 +438,7 @@ const Reminders = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredReminders.map((reminder) => {
-                    const level = levelConfig[reminder.level];
+                    const level = levelConfig[reminder.level] || levelConfig[1];
                     return (
                       <TableRow 
                         key={reminder.id}
@@ -498,7 +499,7 @@ const Reminders = () => {
                               {reminder.level < 5 && (
                                 <DropdownMenuItem onClick={() => handleSendNextReminder(reminder)}>
                                   <Send className="h-4 w-4 mr-2" />
-                                  {levelConfig[Math.min(reminder.level + 1, 5)].label} senden
+                                  {(levelConfig[Math.min(reminder.level + 1, 5)] || levelConfig[1]).label} senden
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={() => toast.success("Kunde wird angerufen...")}>
@@ -557,7 +558,7 @@ const Reminders = () => {
                           {invoice.id}
                         </Link>
                       </TableCell>
-                      <TableCell>{invoice.customer}</TableCell>
+                      <TableCell>{typeof invoice.customer === 'object' ? invoice.customer?.name || invoice.customer?.companyName : invoice.customer}</TableCell>
                       <TableCell>{invoice.dueDate}</TableCell>
                       <TableCell>
                         <Badge className="bg-destructive/10 text-destructive">
@@ -644,22 +645,26 @@ const Reminders = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedReminderData.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{r.customer}</TableCell>
-                        <TableCell>{r.invoice}</TableCell>
-                        <TableCell>
-                          <Badge className={levelConfig[r.level].color}>
-                            {levelConfig[r.level].label}
-                          </Badge>
-                          <ChevronRight className="inline h-3 w-3 mx-1" />
-                          <Badge className={levelConfig[Math.min(r.level + 1, 5)].color}>
-                            {levelConfig[Math.min(r.level + 1, 5)].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{formatCHF(r.amount)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {selectedReminderData.map((r) => {
+                      const currentLevel = levelConfig[r.level] || levelConfig[1];
+                      const nextLevel = levelConfig[Math.min(r.level + 1, 5)] || levelConfig[1];
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{typeof r.customer === 'object' ? r.customer?.name || r.customer?.companyName : (r.customer || "")}</TableCell>
+                          <TableCell>{typeof r.invoice === 'object' ? r.invoice?.number || r.invoice?.id : (r.invoice || "")}</TableCell>
+                          <TableCell>
+                            <Badge className={currentLevel.color}>
+                              {currentLevel.label}
+                            </Badge>
+                            <ChevronRight className="inline h-3 w-3 mx-1" />
+                            <Badge className={nextLevel.color}>
+                              {nextLevel.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCHF(r.amount)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </ScrollArea>
@@ -746,7 +751,7 @@ const Reminders = () => {
                   <div className="space-y-1">
                     {selectedReminderData.map((r) => (
                       <div key={r.id} className="text-sm flex justify-between">
-                        <span>{r.customer}</span>
+                        <span>{typeof r.customer === 'object' ? r.customer?.name || r.customer?.companyName : r.customer}</span>
                         <span className="text-muted-foreground">{r.customerEmail}</span>
                       </div>
                     ))}
@@ -771,7 +776,7 @@ const Reminders = () => {
                     CHE-123.456.789 MWST
                   </div>
                   <div className="mt-8">
-                    <strong>{selectedReminderData[0]?.customer}</strong><br />
+                    <strong>{typeof selectedReminderData[0]?.customer === 'object' ? selectedReminderData[0]?.customer?.name || selectedReminderData[0]?.customer?.companyName : selectedReminderData[0]?.customer}</strong><br />
                     z.Hd. Buchhaltung<br />
                     Kundenstrasse 10<br />
                     8000 Zürich
@@ -781,7 +786,7 @@ const Reminders = () => {
                   </div>
                   <div className="mt-4">
                     <strong className="text-lg">
-                      {levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)].label}
+                      {(levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)] || levelConfig[1]).label}
                     </strong>
                   </div>
                   <p className="mt-4">
@@ -801,7 +806,7 @@ const Reminders = () => {
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="py-2">{selectedReminderData[0]?.invoice}</td>
+                        <td className="py-2">{typeof selectedReminderData[0]?.invoice === 'object' ? selectedReminderData[0]?.invoice?.number || selectedReminderData[0]?.invoice?.id : selectedReminderData[0]?.invoice}</td>
                         <td className="py-2">{selectedReminderData[0]?.dueDate}</td>
                         <td className="text-right py-2">{formatCHF(selectedReminderData[0]?.amount || 0)}</td>
                       </tr>
@@ -809,14 +814,14 @@ const Reminders = () => {
                         <tr>
                           <td className="py-2" colSpan={2}>Mahngebühr</td>
                           <td className="text-right py-2">
-                            {formatCHF(levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)].fee)}
+                            {formatCHF((levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)] || levelConfig[1]).fee)}
                           </td>
                         </tr>
                       )}
                       <tr className="border-t font-bold">
                         <td className="py-2" colSpan={2}>Total</td>
                         <td className="text-right py-2">
-                          {formatCHF((selectedReminderData[0]?.amount || 0) + levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)].fee)}
+                          {formatCHF((selectedReminderData[0]?.amount || 0) + (levelConfig[Math.min((selectedReminderData[0]?.level || 1) + 1, 5)] || levelConfig[1]).fee)}
                         </td>
                       </tr>
                     </tbody>
@@ -1007,7 +1012,7 @@ const Reminders = () => {
                 >
                   <div>
                     <p className="font-medium">{invoice.id}</p>
-                    <p className="text-sm text-muted-foreground">{invoice.customer}</p>
+                    <p className="text-sm text-muted-foreground">{typeof invoice.customer === 'object' ? invoice.customer?.name || invoice.customer?.companyName : invoice.customer}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{formatCHF(invoice.amount)}</p>

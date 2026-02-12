@@ -12,7 +12,9 @@ export class QuotesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto & { status?: string; customerId?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -232,73 +234,99 @@ export class QuotesService {
   }
 
   async convertToOrder(id: string, companyId: string, userId: string) {
-    const quote = await this.prisma.quote.findFirst({
-      where: { id, companyId },
-      include: { items: true, customer: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findFirst({
+        where: { id, companyId },
+        include: { items: true, customer: true },
+      });
 
-    if (!quote) {
-      throw new NotFoundException('Quote not found');
-    }
+      if (!quote) {
+        throw new NotFoundException('Quote not found');
+      }
 
-    if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.CONFIRMED) {
-      throw new BadRequestException('Quote must be sent or confirmed to convert to order');
-    }
+      if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.CONFIRMED) {
+        throw new BadRequestException('Quote must be sent or confirmed to convert to order');
+      }
 
-    // Generate order number
-    const year = new Date().getFullYear();
-    const lastOrder = await this.prisma.order.findFirst({
-      where: { companyId, number: { startsWith: `AB-${year}` } },
-      orderBy: { number: 'desc' },
-    });
-    
-    const lastNum = lastOrder?.number 
-      ? parseInt(lastOrder.number.split('-')[2] || '0') 
-      : 0;
-    const orderNumber = `AB-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+      // Check if already converted
+      const existingOrder = await tx.order.findFirst({
+        where: { quoteId: id, companyId },
+      });
 
-    // Create order from quote
-    const order = await this.prisma.order.create({
-      data: {
-        number: orderNumber,
-        customerId: quote.customerId,
-        // projectId: quote.projectId,
-        quoteId: quote.id,
-        status: DocumentStatus.CONFIRMED,
-        date: new Date(),
-        subtotal: quote.subtotal,
-        vatAmount: quote.vatAmount,
-        total: quote.total,
-        notes: quote.notes,
-        companyId,
-        createdById: userId,
-        items: {
-          create: quote.items.map((item, index) => ({
-            position: item.position || index + 1,
-            productId: item.productId,
-            description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
-            unitPrice: item.unitPrice,
-            discount: item.discount,
-            vatRate: 'STANDARD',
-            total: item.total,
-          })),
+      if (existingOrder) {
+        throw new BadRequestException(`Quote already converted to order ${existingOrder.number}`);
+      }
+
+      // Generate order number
+      const year = new Date().getFullYear();
+      const lastOrder = await tx.order.findFirst({
+        where: { companyId, number: { startsWith: `AB-${year}` } },
+        orderBy: { number: 'desc' },
+      });
+      
+      const lastNum = lastOrder?.number 
+        ? parseInt(lastOrder.number.split('-')[2] || '0') 
+        : 0;
+      const orderNumber = `AB-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+      // Create order from quote
+      const order = await tx.order.create({
+        data: {
+          number: orderNumber,
+          customerId: quote.customerId,
+          quoteId: quote.id,
+          status: DocumentStatus.CONFIRMED,
+          date: new Date(),
+          subtotal: quote.subtotal,
+          vatAmount: quote.vatAmount,
+          total: quote.total,
+          notes: quote.notes,
+          companyId,
+          createdById: userId,
+          items: {
+            create: quote.items.map((item, index) => ({
+              position: item.position || index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              vatRate: 'STANDARD',
+              total: item.total,
+            })),
+          },
         },
-      },
-      include: {
-        customer: true,
-        items: true,
-      },
-    });
+        include: {
+          customer: true,
+          items: true,
+        },
+      });
 
-    // Update quote status to confirmed (converted)
-    await this.prisma.quote.update({
-      where: { id },
-      data: { status: DocumentStatus.CONFIRMED },
-    });
+      // Update quote status to confirmed (converted)
+      await tx.quote.update({
+        where: { id },
+        data: { status: DocumentStatus.CONFIRMED },
+      });
 
-    return order;
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          module: 'ORDERS',
+          entityType: 'ORDER',
+          entityId: order.id,
+          action: 'CREATE',
+          description: `Order ${order.number} created from Quote ${quote.number}`,
+          oldValues: { sourceType: 'QUOTE', quoteId: quote.id, quoteNumber: quote.number },
+          newValues: { orderId: order.id, orderNumber: order.number, orderStatus: order.status },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+
+      return order;
+    });
   }
 
   async remove(id: string, companyId: string) {

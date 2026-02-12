@@ -96,7 +96,18 @@ export default function CostCenters() {
     queryKey: ["/cost-centers"],
     queryFn: () => api.get<any>("/cost-centers"),
   });
-  const costCenters = apiData?.data || [];
+  const costCenters = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    number: raw.number || "",
+    name: raw.name || "–",
+    manager: raw.manager?.name || raw.managerName || raw.manager || "–",
+    budget: Number(raw.budget || 0),
+    actual: Number(raw.actual || raw.actualCost || 0),
+    variance: Number(raw.variance || 0),
+    variancePercent: Number(raw.variancePercent || 0),
+    category: (raw.category || "admin").toLowerCase(),
+    status: (raw.status || "on-track").toLowerCase().replace(" ", "-"),
+  }));
 
   const [searchQuery, setSearchQuery] = useState("");
   const [centerList, setCenterList] = useState(costCenters);
@@ -104,16 +115,16 @@ export default function CostCenters() {
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
 
   const filteredCenters = centerList.filter((center) => {
-    const matchesSearch = center.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      center.number.includes(searchQuery) ||
-      center.manager.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (center.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (center.number || "").includes(searchQuery) ||
+      (center.manager || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || center.status === statusFilter;
     const matchesCategory = categoryFilter.length === 0 || categoryFilter.includes(center.category);
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const totalBudget = centerList.reduce((acc, c) => acc + c.budget, 0);
-  const totalActual = centerList.reduce((acc, c) => acc + c.actual, 0);
+  const totalBudget = centerList.reduce((acc, c) => acc + (c.budget || 0), 0);
+  const totalActual = centerList.reduce((acc, c) => acc + (c.actual || 0), 0);
   const totalVariance = totalBudget - totalActual;
 
   const onTrackCount = centerList.filter(c => c.status === "on-track").length;
@@ -347,7 +358,7 @@ export default function CostCenters() {
           </TableHeader>
           <TableBody>
             {filteredCenters.map((center, index) => {
-              const utilizationPercent = (center.actual / center.budget) * 100;
+              const utilizationPercent = center.budget > 0 ? (center.actual / center.budget) * 100 : 0;
 
               return (
                 <TableRow

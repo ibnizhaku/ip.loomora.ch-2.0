@@ -320,7 +320,7 @@ export default function Shop() {
                         <span className="text-sm">{order.shippingMethod}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">{order.items}</TableCell>
+                    <TableCell className="text-right">{Array.isArray(order.items) ? order.items.length : (order.items || 0)}</TableCell>
                     <TableCell className="text-right font-medium">
                       {order.total.toLocaleString("de-CH", { minimumFractionDigits: 2 })} CHF
                     </TableCell>

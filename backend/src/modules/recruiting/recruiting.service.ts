@@ -18,7 +18,9 @@ export class RecruitingService {
 
   // ============== JOB POSTINGS ==============
   async findAllJobPostings(companyId: string, query: PaginationDto & { status?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -134,7 +136,9 @@ export class RecruitingService {
 
   // ============== CANDIDATES ==============
   async findAllCandidates(companyId: string, query: PaginationDto & { status?: string; jobPostingId?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, jobPostingId } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, jobPostingId } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };

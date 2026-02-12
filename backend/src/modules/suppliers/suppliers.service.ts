@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierDto, UpdateSupplierDto } from './dto/supplier.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -8,7 +8,9 @@ export class SuppliersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -141,13 +143,32 @@ export class SuppliersService {
   async remove(id: string, companyId: string) {
     const supplier = await this.prisma.supplier.findFirst({
       where: { id, companyId },
+      include: {
+        _count: {
+          select: { purchaseOrders: true, purchaseInvoices: true },
+        },
+      },
     });
 
     if (!supplier) {
       throw new NotFoundException('Supplier not found');
     }
 
-    // Hard delete - will fail if there are related records (purchase orders, invoices, etc.)
+    // Check for dependencies
+    const deps = supplier._count;
+    const totalDeps = deps.purchaseOrders + deps.purchaseInvoices;
+    
+    if (totalDeps > 0) {
+      const details: string[] = [];
+      if (deps.purchaseOrders > 0) details.push(`${deps.purchaseOrders} Bestellung(en)`);
+      if (deps.purchaseInvoices > 0) details.push(`${deps.purchaseInvoices} Eingangsrechnung(en)`);
+      
+      throw new BadRequestException(
+        `Lieferant kann nicht gelöscht werden. Verknüpfte Daten: ${details.join(', ')}. Bitte zuerst die verknüpften Einträge entfernen.`
+      );
+    }
+
+    // Hard delete - safe now
     return this.prisma.supplier.delete({
       where: { id },
     });

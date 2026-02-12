@@ -159,6 +159,16 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
+    // Validate manager if being changed
+    if (dto.managerId && dto.managerId !== project.managerId) {
+      const manager = await this.prisma.user.findFirst({
+        where: { id: dto.managerId, companyMemberships: { some: { companyId } } },
+      });
+      if (!manager) {
+        throw new NotFoundException('Manager nicht gefunden oder nicht Mitglied dieser Company');
+      }
+    }
+
     return this.prisma.project.update({
       where: { id },
       data: {

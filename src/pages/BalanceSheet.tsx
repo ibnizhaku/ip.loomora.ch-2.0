@@ -370,14 +370,14 @@ export default function BalanceSheet() {
   const totalExpensesPrev = pnlItems.expenses.reduce((acc, e) => acc + e.previousYear, 0);
   const netIncomePrev = totalRevenuePrev - totalExpensesPrev;
 
-  const eigenkapitalQuote = ((liabilities[0]?.currentYear || 0) / totalLiabilities) * 100;
+  const eigenkapitalQuote = totalLiabilities > 0 ? ((liabilities[0]?.currentYear || 0) / totalLiabilities) * 100 : 0;
 
   const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH")}`;
 
   const renderBalanceItem = (item: BalanceItem, level: number = 0) => {
     const isExpanded = expandedIds.includes(item.id);
     const hasChildren = item.children && item.children.length > 0;
-    const change = ((item.currentYear - item.previousYear) / item.previousYear) * 100;
+    const change = item.previousYear !== 0 ? ((item.currentYear - item.previousYear) / item.previousYear) * 100 : 0;
 
     return (
       <div key={item.id}>
@@ -629,7 +629,7 @@ export default function BalanceSheet() {
               <p className="text-sm text-muted-foreground">Bilanzsumme Aktiva</p>
               <p className="text-2xl font-bold">{formatCHF(totalAssets)}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {totalAssets > totalAssetsPrev ? "+" : ""}{((totalAssets - totalAssetsPrev) / totalAssetsPrev * 100).toFixed(1)}% zum Vorjahr
+                {totalAssets > totalAssetsPrev ? "+" : ""}{totalAssetsPrev > 0 ? ((totalAssets - totalAssetsPrev) / totalAssetsPrev * 100).toFixed(1) : "0.0"}% zum Vorjahr
               </p>
             </div>
           </div>
@@ -665,7 +665,7 @@ export default function BalanceSheet() {
               <p className="text-sm text-muted-foreground">Gesamtleistung</p>
               <p className="text-2xl font-bold text-success">{formatCHF(totalRevenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {totalRevenue > totalRevenuePrev ? "+" : ""}{((totalRevenue - totalRevenuePrev) / totalRevenuePrev * 100).toFixed(1)}% zum Vorjahr
+                {totalRevenue > totalRevenuePrev ? "+" : ""}{totalRevenuePrev > 0 ? ((totalRevenue - totalRevenuePrev) / totalRevenuePrev * 100).toFixed(1) : "0.0"}% zum Vorjahr
               </p>
             </div>
           </div>
@@ -682,7 +682,7 @@ export default function BalanceSheet() {
               <p className="text-sm text-muted-foreground">Jahresüberschuss</p>
               <p className="text-2xl font-bold">{formatCHF(netIncome)}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {netIncome > netIncomePrev ? "+" : ""}{((netIncome - netIncomePrev) / netIncomePrev * 100).toFixed(1)}% zum Vorjahr
+                {netIncome > netIncomePrev ? "+" : ""}{netIncomePrev !== 0 ? ((netIncome - netIncomePrev) / netIncomePrev * 100).toFixed(1) : "0.0"}% zum Vorjahr
               </p>
             </div>
           </div>

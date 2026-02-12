@@ -37,31 +37,59 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+interface QuoteRaw {
+  id: string;
+  number: string;
+  customer?: { id: string; name: string; companyName?: string };
+  total?: number;
+  subtotal?: number;
+  status: string;
+  validUntil?: string;
+  createdAt?: string;
+  _count?: { items: number };
+  notes?: string;
+}
+
 interface Quote {
   id: string;
   number: string;
   client: string;
-  project: string;
   amount: number;
-  status: "draft" | "sent" | "accepted" | "declined" | "expired";
-  createdDate: string;
+  status: string;
   validUntil: string;
   items: number;
 }
 
+function mapQuote(raw: QuoteRaw): Quote {
+  return {
+    id: raw.id,
+    number: raw.number || "",
+    client: raw.customer?.companyName || raw.customer?.name || "–",
+    amount: Number(raw.total || raw.subtotal || 0),
+    status: (raw.status || "DRAFT").toLowerCase(),
+    validUntil: raw.validUntil
+      ? new Date(raw.validUntil).toLocaleDateString("de-CH")
+      : "–",
+    items: raw._count?.items ?? 0,
+  };
+}
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: "Entwurf", color: "bg-muted text-muted-foreground", icon: FileText },
   sent: { label: "Versendet", color: "bg-info/10 text-info", icon: Send },
+  confirmed: { label: "Bestätigt", color: "bg-success/10 text-success", icon: CheckCircle },
   accepted: { label: "Angenommen", color: "bg-success/10 text-success", icon: CheckCircle },
   declined: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
+  cancelled: { label: "Storniert", color: "bg-destructive/10 text-destructive", icon: XCircle },
   expired: { label: "Abgelaufen", color: "bg-warning/10 text-warning", icon: Clock },
 };
 
+const defaultStatus = { label: "Unbekannt", color: "bg-muted text-muted-foreground", icon: FileText };
+
 export default function Quotes() {
   const queryClient = useQueryClient();
-  const { data: apiData } = useQuery({ queryKey: ["/quotes"], queryFn: () => api.get<any>("/quotes") });
-  const quotes = apiData?.data || [];
+  const { data: apiData, isLoading } = useQuery({ queryKey: ["/quotes"], queryFn: () => api.get<any>("/quotes") });
+  const quotes: Quote[] = (apiData?.data || []).map(mapQuote);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -79,19 +107,17 @@ export default function Quotes() {
   const filteredQuotes = quotes.filter(
     (q) =>
       q.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.project.toLowerCase().includes(searchQuery.toLowerCase())
+      q.client.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const nonDraftCount = quotes.filter((q) => q.status !== "draft").length;
+  const acceptedCount = quotes.filter((q) => q.status === "accepted" || q.status === "confirmed").length;
 
   const stats = {
     total: quotes.reduce((acc, q) => acc + q.amount, 0),
-    accepted: quotes.filter((q) => q.status === "accepted").reduce((acc, q) => acc + q.amount, 0),
+    accepted: quotes.filter((q) => q.status === "accepted" || q.status === "confirmed").reduce((acc, q) => acc + q.amount, 0),
     pending: quotes.filter((q) => q.status === "sent").reduce((acc, q) => acc + q.amount, 0),
-    conversionRate: Math.round(
-      (quotes.filter((q) => q.status === "accepted").length /
-        quotes.filter((q) => q.status !== "draft").length) *
-        100
-    ),
+    conversionRate: nonDraftCount > 0 ? Math.round((acceptedCount / nonDraftCount) * 100) : 0,
   };
 
   return (
@@ -121,7 +147,9 @@ export default function Quotes() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamtwert</p>
-              <p className="text-2xl font-bold">CHF {stats.total.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${stats.total.toLocaleString("de-CH")}`}
+              </p>
             </div>
           </div>
         </div>
@@ -132,7 +160,9 @@ export default function Quotes() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Angenommen</p>
-              <p className="text-2xl font-bold">CHF {stats.accepted.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${stats.accepted.toLocaleString("de-CH")}`}
+              </p>
             </div>
           </div>
         </div>
@@ -143,7 +173,9 @@ export default function Quotes() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offen</p>
-              <p className="text-2xl font-bold">CHF {stats.pending.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${stats.pending.toLocaleString("de-CH")}`}
+              </p>
             </div>
           </div>
         </div>
@@ -154,7 +186,9 @@ export default function Quotes() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Conversion</p>
-              <p className="text-2xl font-bold">{stats.conversionRate}%</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `${stats.conversionRate}%`}
+              </p>
             </div>
           </div>
         </div>
@@ -192,7 +226,8 @@ export default function Quotes() {
           </TableHeader>
           <TableBody>
             {filteredQuotes.map((quote, index) => {
-              const StatusIcon = statusConfig[quote.status].icon;
+              const cfg = statusConfig[quote.status] || defaultStatus;
+              const StatusIcon = cfg.icon;
               return (
                 <TableRow
                   key={quote.id}
@@ -215,12 +250,12 @@ export default function Quotes() {
                   </TableCell>
                   <TableCell>{quote.client}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {quote.project}
+                    –
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", statusConfig[quote.status].color)}>
+                    <Badge className={cn("gap-1", cfg.color)}>
                       <StatusIcon className="h-3 w-3" />
-                      {statusConfig[quote.status].label}
+                      {cfg.label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">

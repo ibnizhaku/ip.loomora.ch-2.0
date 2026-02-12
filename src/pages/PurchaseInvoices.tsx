@@ -96,7 +96,22 @@ export default function PurchaseInvoices() {
     queryKey: ["/purchase-invoices"],
     queryFn: () => api.get<any>("/purchase-invoices"),
   });
-  const initialInvoices = apiData?.data || [];
+  const initialInvoices: PurchaseInvoice[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    number: raw.number || "",
+    supplierNumber: raw.supplierNumber || raw.supplier?.number || "–",
+    supplier: raw.supplier?.companyName || raw.supplier?.name || raw.supplierName || "–",
+    invoiceDate: raw.invoiceDate ? new Date(raw.invoiceDate).toLocaleDateString("de-CH") : "–",
+    dueDate: raw.dueDate ? new Date(raw.dueDate).toLocaleDateString("de-CH") : "–",
+    netAmount: Number(raw.netAmount || raw.subtotal || 0),
+    vatAmount: Number(raw.vatAmount || raw.tax || 0),
+    grossAmount: Number(raw.grossAmount || raw.total || 0),
+    currency: raw.currency || "CHF",
+    status: (raw.status || "draft").toLowerCase(),
+    purchaseOrder: raw.purchaseOrder?.number || raw.purchaseOrderNumber,
+    costCenter: raw.costCenter?.name || raw.costCenterName,
+    pdfFile: raw.pdfFile,
+  }));
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>(initialInvoices);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -113,9 +128,9 @@ export default function PurchaseInvoices() {
   // Filter invoices
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesSearch =
-      invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.supplierNumber.toLowerCase().includes(searchQuery.toLowerCase());
+      (invoice.number || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (invoice.supplier || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (invoice.supplierNumber || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
     
@@ -127,7 +142,7 @@ export default function PurchaseInvoices() {
   const pendingInvoices = invoices.filter((i) => i.status === "pending").length;
   const openAmount = invoices
     .filter((i) => i.status === "pending" || i.status === "approved")
-    .reduce((sum, i) => sum + i.grossAmount, 0);
+    .reduce((sum, i) => sum + (i.grossAmount || 0), 0);
   const paidAmount = invoices
     .filter((i) => i.status === "paid")
     .reduce((sum, i) => sum + i.grossAmount, 0);

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -8,7 +8,9 @@ export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -165,15 +167,70 @@ export class CustomersService {
   async remove(id: string, companyId: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { id, companyId },
+      include: {
+        _count: {
+          select: { quotes: true, orders: true, invoices: true, projects: true },
+        },
+      },
     });
 
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
 
-    // Hard delete - will fail if there are related records (invoices, projects, etc.)
+    // Check for dependencies
+    const deps = customer._count;
+    const totalDeps = deps.quotes + deps.orders + deps.invoices + deps.projects;
+    
+    if (totalDeps > 0) {
+      const details: string[] = [];
+      if (deps.quotes > 0) details.push(`${deps.quotes} Angebot(e)`);
+      if (deps.orders > 0) details.push(`${deps.orders} Auftrag/Aufträge`);
+      if (deps.invoices > 0) details.push(`${deps.invoices} Rechnung(en)`);
+      if (deps.projects > 0) details.push(`${deps.projects} Projekt(e)`);
+      
+      throw new BadRequestException(
+        `Kunde kann nicht gelöscht werden. Verknüpfte Daten: ${details.join(', ')}. Bitte zuerst die verknüpften Einträge entfernen oder archivieren.`
+      );
+    }
+
+    // Hard delete - safe now
     return this.prisma.customer.delete({
       where: { id },
     });
+  }
+
+  async getStats(companyId: string) {
+    const [total, active, allCustomers] = await Promise.all([
+      this.prisma.customer.count({ where: { companyId } }),
+      this.prisma.customer.count({ where: { companyId, isActive: true } }),
+      this.prisma.customer.findMany({
+        where: { companyId },
+        select: { id: true },
+      }),
+    ]);
+
+    // Calculate totalRevenue from invoices
+    const invoiceStats = await this.prisma.invoice.groupBy({
+      by: ['customerId'],
+      where: { 
+        companyId,
+        customerId: { in: allCustomers.map(c => c.id) },
+      },
+      _sum: { totalAmount: true },
+    });
+
+    // Create revenue map
+    const revenueMap = new Map(
+      invoiceStats.map(stat => [stat.customerId, Number(stat._sum.totalAmount) || 0])
+    );
+
+    // Count prospects (customers with zero revenue)
+    const prospects = allCustomers.filter(c => !revenueMap.has(c.id) || revenueMap.get(c.id) === 0).length;
+
+    // Sum total revenue
+    const totalRevenue = Array.from(revenueMap.values()).reduce((sum, val) => sum + val, 0);
+
+    return { total, active, prospects, totalRevenue };
   }
 }

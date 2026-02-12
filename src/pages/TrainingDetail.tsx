@@ -301,7 +301,7 @@ export default function TrainingDetail() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Kosten pro Person</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(trainingData.costs.total / confirmedCount)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(confirmedCount > 0 ? trainingData.costs.total / confirmedCount : 0)}</p>
           </CardContent>
         </Card>
       </div>

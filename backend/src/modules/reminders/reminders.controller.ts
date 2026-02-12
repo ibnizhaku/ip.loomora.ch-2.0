@@ -33,6 +33,12 @@ export class RemindersController {
     });
   }
 
+  @Post('generate')
+  @ApiOperation({ summary: 'Auto-generate reminders for overdue invoices' })
+  generateReminders(@CurrentUser() user: any) {
+    return this.remindersService.generateReminders(user.companyId, user.userId);
+  }
+
   @Get('statistics')
   @ApiOperation({ summary: 'Get reminder statistics' })
   getStatistics(@CurrentUser() user: any) {

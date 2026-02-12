@@ -219,8 +219,8 @@ export default function FixedAssets() {
           </TableHeader>
           <TableBody>
             {assetList.map((asset, index) => {
-              const CategoryIcon = categoryIcons[asset.category];
-              const depreciationProgress = (asset.accumulatedDepreciation / asset.acquisitionCost) * 100;
+              const CategoryIcon = categoryIcons[asset.category] || Monitor;
+              const depreciationProgress = asset.acquisitionCost > 0 ? (asset.accumulatedDepreciation / asset.acquisitionCost) * 100 : 0;
 
               return (
                 <TableRow
@@ -239,9 +239,9 @@ export default function FixedAssets() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", categoryColors[asset.category])}>
+                    <Badge className={cn("gap-1", categoryColors[asset.category] || "bg-muted text-muted-foreground")}>
                       <CategoryIcon className="h-3 w-3" />
-                      {categoryLabels[asset.category]}
+                      {categoryLabels[asset.category] || asset.category}
                     </Badge>
                   </TableCell>
                   <TableCell>{asset.acquisitionDate}</TableCell>
@@ -260,8 +260,8 @@ export default function FixedAssets() {
                     CHF {asset.bookValue.toLocaleString("de-CH")}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusStyles[asset.status]}>
-                      {statusLabels[asset.status]}
+                    <Badge className={statusStyles[asset.status] || "bg-muted text-muted-foreground"}>
+                      {statusLabels[asset.status] || asset.status}
                     </Badge>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>

@@ -1,5 +1,6 @@
 import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus, Headers, Ip, Get, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { 
   LoginDto, 
@@ -20,6 +21,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login mit E-Mail und Passwort' })
   @ApiResponse({ status: 200, description: 'Login erfolgreich' })
@@ -34,6 +36,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 attempts per hour
   @ApiOperation({ summary: 'Neue Company und Admin-User registrieren' })
   @ApiResponse({ status: 201, description: 'Registrierung erfolgreich, Zahlung erforderlich' })
   @ApiResponse({ status: 409, description: 'E-Mail bereits registriert' })

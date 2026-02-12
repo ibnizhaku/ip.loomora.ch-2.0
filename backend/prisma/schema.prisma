@@ -520,6 +520,9 @@ model User {
   // Audit log relations
   auditLogs         AuditLog[] @relation("UserAuditLogs")
   
+  // Chat relations
+  chatMessages      ChatMessage[] @relation("ChatMessageAuthor")
+  
   @@index([companyId])
   @@index([email])
   @@index([status])
@@ -1611,6 +1614,9 @@ model Project {
   folders         Folder[]      @relation("ProjectFolders")
   documents       DMSDocument[] @relation("ProjectDocuments")
   
+  // Chat relations
+  chatMessages    ChatMessage[] @relation("ProjectChatMessages")
+  
   @@unique([companyId, number])
   @@index([companyId])
   @@index([customerId])
@@ -1669,6 +1675,9 @@ model Task {
   timeEntries     TimeEntry[]
   tags            TaskTag[]
   subtasks        Subtask[]
+  
+  // Chat relations
+  chatMessages    ChatMessage[] @relation("TaskChatMessages")
   
   @@index([companyId])
   @@index([projectId])
@@ -3815,6 +3824,35 @@ model DMSDocumentVersion {
   
   @@index([documentId])
   @@map("dms_document_versions")
+}
+
+// ============================================
+// CHAT MESSAGES
+// ============================================
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  content     String
+  
+  authorId    String
+  author      User     @relation("ChatMessageAuthor", fields: [authorId], references: [id])
+  
+  projectId   String?
+  project     Project? @relation("ProjectChatMessages", fields: [projectId], references: [id], onDelete: Cascade)
+  
+  taskId      String?
+  task        Task?    @relation("TaskChatMessages", fields: [taskId], references: [id], onDelete: Cascade)
+  
+  companyId   String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([projectId])
+  @@index([taskId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@map("chat_messages")
 }
 
 // ============================================

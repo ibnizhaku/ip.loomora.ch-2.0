@@ -22,7 +22,9 @@ export class EcommerceService {
 
   // ============== SHOP ORDERS ==============
   async findAllOrders(companyId: string, query: PaginationDto & { status?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -230,7 +232,9 @@ export class EcommerceService {
 
   // ============== DISCOUNTS ==============
   async findAllDiscounts(companyId: string, query: PaginationDto) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -384,8 +388,10 @@ export class EcommerceService {
   }
 
   // ============== REVIEWS ==============
-  async findAllReviews(companyId: string, query: PaginationDto & { status?: string; productId?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, productId } = query;
+  async findAllReviews(companyId: string, query: PaginationDto & { status?: string; productId?: string; isApproved?: string }) {
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, productId, isApproved } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -397,7 +403,10 @@ export class EcommerceService {
       ];
     }
 
-    if (status) {
+    // Frontend uses isApproved, backend uses status - support both
+    if (isApproved !== undefined) {
+      where.status = isApproved === 'true' ? 'APPROVED' : 'PENDING';
+    } else if (status) {
       where.status = status;
     }
 

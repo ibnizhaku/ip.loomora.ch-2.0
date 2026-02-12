@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Smile, AtSign, Reply, MoreHorizontal, X } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Send, Smile, AtSign, Reply, MoreHorizontal, X, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import { useMessages, useSendMessage, type ChatMessageData } from "@/hooks/use-messages";
 
 interface TeamMember {
   initials: string;
@@ -44,55 +46,52 @@ interface ChatMessage {
 
 interface ProjectChatProps {
   team: TeamMember[];
+  projectId?: string;
+  taskId?: string;
 }
 
 const availableEmojis = ["👍", "❤️", "🎉", "🚀", "👀", "💡", "✅", "🔥"];
 
-const initialMessages: ChatMessage[] = [
-  {
-    id: "1",
-    user: { initials: "MK", name: "Michael Keller", role: "Project Manager" },
-    content: "Guten Morgen Team! Wie ist der Stand beim Checkout-Prozess?",
-    timestamp: "09:15",
-    reactions: [{ emoji: "👍", users: ["Anna Schmidt", "Thomas Müller"] }],
-  },
-  {
-    id: "2",
-    user: { initials: "AS", name: "Anna Schmidt", role: "Lead Developer" },
-    content: "Bin gerade dabei die Validierung fertigzustellen. Sollte heute Nachmittag fertig sein. @Thomas Müller kannst du schon mal die Payment-Schnittstelle vorbereiten?",
-    timestamp: "09:22",
-    reactions: [{ emoji: "🚀", users: ["Michael Keller"] }],
-  },
-  {
-    id: "3",
-    user: { initials: "TM", name: "Thomas Müller", role: "Backend Developer" },
-    content: "Ja klar, bin schon dran! Die Stripe-Integration läuft bereits im Testmodus.",
-    timestamp: "09:28",
-    reactions: [{ emoji: "✅", users: ["Anna Schmidt"] }, { emoji: "🎉", users: ["Lisa Weber"] }],
-    replyTo: {
-      id: "2",
-      user: "Anna Schmidt",
-      preview: "...kannst du schon mal die Payment-Schnittstelle vorbereiten?",
-    },
-  },
-  {
-    id: "4",
-    user: { initials: "LW", name: "Lisa Weber", role: "UI Designer" },
-    content: "Ich habe die finalen Designs für die Erfolgsseite hochgeladen. Bitte schaut mal drüber! 🎨",
-    timestamp: "10:05",
-    reactions: [{ emoji: "❤️", users: ["Anna Schmidt", "Michael Keller", "Thomas Müller"] }],
-  },
-  {
-    id: "5",
-    user: { initials: "MK", name: "Michael Keller", role: "Project Manager" },
-    content: "Super Arbeit Team! @Lisa Weber die Designs sehen fantastisch aus. Kunde wird begeistert sein! 🙌",
-    timestamp: "10:15",
-    reactions: [],
-  },
-];
+// Map backend message to UI ChatMessage format
+function mapBackendMessage(msg: ChatMessageData): ChatMessage {
+  const firstName = msg.author?.firstName || "";
+  const lastName = msg.author?.lastName || "";
+  const name = `${firstName} ${lastName}`.trim() || "Unbekannt";
+  const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "??";
+  const timestamp = new Date(msg.createdAt).toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-export function ProjectChat({ team }: ProjectChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  return {
+    id: msg.id,
+    user: { initials, name, role: "" },
+    content: msg.content,
+    timestamp,
+    reactions: [],
+  };
+}
+
+export function ProjectChat({ team, projectId, taskId }: ProjectChatProps) {
+  const { data: messagesData, isLoading } = useMessages({ projectId, taskId });
+  const sendMessageMutation = useSendMessage();
+
+  // Map backend messages to UI format
+  const backendMessages = useMemo(() => {
+    return (messagesData?.data || []).map(mapBackendMessage);
+  }, [messagesData]);
+
+  // Local reactions state (session-only, not persisted yet)
+  const [localReactions, setLocalReactions] = useState<Record<string, Reaction[]>>({});
+
+  // Merge backend messages with local reactions
+  const messages: ChatMessage[] = useMemo(() => {
+    return backendMessages.map((msg) => ({
+      ...msg,
+      reactions: localReactions[msg.id] || msg.reactions,
+    }));
+  }, [backendMessages, localReactions]);
+
   const [newMessage, setNewMessage] = useState("");
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
@@ -138,63 +137,50 @@ export function ProjectChat({ team }: ProjectChatProps) {
   const sendMessage = () => {
     if (!newMessage.trim()) return;
 
-    const message: ChatMessage = {
-      id: Date.now().toString(),
-      user: { initials: "DU", name: "Du", role: "Aktueller Benutzer" },
-      content: newMessage,
-      timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      reactions: [],
-      replyTo: replyingTo
-        ? {
-            id: replyingTo.id,
-            user: replyingTo.user.name,
-            preview: replyingTo.content.slice(0, 50) + (replyingTo.content.length > 50 ? "..." : ""),
-          }
-        : undefined,
-    };
-
-    setMessages([...messages, message]);
-    setNewMessage("");
-    setReplyingTo(null);
+    sendMessageMutation.mutate(
+      {
+        content: newMessage.trim(),
+        ...(projectId ? { projectId } : {}),
+        ...(taskId ? { taskId } : {}),
+      },
+      {
+        onSuccess: () => {
+          setNewMessage("");
+          setReplyingTo(null);
+        },
+        onError: () => {
+          toast.error("Nachricht konnte nicht gesendet werden");
+        },
+      }
+    );
   };
 
   const addReaction = (messageId: string, emoji: string) => {
-    setMessages(
-      messages.map((msg) => {
-        if (msg.id !== messageId) return msg;
+    setLocalReactions((prev) => {
+      const current = prev[messageId] || [];
+      const existingReaction = current.find((r) => r.emoji === emoji);
+      let updated: Reaction[];
 
-        const existingReaction = msg.reactions.find((r) => r.emoji === emoji);
-        if (existingReaction) {
-          if (existingReaction.users.includes("Du")) {
-            // Remove reaction
-            return {
-              ...msg,
-              reactions: msg.reactions
-                .map((r) =>
-                  r.emoji === emoji
-                    ? { ...r, users: r.users.filter((u) => u !== "Du") }
-                    : r
-                )
-                .filter((r) => r.users.length > 0),
-            };
-          } else {
-            // Add to existing reaction
-            return {
-              ...msg,
-              reactions: msg.reactions.map((r) =>
-                r.emoji === emoji ? { ...r, users: [...r.users, "Du"] } : r
-              ),
-            };
-          }
+      if (existingReaction) {
+        if (existingReaction.users.includes("Du")) {
+          updated = current
+            .map((r) =>
+              r.emoji === emoji
+                ? { ...r, users: r.users.filter((u) => u !== "Du") }
+                : r
+            )
+            .filter((r) => r.users.length > 0);
         } else {
-          // New reaction
-          return {
-            ...msg,
-            reactions: [...msg.reactions, { emoji, users: ["Du"] }],
-          };
+          updated = current.map((r) =>
+            r.emoji === emoji ? { ...r, users: [...r.users, "Du"] } : r
+          );
         }
-      })
-    );
+      } else {
+        updated = [...current, { emoji, users: ["Du"] }];
+      }
+
+      return { ...prev, [messageId]: updated };
+    });
   };
 
   const renderMessageContent = (content: string) => {
@@ -225,7 +211,18 @@ export function ProjectChat({ team }: ProjectChatProps) {
       {/* Chat Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         <div className="space-y-4">
-          {messages.map((message, index) => (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin mb-2" />
+              <span className="text-sm">Nachrichten werden geladen…</span>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground">
+              <MessageSquare className="h-8 w-8 mb-2 opacity-40" />
+              <span className="text-sm">Noch keine Nachrichten</span>
+              <span className="text-xs mt-1">Schreibe die erste Nachricht an dein Team</span>
+            </div>
+          ) : messages.map((message, index) => (
             <div
               key={message.id}
               className="group flex gap-3 animate-fade-in"

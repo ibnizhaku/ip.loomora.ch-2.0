@@ -48,6 +48,50 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+// Map backend status (UPPERCASE) to UI labels
+function mapCreditNoteStatus(s: string): string {
+  const upper = (s || "DRAFT").toUpperCase();
+  if (upper === "POSTED" || upper === "BOOKED") return "Verbucht";
+  if (upper === "CANCELLED") return "Storniert";
+  return "Entwurf";
+}
+
+function mapCreditNoteReason(s: string): string {
+  const upper = (s || "").toUpperCase();
+  if (upper === "RETURN" || upper === "GOODS_RETURN") return "Warenrückgabe";
+  if (upper === "PRICE_ADJUSTMENT") return "Preisanpassung";
+  if (upper === "GOODWILL") return "Kulanz";
+  if (upper === "PARTIAL_DELIVERY") return "Teillieferung";
+  if (upper === "COMPLAINT" || upper === "RECLAMATION") return "Reklamation";
+  return s || "–";
+}
+
+interface CreditNote {
+  id: string;
+  number: string;
+  customer: string;
+  invoice: string;
+  date: string;
+  reason: string;
+  total: number;
+  status: string;
+}
+
+function mapCreditNote(raw: any): CreditNote {
+  return {
+    id: raw.id || "",
+    number: raw.number || raw.id || "",
+    customer: raw.customer?.companyName || raw.customer?.name || "–",
+    invoice: raw.invoice?.number || raw.invoiceId || "–",
+    date: raw.date || raw.createdAt
+      ? new Date(raw.date || raw.createdAt).toLocaleDateString("de-CH")
+      : "–",
+    reason: mapCreditNoteReason(raw.reason || ""),
+    total: Number(raw.total || raw.amount || 0),
+    status: mapCreditNoteStatus(raw.status),
+  };
+}
+
 const statusConfig: Record<string, { color: string }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground" },
   "Verbucht": { color: "bg-success/10 text-success" },
@@ -56,16 +100,9 @@ const statusConfig: Record<string, { color: string }> = {
 
 const reasonConfig = ["Warenrückgabe", "Preisanpassung", "Kulanz", "Teillieferung", "Reklamation"];
 
-const stats = [
-  { title: "Gutschriften (Monat)", value: "CHF 7'891", icon: ArrowDownLeft },
-  { title: "Anzahl", value: "15", icon: FileText },
-  { title: "Ø Betrag", value: "CHF 526", icon: Euro },
-  { title: "Offen", value: "2", icon: Clock },
-];
-
 const CreditNotes = () => {
   const { data: apiData } = useQuery({ queryKey: ["/credit-notes"], queryFn: () => api.get<any>("/credit-notes") });
-  const creditNotes = apiData?.data || [];
+  const creditNotes: CreditNote[] = (apiData?.data || []).map(mapCreditNote);
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -92,8 +129,8 @@ const CreditNotes = () => {
 
   const filteredNotes = creditNotes.filter(note => {
     const matchesSearch =
-      note.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.customer.toLowerCase().includes(searchTerm.toLowerCase());
+      (note.number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (note.customer || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(note.status);
     const matchesReason = reasonFilters.length === 0 || reasonFilters.includes(note.reason);
     return matchesSearch && matchesStatus && matchesReason;
@@ -130,7 +167,12 @@ const CreditNotes = () => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {[
+          { title: "Gutschriften (Monat)", value: `CHF ${creditNotes.reduce((s, n) => s + n.total, 0).toLocaleString("de-CH")}`, icon: ArrowDownLeft },
+          { title: "Anzahl", value: String(creditNotes.length), icon: FileText },
+          { title: "Ø Betrag", value: creditNotes.length > 0 ? `CHF ${Math.round(creditNotes.reduce((s, n) => s + n.total, 0) / creditNotes.length).toLocaleString("de-CH")}` : "CHF 0", icon: Euro },
+          { title: "Offen", value: String(creditNotes.filter(n => n.status === "Entwurf").length), icon: Clock },
+        ].map((stat) => (
           <Card key={stat.title}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -244,7 +286,7 @@ const CreditNotes = () => {
                   >
                     <TableCell>
                       <span className="font-medium hover:text-primary">
-                        {note.id}
+                        {note.number}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -266,7 +308,7 @@ const CreditNotes = () => {
                       <Badge variant="outline">{note.reason}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium text-destructive">
-                      -CHF {note.total.toFixed(2)}
+                      -CHF {(Number(note.total) || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge className={status.color}>{note.status}</Badge>

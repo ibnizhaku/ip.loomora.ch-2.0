@@ -16,7 +16,9 @@ export class TrainingService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto & { status?: string; type?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'startDate', sortOrder = 'desc', status, type } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'startDate', sortOrder = 'desc', status, type } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };

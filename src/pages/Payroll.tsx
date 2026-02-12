@@ -61,8 +61,10 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
   "Prüfung": { color: "bg-warning/10 text-warning", icon: AlertCircle },
 };
 
-const formatCHF = (amount: number) => {
-  return amount.toLocaleString("de-CH", { minimumFractionDigits: 2 });
+const defaultPayrollStatus = { color: "bg-muted text-muted-foreground", icon: FileText };
+
+const formatCHF = (amount: number | undefined | null) => {
+  return (amount || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 });
 };
 
 const Payroll = () => {
@@ -253,12 +255,12 @@ const Payroll = () => {
                 <div>
                   <h3 className="font-semibold">Aktueller Lohnlauf: {currentRun.period}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {currentRun.employees} Mitarbeitende • Brutto: CHF {formatCHF(currentRun.grossTotal)}
+                    {currentRun.employees} Mitarbeitende • Brutto: CHF {formatCHF(currentRun?.grossTotal)}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Badge className={statusConfig[currentRun.status].color}>
+                <Badge className={(statusConfig[currentRun.status] || defaultPayrollStatus).color}>
                   {currentRun.status}
                 </Badge>
                 <Button onClick={() => setShowAbschliessenDialog(true)}>
@@ -423,7 +425,7 @@ const Payroll = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredEmployees.map((emp) => {
-                    const status = statusConfig[emp.status];
+                    const status = statusConfig[emp.status] || defaultPayrollStatus;
                     return (
                       <TableRow 
                         key={emp.id} 
@@ -592,14 +594,14 @@ const Payroll = () => {
                 </TableHeader>
                 <TableBody>
                   {payrollRuns.map((run) => {
-                    const status = statusConfig[run.status];
+                    const status = statusConfig[run.status] || defaultPayrollStatus;
                     const StatusIcon = status.icon;
                     return (
                       <TableRow key={run.id}>
                         <TableCell className="font-medium">{run.id}</TableCell>
                         <TableCell>{run.period}</TableCell>
-                        <TableCell className="text-right">{run.employees}</TableCell>
-                        <TableCell className="text-right">CHF {formatCHF(run.grossTotal)}</TableCell>
+                        <TableCell className="text-right">{Array.isArray(run.employees) ? run.employees.length : (run.employees || 0)}</TableCell>
+                        <TableCell className="text-right">CHF {formatCHF(run.grossTotal || 0)}</TableCell>
                         <TableCell className="text-right font-medium">CHF {formatCHF(run.netTotal)}</TableCell>
                         <TableCell>{run.runDate}</TableCell>
                         <TableCell>

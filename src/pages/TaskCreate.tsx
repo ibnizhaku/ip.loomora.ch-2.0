@@ -1,5 +1,8 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { 
   ArrowLeft, 
   Save, 
@@ -27,35 +30,132 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "@/hooks/use-toast";
-import { useCreateTask } from "@/hooks/use-tasks";
-import { useProjects } from "@/hooks/use-projects";
-import { useEmployees } from "@/hooks/use-employees";
 
 const availableTags = [
   "Frontend", "Backend", "Design", "Testing", "Dokumentation", 
   "Performance", "Security", "UX", "Database", "API"
 ];
 
+const statusToBackend: Record<string, string> = {
+  "todo": "TODO",
+  "in-progress": "IN_PROGRESS",
+  "review": "REVIEW",
+  "done": "DONE",
+};
+
+const priorityToBackend: Record<string, string> = {
+  "low": "LOW",
+  "medium": "MEDIUM",
+  "high": "HIGH",
+  "critical": "HIGH",
+};
+
 export default function TaskCreate() {
   const navigate = useNavigate();
-  const createTask = useCreateTask();
-  const { data: projectsData } = useProjects({ pageSize: 100 });
-  const { data: employeesData } = useEmployees({ pageSize: 100 });
 
+  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState<string>("");
   const [assigneeId, setAssigneeId] = useState<string>("");
-  const [status, setStatus] = useState("TODO");
-  const [priority, setPriority] = useState("MEDIUM");
+  const [taskStatus, setTaskStatus] = useState("todo");
+  const [taskPriority, setTaskPriority] = useState("medium");
   const [dueDate, setDueDate] = useState("");
-  const [startDate, setStartDate] = useState("");
   const [estimatedHours, setEstimatedHours] = useState("");
+  const [subtasks, setSubtasks] = useState<{ id: number; title: string }[]>([]);
+  const [newSubtask, setNewSubtask] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<{ name: string; size: string; type: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const projects = projectsData?.data || [];
-  const employees = employeesData?.data || [];
+  // Load projects and users from API
+  const { data: projectsData } = useQuery({
+    queryKey: ["/projects"],
+    queryFn: () => api.get<any>("/projects"),
+  });
+  const projects = (projectsData?.data || []).map((p: any) => ({
+    id: p.id,
+    name: p.name || p.title || "Unbenannt",
+  }));
+
+  const { data: usersData } = useQuery({
+    queryKey: ["/users"],
+    queryFn: () => api.get<any>("/users"),
+  });
+  const teamMembers = (usersData?.data || []).map((u: any) => ({
+    id: u.id,
+    name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Unbekannt",
+    initials: `${(u.firstName || "?").charAt(0)}${(u.lastName || "?").charAt(0)}`,
+  }));
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.post<any>("/tasks", data),
+    onSuccess: (result) => {
+      toast.success("Aufgabe erfolgreich erstellt");
+      navigate(`/tasks/${result.id}`);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Fehler beim Erstellen der Aufgabe");
+    },
+  });
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return Image;
+    if (type === "application/pdf") return FileText;
+    return File;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+      }));
+      setAttachments(prev => [...prev, ...newAttachments]);
+      toast.info(`${files.length} Datei(en) hinzugefügt (nur lokal – Datei-Upload wird noch nicht unterstützt)`);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+      }));
+      setAttachments(prev => [...prev, ...newAttachments]);
+      toast.info(`${files.length} Datei(en) hinzugefügt (nur lokal – Datei-Upload wird noch nicht unterstützt)`);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addSubtask = () => {
+    if (newSubtask.trim()) {
+      setSubtasks([...subtasks, { id: Date.now(), title: newSubtask.trim() }]);
+      setNewSubtask("");
+    }
+  };
+
+  const removeSubtask = (id: number) => {
+    setSubtasks(subtasks.filter(s => s.id !== id));
+  };
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => 
@@ -67,32 +167,24 @@ export default function TaskCreate() {
 
   const handleSubmit = () => {
     if (!title.trim()) {
-      toast({ title: "Fehler", description: "Bitte geben Sie einen Titel ein.", variant: "destructive" });
+      toast.error("Bitte geben Sie einen Titel ein");
       return;
     }
 
-    createTask.mutate({
+    const payload: any = {
       title: title.trim(),
-      description: description.trim() || undefined,
-      projectId: projectId || undefined,
-      assigneeId: assigneeId || undefined,
-      status: status as any,
-      priority: priority as any,
-      dueDate: dueDate || undefined,
-      tags: selectedTags.length > 0 ? selectedTags : undefined,
-    }, {
-      onSuccess: () => {
-        toast({ title: "Aufgabe erstellt", description: "Die Aufgabe wurde erfolgreich erstellt." });
-        navigate("/tasks");
-      },
-      onError: (error: any) => {
-        toast({ 
-          title: "Fehler", 
-          description: error?.message || "Die Aufgabe konnte nicht erstellt werden.", 
-          variant: "destructive" 
-        });
-      },
-    });
+      status: statusToBackend[taskStatus] || "TODO",
+      priority: priorityToBackend[taskPriority] || "MEDIUM",
+    };
+
+    if (description.trim()) payload.description = description.trim();
+    if (projectId) payload.projectId = projectId;
+    if (assigneeId) payload.assigneeId = assigneeId;
+    if (dueDate) payload.dueDate = dueDate;
+    if (estimatedHours && Number(estimatedHours) > 0) payload.estimatedHours = Number(estimatedHours);
+    if (selectedTags.length > 0) payload.tags = selectedTags;
+
+    createMutation.mutate(payload);
   };
 
   return (
@@ -107,8 +199,12 @@ export default function TaskCreate() {
           <p className="text-muted-foreground">Erstellen Sie eine neue Aufgabe</p>
         </div>
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2" onClick={handleSubmit} disabled={createTask.isPending}>
-          {createTask.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        <Button className="gap-2" onClick={handleSubmit} disabled={createMutation.isPending}>
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
           Aufgabe erstellen
         </Button>
       </div>
@@ -145,6 +241,58 @@ export default function TaskCreate() {
             </CardContent>
           </Card>
 
+          {/* Subtasks */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Unteraufgaben</CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {subtasks.length} Unteraufgaben
+              </span>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Neue Unteraufgabe..."
+                  value={newSubtask}
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSubtask()}
+                />
+                <Button onClick={addSubtask} disabled={!newSubtask.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {subtasks.length > 0 && (
+                <div className="space-y-2">
+                  {subtasks.map((subtask, index) => (
+                    <div 
+                      key={subtask.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="h-5 w-5 rounded border-2 border-muted-foreground/30" />
+                      <span className="flex-1">{subtask.title}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => removeSubtask(subtask.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {subtasks.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Noch keine Unteraufgaben hinzugefügt
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Tags */}
           <Card>
             <CardHeader>
@@ -168,6 +316,82 @@ export default function TaskCreate() {
                     )}
                   </Badge>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attachments */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Anhänge
+              </CardTitle>
+              {attachments.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {attachments.length} Datei(en)
+                </span>
+              )}
+            </CardHeader>
+            <CardContent>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                multiple
+                className="hidden"
+              />
+              
+              {attachments.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {attachments.map((file, index) => {
+                    const FileIcon = getFileIcon(file.type);
+                    return (
+                      <div 
+                        key={index} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 animate-fade-in"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileIcon className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-sm">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{file.size}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => removeAttachment(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Dateien hierher ziehen oder klicken zum Auswählen
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  Dateien auswählen
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -212,15 +436,13 @@ export default function TaskCreate() {
                     <SelectValue placeholder="Mitarbeiter auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.map((emp: any) => (
-                      <SelectItem key={emp.id} value={emp.id}>
+                    {teamMembers.map((member: any) => (
+                      <SelectItem key={member.id} value={member.id}>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs">
-                              {emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}
-                            </AvatarFallback>
+                            <AvatarFallback className="text-xs">{member.initials}</AvatarFallback>
                           </Avatar>
-                          {emp.firstName} {emp.lastName}
+                          {member.name}
                         </div>
                       </SelectItem>
                     ))}
@@ -238,15 +460,15 @@ export default function TaskCreate() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={taskStatus} onValueChange={setTaskStatus}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TODO">Zu erledigen</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Bearbeitung</SelectItem>
-                    <SelectItem value="REVIEW">Review</SelectItem>
-                    <SelectItem value="DONE">Erledigt</SelectItem>
+                    <SelectItem value="todo">Zu erledigen</SelectItem>
+                    <SelectItem value="in-progress">In Bearbeitung</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="done">Erledigt</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -256,27 +478,33 @@ export default function TaskCreate() {
                   <Flag className="h-4 w-4" />
                   Priorität
                 </Label>
-                <Select value={priority} onValueChange={setPriority}>
+                <Select value={taskPriority} onValueChange={setTaskPriority}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LOW">
+                    <SelectItem value="low">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-muted-foreground" />
                         Niedrig
                       </div>
                     </SelectItem>
-                    <SelectItem value="MEDIUM">
+                    <SelectItem value="medium">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-info" />
                         Mittel
                       </div>
                     </SelectItem>
-                    <SelectItem value="HIGH">
+                    <SelectItem value="high">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-warning" />
                         Hoch
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="critical">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-destructive" />
+                        Kritisch
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -295,8 +523,16 @@ export default function TaskCreate() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
+                <Label>Startdatum</Label>
+                <Input type="date" />
+              </div>
+              <div className="space-y-2">
                 <Label>Fälligkeitsdatum</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                <Input 
+                  type="date" 
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -316,11 +552,14 @@ export default function TaskCreate() {
                   type="number" 
                   placeholder="0" 
                   min="0" 
-                  step="0.5" 
+                  step="0.5"
                   value={estimatedHours}
                   onChange={(e) => setEstimatedHours(e.target.value)}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Die Zeiterfassung kann nach dem Erstellen der Aufgabe gestartet werden.
+              </p>
             </CardContent>
           </Card>
         </div>

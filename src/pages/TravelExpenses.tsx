@@ -119,7 +119,7 @@ const statusIcons = {
 };
 
 const formatCHF = (amount: number) => {
-  return amount.toLocaleString("de-CH", { minimumFractionDigits: 2 });
+  return Number(amount || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 });
 };
 
 export default function TravelExpenses() {
@@ -223,9 +223,9 @@ export default function TravelExpenses() {
   };
 
   const filteredExpenses = expenses.filter((exp) => {
-    const matchesSearch = exp.employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exp.purpose.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exp.number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (exp.employee?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (exp.purpose || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (exp.number || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = !statusFilter || 
       (statusFilter === "submitted" && exp.status === "submitted") ||
@@ -472,25 +472,25 @@ export default function TravelExpenses() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={expense.employee.avatar} />
+                        <AvatarImage src={expense.employee?.avatar} />
                         <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                          {expense.employee.initials}
+                          {expense.employee?.initials || ""}
                         </AvatarFallback>
                       </Avatar>
-                      <span>{expense.employee.name}</span>
+                      <span>{expense.employee?.name || ""}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{expense.purpose}</p>
-                      <p className="text-sm text-muted-foreground">{expense.destination}</p>
+                      <p className="font-medium">{expense.purpose || ""}</p>
+                      <p className="text-sm text-muted-foreground">{expense.destination || ""}</p>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <p>{expense.startDate}</p>
+                      <p>{expense.startDate || ""}</p>
                       {expense.startDate !== expense.endDate && (
-                        <p className="text-muted-foreground">bis {expense.endDate}</p>
+                        <p className="text-muted-foreground">bis {expense.endDate || ""}</p>
                       )}
                     </div>
                   </TableCell>
@@ -516,9 +516,9 @@ export default function TravelExpenses() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge className={cn("gap-1", statusStyles[expense.status])}>
+                      <Badge className={cn("gap-1", statusStyles[expense.status] || statusStyles.draft)}>
                         <StatusIcon className="h-3 w-3" />
-                        {statusLabels[expense.status]}
+                        {statusLabels[expense.status] || statusLabels.draft}
                       </Badge>
                       {expense.status === "submitted" && (
                         <ExpenseApprovalStatus

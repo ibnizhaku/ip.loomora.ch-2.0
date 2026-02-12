@@ -635,7 +635,7 @@ const PurchaseOrderDetail = () => {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{format(new Date(entry.date), "d. MMM yyyy, HH:mm", { locale: de })} Uhr</span>
                         <span>•</span>
-                        <span>{entry.user}</span>
+                        <span>{typeof entry.user === 'object' ? entry.user?.name || entry.user?.email : entry.user}</span>
                       </div>
                     </div>
                   </div>

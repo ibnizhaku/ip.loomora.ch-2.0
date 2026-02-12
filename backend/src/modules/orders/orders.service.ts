@@ -12,7 +12,9 @@ export class OrdersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(companyId: string, query: PaginationDto & { status?: string; customerId?: string }) {
-    const { page = 1, pageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status, customerId } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 20;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
@@ -239,68 +241,111 @@ export class OrdersService {
   }
 
   async createInvoice(id: string, companyId: string, userId: string) {
-    const order = await this.prisma.order.findFirst({
-      where: { id, companyId },
-      include: { items: true, customer: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id, companyId },
+        include: { items: true, customer: true },
+      });
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
 
-    // Generate invoice number
-    const year = new Date().getFullYear();
-    const lastInvoice = await this.prisma.invoice.findFirst({
-      where: { companyId, number: { startsWith: `RE-${year}` } },
-      orderBy: { number: 'desc' },
-    });
-    
-    const lastNum = lastInvoice?.number 
-      ? parseInt(lastInvoice.number.split('-')[2] || '0') 
-      : 0;
-    const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+      // Check if invoice already exists for this order
+      const existingInvoice = await tx.invoice.findFirst({
+        where: { orderId: id, companyId },
+      });
 
-    // Generate QR reference (simplified)
-    const qrReference = String(Date.now()).padStart(27, '0');
+      if (existingInvoice) {
+        throw new BadRequestException(`Order already has invoice ${existingInvoice.number}`);
+      }
 
-    const invoice = await this.prisma.invoice.create({
-      data: {
-        number: invoiceNumber,
-        customerId: order.customerId,
-        projectId: order.projectId,
-        orderId: order.id,
-        status: InvoiceStatus.DRAFT,
-        date: new Date(),
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        subtotal: order.subtotal,
-        vatAmount: order.vatAmount,
-        totalAmount: order.total,
-        qrReference,
-        notes: order.notes,
-        companyId,
-        createdById: userId,
-        items: {
-          create: order.items.map((item, index) => ({
-            position: item.position || index + 1,
-            productId: item.productId,
-            description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
-            unitPrice: item.unitPrice,
-            discount: item.discount,
-            vatRate: 8.1,
-            vatAmount: Number(item.total) * 0.081,
-            total: item.total,
-          })),
+      // Generate invoice number
+      const year = new Date().getFullYear();
+      const lastInvoice = await tx.invoice.findFirst({
+        where: { companyId, number: { startsWith: `RE-${year}` } },
+        orderBy: { number: 'desc' },
+      });
+      
+      const lastNum = lastInvoice?.number 
+        ? parseInt(lastInvoice.number.split('-')[2] || '0') 
+        : 0;
+      const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+      // Generate Swiss QR reference (26-27 digits with check digit)
+      const invoiceCount = await tx.invoice.count({ where: { companyId } });
+      const referenceBase = `${companyId.substring(0, 8)}${String(invoiceCount + 1).padStart(10, '0')}`;
+      const checkDigit = this.calculateMod10CheckDigit(referenceBase);
+      const qrReference = referenceBase + checkDigit;
+
+      const invoice = await tx.invoice.create({
+        data: {
+          number: invoiceNumber,
+          customerId: order.customerId,
+          projectId: order.projectId,
+          orderId: order.id,
+          status: InvoiceStatus.DRAFT,
+          date: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 days
+          subtotal: order.subtotal,
+          vatAmount: order.vatAmount,
+          totalAmount: order.total,
+          paidAmount: 0,
+          qrReference,
+          notes: order.notes,
+          companyId,
+          createdById: userId,
+          items: {
+            create: order.items.map((item, index) => ({
+              position: item.position || index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              vatRate: 8.1,
+              vatAmount: Number(item.total) * 0.081,
+              total: item.total,
+            })),
+          },
         },
-      },
-      include: {
-        customer: true,
-        items: true,
-      },
-    });
+        include: {
+          customer: true,
+          items: true,
+        },
+      });
 
-    return invoice;
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          module: 'INVOICES',
+          entityType: 'INVOICE',
+          entityId: invoice.id,
+          action: 'CREATE',
+          description: `Invoice ${invoice.number} created from Order ${order.number}`,
+          oldValues: { sourceType: 'ORDER', orderId: order.id, orderNumber: order.number },
+          newValues: { invoiceId: invoice.id, invoiceNumber: invoice.number, qrReference },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+
+      return invoice;
+    });
+  }
+
+  // Calculate Swiss MOD10 check digit for QR reference
+  private calculateMod10CheckDigit(reference: string): string {
+    const table = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
+    let carry = 0;
+    
+    for (const char of reference) {
+      carry = table[(carry + parseInt(char)) % 10];
+    }
+    
+    return String((10 - carry) % 10);
   }
 
   async remove(id: string, companyId: string) {

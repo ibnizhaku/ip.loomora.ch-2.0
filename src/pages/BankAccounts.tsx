@@ -141,9 +141,14 @@ export default function BankAccounts() {
     queryFn: () => api.get<any>("/bank-accounts"),
   });
   const bankAccounts = apiData?.data || [];
-  const [selectedAccount, setSelectedAccount] = useState(bankAccounts[0]);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
 
-  const totalBalance = bankAccounts.reduce((acc, a) => acc + a.balance, 0);
+  // Sync selectedAccount when API data arrives
+  if (bankAccounts.length > 0 && !selectedAccount) {
+    setSelectedAccount(bankAccounts[0]);
+  }
+
+  const totalBalance = bankAccounts.reduce((acc, a) => acc + (Number(a.balance) || 0), 0);
   const unmatchedCount = recentTransactions.filter((t) => t.status === "unmatched").length;
 
   return (
@@ -231,7 +236,7 @@ export default function BankAccounts() {
               key={account.id}
               className={cn(
                 "rounded-xl border p-4 cursor-pointer transition-all animate-fade-in",
-                selectedAccount.id === account.id
+                selectedAccount?.id === account.id
                   ? "border-primary bg-primary/5"
                   : "border-border bg-card hover:border-primary/30"
               )}
@@ -267,10 +272,10 @@ export default function BankAccounts() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-display font-semibold">
-                    Kontobewegungen - {selectedAccount.name}
+                    Kontobewegungen - {selectedAccount?.name || "Kein Konto ausgewählt"}
                   </h3>
                   <p className="text-sm text-muted-foreground font-mono">
-                    {selectedAccount.iban}
+                    {selectedAccount?.iban || "–"}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" className="gap-2">

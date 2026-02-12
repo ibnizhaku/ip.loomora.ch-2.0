@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeQueryDto } from './dto/employee.dto';
 import { mapEmployeeResponse } from '../../common/mappers/response.mapper';
@@ -77,6 +77,20 @@ export class EmployeesService {
   }
 
   async create(companyId: string, dto: CreateEmployeeDto) {
+    // Validate departmentId if provided (skip if empty string or null)
+    if (dto.departmentId && dto.departmentId.trim() !== '') {
+      const department = await this.prisma.department.findFirst({
+        where: { id: dto.departmentId, companyId },
+      });
+      if (!department) {
+        // Department doesn't exist - set to null instead of throwing error
+        dto.departmentId = null;
+      }
+    } else {
+      // Empty or null - set to null
+      dto.departmentId = null;
+    }
+
     // Generate employee number
     const company = await this.prisma.company.update({
       where: { id: companyId },
@@ -122,6 +136,20 @@ export class EmployeesService {
 
     if (!employee) {
       throw new NotFoundException('Employee not found');
+    }
+
+    // Validate departmentId if being changed (skip if empty)
+    if (dto.departmentId && dto.departmentId.trim() !== '' && dto.departmentId !== employee.departmentId) {
+      const department = await this.prisma.department.findFirst({
+        where: { id: dto.departmentId, companyId },
+      });
+      if (!department) {
+        // Department doesn't exist - set to null
+        dto.departmentId = null;
+      }
+    } else if (dto.departmentId === '' || dto.departmentId === null) {
+      // Explicitly clearing department
+      dto.departmentId = null;
     }
 
     return this.prisma.employee.update({

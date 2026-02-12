@@ -43,12 +43,14 @@ import { useInvoices, type Invoice } from "@/hooks/use-invoices";
 type UIStatus = "paid" | "pending" | "overdue" | "draft";
 
 const mapStatus = (status: Invoice['status']): UIStatus => {
-  switch (status) {
+  const s = (status || 'DRAFT').toUpperCase();
+  switch (s) {
     case 'PAID': return 'paid';
     case 'SENT': return 'pending';
     case 'OVERDUE': return 'overdue';
     case 'DRAFT': return 'draft';
     case 'CANCELLED': return 'draft';
+    case 'PARTIAL': return 'pending';
     default: return 'draft';
   }
 };
@@ -149,7 +151,7 @@ export default function Invoices() {
             <div>
               <p className="text-sm text-muted-foreground">Gesamt</p>
               <p className="text-2xl font-bold">
-                CHF {totalAmount.toLocaleString("de-CH")}
+                {isLoading ? "—" : `CHF ${totalAmount.toLocaleString("de-CH")}`}
               </p>
             </div>
           </div>
@@ -161,7 +163,9 @@ export default function Invoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bezahlt</p>
-              <p className="text-2xl font-bold">CHF {totalPaid.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${totalPaid.toLocaleString("de-CH")}`}
+              </p>
             </div>
           </div>
         </div>
@@ -172,7 +176,9 @@ export default function Invoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Ausstehend</p>
-              <p className="text-2xl font-bold">CHF {totalPending.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${totalPending.toLocaleString("de-CH")}`}
+              </p>
             </div>
           </div>
         </div>
@@ -183,7 +189,9 @@ export default function Invoices() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Überfällig</p>
-              <p className="text-2xl font-bold">CHF {totalOverdue.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${totalOverdue.toLocaleString("de-CH")}`}
+              </p>
             </div>
           </div>
         </div>

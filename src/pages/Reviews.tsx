@@ -100,7 +100,21 @@ export default function Reviews() {
     queryKey: ["/ecommerce/reviews"],
     queryFn: () => api.get<any>("/ecommerce/reviews"),
   });
-  const initialReviews = apiData?.data || [];
+  const initialReviews: Review[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    product: raw.product?.name || raw.productName || raw.product || "–",
+    productId: raw.productId || raw.product?.id || "",
+    customer: raw.customer?.name || raw.customerName || raw.customer || "–",
+    email: raw.email || raw.customer?.email || "–",
+    rating: Number(raw.rating || 0),
+    title: raw.title || "–",
+    content: raw.content || raw.text || raw.comment || "",
+    date: raw.date || raw.createdAt ? new Date(raw.date || raw.createdAt).toLocaleDateString("de-CH") : "–",
+    status: (raw.status || "pending").toLowerCase(),
+    helpful: Number(raw.helpful || 0),
+    notHelpful: Number(raw.notHelpful || 0),
+    hasResponse: raw.hasResponse || !!raw.response || false,
+  }));
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "positive">("all");
@@ -121,19 +135,19 @@ export default function Reviews() {
     },
   });
 
-  const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length : 0;
   const pendingCount = reviews.filter((r) => r.status === "pending").length;
   const approvedCount = reviews.filter((r) => r.status === "approved").length;
-  const positiveCount = reviews.filter((r) => r.rating >= 4).length;
-  const positivePercentage = Math.round((positiveCount / reviews.length) * 100);
+  const positiveCount = reviews.filter((r) => (r.rating || 0) >= 4).length;
+  const positivePercentage = reviews.length > 0 ? Math.round((positiveCount / reviews.length) * 100) : 0;
   const answeredCount = reviews.filter((r) => r.hasResponse).length;
-  const answeredPercentage = Math.round((answeredCount / reviews.length) * 100);
+  const answeredPercentage = reviews.length > 0 ? Math.round((answeredCount / reviews.length) * 100) : 0;
 
   const filteredReviews = reviews.filter((review) => {
     const matchesSearch = 
-      review.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.title.toLowerCase().includes(searchTerm.toLowerCase());
+      (review.product || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (review.customer || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (review.title || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRating = ratingFilter === "all" || review.rating === ratingFilter;
     const matchesStatus = 
       statusFilter === "all" || 

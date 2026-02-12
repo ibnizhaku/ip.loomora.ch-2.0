@@ -1,17 +1,24 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Response } from 'express';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto, UpdateInvoiceDto, RecordPaymentDto } from './dto/invoice.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PdfService } from '../../common/services/pdf.service';
+import { EmailService } from '../../common/services/email.service';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private invoicesService: InvoicesService) {}
+  constructor(
+    private invoicesService: InvoicesService,
+    private pdfService: PdfService,
+    private emailService: EmailService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all invoices' })
@@ -28,10 +35,49 @@ export class InvoicesController {
     return this.invoicesService.findAll(user.companyId, query);
   }
 
+  @Post('from-time-entries')
+  @ApiOperation({ summary: 'Create invoice from billable time entries' })
+  createFromTimeEntries(
+    @Body() params: { projectId?: string; customerId: string; startDate: string; endDate: string },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.invoicesService.createFromTimeEntries(user.companyId, user.userId, params);
+  }
+
+  @Post('check-overdue')
+  @ApiOperation({ summary: 'Check and mark overdue invoices (run daily)' })
+  checkOverdue(@CurrentUser() user: CurrentUserPayload) {
+    return this.invoicesService.checkOverdue(user.companyId, user.userId);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get invoice statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.invoicesService.getStats(user.companyId);
+  }
+
   @Get('open-items')
   @ApiOperation({ summary: 'Get open items (debtors)' })
   getOpenItems(@CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.getOpenItems(user.companyId);
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Download invoice as PDF with Swiss QR-Bill' })
+  async downloadPdf(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Res() res: Response,
+  ) {
+    const invoice = await this.invoicesService.findOne(id, user.companyId);
+    const pdfBuffer = await this.pdfService.generateInvoicePdf(invoice);
+    
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Rechnung_${invoice.number}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.send(pdfBuffer);
   }
 
   @Get(':id')
@@ -67,9 +113,21 @@ export class InvoicesController {
   }
 
   @Post(':id/send')
-  @ApiOperation({ summary: 'Mark invoice as sent' })
-  sendInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.invoicesService.sendInvoice(id, user.companyId);
+  @ApiOperation({ summary: 'Send invoice via email with PDF' })
+  async sendInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    const invoice = await this.invoicesService.findOne(id, user.companyId);
+    const pdfBuffer = await this.pdfService.generateInvoicePdf(invoice);
+    const emailSent = await this.emailService.sendInvoice(invoice, pdfBuffer);
+    
+    // Mark as sent
+    await this.invoicesService.sendInvoice(id, user.companyId);
+    
+    return {
+      success: true,
+      sentTo: invoice.customer?.email,
+      sentAt: new Date().toISOString(),
+      emailSent,
+    };
   }
 
   @Post(':id/cancel')

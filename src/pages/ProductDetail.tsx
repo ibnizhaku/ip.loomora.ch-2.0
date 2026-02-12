@@ -31,17 +31,74 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 
-const typeStyles = {
+const typeStyles: Record<string, string> = {
   physical: "bg-blue-500/10 text-blue-600",
   service: "bg-purple-500/10 text-purple-600",
   digital: "bg-success/10 text-success",
 };
 
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   physical: "Physisch",
   service: "Dienstleistung",
   digital: "Digital",
 };
+
+function mapVatRate(vatRate?: string): number {
+  if (!vatRate) return 0;
+  const upper = vatRate.toUpperCase();
+  if (upper === "STANDARD") return 8.1;
+  if (upper === "REDUCED") return 2.6;
+  if (upper === "ZERO" || upper === "EXEMPT") return 0;
+  return 0;
+}
+
+function mapProductDetail(raw: any) {
+  if (!raw) return null;
+
+  const salePrice = Number(raw.salePrice || raw.price || 0);
+  const purchasePrice = Number(raw.purchasePrice || raw.costPrice || 0);
+  const margin = salePrice > 0
+    ? ((salePrice - purchasePrice) / salePrice) * 100
+    : 0;
+  const stock = Number(raw.stockQuantity ?? raw.stock ?? 0);
+  const minStock = Number(raw.minStockQuantity ?? raw.minStock ?? 0);
+  const maxStock = Number(raw.maxStockQuantity ?? raw.maxStock ?? 100);
+  const reservedStock = Number(raw.reservedQuantity ?? raw.reservedStock ?? 0);
+
+  const productType = raw.isService ? "service" : "physical";
+  const category = typeof raw.category === "object" ? raw.category?.name : raw.category || "";
+
+  const formatDate = (d?: string) => {
+    if (!d) return "-";
+    try { return new Date(d).toLocaleDateString("de-CH"); } catch { return d; }
+  };
+
+  return {
+    ...raw,
+    price: salePrice,
+    costPrice: purchasePrice,
+    margin: Math.round(margin * 10) / 10,
+    stock,
+    minStock,
+    maxStock,
+    reservedStock,
+    type: productType,
+    status: raw.isActive !== false ? "active" : "inactive",
+    category,
+    taxRate: mapVatRate(raw.vatRate),
+    ean: raw.ean || raw.gtin || "-",
+    weight: raw.weight || 0,
+    dimensions: raw.dimensions || "-",
+    supplier: raw.supplier?.companyName || raw.supplier?.name || raw.supplierName || "-",
+    supplierSku: raw.supplierSku || raw.supplierArticleNumber || "-",
+    leadTime: raw.leadTime || raw.deliveryTime || 0,
+    createdAt: formatDate(raw.createdAt),
+    updatedAt: formatDate(raw.updatedAt),
+    priceHistory: raw.priceHistory || [],
+    stockMovements: raw.stockMovements || [],
+    relatedDocuments: raw.relatedDocuments || [],
+  };
+}
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -53,7 +110,7 @@ export default function ProductDetail() {
     enabled: !!id,
   });
 
-  const product = apiData?.data || null;
+  const product = mapProductDetail(apiData?.data || null);
   const priceHistory = product?.priceHistory || [];
   const stockMovements = product?.stockMovements || [];
   const relatedDocuments = product?.relatedDocuments || [];
@@ -191,7 +248,7 @@ export default function ProductDetail() {
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Produkttyp</span>
                       {product?.type && (
-                        <Badge className={typeStyles[product.type]}>{typeLabels[product.type]}</Badge>
+                        <Badge className={typeStyles[product.type] || "bg-muted text-muted-foreground"}>{typeLabels[product.type] || product.type}</Badge>
                       )}
                     </div>
                   </div>
@@ -401,7 +458,7 @@ export default function ProductDetail() {
             </div>
             <div className="text-center">
               {product?.type && (
-                <Badge className={typeStyles[product.type]}>{typeLabels[product.type]}</Badge>
+                <Badge className={typeStyles[product.type] || "bg-muted text-muted-foreground"}>{typeLabels[product.type] || product.type}</Badge>
               )}
             </div>
           </div>

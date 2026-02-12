@@ -318,6 +318,49 @@ export class RemindersService {
     };
   }
 
+  // Auto-generate reminders for all overdue invoices
+  async generateReminders(companyId: string, userId?: string) {
+    const overdueInvoices = await this.getOverdueInvoices(companyId);
+    
+    const created = [];
+    const skipped = [];
+
+    for (const invoice of overdueInvoices) {
+      const lastReminder = invoice.reminders?.[0]; // Latest reminder (safe navigation)
+      const nextLevel = lastReminder ? Math.min(lastReminder.level + 1, 5) : 1;
+
+      // Check if enough days passed since last reminder
+      if (lastReminder) {
+        const daysSinceLastReminder = Math.floor(
+          (Date.now() - new Date(lastReminder.sentAt || lastReminder.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        if (daysSinceLastReminder < 10) {
+          skipped.push({ invoiceId: invoice.id, reason: 'Too soon after last reminder' });
+          continue;
+        }
+      }
+
+      // Create reminder
+      try {
+        const reminder = await this.create(companyId, {
+          invoiceId: invoice.id,
+          level: nextLevel,
+          notes: `Automatisch generiert am ${new Date().toLocaleDateString('de-CH')}`,
+        });
+        created.push(reminder);
+      } catch (error) {
+        skipped.push({ invoiceId: invoice.id, reason: error.message });
+      }
+    }
+
+    return {
+      generated: created.length,
+      skipped: skipped.length,
+      reminders: created.map(r => ({ id: r.id, number: r.number, level: r.level })),
+    };
+  }
+
   private getSendConfirmationMessage(method: SendMethod, level: number): string {
     const levelNames: Record<number, string> = {
       1: 'Zahlungserinnerung',

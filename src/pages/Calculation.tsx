@@ -208,21 +208,21 @@ export default function Calculation() {
   const draftCalcs = calcList.filter((c) => c.status === "draft").length;
   const totalVolume = calcList
     .filter((c) => c.status === "approved")
-    .reduce((sum, c) => sum + c.sellingPrice, 0);
+    .reduce((sum, c) => sum + (c.sellingPrice || 0), 0);
   const avgMargin =
-    calcList.length > 0 ? calcList.reduce((sum, c) => sum + c.profitMargin, 0) / calcList.length : 0;
+    calcList.length > 0 ? calcList.reduce((sum, c) => sum + (c.profitMargin || 0), 0) / calcList.length : 0;
 
   const filteredCalcs = calcList.filter((calc) => {
-    const matchesSearch = calc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      calc.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      calc.customer.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (calc.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (calc.number || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (calc.customer || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || calc.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const filteredBOMs = availableBOMs.filter((bom) =>
-    bom.name.toLowerCase().includes(bomSearchQuery.toLowerCase()) ||
-    bom.number.toLowerCase().includes(bomSearchQuery.toLowerCase())
+    (bom.name || "").toLowerCase().includes(bomSearchQuery.toLowerCase()) ||
+    (bom.number || "").toLowerCase().includes(bomSearchQuery.toLowerCase())
   );
 
   const handleDelete = (e: React.MouseEvent, calcId: string) => {
@@ -332,7 +332,7 @@ export default function Calculation() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-sm">CHF {(bom.totalMaterial + bom.totalWork).toLocaleString()}</p>
+                          <p className="font-mono text-sm">CHF {Number((bom.totalMaterial || 0) + (bom.totalWork || 0)).toLocaleString()}</p>
                           <p className="text-xs text-muted-foreground">{bom.items.length} Positionen</p>
                         </div>
                       </div>
@@ -462,13 +462,13 @@ export default function Calculation() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{calc.name}</h3>
-                    <Badge className={statusStyles[calc.status]}>
-                      {statusLabels[calc.status]}
+                    <h3 className="font-semibold">{calc.name || ""}</h3>
+                    <Badge className={statusStyles[calc.status] || statusStyles.draft}>
+                      {statusLabels[calc.status] || statusLabels.draft}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    <span className="font-mono">{calc.number}</span> • {calc.customer}
+                    <span className="font-mono">{calc.number || ""}</span> • {calc.customer || ""}
                     {calc.project && <> • {calc.project}</>}
                   </p>
                 </div>
@@ -512,28 +512,28 @@ export default function Calculation() {
                   <Package className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">Material</span>
                 </div>
-                <p className="font-mono font-medium">CHF {calc.materialCost.toLocaleString()}</p>
+                <p className="font-mono font-medium">CHF {Number(calc.materialCost || 0).toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
                 <div className="flex items-center gap-2 mb-1">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Arbeit ({calc.laborHours}h)</span>
+                  <span className="text-xs text-muted-foreground">Arbeit ({calc.laborHours || 0}h)</span>
                 </div>
-                <p className="font-mono font-medium">CHF {calc.laborCost.toLocaleString()}</p>
+                <p className="font-mono font-medium">CHF {Number(calc.laborCost || 0).toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
                 <div className="flex items-center gap-2 mb-1">
                   <Truck className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">Fremd</span>
                 </div>
-                <p className="font-mono font-medium">CHF {calc.externalCost.toLocaleString()}</p>
+                <p className="font-mono font-medium">CHF {Number(calc.externalCost || 0).toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
                 <div className="flex items-center gap-2 mb-1">
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">Gemeinkosten</span>
                 </div>
-                <p className="font-mono font-medium">CHF {calc.overhead.toLocaleString()}</p>
+                <p className="font-mono font-medium">CHF {Number(calc.overhead || 0).toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-lg bg-primary/10">
                 <div className="flex items-center gap-2 mb-1">
@@ -541,7 +541,7 @@ export default function Calculation() {
                   <span className="text-xs text-muted-foreground">VK-Preis</span>
                 </div>
                 <p className="font-mono font-bold text-primary">
-                  CHF {calc.sellingPrice.toLocaleString()}
+                  CHF {Number(calc.sellingPrice || 0).toLocaleString()}
                 </p>
               </div>
               <div className="p-3 rounded-lg bg-success/10">
@@ -551,9 +551,9 @@ export default function Calculation() {
                 </div>
                 <p className={cn(
                   "font-mono font-bold",
-                  calc.profitMargin >= 20 ? "text-success" : calc.profitMargin >= 15 ? "text-warning" : "text-destructive"
+                  (calc.profitMargin || 0) >= 20 ? "text-success" : (calc.profitMargin || 0) >= 15 ? "text-warning" : "text-destructive"
                 )}>
-                  {calc.profitMargin}%
+                  {calc.profitMargin || 0}%
                 </p>
               </div>
             </div>
@@ -563,33 +563,33 @@ export default function Calculation() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Kostenstruktur</span>
                 <span className="font-mono">
-                  Selbstkosten: CHF {calc.totalCost.toLocaleString()} → VK: CHF {calc.sellingPrice.toLocaleString()}
+                  Selbstkosten: CHF {Number(calc.totalCost || 0).toLocaleString()} → VK: CHF {Number(calc.sellingPrice || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex h-3 rounded-full overflow-hidden bg-muted">
                 <div
                   className="bg-blue-500 transition-all"
-                  style={{ width: `${(calc.materialCost / calc.sellingPrice) * 100}%` }}
+                  style={{ width: `${calc.sellingPrice > 0 ? ((calc.materialCost || 0) / calc.sellingPrice) * 100 : 0}%` }}
                   title="Material"
                 />
                 <div
                   className="bg-purple-500 transition-all"
-                  style={{ width: `${(calc.laborCost / calc.sellingPrice) * 100}%` }}
+                  style={{ width: `${calc.sellingPrice > 0 ? ((calc.laborCost || 0) / calc.sellingPrice) * 100 : 0}%` }}
                   title="Arbeit"
                 />
                 <div
                   className="bg-warning transition-all"
-                  style={{ width: `${(calc.externalCost / calc.sellingPrice) * 100}%` }}
+                  style={{ width: `${calc.sellingPrice > 0 ? ((calc.externalCost || 0) / calc.sellingPrice) * 100 : 0}%` }}
                   title="Fremdleistung"
                 />
                 <div
                   className="bg-muted-foreground/30 transition-all"
-                  style={{ width: `${(calc.overhead / calc.sellingPrice) * 100}%` }}
+                  style={{ width: `${calc.sellingPrice > 0 ? ((calc.overhead || 0) / calc.sellingPrice) * 100 : 0}%` }}
                   title="Gemeinkosten"
                 />
                 <div
                   className="bg-success transition-all"
-                  style={{ width: `${((calc.sellingPrice - calc.totalCost) / calc.sellingPrice) * 100}%` }}
+                  style={{ width: `${calc.sellingPrice > 0 ? (((calc.sellingPrice || 0) - (calc.totalCost || 0)) / calc.sellingPrice) * 100 : 0}%` }}
                   title="Gewinn"
                 />
               </div>

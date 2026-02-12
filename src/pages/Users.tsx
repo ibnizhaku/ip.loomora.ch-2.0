@@ -89,7 +89,15 @@ export default function Users() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/users"], queryFn: () => api.get<any>("/users") });
-  const users = apiData?.data || [];
+  const users = (apiData?.data || []).map((raw: any) => ({
+    ...raw,
+    name: raw.name || raw.firstName && raw.lastName ? `${raw.firstName} ${raw.lastName}` : raw.firstName || raw.email || "–",
+    email: raw.email || "–",
+    role: (raw.role || "user").toLowerCase(),
+    status: raw.isActive === false ? "inactive" : (raw.status || "active").toLowerCase(),
+    lastLogin: raw.lastLogin ? new Date(raw.lastLogin).toLocaleDateString("de-CH") : "–",
+    twoFactor: raw.twoFactor || raw.twoFactorEnabled || false,
+  }));
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
@@ -139,8 +147,8 @@ export default function Users() {
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase());
+      (u.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter ? u.status === statusFilter : true;
     const matchesRole = roleFilter ? u.role === roleFilter : true;
     const matches2FA = twoFactorFilter !== null ? u.twoFactor === twoFactorFilter : true;
@@ -360,7 +368,8 @@ export default function Users() {
           </TableHeader>
           <TableBody>
             {filteredUsers.map((user, index) => {
-              const RoleIcon = roleConfig[user.role].icon;
+              const roleCfg = roleConfig[user.role] || roleConfig.user;
+              const RoleIcon = roleCfg.icon;
               return (
                 <TableRow
                   key={user.id}
@@ -373,9 +382,9 @@ export default function Users() {
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={user.avatar} />
                         <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                          {user.name
+                          {(user.name || "?")
                             .split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
@@ -389,14 +398,14 @@ export default function Users() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", roleConfig[user.role].color)}>
+                    <Badge className={cn("gap-1", roleCfg.color)}>
                       <RoleIcon className="h-3 w-3" />
-                      {roleConfig[user.role].label}
+                      {roleCfg.label}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusConfig[user.status].color}>
-                      {statusConfig[user.status].label}
+                    <Badge className={(statusConfig[user.status] || statusConfig.active).color}>
+                      {(statusConfig[user.status] || statusConfig.active).label}
                     </Badge>
                   </TableCell>
                   <TableCell>

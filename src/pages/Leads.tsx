@@ -105,7 +105,21 @@ export default function Leads() {
     queryKey: ["/marketing/leads"],
     queryFn: () => api.get<any>("/marketing/leads"),
   });
-  const initialLeads = apiData?.data || [];
+  const initialLeads: Lead[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id || "",
+    name: raw.name || raw.contactName || "–",
+    company: raw.company || raw.companyName || "–",
+    email: raw.email || "–",
+    phone: raw.phone || "–",
+    location: raw.location || raw.city || "–",
+    source: raw.source || "–",
+    status: (raw.status || "new").toLowerCase(),
+    score: Number(raw.score || 0),
+    value: Number(raw.value || raw.estimatedValue || 0),
+    assignedTo: raw.assignedTo || raw.assignedUser?.name || "–",
+    createdAt: raw.createdAt || "",
+    lastContact: raw.lastContact || raw.lastContactDate || "-",
+  }));
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
 
   const deleteMutation = useMutation({
@@ -126,14 +140,14 @@ export default function Leads() {
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
-  const totalValue = leads.reduce((sum, l) => sum + l.value, 0);
-  const avgScore = leads.reduce((sum, l) => sum + l.score, 0) / leads.length;
+  const totalValue = leads.reduce((sum, l) => sum + (l.value || 0), 0);
+  const avgScore = leads.length > 0 ? leads.reduce((sum, l) => sum + (l.score || 0), 0) / leads.length : 0;
   const newLeadsCount = leads.filter(l => l.status === "new").length;
 
   const filteredLeads = leads
     .filter((lead) => {
-      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.company.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (lead.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (lead.company || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       return matchesSearch && matchesStatus;
     })
@@ -442,16 +456,16 @@ export default function Leads() {
                     <div className="flex items-center gap-4">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback>
-                          {lead.name
+                          {(lead.name || "?")
                             .split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold">{lead.name}</h3>
-                          <Badge className={statusStyles[lead.status]}>
+                          <Badge className={statusStyles[lead.status] || statusStyles.new}>
                             {getStatusLabel(lead.status)}
                           </Badge>
                         </div>
@@ -685,9 +699,9 @@ export default function Leads() {
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
                             <Avatar className="h-5 w-5">
                               <AvatarFallback className="text-[10px]">
-                                {lead.assignedTo
+                                {(lead.assignedTo || "?")
                                   .split(" ")
-                                  .map((n) => n[0])
+                                  .map((n: string) => n[0])
                                   .join("")}
                               </AvatarFallback>
                             </Avatar>

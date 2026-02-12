@@ -60,7 +60,7 @@ export class PurchaseInvoicesController {
     @Query('externalNumber') externalNumber: string,
     @CurrentUser() user: any,
   ) {
-    return this.purchaseInvoicesService.createFromPurchaseOrder(purchaseOrderId, user.companyId, externalNumber);
+    return this.purchaseInvoicesService.createFromPurchaseOrder(purchaseOrderId, user.companyId, externalNumber, user.userId);
   }
 
   @Post('extract-ocr')

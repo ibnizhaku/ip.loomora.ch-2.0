@@ -29,6 +29,12 @@ export class ProductsController {
     return this.productsService.findAll(user.companyId, query);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get product statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.getStats(user.companyId);
+  }
+
   @Get('categories')
   @ApiOperation({ summary: 'Get all product categories' })
   findAllCategories(@CurrentUser() user: CurrentUserPayload) {

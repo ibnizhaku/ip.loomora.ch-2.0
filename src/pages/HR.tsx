@@ -41,19 +41,39 @@ interface Employee {
 }
 
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: "Aktiv", color: "bg-success/10 text-success" },
   vacation: { label: "Urlaub", color: "bg-info/10 text-info" },
   sick: { label: "Krank", color: "bg-warning/10 text-warning" },
   inactive: { label: "Inaktiv", color: "bg-muted text-muted-foreground" },
 };
+const defaultEmpStatus = { label: "Unbekannt", color: "bg-muted text-muted-foreground" };
+
+function mapEmployee(raw: any): any {
+  const s = (raw.status || "").toUpperCase();
+  let status = "active";
+  if (s === "INACTIVE" || raw.isActive === false) status = "inactive";
+  else if (s === "VACATION" || s === "ON_LEAVE") status = "vacation";
+  else if (s === "SICK") status = "sick";
+  const startDate = raw.startDate || raw.hireDate || raw.createdAt;
+  return {
+    ...raw,
+    name: raw.name || raw.firstName && raw.lastName ? `${raw.firstName} ${raw.lastName}` : raw.firstName || "–",
+    position: raw.position || raw.jobTitle || "–",
+    department: raw.department?.name || raw.department || "–",
+    email: raw.email || "–",
+    phone: raw.phone || raw.mobilePhone || "–",
+    status,
+    startDate: startDate ? new Date(startDate).toLocaleDateString("de-CH") : "–",
+  };
+}
 
 const departments = ["Alle", "Geschäftsleitung", "Produktion", "Montage", "Projektmanagement", "Administration"];
 
 export default function HR() {
   const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/employees"], queryFn: () => api.get<any>("/employees") });
-  const employees = apiData?.data || [];
+  const employees = (apiData?.data || []).map(mapEmployee);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("Alle");
@@ -76,9 +96,9 @@ export default function HR() {
 
   const filteredEmployees = employees.filter((e) => {
     const matchesSearch =
-      e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.email.toLowerCase().includes(searchQuery.toLowerCase());
+      (e.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (e.position || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (e.email || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDepartment =
       selectedDepartment === "Alle" || e.department === selectedDepartment;
     const matchesStatus = !statusFilter || e.status === statusFilter;
@@ -223,9 +243,9 @@ export default function HR() {
                 <Avatar className="h-14 w-14 ring-2 ring-border">
                   <AvatarImage src={employee.avatar} />
                   <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
-                    {employee.name
+                    {(employee.name || "?")
                       .split(" ")
-                      .map((n) => n[0])
+                      .map((n: string) => n[0])
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
@@ -281,8 +301,8 @@ export default function HR() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Badge className={statusConfig[employee.status].color}>
-                  {statusConfig[employee.status].label}
+                <Badge className={(statusConfig[employee.status] || defaultEmpStatus).color}>
+                  {(statusConfig[employee.status] || defaultEmpStatus).label}
                 </Badge>
                 <Badge variant="outline">{employee.department}</Badge>
               </div>

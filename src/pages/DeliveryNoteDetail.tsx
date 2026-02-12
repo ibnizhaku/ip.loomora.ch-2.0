@@ -14,7 +14,8 @@ import {
   User,
   Calendar,
   FileText,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,41 +38,53 @@ import {
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { useDeliveryNote } from "@/hooks/use-delivery-notes";
 
-const deliveryNoteData = {
-  id: "LS-2024-0089",
-  status: "Geliefert",
-  customer: {
-    name: "Weber Elektronik GmbH",
-    contact: "Klaus Weber",
-    deliveryAddress: "Industriepark 25, 70565 Stuttgart",
-    billingAddress: "Hauptstraße 10, 70173 Stuttgart"
-  },
-  order: "AUF-2024-0082",
-  createdAt: "25.01.2024",
-  deliveredAt: "26.01.2024",
-  deliveredBy: "DHL Express",
-  trackingNumber: "JJD000390007712345678",
-  positions: [
-    { id: 1, articleNo: "ART-001", description: "Server-Rack 42HE", quantity: 2, delivered: 2 },
-    { id: 2, articleNo: "ART-045", description: "Netzwerk-Switch 48-Port", quantity: 5, delivered: 5 },
-    { id: 3, articleNo: "ART-089", description: "Patchkabel Cat6 (5m)", quantity: 50, delivered: 50 },
-    { id: 4, articleNo: "ART-102", description: "USV 3000VA", quantity: 2, delivered: 2 },
-    { id: 5, articleNo: "ART-156", description: "Serverschrank-Zubehör Set", quantity: 2, delivered: 2 },
-  ],
-  signature: {
-    name: "K. Weber",
-    date: "26.01.2024 14:32"
-  },
-  notes: "Lieferung erfolgte am Hintereingang laut Kundenanweisung. Alle Artikel wurden auf Vollständigkeit geprüft.",
-  timeline: [
-    { date: "25.01.2024 09:15", action: "Lieferschein erstellt", user: "System" },
-    { date: "25.01.2024 11:30", action: "Ware verpackt", user: "Lager" },
-    { date: "25.01.2024 14:00", action: "An Versanddienstleister übergeben", user: "Lager" },
-    { date: "26.01.2024 08:45", action: "In Zustellung", user: "DHL" },
-    { date: "26.01.2024 14:32", action: "Zugestellt - Empfang bestätigt", user: "K. Weber" },
-  ]
+// Status mapping from backend enum to German display labels
+const dnStatusMap: Record<string, string> = {
+  DRAFT: "Entwurf",
+  SHIPPED: "Versendet",
+  DELIVERED: "Geliefert",
+  CANCELLED: "Storniert",
 };
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function mapDeliveryNoteToView(dn: any) {
+  const items = dn.items || [];
+  return {
+    id: dn.number || dn.id,
+    status: dnStatusMap[dn.status] || dn.status || "Entwurf",
+    customer: {
+      id: dn.customer?.id,
+      name: dn.customer?.name || dn.customerName || "Unbekannt",
+      contact: dn.customer?.contactPerson || "",
+      deliveryAddress: dn.deliveryAddress || [dn.customer?.street, [dn.customer?.zipCode, dn.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+      billingAddress: [dn.customer?.street, [dn.customer?.zipCode, dn.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+    },
+    order: dn.order?.number || dn.orderNumber || "",
+    orderId: dn.order?.id || dn.orderId || "",
+    createdAt: formatDate(dn.deliveryDate || dn.createdAt),
+    deliveredAt: formatDate(dn.shippedDate || dn.deliveryDate),
+    deliveredBy: dn.carrier || "—",
+    trackingNumber: dn.trackingNumber || "—",
+    positions: items.map((item: any, idx: number) => ({
+      id: item.id || idx + 1,
+      articleNo: item.product?.articleNumber || item.productId || `POS-${idx + 1}`,
+      description: item.description || item.product?.name || "",
+      quantity: Number(item.quantity) || 0,
+      delivered: Number(item.deliveredQuantity ?? item.quantity) || 0,
+    })),
+    signature: null as { name: string; date: string } | null,
+    notes: dn.notes || "",
+    timeline: [] as { date: string; action: string; user: string }[],
+  };
+}
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground", icon: FileText },
@@ -82,7 +95,27 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const DeliveryNoteDetail = () => {
   const { id } = useParams();
+  const { data: rawDn, isLoading, error } = useDeliveryNote(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !rawDn) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Lieferschein nicht gefunden</p>
+        <Link to="/delivery-notes" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const deliveryNoteData = mapDeliveryNoteToView(rawDn);
   
   const status = statusConfig[deliveryNoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
@@ -257,43 +290,45 @@ const DeliveryNoteDetail = () => {
           )}
 
           {/* Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sendungsverlauf</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {deliveryNoteData.timeline.map((entry, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                        index === deliveryNoteData.timeline.length - 1 
-                          ? "bg-success text-success-foreground" 
-                          : "bg-muted"
-                      }`}>
-                        {index === deliveryNoteData.timeline.length - 1 ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : (
-                          <Clock className="h-4 w-4" />
+          {deliveryNoteData.timeline.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Sendungsverlauf</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {deliveryNoteData.timeline.map((entry, index) => (
+                    <div key={index} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                          index === deliveryNoteData.timeline.length - 1 
+                            ? "bg-success text-success-foreground" 
+                            : "bg-muted"
+                        }`}>
+                          {index === deliveryNoteData.timeline.length - 1 ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            <Clock className="h-4 w-4" />
+                          )}
+                        </div>
+                        {index < deliveryNoteData.timeline.length - 1 && (
+                          <div className="w-px h-8 bg-border" />
                         )}
                       </div>
-                      {index < deliveryNoteData.timeline.length - 1 && (
-                        <div className="w-px h-8 bg-border" />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <p className="text-sm font-medium">{entry.action}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{entry.date}</span>
-                        <span>•</span>
-                        <span>{entry.user}</span>
+                      <div className="flex-1 pb-4">
+                        <p className="text-sm font-medium">{entry.action}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{entry.date}</span>
+                          <span>•</span>
+                          <span>{entry.user}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -309,7 +344,7 @@ const DeliveryNoteDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/customers/1" className="font-medium hover:text-primary">
+                  <Link to={`/customers/${deliveryNoteData.customer.id || ''}`} className="font-medium hover:text-primary">
                     {deliveryNoteData.customer.name}
                   </Link>
                   <p className="text-sm text-muted-foreground">{deliveryNoteData.customer.contact}</p>
@@ -338,10 +373,12 @@ const DeliveryNoteDetail = () => {
                 <span className="text-muted-foreground">Versanddienstleister</span>
                 <span className="font-medium">{deliveryNoteData.deliveredBy}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Sendungsnummer</span>
-                <span className="font-mono text-xs">{deliveryNoteData.trackingNumber.slice(0, 15)}...</span>
-              </div>
+              {deliveryNoteData.trackingNumber !== "—" && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Sendungsnummer</span>
+                  <span className="font-mono text-xs">{deliveryNoteData.trackingNumber.slice(0, 15)}...</span>
+                </div>
+              )}
               <Separator />
               <Button variant="outline" size="sm" className="w-full">
                 <Truck className="h-4 w-4 mr-2" />
@@ -356,12 +393,14 @@ const DeliveryNoteDetail = () => {
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Auftrag</span>
-                <Link to={`/orders/${deliveryNoteData.order}`} className="font-medium hover:text-primary">
-                  {deliveryNoteData.order}
-                </Link>
-              </div>
+              {deliveryNoteData.orderId && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Auftrag</span>
+                  <Link to={`/orders/${deliveryNoteData.orderId}`} className="font-medium hover:text-primary">
+                    {deliveryNoteData.order || "—"}
+                  </Link>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Erstellt am</span>
                 <span className="font-medium">{deliveryNoteData.createdAt}</span>

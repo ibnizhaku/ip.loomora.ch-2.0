@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -72,28 +72,48 @@ const typeConfig = {
   vacation: { label: "Urlaub", color: "bg-success", icon: MapPin },
 };
 
+const defaultTypeConfig = { label: "Termin", color: "bg-muted", icon: Clock };
+
 const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 export default function Calendar() {
   const queryClient = useQueryClient();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 1, 1));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  // Fetch calendar events from API
+  // Fetch calendar events from API – single source of truth
   const { data: calendarData } = useQuery({
     queryKey: ['calendar'],
     queryFn: () => api.get<any>('/calendar'),
   });
-  const initialEvents = calendarData?.data || [];
-  
-  // Update events when API data changes
-  useEffect(() => {
-    if (initialEvents.length > 0) {
-      setEvents(initialEvents);
-    }
-  }, [initialEvents]);
+  const events: Event[] = calendarData?.data || calendarData || [];
 
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2024, 1, 1));
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (data: { title: string; type: string; date: string; startTime: string; endTime?: string; location?: string; description?: string }) =>
+      api.post('/calendar', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success("Termin wurde erstellt");
+    },
+    onError: () => {
+      toast.error("Fehler beim Erstellen des Termins");
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) =>
+      api.put(`/calendar/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success("Termin wurde aktualisiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Aktualisieren des Termins");
+    },
+  });
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -187,28 +207,30 @@ export default function Calendar() {
       return;
     }
 
-    const event: Event = {
-      id: String(Date.now()),
-      title: newEvent.title,
-      type: newEvent.type,
-      startTime: newEvent.startTime,
-      endTime: newEvent.endTime,
-      date: formatDateKey(selectedDate),
-      location: newEvent.location || undefined,
-      description: newEvent.description || undefined,
-    };
-
-    setEvents([...events, event]);
-    setIsDialogOpen(false);
-    setNewEvent({
-      title: "",
-      type: "meeting",
-      startTime: "09:00",
-      endTime: "10:00",
-      location: "",
-      description: "",
-    });
-    toast.success("Termin wurde erstellt");
+    createMutation.mutate(
+      {
+        title: newEvent.title,
+        type: newEvent.type.toUpperCase(),
+        date: formatDateKey(selectedDate),
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime || undefined,
+        location: newEvent.location || undefined,
+        description: newEvent.description || undefined,
+      },
+      {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setNewEvent({
+            title: "",
+            type: "meeting",
+            startTime: "09:00",
+            endTime: "10:00",
+            location: "",
+            description: "",
+          });
+        },
+      }
+    );
   };
 
   const handleEditEvent = (event: Event) => {
@@ -228,22 +250,25 @@ export default function Calendar() {
 
   const handleConfirmEdit = () => {
     if (selectedEventForEdit && editEvent.title.trim()) {
-      setEvents(prev => prev.map(e => 
-        e.id === selectedEventForEdit.id
-          ? {
-              ...e,
-              title: editEvent.title,
-              type: editEvent.type,
-              startTime: editEvent.startTime,
-              endTime: editEvent.endTime || undefined,
-              date: formatDateKey(editDate),
-              location: editEvent.location || undefined,
-              description: editEvent.description || undefined,
-            }
-          : e
-      ));
-      toast.success("Termin wurde aktualisiert");
-      setIsEditDialogOpen(false);
+      updateMutation.mutate(
+        {
+          id: selectedEventForEdit.id,
+          data: {
+            title: editEvent.title,
+            type: editEvent.type.toUpperCase(),
+            date: formatDateKey(editDate),
+            startTime: editEvent.startTime,
+            endTime: editEvent.endTime || undefined,
+            location: editEvent.location || undefined,
+            description: editEvent.description || undefined,
+          },
+        },
+        {
+          onSuccess: () => {
+            setIsEditDialogOpen(false);
+          },
+        }
+      );
     } else {
       toast.error("Bitte geben Sie einen Titel ein");
     }
@@ -263,15 +288,23 @@ export default function Calendar() {
 
   const handleConfirmDuplicate = () => {
     if (selectedEventForDuplicate) {
-      const newEventCopy: Event = {
-        ...selectedEventForDuplicate,
-        id: String(Date.now()),
-        title: `${selectedEventForDuplicate.title} (Kopie)`,
-        date: formatDateKey(duplicateDate),
-      };
-      setEvents(prev => [...prev, newEventCopy]);
-      toast.success(`Termin wurde auf ${format(duplicateDate, "d. MMMM yyyy", { locale: de })} dupliziert`);
-      setIsDuplicateDialogOpen(false);
+      createMutation.mutate(
+        {
+          title: `${selectedEventForDuplicate.title} (Kopie)`,
+          type: (selectedEventForDuplicate.type || 'meeting').toUpperCase(),
+          date: formatDateKey(duplicateDate),
+          startTime: selectedEventForDuplicate.startTime,
+          endTime: selectedEventForDuplicate.endTime || undefined,
+          location: selectedEventForDuplicate.location || undefined,
+          description: selectedEventForDuplicate.description || undefined,
+        },
+        {
+          onSuccess: () => {
+            toast.success(`Termin wurde auf ${format(duplicateDate, "d. MMMM yyyy", { locale: de })} dupliziert`);
+            setIsDuplicateDialogOpen(false);
+          },
+        }
+      );
     }
   };
 
@@ -428,7 +461,8 @@ export default function Calendar() {
             ) : (
               <div className="space-y-3">
                 {todayEvents.map((event, index) => {
-                  const TypeIcon = typeConfig[event.type].icon;
+                  const tc = typeConfig[event.type] || defaultTypeConfig;
+                  const TypeIcon = tc.icon;
                   return (
                     <div
                       key={event.id}
@@ -440,7 +474,7 @@ export default function Calendar() {
                       <div
                         className={cn(
                           "w-1 rounded-full",
-                          typeConfig[event.type].color
+                          tc.color
                         )}
                       />
                       <div className="flex-1">
@@ -509,11 +543,11 @@ export default function Calendar() {
                             <div className="flex -space-x-2">
                               {event.attendees.slice(0, 4).map((attendee) => (
                                 <Avatar
-                                  key={attendee}
+                                  key={typeof attendee === 'object' ? attendee?.id || attendee?.name : attendee}
                                   className="h-7 w-7 ring-2 ring-card"
                                 >
                                   <AvatarFallback className="text-xs bg-secondary">
-                                    {attendee}
+                                    {typeof attendee === 'object' ? (attendee?.name?.[0] || attendee?.email?.[0] || '?') : (attendee?.[0] || '?')}
                                   </AvatarFallback>
                                 </Avatar>
                               ))}
@@ -571,16 +605,17 @@ export default function Calendar() {
                   <div
                     className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-lg",
-                      `${typeConfig[event.type].color}/10`
+                      `${(typeConfig[event.type] || defaultTypeConfig).color}/10`
                     )}
                   >
                     {(() => {
-                      const TypeIcon = typeConfig[event.type].icon;
+                      const tc2 = typeConfig[event.type] || defaultTypeConfig;
+                      const TypeIcon = tc2.icon;
                       return (
                         <TypeIcon
                           className={cn(
                             "h-4 w-4",
-                            typeConfig[event.type].color.replace("bg-", "text-")
+                            tc2.color.replace("bg-", "text-")
                           )}
                         />
                       );

@@ -10,7 +10,12 @@ export class UsersService {
     const { page = 1, pageSize = 10, search, sortBy = 'lastName', sortOrder = 'asc' } = query;
     const { skip, take } = this.prisma.getPagination(page, pageSize);
 
-    const where: any = { companyId };
+    // Users are linked via UserCompanyMembership, not direct companyId
+    const where: any = {
+      memberships: {
+        some: { companyId }
+      }
+    };
 
     if (search) {
       where.OR = [
@@ -35,17 +40,39 @@ export class UsersService {
           isActive: true,
           lastLoginAt: true,
           createdAt: true,
+          memberships: {
+            where: { companyId },
+            select: {
+              role: {
+                select: { name: true }
+              },
+              isOwner: true,
+            },
+          },
         },
       }),
       this.prisma.user.count({ where }),
     ]);
 
-    return this.prisma.createPaginatedResponse(data, total, page, pageSize);
+    // Map to include role from membership
+    const mappedData = data.map(user => ({
+      ...user,
+      role: user.memberships[0]?.role?.name || user.role,
+      isOwner: user.memberships[0]?.isOwner || false,
+      memberships: undefined, // Remove from response
+    }));
+
+    return this.prisma.createPaginatedResponse(mappedData, total, page, pageSize);
   }
 
   async findById(id: string, companyId: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, companyId },
+      where: { 
+        id,
+        memberships: {
+          some: { companyId }
+        }
+      },
       select: {
         id: true,
         email: true,

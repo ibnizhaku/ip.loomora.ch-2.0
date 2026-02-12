@@ -460,6 +460,57 @@ export class BankImportService {
     });
   }
 
+  // Get single transaction by ID
+  async findOne(transactionId: string, companyId: string) {
+    const transaction = await this.prisma.bankTransaction.findFirst({
+      where: { id: transactionId, companyId },
+      include: {
+        bankAccount: { select: { id: true, name: true, iban: true } },
+        matchedInvoice: { select: { id: true, number: true, totalAmount: true } },
+        matchedPayment: { select: { id: true, number: true, amount: true } },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaktion nicht gefunden');
+    }
+
+    return transaction;
+  }
+
+  // Auto-reconcile all pending transactions
+  async autoReconcileAll(companyId: string, bankAccountId?: string) {
+    const where: any = { companyId, status: TransactionStatus.PENDING };
+    if (bankAccountId) where.bankAccountId = bankAccountId;
+
+    const pendingTransactions = await this.prisma.bankTransaction.findMany({
+      where,
+      orderBy: { bookingDate: 'desc' },
+    });
+
+    let reconciledCount = 0;
+    let failedCount = 0;
+
+    for (const transaction of pendingTransactions) {
+      try {
+        const result = await this.autoMatch(transaction, companyId);
+        if (result.matched) {
+          reconciledCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (error) {
+        failedCount++;
+      }
+    }
+
+    return {
+      reconciled: reconciledCount,
+      failed: failedCount,
+      total: pendingTransactions.length,
+    };
+  }
+
   // Get reconciliation statistics
   async getStatistics(companyId: string, bankAccountId?: string) {
     const where: any = { companyId };

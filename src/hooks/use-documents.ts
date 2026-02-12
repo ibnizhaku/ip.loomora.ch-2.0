@@ -65,6 +65,8 @@ interface ListParams {
   search?: string;
   folderId?: string;
   tags?: string[];
+  projectId?: string;
+  customerId?: string;
   linkedEntityType?: string;
   linkedEntityId?: string;
 }
@@ -164,9 +166,11 @@ export function useDMSDocuments(params?: ListParams) {
       const searchParams = new URLSearchParams();
       if (params?.page) searchParams.set('page', String(params.page));
       if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
-      if (params?.search) searchParams.set('search', params.search);
+      if (params?.search) searchParams.set('query', params.search);
       if (params?.folderId) searchParams.set('folderId', params.folderId);
       if (params?.tags?.length) searchParams.set('tags', params.tags.join(','));
+      if (params?.projectId) searchParams.set('projectId', params.projectId);
+      if (params?.customerId) searchParams.set('customerId', params.customerId);
       if (params?.linkedEntityType) searchParams.set('linkedEntityType', params.linkedEntityType);
       if (params?.linkedEntityId) searchParams.set('linkedEntityId', params.linkedEntityId);
       const queryString = searchParams.toString();
@@ -189,8 +193,14 @@ export function useDMSDocument(id: string | undefined) {
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Record<string, any>): Promise<DMSDocument> => {
-      return api.post<DMSDocument>('/documents', data);
+    mutationFn: async (data: { file: File; folderId?: string; projectId?: string; customerId?: string; description?: string }): Promise<DMSDocument> => {
+      const formData = new FormData();
+      formData.append('file', data.file);
+      if (data.folderId) formData.append('folderId', data.folderId);
+      if (data.projectId) formData.append('projectId', data.projectId);
+      if (data.customerId) formData.append('customerId', data.customerId);
+      if (data.description) formData.append('description', data.description);
+      return api.upload<DMSDocument>('/documents/upload', formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dms-documents'] });

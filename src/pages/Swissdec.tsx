@@ -245,7 +245,7 @@ export default function Swissdec() {
                     <AlertTriangle className="h-4 w-4 mt-0.5" />
                     <div className="text-sm">
                       {sub.errors.map((err, i) => (
-                        <p key={i}>{err}</p>
+                        <p key={i}>{typeof err === 'object' ? err?.message || JSON.stringify(err) : String(err)}</p>
                       ))}
                     </div>
                   </div>

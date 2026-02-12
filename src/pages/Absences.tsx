@@ -103,7 +103,18 @@ const Absences = () => {
     queryKey: ["/absences"],
     queryFn: () => api.get<any>("/absences"),
   });
-  const absenceRequests = apiData?.data || [];
+  const absenceRequests = (apiData?.data || []).map((raw: any) => ({
+    ...raw,
+    employee: raw.employee?.name || raw.employee || raw.employeeName || "–",
+    type: raw.type || "Ferien",
+    from: raw.from || raw.startDate || "–",
+    to: raw.to || raw.endDate || "–",
+    days: Number(raw.days || raw.duration || 0),
+    status: raw.status || "Ausstehend",
+    requestDate: raw.requestDate || raw.createdAt || "–",
+    currentStageIndex: raw.currentStageIndex || 0,
+    approvalHistory: raw.approvalHistory || [],
+  }));
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -143,7 +154,7 @@ const Absences = () => {
   };
 
   const filteredRequests = requests.filter(r => {
-    const matchesSearch = r.employee.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (r.employee || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || r.status === statusFilter || r.type === statusFilter;
     const matchesFilterType = filterType.length === 0 || filterType.includes(r.type);
     const matchesFilterStatus = filterRequestStatus.length === 0 || filterRequestStatus.includes(r.status);

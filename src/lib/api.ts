@@ -200,6 +200,43 @@ class ApiClient {
   delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
+
+  // UPLOAD request (multipart/form-data – browser sets Content-Type with boundary)
+  async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const token = this.accessToken || localStorage.getItem('auth_token');
+
+    const headers: Record<string, string> = {};
+    // Do NOT set Content-Type – the browser will set it with the correct boundary
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+    } catch {
+      throw new Error('Backend nicht erreichbar. Bitte prüfen Sie die Verbindung oder versuchen Sie es später erneut.');
+    }
+
+    if (!response.ok) {
+      const error: ApiError = await response.json().catch(() => ({
+        error: 'Unknown error',
+        message: response.statusText,
+      }));
+      throw new Error(error.message || error.error);
+    }
+
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+    return JSON.parse(text);
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);
@@ -241,3 +278,50 @@ export const auth = {
     return api.getUser();
   },
 };
+
+// PDF & E-Mail helpers
+export async function downloadPdf(
+  entityType: 'invoices' | 'quotes' | 'credit-notes' | 'delivery-notes' | 'reminders',
+  entityId: string,
+  filename?: string
+) {
+  const token = api.getToken() || localStorage.getItem('auth_token');
+  const response = await fetch(`${API_BASE_URL}/${entityType}/${entityId}/pdf`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  
+  if (!response.ok) {
+    throw new Error('PDF-Generierung fehlgeschlagen');
+  }
+  
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `${entityType}-${entityId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export async function sendEmail(
+  entityType: 'invoices' | 'quotes' | 'reminders',
+  entityId: string
+) {
+  const token = api.getToken() || localStorage.getItem('auth_token');
+  const response = await fetch(`${API_BASE_URL}/${entityType}/${entityId}/send`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'E-Mail-Versand fehlgeschlagen');
+  }
+  
+  return response.json();
+}

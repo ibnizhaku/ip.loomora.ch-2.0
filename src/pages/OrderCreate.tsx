@@ -1,5 +1,15 @@
 import { DocumentForm } from "@/components/documents/DocumentForm";
+import { useCreateOrder } from "@/hooks/use-sales";
+import { toast } from "sonner";
 
 export default function OrderCreate() {
-  return <DocumentForm type="order" />;
+  const createOrder = useCreateOrder();
+
+  const handleSave = async (data: any) => {
+    const result = await createOrder.mutateAsync(data);
+    toast.success("Auftrag erstellt");
+    return result;
+  };
+
+  return <DocumentForm type="order" onSave={handleSave} />;
 }

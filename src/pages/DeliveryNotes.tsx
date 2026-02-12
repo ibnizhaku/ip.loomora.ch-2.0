@@ -34,12 +34,26 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+interface DeliveryNoteRaw {
+  id: string;
+  number: string;
+  customer?: { id: string; name: string; companyName?: string };
+  order?: { id: string; number: string };
+  status: string;
+  _count?: { items: number };
+  createdAt?: string;
+  deliveryDate?: string;
+  shippingAddress?: string;
+  carrier?: string;
+  trackingNumber?: string;
+}
+
 interface DeliveryNote {
   id: string;
   number: string;
   client: string;
   orderNumber: string;
-  status: "prepared" | "shipped" | "in-transit" | "delivered";
+  status: string;
   items: number;
   createdDate: string;
   deliveryDate: string;
@@ -48,24 +62,52 @@ interface DeliveryNote {
   trackingNumber?: string;
 }
 
+function mapDeliveryNote(raw: DeliveryNoteRaw): DeliveryNote {
+  const s = (raw.status || "DRAFT").toUpperCase();
+  let status = "prepared";
+  if (s === "SHIPPED") status = "shipped";
+  else if (s === "IN_TRANSIT") status = "in-transit";
+  else if (s === "DELIVERED") status = "delivered";
+  else if (s === "PREPARED" || s === "DRAFT") status = "prepared";
 
-const statusConfig = {
+  return {
+    id: raw.id,
+    number: raw.number || "",
+    client: raw.customer?.companyName || raw.customer?.name || "–",
+    orderNumber: raw.order?.number || "–",
+    status,
+    items: raw._count?.items ?? 0,
+    createdDate: raw.createdAt
+      ? new Date(raw.createdAt).toLocaleDateString("de-CH")
+      : "–",
+    deliveryDate: raw.deliveryDate
+      ? new Date(raw.deliveryDate).toLocaleDateString("de-CH")
+      : "–",
+    address: raw.shippingAddress || "–",
+    carrier: raw.carrier,
+    trackingNumber: raw.trackingNumber,
+  };
+}
+
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   prepared: { label: "Vorbereitet", color: "bg-muted text-muted-foreground", icon: Package },
   shipped: { label: "Versendet", color: "bg-info/10 text-info", icon: Truck },
   "in-transit": { label: "Unterwegs", color: "bg-warning/10 text-warning", icon: Truck },
   delivered: { label: "Zugestellt", color: "bg-success/10 text-success", icon: CheckCircle },
 };
 
+const defaultDNStatus = { label: "Unbekannt", color: "bg-muted text-muted-foreground", icon: Package };
+
 export default function DeliveryNotes() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from API
-  const { data: apiData } = useQuery({
+  const { data: apiData, isLoading } = useQuery({
     queryKey: ["/delivery-notes"],
     queryFn: () => api.get<any>("/delivery-notes"),
   });
-  const deliveryNotes = apiData?.data || [];
+  const deliveryNotes: DeliveryNote[] = (apiData?.data || []).map(mapDeliveryNote);
 
   const filteredNotes = deliveryNotes.filter(
     (n) =>
@@ -100,7 +142,7 @@ export default function DeliveryNotes() {
               <Package className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{deliveryNotes.length}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : deliveryNotes.length}</p>
               <p className="text-sm text-muted-foreground">Gesamt</p>
             </div>
           </div>
@@ -112,7 +154,7 @@ export default function DeliveryNotes() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {deliveryNotes.filter((n) => n.status === "in-transit").length}
+                {isLoading ? "—" : deliveryNotes.filter((n) => n.status === "in-transit").length}
               </p>
               <p className="text-sm text-muted-foreground">Unterwegs</p>
             </div>
@@ -125,7 +167,7 @@ export default function DeliveryNotes() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {deliveryNotes.filter((n) => n.status === "delivered").length}
+                {isLoading ? "—" : deliveryNotes.filter((n) => n.status === "delivered").length}
               </p>
               <p className="text-sm text-muted-foreground">Zugestellt</p>
             </div>
@@ -138,7 +180,7 @@ export default function DeliveryNotes() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {deliveryNotes.filter((n) => n.status === "prepared").length}
+                {isLoading ? "—" : deliveryNotes.filter((n) => n.status === "prepared").length}
               </p>
               <p className="text-sm text-muted-foreground">Vorbereitet</p>
             </div>
@@ -178,7 +220,8 @@ export default function DeliveryNotes() {
           </TableHeader>
           <TableBody>
             {filteredNotes.map((note, index) => {
-              const StatusIcon = statusConfig[note.status].icon;
+              const sCfg = statusConfig[note.status] || defaultDNStatus;
+              const StatusIcon = sCfg.icon;
               return (
                 <TableRow
                   key={note.id}
@@ -207,9 +250,9 @@ export default function DeliveryNotes() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", statusConfig[note.status].color)}>
+                    <Badge className={cn("gap-1", sCfg.color)}>
                       <StatusIcon className="h-3 w-3" />
-                      {statusConfig[note.status].label}
+                      {sCfg.label}
                     </Badge>
                   </TableCell>
                   <TableCell>

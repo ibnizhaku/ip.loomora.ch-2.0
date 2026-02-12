@@ -47,6 +47,22 @@ export class BankImportController {
     return this.bankImportService.getMatchSuggestions(id, user.companyId);
   }
 
+  @Get('transactions/:id')
+  async findOneTransaction(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+  ) {
+    return this.bankImportService.findOne(id, user.companyId);
+  }
+
+  @Post('auto-reconcile')
+  async autoReconcile(
+    @CurrentUser() user: any,
+    @Query('bankAccountId') bankAccountId?: string,
+  ) {
+    return this.bankImportService.autoReconcileAll(user.companyId, bankAccountId);
+  }
+
   @Post('reconcile')
   async reconcile(
     @CurrentUser() user: any,

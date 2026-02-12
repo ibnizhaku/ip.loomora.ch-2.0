@@ -50,7 +50,7 @@ export class CreditNotesController {
     @Query('reason') reason: string,
     @CurrentUser() user: any,
   ) {
-    return this.creditNotesService.createFromInvoice(invoiceId, user.companyId, reason);
+    return this.creditNotesService.createFromInvoice(invoiceId, user.companyId, reason, user.userId);
   }
 
   @Put(':id')

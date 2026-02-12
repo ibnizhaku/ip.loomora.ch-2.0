@@ -19,25 +19,29 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$disconnect();
   }
 
-  // Helper for pagination
-  getPagination(page: number = 1, pageSize: number = 10) {
-    const skip = (page - 1) * pageSize;
-    return { skip, take: pageSize };
+  // Helper for pagination – ensures numeric types (query params arrive as strings)
+  getPagination(page: number | string = 1, pageSize: number | string = 10) {
+    const p = Number(page) || 1;
+    const ps = Number(pageSize) || 10;
+    const skip = (p - 1) * ps;
+    return { skip, take: ps };
   }
 
   // Helper for paginated response
   createPaginatedResponse<T>(
     data: T[],
     total: number,
-    page: number,
-    pageSize: number,
+    page: number | string,
+    pageSize: number | string,
   ) {
+    const p = Number(page) || 1;
+    const ps = Number(pageSize) || 10;
     return {
       data,
       total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      page: p,
+      pageSize: ps,
+      totalPages: Math.ceil(total / ps),
     };
   }
 }

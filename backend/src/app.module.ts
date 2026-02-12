@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
+import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { CompanyModule } from './modules/company/company.module';
@@ -12,6 +15,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { TimeEntriesModule } from './modules/time-entries/time-entries.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { EmployeesModule } from './modules/employees/employees.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
 import { AbsencesModule } from './modules/absences/absences.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
@@ -57,6 +61,8 @@ import { RecruitingModule } from './modules/recruiting/recruiting.module';
 import { BankImportModule } from './modules/bank-import/bank-import.module';
 // Documents (DMS)
 import { DocumentsModule } from './modules/documents/documents.module';
+// Chat Messages
+import { MessagesModule } from './modules/messages/messages.module';
 // Audit Log
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 // Subscriptions & Payments
@@ -67,7 +73,13 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 60 seconds
+      limit: 100, // 100 requests per minute
+    }]),
     PrismaModule,
+    CommonModule,
     AuthModule,
     UsersModule,
     CompanyModule,
@@ -79,6 +91,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     TimeEntriesModule,
     CalendarModule,
     EmployeesModule,
+    DepartmentsModule,
     AbsencesModule,
     DashboardModule,
     HealthModule,
@@ -125,6 +138,8 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     BankImportModule,
     // Documents (DMS)
     DocumentsModule,
+    // Chat Messages
+    MessagesModule,
     // Audit Log (Global)
     AuditLogModule,
     // Subscriptions & Payments

@@ -16,7 +16,8 @@ import {
   MoreHorizontal,
   CreditCard,
   Ban,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,44 +40,76 @@ import {
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { useInvoice } from "@/hooks/use-invoices";
 
-const invoiceData = {
-  id: "RE-2024-0156",
-  status: "Überfällig",
-  customer: {
-    name: "Müller & Partner GmbH",
-    contact: "Stefan Müller",
-    email: "s.mueller@mueller-partner.de",
-    phone: "+49 89 98765432",
-    address: "Geschäftsweg 8, 80339 München",
-    taxId: "DE123456789"
-  },
-  order: "AUF-2024-0078",
-  createdAt: "05.01.2024",
-  dueDate: "19.01.2024",
-  positions: [
-    { id: 1, description: "Consulting-Leistungen Januar", quantity: 45, unit: "Stunden", price: 150, total: 6750 },
-    { id: 2, description: "Software-Lizenzen (Jahreslizenz)", quantity: 5, unit: "Stück", price: 299, total: 1495 },
-    { id: 3, description: "Schulung Mitarbeiter", quantity: 2, unit: "Tage", price: 1200, total: 2400 },
-    { id: 4, description: "Support-Pauschale Q1", quantity: 1, unit: "Pauschal", price: 500, total: 500 },
-  ],
-  subtotal: 11145,
-  tax: 2117.55,
-  total: 13262.55,
-  payments: [
-    { date: "10.01.2024", amount: 5000, method: "Überweisung" },
-  ],
-  paid: 5000,
-  reminders: [
-    { date: "20.01.2024", type: "1. Mahnung" },
-    { date: "27.01.2024", type: "2. Mahnung" },
-  ],
-  bankDetails: {
-    bank: "Sparkasse München",
-    iban: "CH93 0076 2011 6238 5295 7",
-    bic: "COBADEFFXXX"
-  }
+// Status mapping from backend enum to German display labels
+const invoiceStatusMap: Record<string, string> = {
+  DRAFT: "Entwurf",
+  SENT: "Gesendet",
+  PARTIAL: "Teilweise bezahlt",
+  PAID: "Bezahlt",
+  OVERDUE: "Überfällig",
+  CANCELLED: "Storniert",
 };
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function mapInvoiceToView(invoice: any) {
+  const items = invoice.items || [];
+  const subtotal = Number(invoice.subtotal) || 0;
+  const vatAmount = Number(invoice.vatAmount) || 0;
+  const total = Number(invoice.total) || 0;
+  const paidAmount = Number(invoice.paidAmount) || 0;
+
+  return {
+    id: invoice.number || invoice.id,
+    status: invoiceStatusMap[invoice.status] || invoice.status || "Entwurf",
+    customer: {
+      id: invoice.customer?.id,
+      name: invoice.customer?.name || "Unbekannt",
+      contact: invoice.customer?.contactPerson || invoice.customer?.companyName || "",
+      email: invoice.customer?.email || "",
+      phone: invoice.customer?.phone || "",
+      address: [invoice.customer?.street, [invoice.customer?.zipCode, invoice.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+      taxId: invoice.customer?.vatNumber || "",
+    },
+    order: invoice.order?.number || "",
+    orderId: invoice.order?.id || invoice.orderId || "",
+    createdAt: formatDate(invoice.issueDate || invoice.createdAt),
+    dueDate: formatDate(invoice.dueDate),
+    positions: items.map((item: any, idx: number) => ({
+      id: item.id || idx + 1,
+      description: item.description || "",
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || "Stück",
+      price: Number(item.unitPrice) || 0,
+      total: Number(item.total) || 0,
+    })),
+    subtotal,
+    tax: vatAmount,
+    total,
+    payments: (invoice.payments || []).map((p: any) => ({
+      date: formatDate(p.paymentDate || p.createdAt),
+      amount: Number(p.amount) || 0,
+      method: p.method || "Überweisung",
+    })),
+    paid: paidAmount,
+    reminders: (invoice.reminders || []).map((r: any) => ({
+      date: formatDate(r.sentAt || r.createdAt),
+      type: r.type || "Mahnung",
+    })),
+    bankDetails: {
+      bank: "PostFinance AG",
+      iban: "CH93 0076 2011 6238 5295 7",
+      bic: "POFICHBEXXX",
+    },
+  };
+}
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground", icon: Receipt },
@@ -89,7 +122,27 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const InvoiceDetail = () => {
   const { id } = useParams();
+  const { data: rawInvoice, isLoading, error } = useInvoice(id);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !rawInvoice) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Rechnung nicht gefunden</p>
+        <Link to="/invoices" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const invoiceData = mapInvoiceToView(rawInvoice);
   
   const status = statusConfig[invoiceData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
@@ -291,7 +344,7 @@ const InvoiceDetail = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {invoiceData.payments.map((payment, index) => (
+                {invoiceData.payments.length > 0 ? invoiceData.payments.map((payment, index) => (
                   <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-success/5 border border-success/20">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
@@ -304,7 +357,9 @@ const InvoiceDetail = () => {
                     </div>
                     <span className="font-semibold text-success">+CHF {payment.amount.toFixed(2)}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-muted-foreground">Noch keine Zahlungen eingegangen.</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -348,7 +403,7 @@ const InvoiceDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/customers/1" className="font-medium hover:text-primary">
+                  <Link to={`/customers/${invoiceData.customer.id || ''}`} className="font-medium hover:text-primary">
                     {invoiceData.customer.name}
                   </Link>
                   <p className="text-sm text-muted-foreground">{invoiceData.customer.contact}</p>
@@ -362,22 +417,29 @@ const InvoiceDetail = () => {
               <Separator />
 
               <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{invoiceData.customer.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{invoiceData.customer.phone}</span>
-                </div>
+                {invoiceData.customer.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{invoiceData.customer.email}</span>
+                  </div>
+                )}
+                {invoiceData.customer.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{invoiceData.customer.phone}</span>
+                  </div>
+                )}
               </div>
 
-              <Separator />
-
-              <div className="text-sm">
-                <span className="text-muted-foreground">USt-IdNr.: </span>
-                <span>{invoiceData.customer.taxId}</span>
-              </div>
+              {invoiceData.customer.taxId && (
+                <>
+                  <Separator />
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">USt-IdNr.: </span>
+                    <span>{invoiceData.customer.taxId}</span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -387,12 +449,14 @@ const InvoiceDetail = () => {
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Auftrag</span>
-                <Link to={`/orders/${invoiceData.order}`} className="font-medium hover:text-primary">
-                  {invoiceData.order}
-                </Link>
-              </div>
+              {invoiceData.orderId && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Auftrag</span>
+                  <Link to={`/orders/${invoiceData.orderId}`} className="font-medium hover:text-primary">
+                    {invoiceData.order || "—"}
+                  </Link>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Rechnungsdatum</span>
                 <span className="font-medium">{invoiceData.createdAt}</span>

@@ -63,6 +63,9 @@ const priorityConfig = {
   low: { label: "Niedrig", color: "bg-muted text-muted-foreground" },
 };
 
+const defaultStatusCfg = { label: "Unbekannt", color: "text-muted-foreground", icon: Circle };
+const defaultPriorityCfg = { label: "Unbekannt", color: "bg-muted text-muted-foreground" };
+
 export default function Tasks() {
   const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/tasks"], queryFn: () => api.get<any>("/tasks") });
@@ -79,6 +82,18 @@ export default function Tasks() {
       toast.error("Fehler beim Löschen der Aufgabe");
     },
   });
+
+  const statusToggleMutation = useMutation({
+    mutationFn: ({ taskId, newStatus }: { taskId: string; newStatus: string }) =>
+      api.put(`/tasks/${taskId}`, { status: newStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
+      toast.success("Status aktualisiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Aktualisieren des Status");
+    },
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
@@ -89,8 +104,8 @@ export default function Tasks() {
 
   const filteredTasks = tasks.filter((t) => {
     const matchesSearch =
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.project.toLowerCase().includes(searchQuery.toLowerCase());
+      (t.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.project || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "all" || t.status === selectedStatus;
     const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(t.priority);
     const matchesProject = projectFilters.length === 0 || projectFilters.includes(t.project);
@@ -243,7 +258,8 @@ export default function Tasks() {
       {/* Task List */}
       <div className="space-y-3">
         {filteredTasks.map((task, index) => {
-          const StatusIcon = statusConfig[task.status].icon;
+          const sc = statusConfig[task.status] || defaultStatusCfg;
+          const StatusIcon = sc.icon;
           return (
             <div
               key={task.id}
@@ -257,6 +273,10 @@ export default function Tasks() {
                 checked={task.status === "done"}
                 className="mt-1"
                 onClick={(e) => e.stopPropagation()}
+                onCheckedChange={() => {
+                  const newStatus = task.status === "done" ? "TODO" : "DONE";
+                  statusToggleMutation.mutate({ taskId: task.id, newStatus });
+                }}
               />
 
               <div className="flex-1 min-w-0">
@@ -308,13 +328,13 @@ export default function Tasks() {
                 <div className="flex flex-wrap items-center gap-3 mt-3">
                   <Badge
                     variant="outline"
-                    className={cn("gap-1", statusConfig[task.status].color)}
+                    className={cn("gap-1", sc.color)}
                   >
                     <StatusIcon className="h-3 w-3" />
-                    {statusConfig[task.status].label}
+                    {sc.label}
                   </Badge>
-                  <Badge className={priorityConfig[task.priority].color}>
-                    {priorityConfig[task.priority].label}
+                  <Badge className={(priorityConfig[task.priority] || defaultPriorityCfg).color}>
+                    {(priorityConfig[task.priority] || defaultPriorityCfg).label}
                   </Badge>
 
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">

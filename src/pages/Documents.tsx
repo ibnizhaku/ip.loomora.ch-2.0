@@ -17,6 +17,7 @@ import {
   Eye,
   Edit,
   RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +38,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { DocumentUploadDialog } from "@/components/documents/DocumentUploadDialog";
-import { useDocuments } from "@/contexts/DocumentsContext";
+import { useFolders, useDMSDocuments, useCreateFolder, useDeleteDocument, useDeleteFolder, useDocumentStats } from "@/hooks/use-documents";
 
-const typeConfig = {
+const typeConfig: Record<string, { color: string; icon: any }> = {
   pdf: { color: "text-destructive bg-destructive/10", icon: FileText },
   doc: { color: "text-info bg-info/10", icon: FileText },
   image: { color: "text-success bg-success/10", icon: Image },
@@ -47,10 +48,55 @@ const typeConfig = {
   folder: { color: "text-primary bg-primary/10", icon: Folder },
 };
 
+const defaultTypeConfig = { color: "text-muted-foreground bg-muted", icon: File };
+
+function getDocType(mimeType?: string): "pdf" | "doc" | "image" | "spreadsheet" {
+  if (!mimeType) return "doc";
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType === "text/csv") return "spreadsheet";
+  return "doc";
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function formatRelativeDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH");
+  } catch {
+    return "";
+  }
+}
+
+interface DisplayItem {
+  id: string;
+  name: string;
+  type: "pdf" | "doc" | "image" | "spreadsheet" | "folder";
+  size?: string;
+  modifiedDate: string;
+  modifiedBy: string;
+  shared: boolean;
+  items?: number;
+}
+
 export default function Documents() {
   const navigate = useNavigate();
-  const { documents, getDocumentsByParent, addFolder, addDocument, updateDocument, deleteDocument } = useDocuments();
-  
+
+  // API data
+  const { data: foldersData, isLoading: foldersLoading } = useFolders();
+  const { data: docsData, isLoading: docsLoading } = useDMSDocuments({});
+  const { data: statsData } = useDocumentStats();
+  const createFolder = useCreateFolder();
+  const deleteDocMutation = useDeleteDocument();
+  const deleteFolderMutation = useDeleteFolder();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
@@ -59,10 +105,34 @@ export default function Documents() {
 
   const hasActiveFilters = typeFilters.length > 0 || sharedFilter !== null || activeStatFilter !== null;
 
-  // Get root level documents (parentId = null)
-  const rootDocuments = getDocumentsByParent(null);
+  // Map backend data to display items
+  const folders: DisplayItem[] = (foldersData || []).map((f: any) => ({
+    id: f.id,
+    name: f.name,
+    type: "folder" as const,
+    modifiedDate: formatRelativeDate(f.createdAt),
+    modifiedBy: "",
+    shared: false,
+    items: (f._count?.documents || 0) + (f._count?.children || 0),
+  }));
 
-  const filteredDocuments = rootDocuments.filter((d) => {
+  // Only show root-level documents (no folderId)
+  const allDocs = docsData?.data || [];
+  const rootDocs: DisplayItem[] = allDocs
+    .filter((d: any) => !d.folderId)
+    .map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      type: getDocType(d.mimeType),
+      size: formatFileSize(d.fileSize),
+      modifiedDate: formatRelativeDate(d.createdAt),
+      modifiedBy: d.uploadedBy ? `${d.uploadedBy.firstName} ${d.uploadedBy.lastName}` : "",
+      shared: false,
+    }));
+
+  const allItems = [...folders, ...rootDocs];
+
+  const filteredDocuments = allItems.filter((d) => {
     const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilters.length === 0 || typeFilters.includes(d.type);
     const matchesShared = sharedFilter === null || d.shared === sharedFilter;
@@ -74,13 +144,22 @@ export default function Documents() {
     return matchesSearch && matchesType && matchesShared;
   });
 
-  const folders = filteredDocuments.filter((d) => d.type === "folder");
+  const filteredFolders = filteredDocuments.filter((d) => d.type === "folder");
   const files = filteredDocuments.filter((d) => d.type !== "folder");
 
-  const handleDelete = (e: React.MouseEvent, docId: string) => {
+  const handleDelete = (e: React.MouseEvent, docId: string, isFolder: boolean) => {
     e.stopPropagation();
-    deleteDocument(docId);
-    toast.success("Element gelöscht");
+    if (isFolder) {
+      deleteFolderMutation.mutate(docId, {
+        onSuccess: () => toast.success("Ordner gelöscht"),
+        onError: (err: any) => toast.error(err.message || "Fehler beim Löschen"),
+      });
+    } else {
+      deleteDocMutation.mutate(docId, {
+        onSuccess: () => toast.success("Dokument gelöscht"),
+        onError: (err: any) => toast.error(err.message || "Fehler beim Löschen"),
+      });
+    }
   };
 
   const handleDownload = (e: React.MouseEvent, name: string) => {
@@ -88,34 +167,36 @@ export default function Documents() {
     toast.success(`${name} wird heruntergeladen...`);
   };
 
-  const handleShare = (e: React.MouseEvent, docId: string, currentShared: boolean) => {
+  const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    updateDocument(docId, { shared: !currentShared });
-    toast.success(currentShared ? "Freigabe aufgehoben" : "Dokument freigegeben");
+    toast.info("Freigabe-Funktion ist noch nicht verfügbar");
   };
 
   const handleFolderCreated = (folder: { name: string }) => {
-    addFolder(folder.name, null);
+    createFolder.mutate(
+      { name: folder.name },
+      {
+        onSuccess: () => toast.success(`Ordner "${folder.name}" erstellt`),
+        onError: (err: any) => toast.error(err.message || "Fehler beim Erstellen"),
+      }
+    );
   };
 
-  const handleFilesUploaded = (files: { name: string; type: "pdf" | "doc" | "image" | "spreadsheet"; size: string }[]) => {
-    files.forEach(f => {
-      addDocument({
-        name: f.name,
-        type: f.type,
-        size: f.size,
-        modifiedDate: "gerade eben",
-        modifiedBy: "Max Keller",
-        shared: false,
-        parentId: null,
-      });
-    });
-  };
+  // Calculate stats from API
+  const totalDocuments = (statsData as any)?.totalDocuments || allDocs.length;
+  const totalFolders = (foldersData || []).length;
+  const sharedDocuments = 0;
+  const totalSizeFormatted = (statsData as any)?.totalSizeFormatted || "0 B";
 
-  // Calculate stats
-  const totalDocuments = documents.length;
-  const totalFolders = documents.filter(d => d.type === "folder").length;
-  const sharedDocuments = documents.filter(d => d.shared).length;
+  const isLoading = foldersLoading || docsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -131,7 +212,7 @@ export default function Documents() {
         </div>
         <div className="flex items-center gap-2">
           <NewFolderDialog onFolderCreated={handleFolderCreated} />
-          <DocumentUploadDialog onFilesUploaded={handleFilesUploaded} />
+          <DocumentUploadDialog />
         </div>
       </div>
 
@@ -194,7 +275,7 @@ export default function Documents() {
               <FileText className="h-5 w-5 text-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold">12.4 GB</p>
+              <p className="text-2xl font-bold">{totalSizeFormatted}</p>
               <p className="text-sm text-muted-foreground">Speicher</p>
             </div>
           </div>
@@ -329,13 +410,13 @@ export default function Documents() {
           </p>
           <div className="flex gap-2">
             <NewFolderDialog onFolderCreated={handleFolderCreated} />
-            <DocumentUploadDialog onFilesUploaded={handleFilesUploaded} />
+            <DocumentUploadDialog />
           </div>
         </div>
       )}
 
       {/* Folders */}
-      {folders.length > 0 && (
+      {filteredFolders.length > 0 && (
         <div>
           <h3 className="font-medium text-sm text-muted-foreground mb-3">
             Ordner
@@ -346,7 +427,7 @@ export default function Documents() {
               view === "grid" ? "sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
             )}
           >
-            {folders.map((folder, index) => (
+            {filteredFolders.map((folder, index) => (
               <div
                 key={folder.id}
                 className={cn(
@@ -383,11 +464,11 @@ export default function Documents() {
                       <Edit className="h-4 w-4 mr-2" />
                       Umbenennen
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => handleShare(e, folder.id, folder.shared)}>
+                    <DropdownMenuItem onClick={(e) => handleShare(e)}>
                       <Share className="h-4 w-4 mr-2" />
-                      {folder.shared ? "Freigabe aufheben" : "Teilen"}
+                      Teilen
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, folder.id)}>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, folder.id, true)}>
                       <Trash className="h-4 w-4 mr-2" />
                       Löschen
                     </DropdownMenuItem>
@@ -412,7 +493,8 @@ export default function Documents() {
             )}
           >
             {files.map((file, index) => {
-              const TypeIcon = typeConfig[file.type].icon;
+              const tc = typeConfig[file.type] || defaultTypeConfig;
+              const TypeIcon = tc.icon;
               return (
                 <div
                   key={file.id}
@@ -426,7 +508,7 @@ export default function Documents() {
                   <div
                     className={cn(
                       "flex items-center justify-center rounded-xl",
-                      typeConfig[file.type].color,
+                      tc.color,
                       view === "grid" ? "h-16 w-16 mb-3" : "h-10 w-10"
                     )}
                   >
@@ -471,11 +553,11 @@ export default function Documents() {
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleShare(e, file.id, file.shared)}>
+                      <DropdownMenuItem onClick={(e) => handleShare(e)}>
                         <Share className="h-4 w-4 mr-2" />
-                        {file.shared ? "Freigabe aufheben" : "Teilen"}
+                        Teilen
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id)}>
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id, false)}>
                         <Trash className="h-4 w-4 mr-2" />
                         Löschen
                       </DropdownMenuItem>

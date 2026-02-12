@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useOrder } from "@/hooks/use-sales";
+import { Loader2 } from "lucide-react";
 import { 
   ArrowLeft, 
   ShoppingCart, 
@@ -41,38 +43,57 @@ import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
-const orderData = {
-  id: "AUF-2024-0089",
-  status: "In Bearbeitung",
-  progress: 65,
-  customer: {
-    name: "Digital Solutions AG",
-    contact: "Thomas Müller",
-    address: "Technikstraße 42, 80331 München"
-  },
-  quote: "ANG-2024-0035",
-  createdAt: "20.01.2024",
-  deliveryDate: "28.02.2024",
-  positions: [
-    { id: 1, description: "Webentwicklung Phase 1", quantity: 1, status: "Abgeschlossen", progress: 100 },
-    { id: 2, description: "Webentwicklung Phase 2", quantity: 1, status: "In Arbeit", progress: 75 },
-    { id: 3, description: "Mobile App Entwicklung", quantity: 1, status: "In Arbeit", progress: 40 },
-    { id: 4, description: "API Integration", quantity: 1, status: "Geplant", progress: 0 },
-    { id: 5, description: "Testing & Deployment", quantity: 1, status: "Geplant", progress: 0 },
-  ],
-  total: 45800,
-  paid: 22900,
-  milestones: [
-    { name: "Projektstart", date: "20.01.2024", completed: true },
-    { name: "Design-Freigabe", date: "27.01.2024", completed: true },
-    { name: "Phase 1 Abschluss", date: "10.02.2024", completed: true },
-    { name: "Phase 2 Abschluss", date: "20.02.2024", completed: false },
-    { name: "Finale Abnahme", date: "28.02.2024", completed: false },
-  ],
-  deliveries: [
-    { id: "LS-2024-0045", date: "10.02.2024", status: "Geliefert" },
-  ]
+// Status mapping from backend enum to German display labels
+const statusLabelMap: Record<string, string> = {
+  DRAFT: "Neu",
+  SENT: "In Bearbeitung",
+  CONFIRMED: "Abgeschlossen",
+  CANCELLED: "Storniert",
 };
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function mapOrderToView(order: any) {
+  const items = order.items || [];
+  const total = Number(order.total) || 0;
+  const paidAmount = Number(order.paidAmount) || 0;
+
+  return {
+    id: order.number || order.id,
+    status: statusLabelMap[order.status] || order.status || "Neu",
+    progress: order.status === "CONFIRMED" ? 100 : order.status === "SENT" ? 50 : 0,
+    customer: {
+      id: order.customer?.id,
+      name: order.customer?.name || "Unbekannt",
+      contact: order.customer?.contactPerson || order.customer?.companyName || "",
+      address: [order.customer?.street, [order.customer?.zipCode, order.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+    },
+    quote: order.quote?.number || "",
+    quoteId: order.quote?.id || order.quoteId || "",
+    createdAt: formatDate(order.orderDate || order.createdAt),
+    deliveryDate: formatDate(order.deliveryDate),
+    positions: items.map((item: any, idx: number) => ({
+      id: item.id || idx + 1,
+      description: item.description || "",
+      quantity: item.quantity || 0,
+      status: "In Arbeit",
+      progress: 0,
+    })),
+    total,
+    paid: paidAmount,
+    milestones: [] as { name: string; date: string; completed: boolean }[],
+    deliveries: (order.deliveryNotes || []).map((dn: any) => ({
+      id: dn.number || dn.id,
+      date: formatDate(dn.deliveryDate || dn.createdAt),
+      status: dn.status === "DELIVERED" ? "Geliefert" : dn.status === "SHIPPED" ? "Versendet" : "Entwurf",
+    })),
+  };
+}
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Neu": { color: "bg-info/10 text-info", icon: ShoppingCart },
@@ -89,7 +110,27 @@ const positionStatusColors: Record<string, string> = {
 
 const OrderDetail = () => {
   const { id } = useParams();
+  const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !rawOrder) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Auftrag nicht gefunden</p>
+        <Link to="/orders" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const orderData = mapOrderToView(rawOrder);
   
   const status = statusConfig[orderData.status] || statusConfig["Neu"];
   const StatusIcon = status.icon;
@@ -316,7 +357,7 @@ const OrderDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/customers/1" className="font-medium hover:text-primary">
+                  <Link to={`/customers/${orderData.customer.id || ''}`} className="font-medium hover:text-primary">
                     {orderData.customer.name}
                   </Link>
                   <p className="text-sm text-muted-foreground">{orderData.customer.contact}</p>
@@ -351,9 +392,9 @@ const OrderDetail = () => {
                 <span className="font-medium text-warning">CHF {(orderData.total - orderData.paid).toLocaleString("de-CH")}</span>
               </div>
               <Separator />
-              <Progress value={(orderData.paid / orderData.total) * 100} className="h-2" />
+              <Progress value={orderData.total > 0 ? (orderData.paid / orderData.total) * 100 : 0} className="h-2" />
               <p className="text-xs text-muted-foreground text-center">
-                {Math.round((orderData.paid / orderData.total) * 100)}% bezahlt
+                {orderData.total > 0 ? Math.round((orderData.paid / orderData.total) * 100) : 0}% bezahlt
               </p>
             </CardContent>
           </Card>
@@ -366,8 +407,8 @@ const OrderDetail = () => {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Angebot</span>
-                <Link to={`/quotes/${orderData.quote}`} className="font-medium hover:text-primary">
-                  {orderData.quote}
+                <Link to={`/quotes/${orderData.quoteId}`} className="font-medium hover:text-primary">
+                  {orderData.quote || "—"}
                 </Link>
               </div>
               <div className="flex items-center justify-between text-sm">

@@ -81,14 +81,16 @@ export default function Campaigns() {
   const [activeTab, setActiveTab] = useState("all");
   const [activeStatCard, setActiveStatCard] = useState<"budget" | "revenue" | "conversions" | "active" | null>(null);
 
-  const totalBudget = campaigns.reduce((sum, c) => sum + c.budget, 0);
-  const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
-  const totalRevenue = campaigns.reduce((sum, c) => sum + c.revenue, 0);
-  const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
+  const totalBudget = campaigns.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+  const totalSpent = campaigns.reduce((sum, c) => sum + (Number(c.spent) || 0), 0);
+  const totalRevenue = campaigns.reduce((sum, c) => sum + (Number(c.revenue) || 0), 0);
+  const totalConversions = campaigns.reduce((sum, c) => sum + (Number(c.conversions) || 0), 0);
   const activeCount = campaigns.filter((c) => c.status === "active").length;
 
+  const defaultStatus = { color: "bg-muted text-muted-foreground", label: "Unbekannt" } as const;
+
   const filteredCampaigns = campaigns.filter((campaign) => {
-    const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (campaign.name || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTab = activeTab === "all" || campaign.status === activeTab;
     const matchesStatus = statusFilter === "all" || campaign.status === statusFilter;
     return matchesSearch && matchesTab && matchesStatus;
@@ -159,11 +161,11 @@ export default function Campaigns() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              CHF {totalBudget.toLocaleString("de-CH")}
+              CHF {(totalBudget || 0).toLocaleString("de-CH")}
             </div>
-            <Progress value={(totalSpent / totalBudget) * 100} className="mt-2" />
+            <Progress value={totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-1">
-              CHF {totalSpent.toLocaleString("de-CH")} ausgegeben ({((totalSpent / totalBudget) * 100).toFixed(0)}%)
+              CHF {(totalSpent || 0).toLocaleString("de-CH")} ausgegeben ({totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(0) : 0}%)
             </p>
           </CardContent>
         </Card>
@@ -180,10 +182,10 @@ export default function Campaigns() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              CHF {totalRevenue.toLocaleString("de-CH")}
+              CHF {(totalRevenue || 0).toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
-              ROI: {((totalRevenue / totalSpent - 1) * 100).toFixed(0)}%
+              ROI: {totalSpent > 0 ? ((totalRevenue / totalSpent - 1) * 100).toFixed(0) : 0}%
             </p>
           </CardContent>
         </Card>
@@ -201,7 +203,7 @@ export default function Campaigns() {
           <CardContent>
             <div className="text-2xl font-bold">{totalConversions}</div>
             <p className="text-xs text-muted-foreground">
-              Ø CHF {(totalSpent / totalConversions).toFixed(2)} pro Conversion
+              Ø CHF {totalConversions > 0 ? (totalSpent / totalConversions).toFixed(2) : "0.00"} pro Conversion
             </p>
           </CardContent>
         </Card>
@@ -278,8 +280,8 @@ export default function Campaigns() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={statusStyles[campaign.status]}>
-                        {statusLabels[campaign.status]}
+                      <Badge className={(statusStyles[campaign.status] || defaultStatus).color || defaultStatus.color}>
+                        {statusLabels[campaign.status] || defaultStatus.label}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -291,19 +293,19 @@ export default function Campaigns() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div>
-                        CHF {campaign.spent.toLocaleString("de-CH")} / {campaign.budget.toLocaleString("de-CH")}
+                        CHF {(campaign.spent || 0).toLocaleString("de-CH")} / {(campaign.budget || 0).toLocaleString("de-CH")}
                       </div>
                       <Progress 
-                        value={(campaign.spent / campaign.budget) * 100} 
+                        value={campaign.budget > 0 ? (campaign.spent / campaign.budget) * 100 : 0} 
                         className="mt-1 h-1" 
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      {campaign.reach.toLocaleString("de-CH")}
+                      {(campaign.reach || 0).toLocaleString("de-CH")}
                     </TableCell>
-                    <TableCell className="text-right">{campaign.conversions}</TableCell>
+                    <TableCell className="text-right">{campaign.conversions || 0}</TableCell>
                     <TableCell className="text-right font-medium">
-                      CHF {campaign.revenue.toLocaleString("de-CH")}
+                      CHF {(campaign.revenue || 0).toLocaleString("de-CH")}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">

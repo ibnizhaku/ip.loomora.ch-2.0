@@ -160,6 +160,24 @@ export class DocumentVersionDto {
   changeNote?: string;
 }
 
+export class UploadDocumentDto {
+  @IsString()
+  @IsOptional()
+  folderId?: string;
+
+  @IsString()
+  @IsOptional()
+  projectId?: string;
+
+  @IsString()
+  @IsOptional()
+  customerId?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
 export class DocumentSearchDto {
   @IsString()
   @IsOptional()

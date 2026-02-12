@@ -7,6 +7,7 @@ import {
   UpdateDocumentDto,
   MoveDocumentDto,
   DocumentSearchDto,
+  UploadDocumentDto,
   FolderType,
   DocumentStatus,
 } from './dto/document.dto';
@@ -200,6 +201,55 @@ export class DocumentsService {
         uploadedBy: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+  }
+
+  async createDocumentFromUpload(
+    companyId: string,
+    userId: string,
+    file: Express.Multer.File,
+    dto: UploadDocumentDto,
+  ) {
+    // Validate folder if provided
+    if (dto.folderId) {
+      const folder = await this.prisma.folder.findFirst({
+        where: { id: dto.folderId, companyId },
+      });
+      if (!folder) {
+        throw new NotFoundException('Ordner nicht gefunden');
+      }
+    }
+
+    // Create document record with file metadata
+    const doc = await this.prisma.dMSDocument.create({
+      data: {
+        companyId,
+        name: file.originalname,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        storagePath: file.path,
+        storageUrl: '', // Will be set after we have the ID
+        status: 'ACTIVE',
+        version: 1,
+        folderId: dto.folderId || null,
+        projectId: dto.projectId || null,
+        customerId: dto.customerId || null,
+        description: dto.description || null,
+        uploadedById: userId,
+      },
+      include: {
+        folder: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    // Set storageUrl to the download endpoint
+    const storageUrl = `/api/documents/${doc.id}/download`;
+    await this.prisma.dMSDocument.update({
+      where: { id: doc.id },
+      data: { storageUrl },
+    });
+
+    return { ...doc, storageUrl };
   }
 
   async findAllDocuments(companyId: string, params: DocumentSearchDto) {

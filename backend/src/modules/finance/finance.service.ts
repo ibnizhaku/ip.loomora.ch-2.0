@@ -18,7 +18,9 @@ export class FinanceService {
   // =====================
 
   async findAllAccounts(companyId: string, query: PaginationDto & { type?: string }) {
-    const { page = 1, pageSize = 100, search, sortBy = 'number', sortOrder = 'asc', type } = query;
+    const { page: rawPage = 1, pageSize: rawPageSize = 100, search, sortBy = 'number', sortOrder = 'asc', type } = query;
+    const page = Number(rawPage) || 1;
+    const pageSize = Number(rawPageSize) || 100;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };

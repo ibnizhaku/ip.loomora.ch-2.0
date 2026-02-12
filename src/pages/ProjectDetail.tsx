@@ -51,6 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useDropzone } from "react-dropzone";
+import { useDMSDocuments, useUploadDocument, useDeleteDocument } from "@/hooks/use-documents";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PLANNING: { label: "Planung", color: "bg-muted text-muted-foreground" },
@@ -69,14 +70,6 @@ const taskStatusConfig = {
   DONE: { label: "Erledigt", color: "bg-success/10 text-success" },
 };
 
-interface UploadedFile {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  uploadedAt: Date;
-}
-
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -85,21 +78,23 @@ export default function ProjectDetail() {
   const updateProject = useUpdateProject();
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  // File upload handling
+  // Load project documents from backend
+  const { data: projectDocsData } = useDMSDocuments({ projectId: id });
+  const uploadDocumentMutation = useUploadDocument();
+  const deleteDocumentMutation = useDeleteDocument();
+  const projectDocs = projectDocsData?.data || [];
+
+  // File upload handling - persists real files to backend
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles: UploadedFile[] = acceptedFiles.map(file => ({
-      id: `${Date.now()}-${file.name}`,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      uploadedAt: new Date(),
-    }));
-    
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    acceptedFiles.forEach(file => {
+      uploadDocumentMutation.mutate({
+        file,
+        projectId: id,
+      });
+    });
     toast.success(`${acceptedFiles.length} Datei(en) hochgeladen`);
-  }, []);
+  }, [id, uploadDocumentMutation]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -139,8 +134,10 @@ export default function ProjectDetail() {
   };
 
   const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
-    toast.success('Datei entfernt');
+    deleteDocumentMutation.mutate(fileId, {
+      onSuccess: () => toast.success('Datei entfernt'),
+      onError: (err: any) => toast.error(err.message || 'Fehler beim Entfernen'),
+    });
   };
 
   const getFileIcon = (fileType: string) => {
@@ -464,7 +461,7 @@ export default function ProjectDetail() {
               {team.length} online
             </Badge>
           </div>
-          <ProjectChat team={team} />
+          <ProjectChat team={team} projectId={id} />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
@@ -505,7 +502,7 @@ export default function ProjectDetail() {
 
         <TabsContent value="files" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Dateien ({uploadedFiles.length})</h3>
+            <h3 className="font-semibold">Dateien ({projectDocs.length})</h3>
           </div>
 
           {/* Upload Zone */}
@@ -531,10 +528,10 @@ export default function ProjectDetail() {
           </div>
 
           {/* Uploaded Files List */}
-          {uploadedFiles.length > 0 && (
+          {projectDocs.length > 0 && (
             <div className="space-y-2">
-              {uploadedFiles.map((file) => {
-                const FileIcon = getFileIcon(file.type);
+              {projectDocs.map((file: any) => {
+                const FileIcon = getFileIcon(file.mimeType || '');
                 return (
                   <div
                     key={file.id}
@@ -546,7 +543,7 @@ export default function ProjectDetail() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{file.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatFileSize(file.size)} · {file.uploadedAt.toLocaleDateString('de-CH')}
+                        {formatFileSize(file.fileSize || 0)} · {file.createdAt ? new Date(file.createdAt).toLocaleDateString('de-CH') : ''}
                       </p>
                     </div>
                     <Button

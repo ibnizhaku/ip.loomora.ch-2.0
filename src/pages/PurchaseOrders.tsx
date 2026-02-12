@@ -214,8 +214,8 @@ const PurchaseOrders = () => {
                       </div>
                     </TableCell>
                     <TableCell>{order.date}</TableCell>
-                    <TableCell className="text-right">{order.items}</TableCell>
-                    <TableCell className="text-right font-medium">CHF {order.total.toLocaleString("de-CH")}</TableCell>
+                    <TableCell className="text-right">{Array.isArray(order.items) ? order.items.length : (order.items || 0)}</TableCell>
+                    <TableCell className="text-right font-medium">CHF {(order.total || 0).toLocaleString("de-CH")}</TableCell>
                     <TableCell>{order.expectedDelivery}</TableCell>
                     <TableCell>
                       <Badge className={status.color}>

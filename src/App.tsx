@@ -2,15 +2,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import React from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DocumentsProvider } from "./contexts/DocumentsContext";
-import AuthPage from "./pages/AuthPage";
-import MarketingPage from "./marketing/MarketingPage";
 
 // Pages
 import Index from "./pages/Index";
@@ -173,14 +172,47 @@ import Help from "./pages/Help";
 import GoodsReceipts from "./pages/GoodsReceipts";
 import GoodsReceiptCreate from "./pages/GoodsReceiptCreate";
 import GoodsReceiptDetail from "./pages/GoodsReceiptDetail";
-import Departments from "./pages/Departments";
-import DepartmentCreate from "./pages/DepartmentCreate";
-
-
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AuthPage from "./pages/AuthPage";
 import SelectCompany from "./pages/SelectCompany";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// Error Boundary to catch and display rendering errors
+class PageErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 max-w-2xl mx-auto">
+          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6">
+            <h2 className="text-lg font-semibold text-destructive mb-2">Seite konnte nicht geladen werden</h2>
+            <p className="text-sm text-muted-foreground mb-4">{this.state.error?.message}</p>
+            <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-40 mb-4">{this.state.error?.stack}</pre>
+            <button
+              className="text-sm text-primary hover:underline"
+              onClick={() => this.setState({ hasError: false, error: null })}
+            >
+              Erneut versuchen
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Layout wrapper for protected routes with sidebar
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -192,7 +224,9 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
           <SidebarInset>
             <Header />
             <main className="flex-1 p-6">
-              {children}
+              <PageErrorBoundary>
+                {children}
+              </PageErrorBoundary>
             </main>
           </SidebarInset>
         </div>
@@ -210,12 +244,11 @@ const App = () => (
         <AuthProvider>
           <DocumentsProvider>
             <Routes>
-              {/* Public Routes */}
-              <Route path="/website" element={<MarketingPage />} />
+              {/* Public Routes - No Auth Required */}
               <Route path="/login" element={<AuthPage />} />
               <Route path="/register" element={<AuthPage />} />
               <Route path="/select-company" element={<SelectCompany />} />
-
+              
               {/* Protected Routes - Wrapped with Layout */}
               <Route path="/" element={<ProtectedLayout><Index /></ProtectedLayout>} />
               
@@ -369,8 +402,6 @@ const App = () => (
               <Route path="/training/new" element={<ProtectedLayout><TrainingCreate /></ProtectedLayout>} />
               <Route path="/training/:id" element={<ProtectedLayout><TrainingDetail /></ProtectedLayout>} />
               <Route path="/orgchart" element={<ProtectedLayout><Orgchart /></ProtectedLayout>} />
-              <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
-              <Route path="/departments/new" element={<ProtectedLayout><DepartmentCreate /></ProtectedLayout>} />
               
               {/* Administration */}
               <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />

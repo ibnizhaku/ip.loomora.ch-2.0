@@ -84,7 +84,7 @@ export function useDeleteCustomer() {
 
 // Customer stats hook
 export function useCustomerStats() {
-  const { data } = useCustomers({ pageSize: 1000 });
+  const { data, isLoading } = useCustomers({ pageSize: 1000 });
   
   const customers = data?.data || [];
   const total = customers.length;
@@ -92,5 +92,5 @@ export function useCustomerStats() {
   const prospects = customers.filter(c => !c.totalRevenue || c.totalRevenue === 0).length;
   const totalRevenue = customers.reduce((sum, c) => sum + (c.totalRevenue || 0), 0);
   
-  return { total, active, prospects, totalRevenue };
+  return { total, active, prospects, totalRevenue, isLoading };
 }

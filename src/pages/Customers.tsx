@@ -93,7 +93,7 @@ export default function Customers() {
               <User className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-2xl font-bold">{stats.isLoading ? "—" : stats.total}</p>
               <p className="text-sm text-muted-foreground">Gesamt</p>
             </div>
           </div>
@@ -104,7 +104,7 @@ export default function Customers() {
               <Building2 className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{stats.active}</p>
+              <p className="text-2xl font-bold">{stats.isLoading ? "—" : stats.active}</p>
               <p className="text-sm text-muted-foreground">Aktive Kunden</p>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function Customers() {
               <User className="h-5 w-5 text-info" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{stats.prospects}</p>
+              <p className="text-2xl font-bold">{stats.isLoading ? "—" : stats.prospects}</p>
               <p className="text-sm text-muted-foreground">Interessenten</p>
             </div>
           </div>
@@ -127,7 +127,7 @@ export default function Customers() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                CHF {(stats.totalRevenue / 1000).toFixed(0)}k
+                {stats.isLoading ? "—" : `CHF ${(stats.totalRevenue / 1000).toFixed(0)}k`}
               </p>
               <p className="text-sm text-muted-foreground">Gesamtumsatz</p>
             </div>

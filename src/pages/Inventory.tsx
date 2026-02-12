@@ -69,7 +69,24 @@ export default function Inventory() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/products"], queryFn: () => api.get<any>("/products") });
-  const products = apiData?.data || [];
+  const products: Product[] = (apiData?.data || []).map((raw: any) => {
+    const stock = Number(raw.stockQuantity ?? raw.stock ?? 0);
+    const minStock = Number(raw.minStockQuantity ?? raw.minStock ?? 0);
+    let status: "in-stock" | "low-stock" | "out-of-stock" = "in-stock";
+    if (stock <= 0) status = "out-of-stock";
+    else if (stock <= minStock) status = "low-stock";
+    return {
+      id: raw.id || "",
+      name: raw.name || "–",
+      sku: raw.sku || "–",
+      category: raw.category?.name || raw.category || "–",
+      stock,
+      minStock,
+      price: Number(raw.salePrice || raw.price || 0),
+      status,
+      lastUpdate: raw.updatedAt ? new Date(raw.updatedAt).toLocaleDateString("de-CH") : "–",
+    };
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [productList, setProductList] = useState<Product[]>(products);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
@@ -78,12 +95,12 @@ export default function Inventory() {
 
   const filteredProducts = productList.filter(
     (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase())
+      (p.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.sku || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.category || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalValue = productList.reduce((acc, p) => acc + p.stock * p.price, 0);
+  const totalValue = productList.reduce((acc, p) => acc + (p.stock || 0) * (p.price || 0), 0);
   const lowStockCount = productList.filter((p) => p.status === "low-stock").length;
   const outOfStockCount = productList.filter((p) => p.status === "out-of-stock").length;
 
@@ -268,8 +285,8 @@ export default function Inventory() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={statusConfig[product.status].color}>
-                    {statusConfig[product.status].label}
+                  <Badge className={(statusConfig[product.status] || statusConfig["in-stock"]).color}>
+                    {(statusConfig[product.status] || statusConfig["in-stock"]).label}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-medium">

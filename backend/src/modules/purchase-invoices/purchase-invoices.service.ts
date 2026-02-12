@@ -237,39 +237,68 @@ export class PurchaseInvoicesService {
   }
 
   // Create from purchase order
-  async createFromPurchaseOrder(purchaseOrderId: string, companyId: string, externalNumber: string) {
-    const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
-      where: { id: purchaseOrderId, companyId },
-      include: { items: true, supplier: true },
-    });
+  async createFromPurchaseOrder(purchaseOrderId: string, companyId: string, externalNumber: string, userId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const purchaseOrder = await tx.purchaseOrder.findFirst({
+        where: { id: purchaseOrderId, companyId },
+        include: { items: true, supplier: true },
+      });
 
-    if (!purchaseOrder) {
-      throw new NotFoundException('Bestellung nicht gefunden');
-    }
+      if (!purchaseOrder) {
+        throw new NotFoundException('Bestellung nicht gefunden');
+      }
 
-    const count = await this.prisma.purchaseInvoice.count({ where: { companyId } });
-    const year = new Date().getFullYear();
+      // Check if invoice already exists for this PO
+      const existingInvoice = await tx.purchaseInvoice.findFirst({
+        where: { purchaseOrderId, companyId },
+      });
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + (purchaseOrder.supplier.paymentTermDays || 30));
+      if (existingInvoice) {
+        throw new BadRequestException(`Purchase invoice ${existingInvoice.number} already exists for PO ${purchaseOrder.number}`);
+      }
 
-    return this.prisma.purchaseInvoice.create({
-      data: {
-        companyId,
-        supplierId: purchaseOrder.supplierId,
-        purchaseOrderId,
-        number: externalNumber,
-        date: new Date(),
-        dueDate,
-        status: 'DRAFT',
-        subtotal: purchaseOrder.subtotal,
-        vatAmount: purchaseOrder.vatAmount,
-        totalAmount: purchaseOrder.total,
-      },
-      include: {
-        supplier: true,
-        purchaseOrder: { select: { id: true, number: true } },
-      },
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + (purchaseOrder.supplier.paymentTermDays || 30));
+
+      const invoice = await tx.purchaseInvoice.create({
+        data: {
+          companyId,
+          supplierId: purchaseOrder.supplierId,
+          purchaseOrderId,
+          number: externalNumber,
+          date: new Date(),
+          dueDate,
+          status: 'DRAFT',
+          subtotal: purchaseOrder.subtotal,
+          vatAmount: purchaseOrder.vatAmount,
+          totalAmount: purchaseOrder.total,
+          paidAmount: 0,
+        },
+        include: {
+          supplier: true,
+          purchaseOrder: { select: { id: true, number: true } },
+        },
+      });
+
+      // Audit log
+      if (userId) {
+        await tx.auditLog.create({
+          data: {
+            module: 'FINANCE',
+            entityType: 'PURCHASE_INVOICE',
+            entityId: invoice.id,
+            action: 'CREATE',
+            description: `Purchase Invoice ${externalNumber} created from PO ${purchaseOrder.number}`,
+            oldValues: { sourceType: 'PURCHASE_ORDER', purchaseOrderId, poNumber: purchaseOrder.number },
+            newValues: { purchaseInvoiceId: invoice.id, externalNumber },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      }
+
+      return invoice;
     });
   }
 

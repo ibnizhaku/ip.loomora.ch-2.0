@@ -128,16 +128,16 @@ export default function Budgets() {
   const budgetList = budgetDataByYear[year] || budgets;
 
   const filteredBudgets = budgetList.filter((budget) => {
-    const matchesSearch = budget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      budget.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (budget.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (budget.category || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || budget.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const totalPlanned = budgetList.reduce((acc, b) => acc + b.planned, 0);
-  const totalActual = budgetList.reduce((acc, b) => acc + b.actual, 0);
-  const totalForecast = budgetList.reduce((acc, b) => acc + b.forecast, 0);
-  const utilizationPercent = (totalActual / totalPlanned) * 100;
+  const totalPlanned = budgetList.reduce((acc, b) => acc + (b.planned || 0), 0);
+  const totalActual = budgetList.reduce((acc, b) => acc + (b.actual || 0), 0);
+  const totalForecast = budgetList.reduce((acc, b) => acc + (b.forecast || 0), 0);
+  const utilizationPercent = totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : 0;
 
   const onTrackCount = budgetList.filter(b => b.status === "on-track").length;
   const atRiskCount = budgetList.filter(b => b.status === "at-risk").length;
@@ -332,7 +332,7 @@ export default function Budgets() {
       <div className="space-y-3">
         {filteredBudgets.map((budget, index) => {
           const StatusIcon = statusIcons[budget.status];
-          const utilization = (budget.actual / budget.planned) * 100;
+          const utilization = budget.planned > 0 ? (budget.actual / budget.planned) * 100 : 0;
           const forecastVariance = budget.forecast - budget.planned;
 
           return (

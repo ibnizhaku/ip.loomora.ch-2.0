@@ -120,18 +120,18 @@ function BOMItemRow({ item, level = 0 }: { item: BOMItem; level?: number }) {
         )}
 
         <span className="font-mono text-sm text-muted-foreground w-24">
-          {item.articleNumber}
+          {item.articleNumber || ""}
         </span>
-        <span className="flex-1 font-medium">{item.name}</span>
-        <Badge className={typeStyles[item.type]}>{typeLabels[item.type]}</Badge>
-        <span className="font-mono w-20 text-right">{item.quantity}</span>
-        <span className="text-muted-foreground w-16">{item.unit}</span>
-        <span className="font-mono w-24 text-right">CHF {item.unitPrice.toFixed(2)}</span>
-        <span className="font-mono font-semibold w-28 text-right">CHF {total.toLocaleString()}</span>
+        <span className="flex-1 font-medium">{item.name || ""}</span>
+        <Badge className={typeStyles[item.type] || typeStyles.material}>{typeLabels[item.type] || typeLabels.material}</Badge>
+        <span className="font-mono w-20 text-right">{item.quantity || 0}</span>
+        <span className="text-muted-foreground w-16">{item.unit || ""}</span>
+        <span className="font-mono w-24 text-right">CHF {Number(item.unitPrice || 0).toFixed(2)}</span>
+        <span className="font-mono font-semibold w-28 text-right">CHF {Number(total || 0).toLocaleString()}</span>
       </div>
       {hasChildren && isOpen && (
         <div>
-          {item.children!.map((child) => (
+          {(item.children || []).map((child) => (
             <BOMItemRow key={child.id} item={child} level={level + 1} />
           ))}
         </div>
@@ -176,8 +176,8 @@ export default function BillOfMaterials() {
   );
 
   const filteredBoms = bomList.filter((bom) => {
-    const matchesSearch = bom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bom.number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (bom.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (bom.number || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || bom.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -431,7 +431,7 @@ export default function BillOfMaterials() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamtwert</p>
-              <p className="text-2xl font-bold">CHF {totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">CHF {Number(totalValue || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -481,9 +481,9 @@ export default function BillOfMaterials() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{bom.name}</h3>
-                        <Badge className={statusStyles[bom.status]}>
-                          {statusLabels[bom.status]}
+                        <h3 className="font-semibold">{bom.name || ""}</h3>
+                        <Badge className={statusStyles[bom.status] || statusStyles.draft}>
+                          {statusLabels[bom.status] || statusLabels.draft}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
@@ -496,16 +496,16 @@ export default function BillOfMaterials() {
                   <div className="flex items-center gap-6">
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Material</p>
-                      <p className="font-mono">CHF {bom.totalMaterial.toLocaleString()}</p>
+                      <p className="font-mono">CHF {Number(bom.totalMaterial || 0).toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Arbeit</p>
-                      <p className="font-mono">CHF {bom.totalWork.toLocaleString()}</p>
+                      <p className="font-mono">CHF {Number(bom.totalWork || 0).toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Gesamt</p>
                       <p className="font-mono font-bold">
-                        CHF {(bom.totalMaterial + bom.totalWork + bom.totalExternal).toLocaleString()}
+                        CHF {Number((bom.totalMaterial || 0) + (bom.totalWork || 0) + (bom.totalExternal || 0)).toLocaleString()}
                       </p>
                     </div>
 

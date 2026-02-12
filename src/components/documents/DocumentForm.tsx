@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useCustomers } from "@/hooks/use-customers";
 import { useProducts } from "@/hooks/use-products";
+import { toast } from "sonner";
 
 interface Position {
   id: number;
@@ -68,6 +69,7 @@ interface DocumentFormProps {
   type: "quote" | "invoice" | "order" | "delivery-note" | "credit-note" | "purchase-order";
   editMode?: boolean;
   initialData?: any;
+  onSave?: (data: any) => Promise<any>;
 }
 
 // Customer type from API (matches src/types/api.ts)
@@ -112,7 +114,7 @@ const companyBankAccount = {
   uid: "CHE-123.456.789 MWST",
 };
 
-export function DocumentForm({ type, editMode = false, initialData }: DocumentFormProps) {
+export function DocumentForm({ type, editMode = false, initialData, onSave }: DocumentFormProps) {
   const navigate = useNavigate();
   const [customerSearch, setCustomerSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -161,13 +163,14 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
   );
 
   const addPosition = (product: ProductData) => {
+    const price = Number(product.salePrice) || 0;
     const newPosition: Position = {
       id: Date.now(),
       description: product.name,
       quantity: 1,
       unit: product.unit || "Stück",
-      price: product.salePrice || 0,
-      total: product.salePrice || 0,
+      price,
+      total: price,
       vatRate: parseFloat(defaultVatRate),
     };
     setPositions([...positions, newPosition]);
@@ -227,19 +230,69 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
     return `00 00000 00000 ${timestamp.slice(0,5)} ${timestamp.slice(5)} ${random}0`;
   };
 
-  const handleSave = (asDraft: boolean) => {
-    console.log("Saving document:", {
-      type,
-      customer: selectedCustomer,
-      positions,
-      notes,
-      validDays,
-      paymentDays,
-      useQrInvoice,
-      qrReference: qrReference || generateQrReference(),
-      asDraft,
-    });
-    navigate(backPath);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (asDraft: boolean) => {
+    if (!selectedCustomer) {
+      toast.error("Bitte wählen Sie einen Kunden aus");
+      return;
+    }
+
+    const documentDate = (document.querySelector('input[type="date"]') as HTMLInputElement)?.value || new Date().toISOString().split("T")[0];
+
+    const payload: any = {
+      customerId: selectedCustomer.id,
+      items: positions.map((pos, idx) => ({
+        position: idx + 1,
+        description: pos.description,
+        quantity: pos.quantity,
+        unit: pos.unit,
+        unitPrice: pos.price,
+      })),
+      notes: notes || undefined,
+    };
+
+    // Type-specific fields
+    if (type === "quote") {
+      payload.issueDate = documentDate;
+      if (validDays) {
+        const valid = new Date(documentDate);
+        valid.setDate(valid.getDate() + parseInt(validDays));
+        payload.validUntil = valid.toISOString().split("T")[0];
+      }
+    } else if (type === "invoice") {
+      payload.issueDate = documentDate;
+      if (paymentDays) {
+        const due = new Date(documentDate);
+        due.setDate(due.getDate() + parseInt(paymentDays));
+        payload.dueDate = due.toISOString().split("T")[0];
+      }
+    } else if (type === "order") {
+      payload.orderDate = documentDate;
+    } else if (type === "delivery-note") {
+      payload.deliveryDate = documentDate;
+    }
+
+    if (onSave) {
+      setIsSaving(true);
+      try {
+        const result = await onSave(payload);
+        // Navigate to detail page if we got an ID back
+        if (result?.id) {
+          navigate(`${backPath}/${result.id}`);
+        } else {
+          navigate(backPath);
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Fehler beim Speichern");
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Legacy fallback
+      console.log("Saving document:", { type, payload });
+      navigate(backPath);
+    }
   };
 
   return (
@@ -267,16 +320,16 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => handleSave(true)}>
-            <Save className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={() => handleSave(true)} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Als Entwurf speichern
           </Button>
           <Button variant="outline">
             <Eye className="h-4 w-4 mr-2" />
             Vorschau
           </Button>
-          <Button onClick={() => handleSave(false)}>
-            <Send className="h-4 w-4 mr-2" />
+          <Button onClick={() => handleSave(false)} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             {isQuote ? "Angebot senden" : "Rechnung senden"}
           </Button>
         </div>
@@ -422,7 +475,7 @@ export function DocumentForm({ type, editMode = false, initialData }: DocumentFo
                                 <p className="text-sm text-muted-foreground">{product.unit}</p>
                               </div>
                             </div>
-                            <span className="font-medium">CHF {(product.salePrice || 0).toFixed(2)}</span>
+                            <span className="font-medium">CHF {Number(product.salePrice || 0).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>

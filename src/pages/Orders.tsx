@@ -46,22 +46,63 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+interface OrderRaw {
+  id: string;
+  number: string;
+  customer?: { id: string; name: string; companyName?: string };
+  quote?: { id: string; number: string };
+  total?: number;
+  subtotal?: number;
+  status: string;
+  orderDate?: string;
+  date?: string;
+  deliveryDate?: string;
+  _count?: { items: number; invoices: number; deliveryNotes: number };
+  createdAt?: string;
+}
+
 interface Order {
   id: string;
   number: string;
   client: string;
   quoteNumber?: string;
   amount: number;
-  status: "new" | "confirmed" | "in-progress" | "shipped" | "completed" | "cancelled";
-  priority: "high" | "medium" | "low";
+  status: string;
+  priority: string;
   orderDate: string;
   deliveryDate: string;
   items: number;
   progress: number;
 }
 
+function mapOrder(raw: OrderRaw): Order {
+  const s = (raw.status || "DRAFT").toUpperCase();
+  let status = "new";
+  if (s === "CONFIRMED") status = "confirmed";
+  else if (s === "SENT") status = "confirmed";
+  else if (s === "CANCELLED") status = "cancelled";
+  else if (s === "DRAFT") status = "new";
 
-const statusConfig = {
+  return {
+    id: raw.id,
+    number: raw.number || "",
+    client: raw.customer?.companyName || raw.customer?.name || "–",
+    quoteNumber: raw.quote?.number,
+    amount: Number(raw.total || raw.subtotal || 0),
+    status,
+    priority: "medium",
+    orderDate: raw.orderDate || raw.date
+      ? new Date(raw.orderDate || raw.date || "").toLocaleDateString("de-CH")
+      : "–",
+    deliveryDate: raw.deliveryDate
+      ? new Date(raw.deliveryDate).toLocaleDateString("de-CH")
+      : "–",
+    items: raw._count?.items ?? 0,
+    progress: s === "CONFIRMED" ? 50 : s === "CANCELLED" ? 0 : s === "DRAFT" ? 0 : 25,
+  };
+}
+
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   new: { label: "Neu", color: "bg-info/10 text-info", icon: ShoppingCart },
   confirmed: { label: "Bestätigt", color: "bg-primary/10 text-primary", icon: CheckCircle },
   "in-progress": { label: "In Bearbeitung", color: "bg-warning/10 text-warning", icon: Clock },
@@ -70,7 +111,9 @@ const statusConfig = {
   cancelled: { label: "Storniert", color: "bg-destructive/10 text-destructive", icon: XCircle },
 };
 
-const priorityConfig = {
+const defaultStatusCfg = { label: "Unbekannt", color: "bg-muted text-muted-foreground", icon: ShoppingCart };
+
+const priorityConfig: Record<string, { label: string; color: string }> = {
   high: { label: "Hoch", color: "bg-destructive/10 text-destructive" },
   medium: { label: "Mittel", color: "bg-warning/10 text-warning" },
   low: { label: "Niedrig", color: "bg-muted text-muted-foreground" },
@@ -78,8 +121,8 @@ const priorityConfig = {
 
 export default function Orders() {
   const queryClient = useQueryClient();
-  const { data: apiData } = useQuery({ queryKey: ["/orders"], queryFn: () => api.get<any>("/orders") });
-  const orders = apiData?.data || [];
+  const { data: apiData, isLoading } = useQuery({ queryKey: ["/orders"], queryFn: () => api.get<any>("/orders") });
+  const orders: Order[] = (apiData?.data || []).map(mapOrder);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -165,7 +208,7 @@ export default function Orders() {
               <ShoppingCart className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{orders.length}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : orders.length}</p>
               <p className="text-sm text-muted-foreground">Aufträge gesamt</p>
             </div>
           </div>
@@ -176,7 +219,7 @@ export default function Orders() {
               <Clock className="h-5 w-5 text-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{activeOrders}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : activeOrders}</p>
               <p className="text-sm text-muted-foreground">Aktive Aufträge</p>
             </div>
           </div>
@@ -187,7 +230,9 @@ export default function Orders() {
               <Banknote className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">CHF {totalValue.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? "—" : `CHF ${totalValue.toLocaleString("de-CH")}`}
+              </p>
               <p className="text-sm text-muted-foreground">Auftragswert</p>
             </div>
           </div>
@@ -199,7 +244,7 @@ export default function Orders() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {orders.filter((o) => o.status === "shipped").length}
+                {isLoading ? "—" : orders.filter((o) => o.status === "confirmed").length}
               </p>
               <p className="text-sm text-muted-foreground">Versendet</p>
             </div>
@@ -292,7 +337,8 @@ export default function Orders() {
           </TableHeader>
           <TableBody>
             {filteredOrders.map((order, index) => {
-              const StatusIcon = statusConfig[order.status].icon;
+              const sCfg = statusConfig[order.status] || defaultStatusCfg;
+              const StatusIcon = sCfg.icon;
               return (
                 <TableRow
                   key={order.id}
@@ -315,9 +361,9 @@ export default function Orders() {
                   </TableCell>
                   <TableCell>{order.client}</TableCell>
                   <TableCell>
-                    <Badge className={cn("gap-1", statusConfig[order.status].color)}>
+                    <Badge className={cn("gap-1", sCfg.color)}>
                       <StatusIcon className="h-3 w-3" />
-                      {statusConfig[order.status].label}
+                      {sCfg.label}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -329,8 +375,8 @@ export default function Orders() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={priorityConfig[order.priority].color}>
-                      {priorityConfig[order.priority].label}
+                    <Badge className={(priorityConfig[order.priority] || priorityConfig.medium).color}>
+                      {(priorityConfig[order.priority] || priorityConfig.medium).label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">

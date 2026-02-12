@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save, Eye, Edit2, Trash2 } from "lucide-react";
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save, Eye, Edit2, Trash2, Loader2 } from "lucide-react";
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -62,17 +64,73 @@ const statusColors: Record<string, string> = {
 export default function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Load user from backend
+  const { data: userFromBackend, isLoading, error } = useQuery({
+    queryKey: ['users', id],
+    queryFn: () => api.get<any>(`/users/${id}`),
+    enabled: !!id,
+  });
+
   const [berechtigungen, setBerechtigungen] = useState(initialBerechtigungen);
   const [hasChanges, setHasChanges] = useState(false);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(userData.zweiFaktor);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: userData.name,
-    email: userData.email,
-    telefon: userData.telefon,
-    rolle: userData.rolle,
-    abteilung: userData.abteilung,
+    name: '',
+    email: '',
+    telefon: '',
+    rolle: '',
+    abteilung: '',
   });
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error || !userFromBackend) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Benutzer nicht gefunden</p>
+        <Link to="/users" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  // Map backend data to component format
+  const userData = {
+    id: userFromBackend.id,
+    name: `${userFromBackend.firstName || ''} ${userFromBackend.lastName || ''}`.trim(),
+    email: userFromBackend.email || '',
+    telefon: userFromBackend.phone || '',
+    rolle: userFromBackend.role || 'Mitarbeiter',
+    abteilung: 'Produktion',
+    mitarbeiterNr: userFromBackend.id.substring(0, 8).toUpperCase(),
+    status: userFromBackend.isActive ? 'aktiv' : 'inaktiv',
+    erstelltAm: userFromBackend.createdAt ? new Date(userFromBackend.createdAt).toLocaleDateString('de-CH') : '-',
+    letzterLogin: userFromBackend.lastLoginAt ? new Date(userFromBackend.lastLoginAt).toLocaleDateString('de-CH') + ' ' + new Date(userFromBackend.lastLoginAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '-',
+    zweiFaktor: userFromBackend.twoFactorEnabled || false,
+    sprache: 'Deutsch',
+    zeitzone: 'Europe/Zurich',
+  };
+
+  // Initialize form if empty
+  if (editForm.email === '' && userFromBackend) {
+    setEditForm({
+      name: userData.name,
+      email: userData.email,
+      telefon: userData.telefon,
+      rolle: userData.rolle,
+      abteilung: userData.abteilung,
+    });
+    setTwoFactorEnabled(userData.zweiFaktor);
+  }
 
   const handlePermissionChange = (modul: string, type: "lesen" | "schreiben" | "löschen", value: boolean) => {
     setBerechtigungen(prev => prev.map(b => {
