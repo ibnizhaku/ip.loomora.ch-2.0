@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save, Eye, Edit2, Trash2, Loader2 } from "lucide-react";
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save, Eye, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,22 +14,7 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const userData = {
-  id: "USR-0045",
-  name: "Marco Brunner",
-  email: "m.brunner@firma.ch",
-  telefon: "+41 79 234 56 78",
-  rolle: "Mitarbeiter",
-  abteilung: "Produktion",
-  mitarbeiterNr: "MA-0045",
-  status: "aktiv",
-  erstelltAm: "01.03.2022",
-  letzterLogin: "29.01.2024 08:15",
-  zweiFaktor: true,
-  sprache: "Deutsch",
-  zeitzone: "Europe/Zurich",
-};
+import { useUser, useUpdateUser } from "@/hooks/use-users";
 
 const initialBerechtigungen = [
   { modul: "Dashboard", lesen: true, schreiben: true, löschen: false },
@@ -56,81 +39,83 @@ const loginHistorie = [
 ];
 
 const statusColors: Record<string, string> = {
-  aktiv: "bg-success/10 text-success",
-  inaktiv: "bg-muted text-muted-foreground",
-  gesperrt: "bg-destructive/10 text-destructive",
+  active: "bg-success/10 text-success",
+  inactive: "bg-muted text-muted-foreground",
+  pending: "bg-warning/10 text-warning",
+};
+
+const statusLabels: Record<string, string> = {
+  active: "Aktiv",
+  inactive: "Inaktiv",
+  pending: "Ausstehend",
+};
+
+const roleLabels: Record<string, string> = {
+  admin: "Administrator",
+  manager: "Manager",
+  user: "Benutzer",
+  viewer: "Betrachter",
 };
 
 export default function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  // Load user from backend
-  const { data: userFromBackend, isLoading, error } = useQuery({
-    queryKey: ['users', id],
-    queryFn: () => api.get<any>(`/users/${id}`),
-    enabled: !!id,
-  });
+  const { data: userData, isLoading } = useUser(id || "");
+  const updateUser = useUpdateUser();
 
   const [berechtigungen, setBerechtigungen] = useState(initialBerechtigungen);
   const [hasChanges, setHasChanges] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: '',
-    email: '',
-    telefon: '',
-    rolle: '',
-    abteilung: '',
+    name: "",
+    email: "",
+    telefon: "",
+    rolle: "",
+    abteilung: "",
   });
 
-  // Show loading state
+  // Update local state when data loads
+  const userName = userData?.name || "–";
+  const userEmail = userData?.email || "–";
+  const userPhone = userData?.phone || "–";
+  const userRole = userData?.role || "user";
+  const userStatus = userData?.status || "active";
+  const userLastLogin = userData?.lastLogin || "–";
+  const userCreatedAt = userData?.createdAt || "–";
+  const userEmployeeId = userData?.employeeId;
+  const userEmployeeNumber = userData?.employeeNumber;
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-20">
+        <p className="text-muted-foreground">Laden...</p>
       </div>
     );
   }
 
-  // Show error state
-  if (error || !userFromBackend) {
+  if (!userData) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-        <p>Benutzer nicht gefunden</p>
-        <Link to="/users" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-muted-foreground">Benutzer nicht gefunden</p>
+        <Button variant="outline" asChild>
+          <Link to="/users">Zurück zur Übersicht</Link>
+        </Button>
       </div>
     );
   }
 
-  // Map backend data to component format
-  const userData = {
-    id: userFromBackend.id,
-    name: `${userFromBackend.firstName || ''} ${userFromBackend.lastName || ''}`.trim(),
-    email: userFromBackend.email || '',
-    telefon: userFromBackend.phone || '',
-    rolle: userFromBackend.role || 'Mitarbeiter',
-    abteilung: 'Produktion',
-    mitarbeiterNr: userFromBackend.id.substring(0, 8).toUpperCase(),
-    status: userFromBackend.isActive ? 'aktiv' : 'inaktiv',
-    erstelltAm: userFromBackend.createdAt ? new Date(userFromBackend.createdAt).toLocaleDateString('de-CH') : '-',
-    letzterLogin: userFromBackend.lastLoginAt ? new Date(userFromBackend.lastLoginAt).toLocaleDateString('de-CH') + ' ' + new Date(userFromBackend.lastLoginAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '-',
-    zweiFaktor: userFromBackend.twoFactorEnabled || false,
-    sprache: 'Deutsch',
-    zeitzone: 'Europe/Zurich',
-  };
-
-  // Initialize form if empty
-  if (editForm.email === '' && userFromBackend) {
+  const handleOpenEdit = () => {
+    const nameParts = userName.split(" ");
     setEditForm({
-      name: userData.name,
-      email: userData.email,
-      telefon: userData.telefon,
-      rolle: userData.rolle,
-      abteilung: userData.abteilung,
+      name: userName,
+      email: userEmail,
+      telefon: userPhone,
+      rolle: userRole,
+      abteilung: "",
     });
-    setTwoFactorEnabled(userData.zweiFaktor);
-  }
+    setShowEditDialog(true);
+  };
 
   const handlePermissionChange = (modul: string, type: "lesen" | "schreiben" | "löschen", value: boolean) => {
     setBerechtigungen(prev => prev.map(b => {
@@ -156,22 +141,34 @@ export default function UserDetail() {
 
   const handleSavePermissions = () => {
     toast.success("Berechtigungen gespeichert", {
-      description: `Die Zugriffsrechte für ${userData.name} wurden aktualisiert`
+      description: `Die Zugriffsrechte für ${userName} wurden aktualisiert`
     });
     setHasChanges(false);
   };
 
   const handleResetPassword = () => {
     toast.success("Passwort-Reset E-Mail gesendet", {
-      description: `Eine E-Mail wurde an ${userData.email} gesendet`
+      description: `Eine E-Mail wurde an ${userEmail} gesendet`
     });
   };
 
   const handleSaveEdit = () => {
-    toast.success("Benutzerdaten aktualisiert", {
-      description: `${editForm.name} wurde erfolgreich aktualisiert`
-    });
-    setShowEditDialog(false);
+    if (!id) return;
+    const nameParts = editForm.name.split(" ");
+    updateUser.mutate(
+      {
+        id,
+        data: {
+          firstName: nameParts[0] || "",
+          lastName: nameParts.slice(1).join(" ") || "",
+          email: editForm.email,
+          phone: editForm.telefon,
+        },
+      },
+      {
+        onSuccess: () => setShowEditDialog(false),
+      }
+    );
   };
 
   const handleToggle2FA = (checked: boolean) => {
@@ -206,20 +203,20 @@ export default function UserDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">{userData.name}</h1>
-            <Badge className={statusColors[userData.status]}>
-              {userData.status.charAt(0).toUpperCase() + userData.status.slice(1)}
+            <h1 className="font-display text-2xl font-bold">{userName}</h1>
+            <Badge className={statusColors[userStatus] || statusColors.active}>
+              {statusLabels[userStatus] || userStatus}
             </Badge>
-            <Badge variant="outline">{userData.rolle}</Badge>
+            <Badge variant="outline">{roleLabels[userRole] || userRole}</Badge>
           </div>
-          <p className="text-muted-foreground">{userData.id} • {userData.abteilung}</p>
+          <p className="text-muted-foreground">{id} {userEmployeeNumber && `• ${userEmployeeNumber}`}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleResetPassword}>
             <Key className="mr-2 h-4 w-4" />
             Passwort zurücksetzen
           </Button>
-          <Button onClick={() => setShowEditDialog(true)}>
+          <Button onClick={handleOpenEdit}>
             <Settings className="mr-2 h-4 w-4" />
             Bearbeiten
           </Button>
@@ -274,12 +271,12 @@ export default function UserDetail() {
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
                 <AvatarFallback className="text-lg">
-                  {userData.name.split(" ").map(n => n[0]).join("")}
+                  {userName.split(" ").map(n => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-lg">{userData.name}</p>
-                <p className="text-muted-foreground">{userData.rolle} • {userData.abteilung}</p>
+                <p className="font-medium text-lg">{userName}</p>
+                <p className="text-muted-foreground">{roleLabels[userRole] || userRole}</p>
               </div>
             </div>
 
@@ -288,34 +285,28 @@ export default function UserDetail() {
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{userData.email}</span>
+                <span>{userEmail}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Smartphone className="h-4 w-4 text-muted-foreground" />
-                <span>{userData.telefon}</span>
+                <span>{userPhone}</span>
               </div>
             </div>
 
             <Separator />
 
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Mitarbeiter-Nr.</p>
-                <Link to={`/hr/${userData.mitarbeiterNr}`} className="text-primary hover:underline">
-                  {userData.mitarbeiterNr}
-                </Link>
-              </div>
+              {userEmployeeId && (
+                <div>
+                  <p className="text-muted-foreground">Mitarbeiter-Nr.</p>
+                  <Link to={`/hr/employees/${userEmployeeId}`} className="text-primary hover:underline">
+                    {userEmployeeNumber || userEmployeeId}
+                  </Link>
+                </div>
+              )}
               <div>
                 <p className="text-muted-foreground">Erstellt am</p>
-                <p>{userData.erstelltAm}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Sprache</p>
-                <p>{userData.sprache}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Zeitzone</p>
-                <p>{userData.zeitzone}</p>
+                <p>{userCreatedAt}</p>
               </div>
             </div>
           </CardContent>
@@ -353,7 +344,7 @@ export default function UserDetail() {
                 <Clock className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Letzter Login</p>
-                  <p className="text-sm text-muted-foreground">{userData.letzterLogin}</p>
+                  <p className="text-sm text-muted-foreground">{userLastLogin}</p>
                 </div>
               </div>
             </div>
@@ -379,7 +370,7 @@ export default function UserDetail() {
               <Shield className="h-5 w-5 text-muted-foreground" />
               <div>
                 <CardTitle>Berechtigungen</CardTitle>
-                <CardDescription>Zugriffsrechte für {userData.name} verwalten</CardDescription>
+                <CardDescription>Zugriffsrechte für {userName} verwalten</CardDescription>
               </div>
             </div>
             {hasChanges && (

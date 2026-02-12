@@ -1,17 +1,21 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
-interface User {
+export interface User {
   id: string;
+  name: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'READONLY';
+  role: string;
+  status: string;
+  lastLogin: string;
+  twoFactor: boolean;
+  avatar?: string;
   employeeId?: string;
-  employee?: { id: string; firstName: string; lastName: string };
-  isActive: boolean;
-  lastLogin?: string;
-  createdAt: string;
+  employeeNumber?: string;
+  phone?: string;
+  createdAt?: string;
+  isOwner?: boolean;
 }
 
 interface PaginatedResponse<T> {
@@ -19,6 +23,27 @@ interface PaginatedResponse<T> {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface CreateUserDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  createEmployee?: boolean;
+  position?: string;
+  departmentId?: string;
+  hireDate?: string;
+}
+
+export interface UpdateUserDto {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  isActive?: boolean;
 }
 
 const QUERY_KEY = 'users';
@@ -53,5 +78,45 @@ export function useUser(id: string) {
   });
 }
 
-// Note: User management (create/update/delete) is handled via auth endpoints
-// Users are created during company registration or by admin invitation
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateUserDto) => api.post<User>('/users', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast.success('Benutzer erfolgreich erstellt');
+    },
+    onError: (error: Error) => {
+      toast.error('Fehler beim Erstellen', { description: error.message });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateUserDto }) =>
+      api.put<User>(`/users/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast.success('Benutzer aktualisiert');
+    },
+    onError: (error: Error) => {
+      toast.error('Fehler beim Aktualisieren', { description: error.message });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast.success('Benutzer erfolgreich gelöscht');
+    },
+    onError: (error: Error) => {
+      toast.error('Fehler beim Löschen', { description: error.message });
+    },
+  });
+}
