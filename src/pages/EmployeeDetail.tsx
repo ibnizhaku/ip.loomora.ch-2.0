@@ -133,12 +133,15 @@ const EmployeeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Fetch employee from API
+  // ALL hooks MUST be before any conditional returns (React rules of hooks)
   const { data: employee, isLoading, error } = useQuery({
     queryKey: ["/employees", id],
     queryFn: () => api.get<any>(`/employees/${id}`),
     enabled: !!id,
   });
+
+  const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>([]);
+  const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);
 
   if (isLoading) {
     return (
@@ -156,11 +159,6 @@ const EmployeeDetail = () => {
       </div>
     );
   }
-
-  const initialOnboardingItems: OnboardingItem[] = [];
-
-  const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>(initialOnboardingItems);
-  const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);
 
   // Calculate onboarding progress
   const completedCount = onboardingItems.filter(item => item.completed).length;
