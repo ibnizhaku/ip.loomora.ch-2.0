@@ -179,6 +179,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AuthPage from "./pages/AuthPage";
 import SelectCompany from "./pages/SelectCompany";
+import Activity from "./pages/Activity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -254,6 +255,7 @@ const App = () => (
               
               {/* Protected Routes - Wrapped with Layout */}
               <Route path="/" element={<ProtectedLayout><Index /></ProtectedLayout>} />
+              <Route path="/activity" element={<ProtectedLayout><Activity /></ProtectedLayout>} />
               
               {/* Projekte */}
               <Route path="/projects" element={<ProtectedLayout><Projects /></ProtectedLayout>} />
