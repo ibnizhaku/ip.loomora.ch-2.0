@@ -115,16 +115,19 @@ export function useCreateProductCategory() {
   });
 }
 
-// Product stats hook
+// Product stats hook (server-side calculation)
 export function useProductStats() {
-  const { data } = useProducts({ pageSize: 1000 });
-  
-  const products = data?.data || [];
-  const total = products.length;
-  const active = products.filter(p => p.isActive).length;
-  const inactive = products.filter(p => !p.isActive).length;
-  const services = products.filter(p => p.isService).length;
-  const lowStock = products.filter(p => !p.isService && p.stockQuantity <= p.minStock).length;
-  
-  return { total, active, inactive, services, lowStock };
+  const { data, isLoading } = useQuery({
+    queryKey: ['products', 'stats'],
+    queryFn: () => api.get<{ total: number; active: number; inactive: number; services: number; lowStock: number }>('/products/stats'),
+  });
+
+  return {
+    total: data?.total ?? 0,
+    active: data?.active ?? 0,
+    inactive: data?.inactive ?? 0,
+    services: data?.services ?? 0,
+    lowStock: data?.lowStock ?? 0,
+    isLoading,
+  };
 }

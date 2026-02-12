@@ -140,6 +140,30 @@ export class SuppliersService {
     });
   }
 
+  async getStats(companyId: string) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [total, active, newSuppliers] = await Promise.all([
+      this.prisma.supplier.count({ where: { companyId } }),
+      this.prisma.supplier.count({ where: { companyId, isActive: true } }),
+      this.prisma.supplier.count({ where: { companyId, createdAt: { gte: thirtyDaysAgo } } }),
+    ]);
+
+    const totalPurchaseVolume = await this.prisma.purchaseOrder.aggregate({
+      where: { companyId },
+      _sum: { total: true },
+    });
+
+    return {
+      total,
+      active,
+      newSuppliers,
+      totalValue: Number(totalPurchaseVolume._sum.total || 0),
+      avgRating: 0,
+    };
+  }
+
   async remove(id: string, companyId: string) {
     const supplier = await this.prisma.supplier.findFirst({
       where: { id, companyId },

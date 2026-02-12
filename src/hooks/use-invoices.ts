@@ -122,21 +122,18 @@ export function useDeleteInvoice() {
   });
 }
 
-// Invoice stats hook
+// Invoice stats hook (server-side calculation)
 export function useInvoiceStats() {
-  const { data, isLoading } = useInvoices({ pageSize: 1000 });
-  
-  const invoices = data?.data || [];
-  const total = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-  const paid = invoices
-    .filter(inv => inv.status === 'PAID')
-    .reduce((sum, inv) => sum + (inv.total || 0), 0);
-  const pending = invoices
-    .filter(inv => inv.status === 'SENT')
-    .reduce((sum, inv) => sum + (inv.total || 0), 0);
-  const overdue = invoices
-    .filter(inv => inv.status === 'OVERDUE')
-    .reduce((sum, inv) => sum + (inv.total || 0), 0);
-  
-  return { total, paid, pending, overdue, isLoading };
+  const { data, isLoading } = useQuery({
+    queryKey: ['invoices', 'stats'],
+    queryFn: () => api.get<{ total: number; paid: number; pending: number; overdue: number }>('/invoices/stats'),
+  });
+
+  return {
+    total: data?.total ?? 0,
+    paid: data?.paid ?? 0,
+    pending: data?.pending ?? 0,
+    overdue: data?.overdue ?? 0,
+    isLoading,
+  };
 }

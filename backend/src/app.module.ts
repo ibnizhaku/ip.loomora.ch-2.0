@@ -67,6 +67,8 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 // Subscriptions & Payments
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+// Settings
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -144,6 +146,8 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     AuditLogModule,
     // Subscriptions & Payments
     SubscriptionsModule,
+    // Settings
+    SettingsModule,
   ],
 })
 export class AppModule {}

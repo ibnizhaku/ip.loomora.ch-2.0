@@ -24,6 +24,12 @@ export class SuppliersController {
     return this.suppliersService.findAll(user.companyId, query);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get supplier statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.suppliersService.getStats(user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get supplier by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {

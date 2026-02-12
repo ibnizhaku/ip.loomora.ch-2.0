@@ -182,6 +182,7 @@ model Company {
   iban          String?
   bic           String?
   bankName      String?
+  description   String?
   logoUrl       String?
   
   // Multi-Tenant Status
@@ -238,6 +239,7 @@ model Company {
   campaigns     Campaign[]
   
   teamMembers   CompanyTeamMember[]
+  companySettings CompanySettings?
   
   @@index([status])
   @@index([slug])
@@ -255,6 +257,40 @@ model CompanyTeamMember {
 
   @@index([companyId])
   @@map("company_team_members")
+}
+
+model CompanySettings {
+  id          String   @id @default(cuid())
+  companyId   String   @unique
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Lokalisierung
+  language    String   @default("de")
+  timezone    String   @default("Europe/Zurich")
+  dateFormat  String   @default("DD.MM.YYYY")
+
+  // Währung
+  currency       String  @default("CHF")
+  exchangeRates  Json?
+
+  // E-Mail/SMTP
+  smtpHost     String?
+  smtpPort     Int?
+  smtpUser     String?
+  smtpPassword String?
+  smtpFrom     String?
+  smtpFromName String?
+  smtpSsl      Boolean @default(true)
+
+  // Sicherheit
+  twoFactorEnabled    Boolean @default(false)
+  sessionTimeoutMin   Int     @default(480)
+  passwordMinLength   Int     @default(8)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("company_settings")
 }
 
 // ============================================
@@ -537,6 +573,10 @@ model User {
   
   // Chat relations
   chatMessages      ChatMessage[] @relation("ChatMessageAuthor")
+  
+  // Task sub-feature relations
+  taskComments      TaskComment[]    @relation("TaskCommentAuthor")
+  taskAttachments   TaskAttachment[] @relation("TaskAttachmentUploader")
   
   // Employee relation (optional link)
   employeeId        String?   @unique
@@ -1694,6 +1734,8 @@ model Task {
   timeEntries     TimeEntry[]
   tags            TaskTag[]
   subtasks        Subtask[]
+  comments        TaskComment[]
+  attachments     TaskAttachment[]
   
   // Chat relations
   chatMessages    ChatMessage[] @relation("TaskChatMessages")
@@ -1728,6 +1770,36 @@ model Subtask {
   
   @@index([taskId])
   @@map("subtasks")
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("TaskCommentAuthor", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@map("task_comments")
+}
+
+model TaskAttachment {
+  id           String   @id @default(cuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileName     String
+  fileUrl      String
+  fileSize     Int
+  mimeType     String
+  uploadedById String
+  uploadedBy   User     @relation("TaskAttachmentUploader", fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([taskId])
+  @@map("task_attachments")
 }
 
 // ============================================

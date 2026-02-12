@@ -82,15 +82,18 @@ export function useDeleteCustomer() {
   });
 }
 
-// Customer stats hook
+// Customer stats hook (server-side calculation)
 export function useCustomerStats() {
-  const { data, isLoading } = useCustomers({ pageSize: 1000 });
-  
-  const customers = data?.data || [];
-  const total = customers.length;
-  const active = customers.filter(c => c.isActive).length;
-  const prospects = customers.filter(c => !c.totalRevenue || c.totalRevenue === 0).length;
-  const totalRevenue = customers.reduce((sum, c) => sum + (c.totalRevenue || 0), 0);
-  
-  return { total, active, prospects, totalRevenue, isLoading };
+  const { data, isLoading } = useQuery({
+    queryKey: [QUERY_KEY, 'stats'],
+    queryFn: () => api.get<{ total: number; active: number; prospects: number; totalRevenue: number }>('/customers/stats'),
+  });
+
+  return {
+    total: data?.total ?? 0,
+    active: data?.active ?? 0,
+    prospects: data?.prospects ?? 0,
+    totalRevenue: data?.totalRevenue ?? 0,
+    isLoading,
+  };
 }

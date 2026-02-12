@@ -82,23 +82,19 @@ export function useDeleteSupplier() {
   });
 }
 
-// Supplier stats hook
+// Supplier stats hook (server-side calculation)
 export function useSupplierStats() {
-  const { data } = useSuppliers({ pageSize: 1000 });
-  
-  const suppliers = data?.data || [];
-  const total = suppliers.length;
-  const active = suppliers.filter(s => s.isActive).length;
-  const newSuppliers = suppliers.filter(s => {
-    const created = new Date(s.createdAt);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return created > thirtyDaysAgo;
-  }).length;
-  const totalValue = suppliers.reduce((sum, s) => sum + (s.totalValue || 0), 0);
-  const avgRating = suppliers.length > 0 
-    ? suppliers.reduce((sum, s) => sum + (s.rating || 0), 0) / suppliers.length 
-    : 0;
-  
-  return { total, active, newSuppliers, totalValue, avgRating };
+  const { data, isLoading } = useQuery({
+    queryKey: ['suppliers', 'stats'],
+    queryFn: () => api.get<{ total: number; active: number; newSuppliers: number; totalValue: number; avgRating: number }>('/suppliers/stats'),
+  });
+
+  return {
+    total: data?.total ?? 0,
+    active: data?.active ?? 0,
+    newSuppliers: data?.newSuppliers ?? 0,
+    totalValue: data?.totalValue ?? 0,
+    avgRating: data?.avgRating ?? 0,
+    isLoading,
+  };
 }

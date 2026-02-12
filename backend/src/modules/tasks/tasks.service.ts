@@ -163,6 +163,129 @@ export class TasksService {
     return { success: true };
   }
 
+  // ========================
+  // SUBTASKS
+  // ========================
+
+  async getSubtasks(taskId: string, companyId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.subtask.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createSubtask(taskId: string, companyId: string, dto: { title: string }) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.subtask.create({
+      data: { taskId, title: dto.title },
+    });
+  }
+
+  async updateSubtask(taskId: string, subtaskId: string, companyId: string, dto: { title?: string; isCompleted?: boolean }) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    const subtask = await this.prisma.subtask.findFirst({ where: { id: subtaskId, taskId } });
+    if (!subtask) throw new NotFoundException('Subtask not found');
+    return this.prisma.subtask.update({
+      where: { id: subtaskId },
+      data: dto,
+    });
+  }
+
+  async deleteSubtask(taskId: string, subtaskId: string, companyId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    const subtask = await this.prisma.subtask.findFirst({ where: { id: subtaskId, taskId } });
+    if (!subtask) throw new NotFoundException('Subtask not found');
+    await this.prisma.subtask.delete({ where: { id: subtaskId } });
+    return { success: true };
+  }
+
+  // ========================
+  // COMMENTS
+  // ========================
+
+  async getComments(taskId: string, companyId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.taskComment.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+      },
+    });
+  }
+
+  async createComment(taskId: string, companyId: string, userId: string, dto: { content: string }) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.taskComment.create({
+      data: { taskId, authorId: userId, content: dto.content },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+      },
+    });
+  }
+
+  async deleteComment(taskId: string, commentId: string, companyId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    const comment = await this.prisma.taskComment.findFirst({ where: { id: commentId, taskId } });
+    if (!comment) throw new NotFoundException('Comment not found');
+    await this.prisma.taskComment.delete({ where: { id: commentId } });
+    return { success: true };
+  }
+
+  // ========================
+  // ATTACHMENTS
+  // ========================
+
+  async getAttachments(taskId: string, companyId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.taskAttachment.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        uploadedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+  }
+
+  async createAttachment(taskId: string, companyId: string, userId: string, file: Express.Multer.File) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+
+    const fileUrl = `/api/uploads/task-attachments/${file.filename}`;
+
+    return this.prisma.taskAttachment.create({
+      data: {
+        taskId,
+        fileName: file.originalname,
+        fileUrl,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        uploadedById: userId,
+      },
+      include: {
+        uploadedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+  }
+
+  async deleteAttachment(taskId: string, attachmentId: string, companyId: string) {
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, companyId } });
+    if (!task) throw new NotFoundException('Task not found');
+    const attachment = await this.prisma.taskAttachment.findFirst({ where: { id: attachmentId, taskId } });
+    if (!attachment) throw new NotFoundException('Attachment not found');
+    await this.prisma.taskAttachment.delete({ where: { id: attachmentId } });
+    return { success: true };
+  }
+
   // Statistics
   async getStats(companyId: string) {
     const [todo, inProgress, review, done] = await Promise.all([
