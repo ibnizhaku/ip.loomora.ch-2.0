@@ -1,12 +1,12 @@
-# Frontend-Audit: Element-Status-Dokumentation
+# Frontend-Audit: Vollständige Element-Status-Dokumentation
 
 > **Erstellt:** 2026-02-12  
-> **Zweck:** Systematische Überprüfung aller UI-Elemente auf echte Backend-Anbindung vs. Mock/Platzhalter  
+> **Zweck:** Systematische Überprüfung ALLER UI-Elemente auf echte Backend-Anbindung vs. Mock/Platzhalter  
 > **Legende:**  
-> ✅ = Echte Daten (Backend-Hook vorhanden + API-Call)  
-> ⚠️ = Hook vorhanden, aber Backend-Endpoint ggf. nicht implementiert/getestet  
+> ✅ = Echte Daten (Hook + API-Call vorhanden)  
+> ⚠️ = Hook vorhanden, Backend-Endpoint muss verifiziert werden  
 > ❌ = Mock-Daten / Nicht implementiert / Nur Frontend-Logik  
-> 🔧 = Teilweise implementiert  
+> 🔧 = Teilweise implementiert (z.B. client-seitige Stats statt Backend-Endpoint)  
 
 ---
 
@@ -17,164 +17,230 @@
 | Gesamtumsatz | Stat-Card | ✅ | `useDashboardStats()` → `GET /api/dashboard/stats` → `totalRevenue` |
 | Aktive Projekte | Stat-Card | ✅ | `useDashboardStats()` → `activeProjects` |
 | Kunden | Stat-Card | ✅ | `useDashboardStats()` → `customerCount` |
-| Auslastung | Stat-Card | ⚠️ | `useDashboardStats()` → `utilizationRate` – Hook vorhanden, aber Backend berechnet ggf. statisch |
-| Aktive Projekte Widget | Widget | ✅ | `ProjectsOverview` Komponente – nutzt eigenen Hook |
-| Schnellaktionen | Widget | ✅ | Rein navigatorisch (Links zu /projects/new, etc.) – keine API nötig |
-| Kalender Widget | Widget | ⚠️ | `CalendarWidget` – muss geprüft werden ob echte Events geladen werden |
+| Auslastung | Stat-Card | ⚠️ | `utilizationRate` – Backend-Berechnungslogik prüfen |
+| Aktive Projekte Widget | Widget | ✅ | `ProjectsOverview` Komponente nutzt Backend-Hook |
+| Schnellaktionen | Widget | ✅ | Rein navigatorisch – keine API nötig |
+| Kalender Widget | Widget | ⚠️ | `CalendarWidget` – Datenquelle verifizieren |
 | Letzte Aktivität | Widget | ✅ | `useRecentActivity()` → `GET /api/dashboard/activity` |
-
-**Cursor-Aufgabe:** Prüfen ob `utilizationRate` im Backend korrekt berechnet wird. Kalender-Widget auf echte Datenquelle prüfen.
 
 ---
 
-## 2. Projekte (`src/pages/Projects.tsx`)
+## 2. Projekte
+
+### Projekte Liste (`src/pages/Projects.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neues Projekt Button | Button | ✅ | Navigation zu `/projects/new` |
 | Suchfeld | Input | ✅ | `useProjects({ search })` mit Backend-Filter |
 | Filter-Button/Popover | Filter | ✅ | Status & Priorität als Query-Parameter |
-| Filter Status Checkboxen | Checkbox | ✅ | Werden als `status` Parameter gesendet |
-| Filter Priorität Checkboxen | Checkbox | ✅ | Werden als `priority` Parameter gesendet |
-| Filter zurücksetzen | Button | ✅ | Frontend-Reset der Filter-State |
-| Grid/Listen-Ansicht | Toggle | ✅ | Rein Frontend-Logik (kein Backend nötig) |
-| Stat-Cards (Gesamt, Aktiv, etc.) | Stat-Card | ✅ | `useProjectStats()` → `GET /api/projects/stats` |
-| Projekt-Karte | Card | ✅ | Daten aus `useProjects()` |
-| Projekt-Aktionen Dropdown | Dropdown | ✅ | Details/Bearbeiten = Navigation, Löschen = `useDeleteProject()` |
+| Filter Status Checkboxen (Aktiv, Planung, Abgeschlossen) | Checkbox | ✅ | `status` Query-Parameter |
+| Filter Priorität Checkboxen (Hoch, Mittel, Niedrig) | Checkbox | ✅ | `priority` Query-Parameter |
+| Filter zurücksetzen | Button | ✅ | Frontend-Reset |
+| Grid-Ansicht Toggle | Button | ✅ | Frontend-only |
+| Listen-Ansicht Toggle | Button | ✅ | Frontend-only |
+| Stat-Card Gesamt (klickbar) | Stat-Card | ✅ | `useProjectStats()` → `GET /api/projects/stats` |
+| Stat-Card Aktiv (klickbar) | Stat-Card | ✅ | `useProjectStats()` |
+| Stat-Card Abgeschlossen (klickbar) | Stat-Card | ✅ | `useProjectStats()` |
+| Stat-Card Pausiert (klickbar) | Stat-Card | ✅ | `useProjectStats()` |
+| Projekt-Karte (klickbar) | Card | ✅ | `useProjects()` Daten |
+| Projekt-Aktionen: Details anzeigen | Dropdown-Item | ✅ | Navigation |
+| Projekt-Aktionen: Bearbeiten | Dropdown-Item | ✅ | Navigation |
+| Projekt-Aktionen: Löschen | Dropdown-Item | ✅ | `useDeleteProject()` |
 
 ### Projekt erstellen (`src/pages/ProjectCreate.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Projektname | Input | ✅ | Wird an `useCreateProject()` gesendet |
-| Kunde auswählen | Dropdown | ⚠️ | Muss prüfen ob Kunden-Liste geladen wird |
-| Start-/Enddatum | Datepicker | ✅ | Felder im Hook vorhanden |
-| Budget | Input | ✅ | `budget` Feld vorhanden |
-| Status/Priorität | Dropdown | ✅ | Enum-Werte im Backend |
-| Beschreibung | Textarea | ✅ | `description` Feld vorhanden |
-| Projekt anlegen Button | Button | ✅ | `useCreateProject().mutateAsync()` |
+| Projektname | Input | ✅ | `useCreateProject()` |
+| Kunde auswählen | Dropdown | ⚠️ | Prüfen ob Kundenliste via `useCustomers()` geladen wird |
+| Startdatum | Datepicker | ✅ | `startDate` Feld |
+| Enddatum | Datepicker | ✅ | `endDate` Feld |
+| Budget | Input | ✅ | `budget` Feld |
+| Status | Dropdown | ✅ | Enum im Backend |
+| Priorität | Dropdown | ✅ | Enum im Backend |
+| Beschreibung | Textarea | ✅ | `description` Feld |
+| Abbrechen | Button | ✅ | Navigation |
+| Projekt anlegen | Button | ✅ | `useCreateProject().mutateAsync()` |
 
 ### Projektdetails (`src/pages/ProjectDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Tab: Aufgaben | Tab | ⚠️ | Muss prüfen ob Tasks nach `projectId` gefiltert werden |
-| Tab: Team | Tab | ⚠️ | `members` Feld im Interface, aber Backend-Relation prüfen |
-| Tab: Dokumente | Tab | ⚠️ | DMS-Integration mit `projectId` Filter nötig |
-| Tab: Budget | Tab | ⚠️ | `budget`/`spent` Felder vorhanden, Detailberechnung prüfen |
-| Tab: Zeiterfassung | Tab | ⚠️ | `use-time-entries.ts` existiert, Projekt-Filter prüfen |
-| Tab: Chat | Tab | ❌ | Kein Chat-Backend/Hook erkennbar |
+| Tab: Aufgaben | Tab | ⚠️ | Tasks nach `projectId` filtern – Backend-Support prüfen |
+| Tab: Team | Tab | ⚠️ | `members` Relation – Backend prüfen |
+| Tab: Dokumente | Tab | ⚠️ | DMS mit `projectId` Filter |
+| Tab: Budget | Tab | ⚠️ | `budget`/`spent` vorhanden, Detailberechnung prüfen |
+| Tab: Zeiterfassung | Tab | ✅ | `useTimeEntries({ projectId })` Hook vorhanden |
+| Tab: Chat | Tab | ✅ | `useMessages({ projectId })` → `GET /api/messages` |
 | Tab: Timeline | Tab | ⚠️ | Meilensteine – Backend-Modell prüfen |
-| Bearbeiten/Löschen | Buttons | ✅ | `useUpdateProject()` / `useDeleteProject()` |
+| Bearbeiten Button | Button | ✅ | `useUpdateProject()` |
+| Löschen Button | Button | ✅ | `useDeleteProject()` |
 | Status-Badge | Badge | ✅ | Aus `project.status` |
 | Fortschrittsbalken | Progress | ✅ | Aus `project.progress` |
 
 ---
 
-## 3. Aufgaben (`src/pages/Tasks.tsx`)
+## 3. Aufgaben
+
+### Aufgaben Liste (`src/pages/Tasks.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Neue Aufgabe Button | Button | ✅ | Navigation zu `/tasks/new` |
+| Neue Aufgabe Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useTasks({ search })` |
-| Filter Status/Priorität | Dropdown | ✅ | Query-Parameter an Backend |
-| Kanban-Columns | Columns | ⚠️ | Frontend-Gruppierung nach Status, Drag&Drop-Persistenz prüfen |
-| Aufgaben-Karte | Card | ✅ | Daten aus `useTasks()` |
+| Filter Status | Dropdown | ✅ | `status` Query-Parameter |
+| Filter Priorität | Dropdown | ✅ | `priority` Query-Parameter |
+| Kanban-Column Offen | Column | ⚠️ | Frontend-Gruppierung – Drag&Drop Persistenz prüfen |
+| Kanban-Column In Arbeit | Column | ⚠️ | Drag&Drop → `useUpdateTask()` Status-Update prüfen |
+| Kanban-Column Erledigt | Column | ⚠️ | Drag&Drop Persistenz prüfen |
+| Aufgaben-Karte | Card | ✅ | `useTasks()` Daten |
 | Aufgaben-Aktionen | Dropdown | ✅ | CRUD via Hooks |
 
 ### Aufgabe erstellen (`src/pages/TaskCreate.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Titel, Beschreibung | Input/Textarea | ✅ | `useCreateTask()` |
-| Projekt-Dropdown | Dropdown | ⚠️ | Prüfen ob Projektliste geladen wird |
+| Titel | Input | ✅ | `useCreateTask()` |
+| Projekt-Dropdown | Dropdown | ⚠️ | Projektliste laden prüfen |
+| Beschreibung | Textarea | ✅ | `description` Feld |
 | Priorität | Dropdown | ✅ | Enum im Hook |
 | Fälligkeitsdatum | Datepicker | ✅ | `dueDate` Feld |
 | Zuständiger | Dropdown | ✅ | Lädt Users via `api.get('/users')` |
+| Abbrechen | Button | ✅ | Navigation |
+| Aufgabe anlegen | Button | ✅ | `useCreateTask().mutateAsync()` |
 
 ### Aufgabendetails (`src/pages/TaskDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Status-Checkbox | Checkbox | ⚠️ | `useUpdateTask()` – Persistenz prüfen |
-| Subtasks/Checkliste | List | ❌ | Kein Subtask-Modell im Hook erkennbar |
-| Kommentare | Textarea/List | ❌ | Kein Kommentar-Endpoint im Hook |
-| Anhang Upload | Upload | ❌ | Kein Attachment-Endpoint im Task-Hook |
+| Bearbeiten | Button | ✅ | `useUpdateTask()` |
+| Löschen | Button | ✅ | `useDeleteTask()` |
+| Subtasks/Checkliste | List | ❌ | **Kein Subtask-Modell** im Hook/Backend |
+| Neuer Subtask Input | Input | ❌ | Kein Backend |
+| Kommentar schreiben | Textarea | ❌ | **Kein Comment-Endpoint** |
+| Kommentar senden | Button | ❌ | Kein Backend |
+| Anhang hochladen | Upload | ❌ | **Kein Attachment-Endpoint** für Tasks |
 
 ---
 
-## 4. Kunden (`src/pages/Customers.tsx`)
+## 4. Kunden
+
+### Kunden Liste (`src/pages/Customers.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Neuer Kunde Button | Button | ✅ | Navigation zu `/customers/new` |
+| Neuer Kunde Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useCustomers({ search })` |
-| Stat-Cards | Stats | 🔧 | `useCustomerStats()` – berechnet client-seitig aus allen Kunden (pageSize: 1000), kein dedizierter Stats-Endpoint |
-| Kunden-Zeile | Table-Row | ✅ | Daten aus `useCustomers()` |
+| Filter-Button | Button | ⚠️ | Filter-Popover prüfen |
+| Stat-Card Gesamt | Stat-Card | 🔧 | `useCustomerStats()` – client-seitig (pageSize:1000) |
+| Stat-Card Aktiv | Stat-Card | 🔧 | Client-seitige Berechnung |
+| Stat-Card Interessenten | Stat-Card | 🔧 | Client-seitige Berechnung |
+| Stat-Card Umsatz | Stat-Card | 🔧 | Client-seitige Berechnung |
+| Kunden-Zeile (klickbar) | Table-Row | ✅ | `useCustomers()` |
 | Kunden-Aktionen | Dropdown | ✅ | CRUD via Hooks |
 
 ### Kunde erstellen (`src/pages/CustomerCreate.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Alle Eingabefelder | Inputs | ✅ | `useCreateCustomer()` → `POST /api/customers` |
-| Kunde anlegen Button | Button | ✅ | Mutation vorhanden |
+| Firma | Input | ✅ | `useCreateCustomer()` |
+| Vorname | Input | ✅ | |
+| Nachname | Input | ✅ | |
+| E-Mail | Input | ✅ | |
+| Telefon | Input | ✅ | |
+| Strasse | Input | ✅ | |
+| PLZ | Input | ✅ | |
+| Ort | Input | ✅ | |
+| UID-Nummer | Input | ✅ | |
+| Abbrechen | Button | ✅ | Navigation |
+| Kunde anlegen | Button | ✅ | Mutation |
 
 ### Kundendetails (`src/pages/CustomerDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Tab: Übersicht | Tab | ✅ | `useCustomer(id)` |
-| Tab: Projekte | Tab | ⚠️ | Filter `useProjects({ customerId })` – prüfen |
-| Tab: Dokumente | Tab | ⚠️ | DMS-Filter nach Kunde – prüfen |
-| Tab: Rechnungen | Tab | ⚠️ | `useInvoices({ customerId })` – prüfen |
-| Tab: Verträge | Tab | ⚠️ | `useContracts({ customerId })` – prüfen |
-| Tab: Aktivitäten | Tab | ❌ | Kein Activity-Log per Kunde im Hook |
+| Tab: Projekte | Tab | ⚠️ | Filter `useProjects({ customerId })` testen |
+| Tab: Dokumente | Tab | ⚠️ | DMS-Filter nach Kunde testen |
+| Tab: Rechnungen | Tab | ⚠️ | `useInvoices({ customerId })` testen |
+| Tab: Verträge | Tab | ⚠️ | `useContracts({ customerId })` testen |
+| Tab: Aktivitäten | Tab | ❌ | **Kein Activity-Log per Entity** |
+| Bearbeiten | Button | ✅ | `useUpdateCustomer()` |
+| Löschen | Button | ✅ | `useDeleteCustomer()` |
 
 ---
 
-## 5. Angebote (`src/pages/Quotes.tsx`)
+## 5. Angebote
+
+### Angebote Liste (`src/pages/Quotes.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neues Angebot Button | Button | ✅ | Navigation |
-| Suchfeld | Input | ✅ | `useQuotes({ search })` |
-| Stat-Cards | Stats | ⚠️ | Prüfen ob dedizierter Stats-Endpoint existiert oder client-seitig |
-| Angebots-Zeile | Table-Row | ✅ | `useQuotes()` |
-| Angebots-Aktionen | Dropdown | ✅ | CRUD + Duplizieren Hooks |
+| Suchfeld | Input | ✅ | `useQuotes({ search })` (via `use-sales.ts`) |
+| Filter-Button | Button | ⚠️ | Filter-Popover prüfen |
+| Stat-Card Gesamtwert | Stat-Card | ⚠️ | Prüfen ob Stats-Endpoint existiert |
+| Stat-Card Angenommen | Stat-Card | ⚠️ | |
+| Stat-Card Offen | Stat-Card | ⚠️ | |
+| Stat-Card Conversion | Stat-Card | ⚠️ | |
+| Angebots-Zeile (klickbar) | Table-Row | ✅ | `useQuotes()` |
+| Angebots-Aktionen: Details | Dropdown-Item | ✅ | Navigation |
+| Angebots-Aktionen: Duplizieren | Dropdown-Item | ⚠️ | Endpoint prüfen |
+| Angebots-Aktionen: PDF | Dropdown-Item | ⚠️ | PDF-Generierung prüfen |
+| Angebots-Aktionen: Löschen | Dropdown-Item | ⚠️ | Delete-Hook prüfen (nicht in use-sales.ts) |
 
 ### Angebot erstellen (`src/pages/QuoteCreate.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Kunde auswählen | Dropdown | ⚠️ | Kundenliste laden prüfen |
-| Positionen hinzufügen | Dialog/Table | ⚠️ | Produkt-Auswahl-Dialog – `useProducts()` prüfen |
-| Positionsliste editierbar | Table | ✅ | Items-Array in `useCreateQuote()` |
-| Berechnungen (MwSt, Total) | Display | ✅ | Frontend-Berechnung |
-| Als Entwurf / Senden | Buttons | ✅ | Status-Feld in Mutation |
+| Gültig bis | Datepicker | ✅ | `validUntil` Feld |
+| Position hinzufügen | Button/Dialog | ⚠️ | Produkt-Auswahl via `useProducts()` prüfen |
+| Produkt auswählen Dialog | Dialog | ⚠️ | |
+| Positionsliste editierbar | Table | ✅ | Items-Array |
+| Menge/Einzelpreis Inputs | Inputs | ✅ | |
+| Position löschen | Button | ✅ | Frontend-Array |
+| Notizen | Textarea | ✅ | `notes` Feld |
+| Berechnungen (Zwischensumme, MwSt, Total) | Display | ✅ | Frontend-Berechnung |
+| Als Entwurf speichern | Button | ✅ | `useCreateQuote()` mit Status DRAFT |
+| Angebot senden | Button | ✅ | Status SENT |
 
 ### Angebotsdetails (`src/pages/QuoteDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| PDF herunterladen | Button | ⚠️ | Prüfen ob PDF-Endpoint existiert |
+| PDF herunterladen | Button | ⚠️ | PDF-Endpoint prüfen |
 | Angebot senden | Button | ⚠️ | E-Mail-Endpoint prüfen |
-| Duplizieren | Button | ⚠️ | Prüfen ob Duplicate-Endpoint existiert |
+| Duplizieren | Button | ⚠️ | Duplicate-Endpoint prüfen |
 | In Auftrag umwandeln | Button | ✅ | `useConvertQuoteToOrder()` → `POST /quotes/:id/convert-to-order` |
 | Status ändern Dialog | Dialog | ⚠️ | `useUpdateQuote()` mit Status-Feld |
+| In Auftrag umwandeln Dialog | Dialog | ✅ | |
 | Positionen | Table | ✅ | Aus `useQuote(id)` |
+| Löschen | Button | ⚠️ | Delete-Hook prüfen |
 
 ---
 
-## 6. Aufträge (`src/pages/Orders.tsx`)
+## 6. Aufträge
+
+### Aufträge Liste (`src/pages/Orders.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neuer Auftrag Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useOrders({ search })` |
-| Stat-Cards | Stats | ⚠️ | Prüfen ob Backend-Stats-Endpoint existiert |
-| Auftrags-Zeile | Table-Row | ✅ | `useOrders()` |
-| Auftrags-Aktionen | Dropdown | ✅ | CRUD Hooks |
+| Filter Status Checkboxen | Checkbox | ✅ | Query-Parameter |
+| Filter Priorität Checkboxen | Checkbox | ⚠️ | Prüfen ob Backend `priority` bei Orders unterstützt |
+| Stat-Card Gesamt | Stat-Card | ⚠️ | Stats-Endpoint prüfen |
+| Stat-Card Aktiv | Stat-Card | ⚠️ | |
+| Stat-Card Wert | Stat-Card | ⚠️ | |
+| Stat-Card Versendet | Stat-Card | ⚠️ | |
+| Auftrags-Zeile (klickbar) | Table-Row | ✅ | `useOrders()` |
+| Auftrags-Aktionen: Details | Dropdown-Item | ✅ | Navigation |
+| Auftrags-Aktionen: Lieferschein erstellen | Dropdown-Item | ✅ | `useCreateDeliveryNoteFromOrder()` |
+| Auftrags-Aktionen: Rechnung erstellen | Dropdown-Item | ✅ | `useCreateInvoiceFromOrder()` |
+| Auftrags-Aktionen: Löschen | Dropdown-Item | ⚠️ | Delete-Hook für Orders prüfen |
 
 ### Auftragsdetails (`src/pages/OrderDetail.tsx`)
 
@@ -184,41 +250,56 @@
 | Rechnung erstellen | Button | ✅ | `useCreateInvoiceFromOrder()` |
 | Positionen | Table | ✅ | Aus `useOrder(id)` |
 | Fortschrittsbalken | Progress | ⚠️ | Berechnung prüfen |
-| Verknüpfte Dokumente | Card | ⚠️ | Relationen (Lieferscheine, Rechnungen, Angebot) prüfen |
+| Verknüpfte Dokumente (Lieferscheine, Rechnungen, Angebot) | Card | ⚠️ | Relationen prüfen |
 
 ---
 
-## 7. Rechnungen (`src/pages/Invoices.tsx`)
+## 7. Rechnungen
+
+### Rechnungen Liste (`src/pages/Invoices.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neue Rechnung Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useInvoices({ search })` |
-| Stat-Cards | Stats | 🔧 | `useInvoiceStats()` – berechnet client-seitig (pageSize: 1000) |
-| Rechnungs-Zeile | Table-Row | ✅ | `useInvoices()` |
-| Rechnungs-Aktionen | Dropdown | ✅ | CRUD + spezielle Hooks |
+| Stat-Card Gesamt | Stat-Card | 🔧 | `useInvoiceStats()` – client-seitig (pageSize:1000) |
+| Stat-Card Bezahlt | Stat-Card | 🔧 | Client-seitige Berechnung |
+| Stat-Card Ausstehend | Stat-Card | 🔧 | Client-seitige Berechnung |
+| Stat-Card Überfällig | Stat-Card | 🔧 | Client-seitige Berechnung |
+| Rechnungs-Zeile (klickbar) | Table-Row | ✅ | `useInvoices()` |
+| Rechnungs-Aktionen: Details | Dropdown-Item | ✅ | Navigation |
+| Rechnungs-Aktionen: PDF | Dropdown-Item | ⚠️ | PDF-Generierung (jspdf client-seitig) |
+| Rechnungs-Aktionen: Mahnung | Dropdown-Item | ✅ | `useCreateReminder()` |
+| Rechnungs-Aktionen: Zahlung erfassen | Dropdown-Item | ✅ | `useRecordPayment()` |
+| Rechnungs-Aktionen: Löschen | Dropdown-Item | ⚠️ | Delete prüfen |
 
 ### Rechnungsdetails (`src/pages/InvoiceDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| PDF herunterladen | Button | ⚠️ | PDF-Generierung prüfen (jspdf installiert) |
-| QR-Rechnung | Button | ⚠️ | QR-Code Seite existiert (`QRInvoice.tsx`), Endpoint prüfen |
+| PDF herunterladen | Button | ⚠️ | Client-seitige jspdf oder Backend-Endpoint? |
+| QR-Rechnung | Button | ⚠️ | `QRInvoice.tsx` existiert, qrcode Lib installiert |
 | Rechnung senden | Button | ✅ | `useSendInvoice()` → `POST /invoices/:id/send` |
-| Zahlung erfassen | Dialog | ✅ | `useRecordPayment()` → `POST /invoices/:id/payment` |
+| Zahlung erfassen Dialog | Dialog | ✅ | `useRecordPayment()` → `POST /invoices/:id/payment` |
+| Zahlung erfassen: Betrag, Datum, Zahlungsart, Referenz | Inputs | ✅ | |
 | Positionen | Table | ✅ | Aus `useInvoice(id)` |
-| Zahlungsinformationen | Card | ⚠️ | `paidAmount`, `openAmount` – Backend-Berechnung prüfen |
+| Zahlungsinformationen | Card | ⚠️ | `paidAmount`, `openAmount` Backend-Berechnung prüfen |
 
 ---
 
-## 8. Lieferscheine (`src/pages/DeliveryNotes.tsx`)
+## 8. Lieferscheine
+
+### Lieferscheine Liste (`src/pages/DeliveryNotes.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neuer Lieferschein Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useDeliveryNotes({ search })` |
-| Stat-Cards | Stats | ⚠️ | Kein dedizierter Stats-Endpoint im Hook – prüfen ob Frontend berechnet |
-| Lieferschein-Zeile | Table-Row | ✅ | `useDeliveryNotes()` |
+| Stat-Card Gesamt | Stat-Card | ⚠️ | Kein dedizierter Stats-Endpoint im Hook |
+| Stat-Card Unterwegs | Stat-Card | ⚠️ | Frontend-Berechnung? |
+| Stat-Card Zugestellt | Stat-Card | ⚠️ | |
+| Stat-Card Vorbereitet | Stat-Card | ⚠️ | |
+| Lieferschein-Zeile (klickbar) | Table-Row | ✅ | `useDeliveryNotes()` |
 
 ### Lieferscheindetails (`src/pages/DeliveryNoteDetail.tsx`)
 
@@ -228,59 +309,96 @@
 | Versanddienstleister | Dropdown | ✅ | `carrier` Feld |
 | Positionen | Table | ✅ | Aus `useDeliveryNote(id)` |
 | Lieferadresse | Display | ✅ | `deliveryAddress` Feld |
-| PDF generieren | Button | ⚠️ | Prüfen ob PDF-Endpoint existiert |
+| PDF generieren | Button | ⚠️ | Endpoint prüfen |
 
 ---
 
-## 9. Verträge (`src/pages/Contracts.tsx`)
+## 9. Verträge
+
+### Verträge Liste (`src/pages/Contracts.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neuer Vertrag Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useContracts({ search })` |
-| Filter Typ/Auto-Verlängerung | Popover | ⚠️ | Prüfen ob Backend Filter unterstützt |
-| Stat-Cards | Stats | ✅ | `useContractStats()` → `GET /api/contracts/stats` |
+| Filter Typ | Popover | ⚠️ | Backend-Filter prüfen |
+| Filter Auto-Verlängerung | Checkbox | ⚠️ | Backend-Filter prüfen |
+| Stat-Card Gesamt (klickbar) | Stat-Card | ✅ | `useContractStats()` → `GET /api/contracts/stats` |
+| Stat-Card Aktiv (klickbar) | Stat-Card | ✅ | |
+| Stat-Card Laufend aus (klickbar) | Stat-Card | ✅ | |
+| Stat-Card Wert | Stat-Card | ✅ | |
 | Auslaufende Verträge Alert | Alert | ✅ | `useExpiringContracts()` → `GET /api/contracts/expiring` |
-| Vertrags-Zeile | Table-Row | ✅ | `useContracts()` |
-| Vertrags-Aktionen | Dropdown | ✅ | CRUD + Verlängern/Kündigen |
+| Vertrags-Zeile (klickbar) | Table-Row | ✅ | `useContracts()` |
+| Vertrags-Aktionen: Details | Dropdown-Item | ✅ | Navigation |
+| Vertrags-Aktionen: Verlängern | Dropdown-Item | ✅ | `useRenewContract()` |
+| Vertrags-Aktionen: Kündigen | Dropdown-Item | ✅ | `useTerminateContract()` |
+| Vertrags-Aktionen: Duplizieren | Dropdown-Item | ⚠️ | Kein Duplicate-Hook |
+| Vertrags-Aktionen: Löschen | Dropdown-Item | ✅ | `useDeleteContract()` |
 
 ### Vertrag erstellen (`src/pages/ContractCreate.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Alle Felder | Inputs/Selects | ✅ | `useCreateContract()` |
-| ⚠️ Build-Error | TypeScript | ❌ | `'name' does not exist in type 'Partial<Contract>'` – Feld-Mapping falsch |
+| Vertragsbezeichnung | Input | ❌ | **BUILD-ERROR**: `name` not in `Partial<Contract>` – Mapping prüfen (sollte `title` sein) |
+| Kunde | Dropdown | ⚠️ | Kundenliste laden |
+| Vertragsart | Dropdown | ✅ | `type` Feld |
+| Vertragswert | Input | ✅ | `value` Feld |
+| Startdatum | Datepicker | ✅ | `startDate` Feld |
+| Enddatum | Datepicker | ✅ | `endDate` Feld |
+| Kündigungsfrist | Dropdown | ✅ | `noticePeriodDays` Feld |
+| Automatische Verlängerung | Switch | ✅ | `autoRenew` Feld |
+| Beschreibung | Textarea | ✅ | `description` Feld |
+| Abbrechen | Button | ✅ | Navigation |
+| Vertrag anlegen | Button | ✅ | `useCreateContract()` |
 
 ### Vertragsdetails (`src/pages/ContractDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Verlängern | Button/Dialog | ✅ | `useRenewContract()` → `POST /contracts/:id/renew` |
-| Kündigen | Button/Dialog | ✅ | `useTerminateContract()` → `POST /contracts/:id/terminate` |
-| Tabs (Übersicht, Leistungen, etc.) | Tabs | ⚠️ | Prüfen welche Tabs echte Daten laden |
-| Laufzeit-Fortschritt | Progress | ✅ | Frontend-Berechnung aus Start-/Enddatum |
+| Verlängern Button/Dialog | Button | ✅ | `useRenewContract()` → `POST /contracts/:id/renew` |
+| Kündigen Button/Dialog | Button | ✅ | `useTerminateContract()` → `POST /contracts/:id/terminate` |
+| Verlängerungs-Dialog (Laufzeit, Enddatum, Preis) | Dialog | ✅ | |
+| Kündigungs-Dialog (Datum, Grund, Notizen) | Dialog | ✅ | |
+| Tab: Übersicht | Tab | ✅ | `useContract(id)` |
+| Tab: Leistungen | Tab | ⚠️ | Backend-Modell prüfen |
+| Tab: Zahlungen | Tab | ⚠️ | Zahlungs-Relation prüfen |
+| Tab: Dokumente | Tab | ⚠️ | DMS-Verknüpfung prüfen |
+| Tab: Historie | Tab | ✅ | `renewalHistory` Array |
+| Laufzeit-Fortschritt | Progress | ✅ | Frontend-Berechnung |
 
 ---
 
-## 10. Zahlungen (`src/pages/Payments.tsx`)
+## 10. Zahlungen
+
+### Zahlungen Liste (`src/pages/Payments.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Zahlung erfassen Button | Button | ✅ | Navigation/Dialog |
-| Bank-Sync Button | Button | ⚠️ | `use-bank-import.ts` existiert, Funktionalität prüfen |
-| Stat-Cards | Stats | ✅ | `usePaymentStatistics()` → `GET /api/payments/statistics` |
-| Tabs (Alle, Eingänge, etc.) | Tabs | ✅ | `usePayments({ type })` Filter |
+| Bank-Sync Button | Button | ✅ | `useImportCamt054()` → camt.054 Import vorhanden |
+| Stat-Card Eingänge | Stat-Card | ✅ | `usePaymentStatistics()` → `GET /api/payments/statistics` |
+| Stat-Card Ausgänge | Stat-Card | ✅ | |
+| Stat-Card Saldo | Stat-Card | ✅ | |
+| Stat-Card Nicht zugeordnet | Stat-Card | ✅ | `pendingPayments` |
+| Tab: Alle | Tab | ✅ | `usePayments()` |
+| Tab: Eingänge | Tab | ✅ | `usePayments({ type: 'INCOMING' })` |
+| Tab: Ausgänge | Tab | ✅ | `usePayments({ type: 'OUTGOING' })` |
+| Tab: Nicht zugeordnet | Tab | ⚠️ | Prüfen ob `status` Filter funktioniert |
 | Suchfeld | Input | ✅ | `usePayments({ search })` |
-| Zahlungs-Karte | Card | ✅ | `usePayments()` |
+| Zahlungs-Karte (klickbar) | Card | ✅ | `usePayments()` |
 | Zuordnen Button | Button | ✅ | `useReconcilePayment()` → `POST /payments/:id/reconcile` |
+| Zahlungs-Aktionen | Dropdown | ✅ | CRUD Hooks |
 
 ### Zahlungsdetails (`src/pages/PaymentDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Betrag/Empfänger/Absender | Cards | ✅ | Aus `usePayment(id)` |
-| Zugehörige Rechnungen | Table | ⚠️ | Relation `invoiceId`/`purchaseInvoiceId` prüfen |
-| Beleg anzeigen | Button | ❌ | Kein File-Storage-Endpoint für Belege erkennbar |
+| Betrag Card | Card | ✅ | Aus `usePayment(id)` |
+| Empfänger Card | Card | ✅ | customer/supplier Relation |
+| Absender Card | Card | ✅ | |
+| Zugehörige Rechnungen | Table | ⚠️ | `invoiceId`/`purchaseInvoiceId` Relation prüfen |
+| Metadaten | Display | ✅ | |
+| Beleg anzeigen | Button | ❌ | **Kein File-Attachment für Payments** |
 
 ---
 
@@ -289,132 +407,626 @@
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neuer Termin Button | Button | ✅ | Dialog |
-| Navigation (Heute, Vor/Zurück) | Buttons | ✅ | Frontend-Logik |
-| Monatsansicht | Calendar | ✅ | `useCalendarEvents({ startDate, endDate })` |
-| Event-Card/Terminliste | Cards/List | ✅ | Aus `useCalendarEvents()` |
+| Heute Button | Button | ✅ | Frontend-Navigation |
+| Vorheriger/Nächster Monat | Buttons | ✅ | Frontend-Navigation |
+| Monatsansicht (klickbar) | Calendar-View | ✅ | `useCalendarEvents({ startDate, endDate })` |
+| Event-Card (klickbar) | Card | ✅ | Aus `useCalendarEvents()` |
+| Terminliste | List | ✅ | Gefiltert nach Tag |
+| **BUILD-ERROR** | TypeScript | ❌ | `attendee` possibly null (Zeile 546/550) |
 
 ### Termin erstellen
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Titel, Datum, Zeit, Typ | Inputs | ✅ | `useCreateCalendarEvent()` |
+| Titel | Input | ✅ | `useCreateCalendarEvent()` |
+| Datum | Datepicker | ✅ | |
+| Startzeit | Timepicker | ✅ | `startDate` |
+| Endzeit | Timepicker | ✅ | `endDate` |
+| Typ | Dropdown | ✅ | `type` Feld |
 | Beschreibung | Textarea | ✅ | `description` Feld |
-| ⚠️ Build-Error | TypeScript | ❌ | `'attendee' is possibly 'null'` – Null-Check fehlt |
+| Abbrechen | Button | ✅ | |
+| Termin anlegen | Button | ✅ | `useCreateCalendarEvent().mutateAsync()` |
 
 ---
 
-## 12. Dokumente (`src/pages/Documents.tsx`)
+## 12. Dokumente
+
+### Dokumente Liste (`src/pages/Documents.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Hochladen Button | Button | ✅ | `useUploadDocument()` → multipart upload |
 | Neuer Ordner | Button | ✅ | `useCreateFolder()` |
-| Ordnerstruktur | Tree-View | ✅ | `useFolderTree()` mit `buildFolderTree()` |
+| Ordnerstruktur (Tree-View) | Tree-View | ✅ | `useFolderTree()` mit `buildFolderTree()` |
 | Suchfeld | Input | ✅ | `useDMSDocuments({ search })` |
 | Filter Typ | Dropdown | ⚠️ | Frontend-Filter oder Backend prüfen |
-| Datei-Karten | Grid | ✅ | `useDMSDocuments()` |
-| Datei-Aktionen | Dropdown | ✅ | Öffnen, Umbenennen, Verschieben (`useMoveDocument`), Löschen |
+| Datei-Karten (Grid) | Grid | ✅ | `useDMSDocuments()` |
+| Datei-Aktionen: Öffnen | Dropdown-Item | ⚠️ | `fileUrl` direkt |
+| Datei-Aktionen: Herunterladen | Dropdown-Item | ⚠️ | Download-Logik prüfen |
+| Datei-Aktionen: Umbenennen | Dropdown-Item | ✅ | `useUpdateDocument()` |
+| Datei-Aktionen: Verschieben | Dropdown-Item | ✅ | `useMoveDocument()` |
+| Datei-Aktionen: Löschen | Dropdown-Item | ✅ | `useDeleteDocument()` |
 | Drag-Drop Upload | Zone | ✅ | `react-dropzone` installiert |
+
+### Upload-Dialog
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Datei auswählen | File-Input | ✅ | |
+| Drop-Zone | Drag-Drop | ✅ | |
+| Ordner | Dropdown | ✅ | `folderId` |
+| Tags | Tag-Input | ⚠️ | Tags im Backend prüfen |
+| Beschreibung | Textarea | ✅ | `description` |
+| Hochladen | Button | ✅ | `useUploadDocument()` |
+| Upload-Fortschritt | Progress-Bar | ⚠️ | Frontend Progress prüfen |
 
 ### Dokumentdetails (`src/pages/DocumentDetail.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Herunterladen | Button | ⚠️ | `fileUrl` vorhanden, Download-Logik prüfen |
-| Teilen | Button | ❌ | Kein Sharing-Endpoint |
-| Vorschau | Preview | ⚠️ | Abhängig von Dateityp |
+| Herunterladen | Button | ⚠️ | `fileUrl` vorhanden |
+| Teilen | Button | ❌ | **Kein Sharing-Endpoint** |
+| Dateivorschau | Preview | ⚠️ | Abhängig von Dateityp |
+| Tab: Details | Tab | ✅ | Metadaten aus `useDMSDocument(id)` |
 | Tab: Versionen | Tab | ✅ | `versions` Array + `useUploadNewVersion()` |
-| Tab: Verknüpfungen | Tab | ⚠️ | `linkedEntityType`/`linkedEntityId` – Auflösung prüfen |
+| Tab: Verknüpfungen | Tab | ⚠️ | `linkedEntityType`/`linkedEntityId` Auflösung prüfen |
 
 ---
 
-## 13. Einstellungen (`src/pages/Settings.tsx`)
+## 13. Produkte & Lager
+
+### Produkte (`src/pages/Products.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
-| Tab: Unternehmen | Tab | ❌ | **3017 Zeilen!** Kein `use-settings.ts` Hook – vermutlich komplett Mock/Frontend-only |
+| Neues Produkt Button | Button | ✅ | Navigation |
+| Suchfeld | Input | ✅ | `useProducts({ search })` |
+| Filter Kategorie | Dropdown | ✅ | `useProductCategories()` |
+| Stat-Cards | Stats | 🔧 | `useProductStats()` – client-seitig (pageSize:1000) |
+| Produkt-Karte/Zeile | Card/Row | ✅ | `useProducts()` |
+| CRUD Aktionen | Buttons | ✅ | Alle Hooks vorhanden |
+
+### Produktdetails (`src/pages/ProductDetail.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Bestandsanpassung | Button | ✅ | `useAdjustStock()` → `POST /products/:id/adjust-stock` |
+| Kategorien | Display | ✅ | `useProductCategories()` |
+
+### Inventar (`src/pages/Inventory.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Bestandsübersicht | Display | ⚠️ | Prüfen ob eigener Inventory-Endpoint oder Products |
+| Low-Stock Warnung | Alert | 🔧 | `useProductStats()` berechnet `lowStock` client-seitig |
+
+---
+
+## 14. Lieferanten
+
+### Lieferanten Liste (`src/pages/Suppliers.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neuer Lieferant Button | Button | ✅ | Navigation |
+| Suchfeld | Input | ✅ | `useSuppliers({ search })` |
+| Stat-Cards | Stats | 🔧 | `useSupplierStats()` – client-seitig (pageSize:1000) |
+| Lieferanten-Zeile | Table-Row | ✅ | `useSuppliers()` |
+| CRUD Aktionen | Buttons | ✅ | Alle Hooks vorhanden |
+
+---
+
+## 15. Einkauf
+
+### Bestellungen (`src/pages/PurchaseOrders.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Bestellung Button | Button | ✅ | Navigation |
+| Suchfeld | Input | ✅ | `usePurchaseOrders({ search })` |
+| Stat-Cards | Stats | ✅ | `usePurchaseOrderStatistics()` → `GET /api/purchase-orders/statistics` |
+| Bestellungs-Zeile | Table-Row | ✅ | `usePurchaseOrders()` |
+| CRUD Aktionen | Buttons | ✅ | Alle Hooks + `useSendPurchaseOrder()` |
+| **BUILD-ERROR** | TypeScript | ❌ | `entry.user` possibly null (PurchaseOrderDetail.tsx:638) |
+
+### Eingangsrechnungen (`src/pages/PurchaseInvoices.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Eingangsrechnung Button | Button | ✅ | Navigation |
+| PDF-Import (OCR) | Button | ✅ | `useExtractOcrData()` → `POST /purchase-invoices/extract-ocr` |
+| Stat-Cards | Stats | ✅ | `usePurchaseInvoiceStatistics()` → `GET /api/purchase-invoices/statistics` |
+| Eingangsrechnung-Zeile | Table-Row | ✅ | `usePurchaseInvoices()` |
+| Aus Bestellung erstellen | Button | ✅ | `useCreatePurchaseInvoiceFromOrder()` |
+| Genehmigen | Button | ✅ | `useApprovePurchaseInvoice()` |
+| **BUILD-ERROR** | TypeScript | ❌ | `entry.user` possibly null (PurchaseInvoiceDetail.tsx:241) |
+
+---
+
+## 16. Produktion
+
+### Produktion (`src/pages/Production.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neuer Werkstattauftrag Button | Button | ✅ | Navigation |
+| Suchfeld | Input | ✅ | `useProductionOrders({ search })` |
+| Stat-Cards | Stats | ✅ | `useProductionStatistics()` → `GET /api/production-orders/statistics` |
+| Kapazitätsübersicht | Display | ✅ | `useCapacityOverview()` |
+| Werkstattauftrags-Zeile | Table-Row | ✅ | `useProductionOrders()` |
+| Zeitbuchung | Button | ✅ | `useBookProductionTime()` |
+| Operation abschliessen | Button | ✅ | `useCompleteProductionOperation()` |
+| **BUILD-ERROR** | TypeScript | ❌ | `m` possibly null (Production.tsx:434) |
+
+### Stücklisten (BOM) (`src/pages/BillOfMaterials.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Stückliste Button | Button | ✅ | Navigation |
+| Suchfeld | Input | ✅ | `useBoms({ search })` |
+| BOM-Liste | Table | ✅ | `useBoms()` |
+| Vorlagen | Display | ✅ | `useBomTemplates()` |
+| Duplizieren | Button | ✅ | `useDuplicateBom()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+### Kalkulation (`src/pages/Calculation.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Hooks vorhanden | - | ✅ | `use-calculations.ts` existiert |
+| Detailberechnung | - | ⚠️ | Backend-Logik prüfen |
+
+---
+
+## 17. Qualitätskontrolle
+
+### QK (`src/pages/QualityControl.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Prüfung Button | Button | ✅ | Navigation |
+| Stat-Cards | Stats | ✅ | `useQualityStatistics()` → `GET /api/quality/checks/statistics` |
+| Prüfungs-Liste | Table | ✅ | `useQualityChecks()` |
+| Prüfung abschliessen | Button | ✅ | `useCompleteQualityCheck()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+### Checklisten (`src/pages/QualityChecklists.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Checklisten-Liste | Table | ✅ | `useQualityChecklists()` |
+| Vorlagen | Display | ✅ | `useChecklistTemplates()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+---
+
+## 18. Service-Tickets
+
+### Service (`src/pages/Service.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neues Ticket Button | Button | ✅ | Navigation |
+| Suchfeld | Input | ✅ | `useServiceTickets({ search })` |
+| Stat-Cards | Stats | ✅ | `useServiceStatistics()` → `GET /api/service-tickets/statistics` |
+| Tickets-Liste | Table | ✅ | `useServiceTickets()` |
+| Techniker zuweisen | Button | ✅ | `useScheduleTechnician()` |
+| Service-Bericht | Button | ✅ | `useAddServiceReport()` |
+| Wartungsplanung | Display | ✅ | `useUpcomingMaintenance()` |
+| Techniker-Verfügbarkeit | Display | ✅ | `useTechnicianAvailability()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+---
+
+## 19. Mahnwesen
+
+### Mahnungen (`src/pages/Reminders.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Mahnung Button | Button | ✅ | `useCreateReminder()` |
+| Sammelmahnungen | Button | ✅ | `useCreateBatchReminders()` |
+| Stat-Cards | Stats | ✅ | `useReminderStatistics()` → `GET /api/reminders/statistics` |
+| Überfällige Rechnungen | Display | ✅ | `useOverdueInvoices()` |
+| Mahnung senden | Button | ✅ | `useSendReminder()` |
+| **BUILD-ERRORS** | TypeScript | ❌ | 10+ Null-Check Fehler (customer, invoice possibly null) |
+
+---
+
+## 20. Gutschriften
+
+### Gutschriften (`src/pages/CreditNotes.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Gutschrift Button | Button | ✅ | Navigation |
+| Gutschrift aus Rechnung | Button | ✅ | `useCreateCreditNoteFromInvoice()` |
+| Gutschrift-Liste | Table | ✅ | `useCreditNotes()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+---
+
+## 21. Buchhaltung / Finanzen
+
+### Kontenplan (`src/pages/ChartOfAccounts.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Konten-Liste | Table | ✅ | `useAccounts()` → `GET /api/finance/accounts` |
+| Konto erstellen | Button | ✅ | `useCreateAccount()` |
+| CRUD | Buttons | ✅ | |
+
+### Journalbuchungen (`src/pages/JournalEntries.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Neue Buchung Button | Button | ✅ | Navigation |
+| Buchungs-Liste | Table | ✅ | `useJournalEntries()` |
+| Buchung buchen | Button | ✅ | `usePostJournalEntry()` |
+| Stornierung | Button | ✅ | `useReverseJournalEntry()` |
+| Saldenliste | Display | ✅ | `useTrialBalance()` |
+| Kontosaldo | Display | ✅ | `useAccountBalance()` |
+
+### Bilanz (`src/pages/BalanceSheet.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Bilanz-Report | Display | ✅ | `useBalanceSheet()` → `GET /api/finance/balance-sheet` |
+
+### Bankkonten (`src/pages/BankAccounts.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Bankkonto-Liste | Table | ✅ | `useBankAccounts()` → `GET /api/finance/bank-accounts` |
+| CRUD | Buttons | ✅ | |
+
+### Bank-Import (`src/pages/BankImport.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| camt.054 Import | Upload | ✅ | `useImportCamt054()` |
+| Transaktionen-Liste | Table | ✅ | `useBankTransactions()` |
+| Zuordnungsvorschläge | Display | ✅ | `useReconciliationSuggestions()` |
+| Auto-Zuordnung | Button | ✅ | `useAutoReconcile()` |
+| Import-Statistiken | Stats | ✅ | `useBankImportStats()` |
+
+### Debitoren (`src/pages/Debtors.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Offene Posten | Display | ✅ | `useOpenItems()` |
+| **BUILD-ERROR** | TypeScript | ❌ | `invoice.debtor` possibly null (Zeile 412) |
+
+### Kreditoren (`src/pages/Creditors.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Offene Lieferantenrechnungen | Display | ✅ | Via `usePurchaseInvoices()` |
+| **BUILD-ERROR** | TypeScript | ❌ | `bill.creditor` possibly null (Zeile 392) |
+
+### Anlagevermögen (`src/pages/FixedAssets.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Anlagen-Liste | Table | ✅ | `useFixedAssets()` |
+| Statistiken | Stats | ✅ | `useFixedAssetStatistics()` |
+| Abschreibung-Schedule | Display | ✅ | `useDepreciationSchedule()` |
+| Abschreibung ausführen | Button | ✅ | `useRunDepreciation()` |
+| Anlage ausbuchen | Button | ✅ | `useDisposeFixedAsset()` |
+
+### Kostenstellen (`src/pages/CostCenters.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Kostenstellen-Liste | Table | ✅ | `use-cost-centers.ts` vorhanden |
+| CRUD | Buttons | ✅ | |
+
+### Kassenbuch (`src/pages/CashBook.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Kassenbuch | Display | ✅ | `use-cash-book.ts` vorhanden |
+
+### MWST-Abrechnungen (`src/pages/VatReturns.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| MWST-Abrechnungen | Display | ✅ | `use-vat-returns.ts` vorhanden |
+
+### Budgets (`src/pages/Budgets.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Budget-Liste | Table | ✅ | `use-budgets.ts` vorhanden |
+| CRUD | Buttons | ✅ | |
+
+---
+
+## 22. Marketing
+
+### Kampagnen (`src/pages/Campaigns.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Kampagnen-Liste | Table | ✅ | `useCampaigns()` → `GET /api/marketing/campaigns` |
+| Stats | Stats | ✅ | `useMarketingStats()` – kombiniert Campaign + Lead Stats |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+### Leads (`src/pages/Leads.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Leads-Liste | Table | ✅ | `useLeads()` → `GET /api/marketing/leads` |
+| Lead-Aktivitäten | Display | ✅ | `useLeadActivities()` |
+| Lead konvertieren | Button | ✅ | `useConvertLead()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+### E-Mail-Marketing (`src/pages/EmailMarketing.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| E-Mail-Kampagnen | Table | ✅ | `useEmailCampaigns()` |
+| Kampagne senden | Button | ✅ | `useSendEmailCampaign()` |
+
+---
+
+## 23. HR / Personal
+
+### Mitarbeiter (`src/pages/HR.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Mitarbeiter-Liste | Table | ✅ | `useEmployees()` → `GET /api/employees` |
+| Stats | Stats | ✅ | `useEmployeeStats()` → `GET /api/employees/stats` |
+| Abteilungen | Display | ✅ | `useDepartments()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+### Abwesenheiten (`src/pages/Absences.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Abwesenheiten-Liste | Table | ✅ | `useAbsences()` |
+| CRUD | Buttons | ✅ | Alle Hooks vorhanden |
+
+### Lohnbuchhaltung (`src/pages/Payroll.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Lohn-Übersicht | Display | ⚠️ | Prüfen welche Hooks genutzt werden |
+| GAV Metallbau | Display | ✅ | `use-gav-metallbau.ts` vorhanden |
+| Quellensteuer | Display | ✅ | `use-withholding-tax.ts` vorhanden |
+| Swissdec | Display | ✅ | `use-swissdec.ts` vorhanden |
+
+### Abteilungen (`src/pages/Departments.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Abteilungen-Liste | Table | ✅ | `useDepartments()` |
+| CRUD | Buttons | ✅ | |
+
+### Rekrutierung (`src/pages/Recruiting.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Stellenausschreibungen | Table | ✅ | `useJobPostings()` |
+| Kandidaten-Pipeline (Kanban) | Display | ✅ | `useCandidatePipeline()` |
+| Bewerber-Liste | Table | ✅ | `useCandidates()` |
+| Interview planen | Button | ✅ | `useCreateInterview()` |
+| Einstellen | Button | ✅ | `useHireCandidate()` |
+| Stelle veröffentlichen | Button | ✅ | `usePublishJobPosting()` |
+| Stats | Stats | ✅ | `useRecruitingStats()` |
+
+### Weiterbildung (`src/pages/Training.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Schulungen-Liste | Table | ✅ | `useTrainings()` |
+| Teilnehmer-Verwaltung | Buttons | ✅ | `useRegisterForTraining()`, `useRemoveParticipant()` |
+| Schulung abschliessen | Button | ✅ | `useMarkTrainingComplete()` |
+| Stats | Stats | ✅ | `useTrainingStats()` |
+| Kommende Schulungen | Display | ✅ | `useUpcomingTrainings()` |
+| Mitarbeiter-Schulungen | Display | ✅ | `useEmployeeTrainings()` |
+| Report generieren | Button | ✅ | `useGenerateTrainingReport()` |
+
+---
+
+## 24. Online-Shop / E-Commerce
+
+### Shop (`src/pages/Shop.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Shop-Bestellungen | Table | ✅ | `useShopOrders()` → `GET /api/ecommerce/orders` |
+| Bestellung stornieren | Button | ✅ | `useCancelShopOrder()` |
+| Status ändern | Button | ✅ | `useUpdateShopOrderStatus()` |
+| Stats | Stats | ✅ | `useEcommerceStats()` |
+
+### Rabatte (`src/pages/Discounts.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Rabatt-Liste | Table | ✅ | `useDiscounts()` |
+| Code validieren | Button | ✅ | `useValidateDiscountCode()` |
+| CRUD | Buttons | ✅ | |
+| **BUILD-ERROR** | TypeScript | ❌ | `usage.customer` possibly null (DiscountDetail.tsx:260) |
+
+### Bewertungen (`src/pages/Reviews.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Bewertungen-Liste | Table | ✅ | `useReviews()` |
+| Bewertung genehmigen | Button | ✅ | `useApproveReview()` |
+| Antworten | Button | ✅ | `useRespondToReview()` |
+
+---
+
+## 25. Zeiterfassung (`src/pages/TimeTracking.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Zeiteinträge-Liste | Table | ✅ | `useTimeEntries()` |
+| Alle Einträge (Admin) | Table | ✅ | `useAllTimeEntries()` |
+| Stats | Stats | ✅ | `useTimeEntryStats()` → `GET /api/time-entries/stats` |
+| Genehmigung | Button | ✅ | `useApproveTimeEntries()` |
+| Genehmigungsstatistik | Stats | ✅ | `useApprovalStats()` |
+| CRUD | Buttons | ✅ | |
+
+---
+
+## 26. Berichte / Reporting (`src/pages/Reports.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Verfügbare Berichte | Display | 🔧 | `useAvailableReports()` – Fallback auf statische Daten |
+| Report generieren | Button | ✅ | `useGenerateReport()` → `POST /api/reports/generate` |
+| Erfolgsrechnung | Report | ✅ | `useProfitLossReport()` |
+| Bilanz | Report | ✅ | `useBalanceSheetReport()` |
+| Lohnauswertung | Report | ✅ | `usePayrollSummaryReport()` |
+| GAV Compliance | Report | ✅ | `useGavComplianceReport()` |
+| Projektrentabilität | Report | ✅ | `useProjectProfitabilityReport()` |
+| Offene Posten | Report | ✅ | `useOpenItemsReport()` |
+| Budget-Vergleich | Report | ✅ | `useBudgetComparisonReport()` |
+| Verkaufsanalyse | Report | ✅ | `useSalesAnalysisReport()` |
+| Quellensteuer | Report | ✅ | `useWithholdingTaxReport()` |
+
+---
+
+## 27. Nachrichten / Chat
+
+### Messages (`use-messages.ts`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Projekt-Chat | Chat | ✅ | `useMessages({ projectId })` → `GET /api/messages` |
+| Task-Chat | Chat | ✅ | `useMessages({ taskId })` |
+| Nachricht senden | Button | ✅ | `useSendMessage()` → `POST /api/messages` |
+
+---
+
+## 28. Einstellungen (`src/pages/Settings.tsx`)
+
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Tab: Unternehmen | Tab | ❌ | **3017 Zeilen!** Kein `use-settings.ts` – komplett Frontend-Shell |
 | Tab: Lokalisierung | Tab | ❌ | Kein Backend-Endpoint |
 | Tab: Währung | Tab | ❌ | Kein Backend-Endpoint |
 | Tab: E-Mail (SMTP) | Tab | ❌ | Kein Backend-Endpoint |
 | Tab: API | Tab | ❌ | Kein Backend-Endpoint |
 | Tab: Sicherheit | Tab | ❌ | Kein Backend-Endpoint |
-| Speichern Button | Button | ❌ | Kein Backend-Mutation |
-
-**Cursor-Aufgabe (hoch):** Settings komplett auf Backend umstellen oder einzelne Tabs priorisieren.
+| Änderungen speichern | Button | ❌ | Keine Mutation |
 
 ---
 
-## 14. Benutzer (`src/pages/Users.tsx`)
+## 29. Benutzer (`src/pages/Users.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | Neuer Benutzer Button | Button | ✅ | Navigation |
 | Suchfeld | Input | ✅ | `useUsers({ search })` |
 | Filter Rolle | Dropdown | ✅ | `useUsers({ role })` |
-| Benutzer-Zeile | Table-Row | ✅ | `useUsers()` |
-| Benutzer-Aktionen | Dropdown | ✅ | CRUD via `useCreateUser`, `useUpdateUser`, `useDeleteUser` |
+| Benutzer-Zeile (klickbar) | Table-Row | ✅ | `useUsers()` |
+| Benutzer-Aktionen: Details | Dropdown-Item | ✅ | Navigation |
+| Benutzer-Aktionen: Bearbeiten | Dropdown-Item | ✅ | `useUpdateUser()` |
+| Benutzer-Aktionen: Deaktivieren | Dropdown-Item | ✅ | `useUpdateUser({ isActive: false })` |
+| Benutzer-Aktionen: Löschen | Dropdown-Item | ✅ | `useDeleteUser()` |
 
 ---
 
-## 15. Login/Auth (`src/pages/AuthPage.tsx`)
+## 30. Login / Auth (`src/pages/AuthPage.tsx`)
 
 | Element | Typ | Status | Bemerkung |
 |---------|-----|--------|-----------|
 | E-Mail Input | Input | ✅ | `AuthContext.login()` |
 | Passwort Input | Input | ✅ | `AuthContext.login()` |
+| Angemeldet bleiben | Checkbox | ⚠️ | Token-Persistenz prüfen |
+| Passwort vergessen | Link | ⚠️ | Reset-Endpoint prüfen |
 | Anmelden Button | Button | ✅ | `POST /api/auth/login` |
-| Registrieren | Link/Form | ✅ | `POST /api/auth/register` |
-| Passwort vergessen | Link | ⚠️ | Prüfen ob Reset-Endpoint existiert |
-| Angemeldet bleiben | Checkbox | ⚠️ | Prüfen ob Token-Persistenz implementiert |
+| Registrieren Link | Link | ✅ | Wechselt zu Register-Form |
 
 ---
 
-## Zusammenfassung: Kritische Lücken
+## 31. Unternehmensprofil (`src/pages/Company.tsx`)
 
-### 🔴 Komplett fehlend (Backend-Endpoints fehlen)
-1. **Settings** – Alle Tabs (Lokalisierung, Währung, E-Mail, API, Sicherheit) = pure Frontend-Shell
-2. **Aufgaben: Subtasks** – Kein Subtask-Modell
-3. **Aufgaben: Kommentare** – Kein Comment-Endpoint
-4. **Aufgaben: Anhänge** – Kein Attachment-Endpoint
-5. **Kunden: Aktivitäten-Tab** – Kein Activity-Log per Entity
-6. **Dokumente: Teilen** – Kein Sharing-Mechanismus
-7. **Zahlungen: Beleg anzeigen** – Kein File-Attachment für Payments
-8. **Company: Logo-Upload** – Kein Upload-Endpoint
-9. **Company: Description** – Feld fehlt im Prisma-Modell
+| Element | Typ | Status | Bemerkung |
+|---------|-----|--------|-----------|
+| Firmendaten-Formular | Form | ✅ | `useCompany()` + `useUpdateCompany()` |
+| Stat-Card Mitarbeiter | Stat-Card | ❌ | Zeigt immer "—" – kein Endpoint |
+| Stat-Card Gegründet | Stat-Card | ✅ | Aus `company.createdAt` |
+| Stat-Card Projekte | Stat-Card | ✅ | `useDashboardStats().activeProjects` |
+| Stat-Card Kunden | Stat-Card | ✅ | `useDashboardStats().customerCount` |
+| Führungsteam | List | ✅ | `useCompanyTeam()` |
+| Mitglied hinzufügen | Dialog | ✅ | `useAddTeamMember()` |
+| Mitglied entfernen | Button | ✅ | `useRemoveTeamMember()` |
+| Logo-Upload | Button | ❌ | **Kein Upload-Endpoint** |
+| Unternehmensbeschreibung | Textarea | ❌ | **Feld fehlt im Prisma-Modell** |
+| Land/Country | Display | ❌ | Kein Eingabefeld, Fallback "CH" |
 
-### 🟡 Teilweise / Prüfung nötig (Backend ggf. vorhanden)
-1. **Dashboard: Auslastung** – Berechnungslogik prüfen
-2. **Kalender-Widget auf Dashboard** – Datenquelle prüfen
-3. **Alle PDF-Generierungen** – Endpoints prüfen (jspdf ist client-seitig installiert)
-4. **E-Mail-Versand** (Angebote, Rechnungen senden) – SMTP-Config prüfen
-5. **Kundendetails: Relationen-Tabs** – Filter nach `customerId` testen
-6. **Angebote: Duplizieren** – Endpoint prüfen
-7. **Bank-Sync** – `use-bank-import.ts` Funktionalität prüfen
-8. **Projekt-Chat** – Kein erkennbares Chat-Backend
-9. **Projekt-Timeline/Meilensteine** – Backend-Modell prüfen
+---
+
+## Zusammenfassung
+
+### 🔴 Komplett fehlend (kein Backend)
+
+1. **Settings** – Alle 6 Tabs (Lokalisierung, Währung, E-Mail, API, Sicherheit, Shop) = pure Frontend-Shell
+2. **Task-Subtasks** – Kein Subtask-Modell
+3. **Task-Kommentare** – Kein Comment-Endpoint
+4. **Task-Anhänge** – Kein Attachment-Endpoint
+5. **Kunden-Aktivitäten-Tab** – Kein Activity-Log per Entity
+6. **Dokument-Teilen** – Kein Sharing-Mechanismus
+7. **Zahlungen-Beleg** – Kein File-Attachment für Payments
+8. **Company-Logo-Upload** – Kein Upload-Endpoint
+9. **Company-Description** – Prisma-Feld fehlt
+10. **Company-Mitarbeiterzahl** – Stat zeigt "—"
+
+### 🟡 Client-seitige Stats (sollten Backend-Endpoints werden)
+
+1. `useCustomerStats()` – lädt alle Kunden (pageSize:1000)
+2. `useInvoiceStats()` – lädt alle Rechnungen (pageSize:1000)
+3. `useProductStats()` – lädt alle Produkte (pageSize:1000)
+4. `useSupplierStats()` – lädt alle Lieferanten (pageSize:1000)
 
 ### 🔴 Build-Errors (TypeScript)
-1. `Calendar.tsx:546` – `attendee` possibly null
-2. `ContractCreate.tsx:47` – `name` not in `Partial<Contract>`
-3. `Creditors.tsx:392` – `bill.creditor` possibly null
-4. `Debtors.tsx:412` – `invoice.debtor` possibly null
-5. `DiscountDetail.tsx:260` – `usage.customer` possibly null
-6. `Production.tsx:434` – `m` possibly null
-7. `PurchaseInvoiceDetail.tsx:241` – `entry.user` possibly null
-8. `PurchaseOrderDetail.tsx:638` – `entry.user` possibly null
-9. `Reminders.tsx` – Multiple null-check errors (10+ Stellen)
 
-### 🟡 Stats-Berechnung suboptimal
-- `useCustomerStats()` lädt alle Kunden (pageSize: 1000) und berechnet client-seitig → **Backend-Stats-Endpoint nötig**
-- `useInvoiceStats()` lädt alle Rechnungen (pageSize: 1000) und berechnet client-seitig → **Backend-Stats-Endpoint nötig**
+| Datei | Zeile(n) | Fehler |
+|-------|----------|--------|
+| Calendar.tsx | 546, 550 | `attendee` possibly null |
+| ContractCreate.tsx | 47 | `name` not in `Partial<Contract>` (sollte `title` sein) |
+| Creditors.tsx | 392 | `bill.creditor` possibly null |
+| Debtors.tsx | 412 | `invoice.debtor` possibly null |
+| DiscountDetail.tsx | 260 | `usage.customer` possibly null |
+| Production.tsx | 434 | `m` possibly null |
+| PurchaseInvoiceDetail.tsx | 241 | `entry.user` possibly null |
+| PurchaseOrderDetail.tsx | 638 | `entry.user` possibly null |
+| Reminders.tsx | 561, 653-654, 754, 779, 809, 1015 | Multiple null-checks (customer, invoice) |
+
+### ⚠️ Prüfung nötig (Backend vorhanden, Funktion nicht getestet)
+
+1. Alle PDF-Generierungen (jspdf client-seitig)
+2. E-Mail-Versand (Angebote, Rechnungen, Mahnungen)
+3. Drag&Drop Persistenz bei Kanban (Tasks)
+4. Kundendetails: Relations-Tabs (Projekte, Rechnungen, Verträge)
+5. Passwort-Reset Flow
+6. Projekt-Chat tatsächliche Funktion
+7. Projekt-Timeline/Meilensteine
 
 ---
 
 ## Cursor-Prompt Reihenfolge (Empfehlung)
 
-1. **Zuerst:** TypeScript Build-Errors fixen (Null-Checks, Type-Mismatches)
-2. **Dann:** Fehlende Backend-Stats-Endpoints (`/customers/stats`, `/invoices/stats`)
-3. **Dann:** Company-Ergänzungen (description, logo-upload, country)
-4. **Dann:** Settings-Backend aufbauen (Tab für Tab)
-5. **Dann:** Fehlende Relationen (Subtasks, Kommentare, Activity-Log)
-6. **Zuletzt:** PDF-Generierung, E-Mail-Versand, Bank-Sync validieren
+### Phase 1: Build-Errors fixen (Null-Checks + Type-Mismatches)
+- Alle 10 Dateien mit TypeScript-Fehlern
+
+### Phase 2: Stats-Endpoints optimieren
+- `/customers/stats`, `/invoices/stats`, `/products/stats`, `/suppliers/stats`
+
+### Phase 3: Company-Ergänzungen
+- `description` Feld, Logo-Upload, Country-Input, Mitarbeiterzahl
+
+### Phase 4: Settings-Backend
+- Tab für Tab aufbauen (Priorität: E-Mail/SMTP, dann Lokalisierung)
+
+### Phase 5: Fehlende Aufgaben-Features
+- Subtasks, Kommentare, Anhänge
+
+### Phase 6: Validierung & E2E
+- PDF-Generierung, E-Mail-Versand, Bank-Sync, Relations testen
