@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -18,21 +19,40 @@ import {
   AlertCircle,
   FolderKanban,
   Users,
-  Loader2
+  Loader2,
+  Plus,
+  Send,
+  Upload,
+  Download,
+  Eye,
+  X,
+  FileText,
+  Image,
+  File as FileIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Offen": { color: "bg-muted text-muted-foreground", icon: CheckSquare },
@@ -68,10 +88,33 @@ const statusOptions = [
   { value: "DONE", label: "Erledigt" },
 ];
 
+const priorityOptions = [
+  { value: "LOW", label: "Niedrig" },
+  { value: "MEDIUM", label: "Mittel" },
+  { value: "HIGH", label: "Hoch" },
+];
+
 const TaskDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dialog states
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showSubtaskDialog, setShowSubtaskDialog] = useState(false);
+  const [showTimeDialog, setShowTimeDialog] = useState(false);
+
+  // Form states
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [editPriority, setEditPriority] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [timeMinutes, setTimeMinutes] = useState("");
+  const [timeDescription, setTimeDescription] = useState("");
 
   const { data: task, isLoading, error } = useQuery({
     queryKey: ["/tasks", id],
@@ -103,6 +146,52 @@ const TaskDetail = () => {
     },
   });
 
+  // Subtask mutation
+  const addSubtaskMutation = useMutation({
+    mutationFn: (data: { title: string }) => api.post(`/tasks/${id}/subtasks`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks", id] });
+      toast.success("Unteraufgabe hinzugefügt");
+      setNewSubtaskTitle("");
+      setShowSubtaskDialog(false);
+    },
+    onError: () => toast.error("Fehler beim Hinzufügen der Unteraufgabe"),
+  });
+
+  // Comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: (data: { content: string }) => api.post(`/tasks/${id}/comments`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks", id] });
+      toast.success("Kommentar hinzugefügt");
+      setCommentText("");
+    },
+    onError: () => toast.error("Fehler beim Hinzufügen des Kommentars"),
+  });
+
+  // Time entry mutation
+  const addTimeMutation = useMutation({
+    mutationFn: (data: { duration: number; description?: string }) => api.post(`/tasks/${id}/time-entries`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks", id] });
+      toast.success("Zeit gebucht");
+      setTimeMinutes("");
+      setTimeDescription("");
+      setShowTimeDialog(false);
+    },
+    onError: () => toast.error("Fehler beim Buchen der Zeit"),
+  });
+
+  // Attachment mutation
+  const addAttachmentMutation = useMutation({
+    mutationFn: (formData: FormData) => api.upload(`/tasks/${id}/attachments`, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks", id] });
+      toast.success("Datei angehängt");
+    },
+    onError: () => toast.error("Fehler beim Anhängen der Datei"),
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -130,7 +219,7 @@ const TaskDetail = () => {
   const StatusIcon = status.icon;
 
   const subtasks = task.subtasks || [];
-  const completedSubtasks = subtasks.filter((s: any) => s.isCompleted).length;
+  const completedSubtasks = subtasks.filter((s: any) => s.isCompleted || s.status === 'DONE').length;
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
   const timeEntries = task.timeEntries || [];
@@ -138,6 +227,9 @@ const TaskDetail = () => {
   const loggedHours = Math.round((loggedMinutes / 60) * 10) / 10;
   const estimatedHours = task.estimatedHours ? Number(task.estimatedHours) : 0;
   const timePercent = estimatedHours > 0 ? Math.round((loggedHours / estimatedHours) * 100) : 0;
+
+  const comments = task.comments || [];
+  const attachments = task.attachments || [];
 
   const assigneeName = task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : "Nicht zugewiesen";
   const assigneeInitials = task.assignee ? `${task.assignee.firstName.charAt(0)}${task.assignee.lastName.charAt(0)}` : "–";
@@ -163,6 +255,58 @@ const TaskDetail = () => {
     }
   };
 
+  const openEditDialog = () => {
+    setEditTitle(task.title || "");
+    setEditDescription(task.description || "");
+    setEditStatus(task.status || "TODO");
+    setEditPriority(task.priority || "MEDIUM");
+    setEditDueDate(task.dueDate ? task.dueDate.split('T')[0] : "");
+    setShowEditDialog(true);
+  };
+
+  const handleEditSave = () => {
+    const payload: any = { title: editTitle };
+    if (editDescription) payload.description = editDescription;
+    if (editStatus) payload.status = editStatus;
+    if (editPriority) payload.priority = editPriority;
+    if (editDueDate) payload.dueDate = editDueDate;
+    updateMutation.mutate(payload);
+    setShowEditDialog(false);
+  };
+
+  const handleAddComment = () => {
+    if (!commentText.trim()) return;
+    addCommentMutation.mutate({ content: commentText.trim() });
+  };
+
+  const handleAddSubtask = () => {
+    if (!newSubtaskTitle.trim()) return;
+    addSubtaskMutation.mutate({ title: newSubtaskTitle.trim() });
+  };
+
+  const handleAddTime = () => {
+    const mins = parseInt(timeMinutes);
+    if (!mins || mins <= 0) return;
+    addTimeMutation.mutate({ duration: mins, description: timeDescription || undefined });
+  };
+
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    Array.from(files).forEach((file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      addAttachmentMutation.mutate(formData);
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType?.startsWith('image/')) return Image;
+    if (mimeType === 'application/pdf') return FileText;
+    return FileIcon;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -175,7 +319,7 @@ const TaskDetail = () => {
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-sm font-mono text-muted-foreground">{task.id.substring(0, 12)}</span>
+              <span className="text-sm font-mono text-muted-foreground">{task.number || task.id.substring(0, 12)}</span>
               <Badge className={status.color}>
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {statusLabel}
@@ -190,7 +334,7 @@ const TaskDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={openEditDialog}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
@@ -240,7 +384,8 @@ const TaskDetail = () => {
                   {completedSubtasks} von {subtasks.length} erledigt
                 </p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setShowSubtaskDialog(true)}>
+                <Plus className="h-4 w-4 mr-1" />
                 Hinzufügen
               </Button>
             </CardHeader>
@@ -251,15 +396,15 @@ const TaskDetail = () => {
                   <div 
                     key={subtask.id} 
                     className={`flex items-center gap-3 p-3 rounded-lg border ${
-                      subtask.isCompleted ? "bg-success/5 border-success/20" : "bg-muted/50"
+                      subtask.isCompleted || subtask.status === 'DONE' ? "bg-success/5 border-success/20" : "bg-muted/50"
                     }`}
                   >
                     <div className={`flex h-5 w-5 items-center justify-center rounded ${
-                      subtask.isCompleted ? "bg-success text-success-foreground" : "border-2 border-muted-foreground/30"
+                      subtask.isCompleted || subtask.status === 'DONE' ? "bg-success text-success-foreground" : "border-2 border-muted-foreground/30"
                     }`}>
-                      {subtask.isCompleted && <CheckCircle2 className="h-3 w-3" />}
+                      {(subtask.isCompleted || subtask.status === 'DONE') && <CheckCircle2 className="h-3 w-3" />}
                     </div>
-                    <span className={subtask.isCompleted ? "line-through text-muted-foreground" : ""}>
+                    <span className={(subtask.isCompleted || subtask.status === 'DONE') ? "line-through text-muted-foreground" : ""}>
                       {subtask.title}
                     </span>
                   </div>
@@ -278,13 +423,36 @@ const TaskDetail = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
-                Kommentare (0)
+                Kommentare ({comments.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Kommentare sind noch nicht verfügbar.
-              </p>
+              {comments.length > 0 ? (
+                <div className="space-y-4">
+                  {comments.map((comment: any) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs">
+                          {comment.author ? `${comment.author.firstName?.[0] || ''}${comment.author.lastName?.[0] || ''}` : '–'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {comment.author ? `${comment.author.firstName} ${comment.author.lastName}` : 'Unbekannt'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{formatDate(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-sm mt-1">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Noch keine Kommentare vorhanden
+                </p>
+              )}
 
               <Separator className="my-4" />
 
@@ -293,8 +461,24 @@ const TaskDetail = () => {
                   <AvatarFallback className="text-xs">–</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 space-y-2">
-                  <Textarea placeholder="Kommentar schreiben..." className="min-h-[80px]" />
-                  <Button size="sm" disabled>Kommentar hinzufügen</Button>
+                  <Textarea 
+                    placeholder="Kommentar schreiben..." 
+                    className="min-h-[80px]"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                  />
+                  <Button 
+                    size="sm" 
+                    disabled={!commentText.trim() || addCommentMutation.isPending}
+                    onClick={handleAddComment}
+                  >
+                    {addCommentMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-1" />
+                    )}
+                    Kommentar hinzufügen
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -316,7 +500,7 @@ const TaskDetail = () => {
                       <div className="flex-1">
                         <p className="text-sm">{entry.description || "Zeitbuchung"}: {entry.duration} Min.</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{formatDate(entry.date)}</span>
+                          <span>{formatDate(entry.date || entry.createdAt)}</span>
                           <span>•</span>
                           <span>{entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : "–"}</span>
                         </div>
@@ -407,7 +591,7 @@ const TaskDetail = () => {
               <p className="text-xs text-muted-foreground text-center">
                 {timePercent}% der geschätzten Zeit
               </p>
-              <Button variant="outline" size="sm" className="w-full">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowTimeDialog(true)}>
                 <Clock className="h-4 w-4 mr-2" />
                 Zeit buchen
               </Button>
@@ -419,14 +603,59 @@ const TaskDetail = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <Paperclip className="h-4 w-4" />
-                Anhänge (0)
+                Anhänge ({attachments.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Keine Anhänge vorhanden
-              </p>
-              <Button variant="outline" size="sm" className="w-full mt-3">
+              {attachments.length > 0 ? (
+                <div className="space-y-2 mb-3">
+                  {attachments.map((att: any) => {
+                    const AttFileIcon = getFileIcon(att.mimeType || '');
+                    return (
+                      <div key={att.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 group">
+                        <AttFileIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1 truncate">{att.fileName || att.name}</span>
+                        {att.fileUrl && (
+                          <a
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Keine Anhänge vorhanden
+                </p>
+              )}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileAttach}
+                multiple
+                className="hidden"
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full mt-3"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={addAttachmentMutation.isPending}
+              >
+                {addAttachmentMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Upload className="h-4 w-4 mr-2" />
+                )}
                 Datei anhängen
               </Button>
             </CardContent>
@@ -441,7 +670,7 @@ const TaskDetail = () => {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {(task.tags || []).map((tag: any) => (
-                    <Badge key={tag.id} variant="outline">{tag.name}</Badge>
+                    <Badge key={tag.id || tag} variant="outline">{tag.name || tag}</Badge>
                   ))}
                 </div>
               </CardContent>
@@ -449,6 +678,123 @@ const TaskDetail = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Aufgabe bearbeiten</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Titel</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Beschreibung</Label>
+              <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Priorität</Label>
+                <Select value={editPriority} onValueChange={setEditPriority}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Fällig am</Label>
+              <Input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Abbrechen</Button>
+            <Button onClick={handleEditSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subtask Dialog */}
+      <Dialog open={showSubtaskDialog} onOpenChange={setShowSubtaskDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unteraufgabe hinzufügen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Titel</Label>
+              <Input 
+                value={newSubtaskTitle} 
+                onChange={(e) => setNewSubtaskTitle(e.target.value)} 
+                placeholder="Unteraufgabe..."
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSubtaskDialog(false)}>Abbrechen</Button>
+            <Button onClick={handleAddSubtask} disabled={!newSubtaskTitle.trim() || addSubtaskMutation.isPending}>
+              {addSubtaskMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Hinzufügen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Time Dialog */}
+      <Dialog open={showTimeDialog} onOpenChange={setShowTimeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Zeit buchen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Dauer (Minuten)</Label>
+              <Input 
+                type="number" 
+                value={timeMinutes} 
+                onChange={(e) => setTimeMinutes(e.target.value)} 
+                placeholder="z.B. 60"
+                min="1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Beschreibung (optional)</Label>
+              <Input 
+                value={timeDescription} 
+                onChange={(e) => setTimeDescription(e.target.value)} 
+                placeholder="Was wurde gemacht?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTimeDialog(false)}>Abbrechen</Button>
+            <Button onClick={handleAddTime} disabled={!timeMinutes || addTimeMutation.isPending}>
+              {addTimeMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Buchen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
