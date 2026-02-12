@@ -1011,22 +1011,293 @@
 
 ---
 
-## Cursor-Prompt Reihenfolge (Empfehlung)
+## Cursor-Prompts (Kopierbar)
 
-### Phase 1: Build-Errors fixen (Null-Checks + Type-Mismatches)
-- Alle 10 Dateien mit TypeScript-Fehlern
+> **WICHTIG:** Jeder Prompt ist einzeln an Cursor zu übergeben. Reihenfolge einhalten.
+> **REGEL FÜR ALLE PROMPTS:** NUR Dateien in `/src` ändern. KEIN Backend (`/backend`), KEINE `schema.prisma`, KEIN `package.json`. Design (JSX-Struktur, CSS, Tailwind-Klassen) darf NICHT verändert werden.
 
-### Phase 2: Stats-Endpoints optimieren
-- `/customers/stats`, `/invoices/stats`, `/products/stats`, `/suppliers/stats`
+---
 
-### Phase 3: Company-Ergänzungen
-- `description` Feld, Logo-Upload, Country-Input, Mitarbeiterzahl
+### 🔧 Phase 1: TypeScript Build-Errors fixen
 
-### Phase 4: Settings-Backend
-- Tab für Tab aufbauen (Priorität: E-Mail/SMTP, dann Lokalisierung)
+```
+**Aufgabe:** Behebe alle TypeScript Build-Errors in den folgenden Dateien. NUR Null-Checks und Type-Mismatches fixen. KEIN Design, KEIN JSX, KEIN CSS ändern. NUR `/src` Dateien anfassen – KEIN Backend.
 
-### Phase 5: Fehlende Aufgaben-Features
-- Subtasks, Kommentare, Anhänge
+**Regeln:**
+- Verwende Optional Chaining (?.) und Nullish Coalescing (?? "") für null-checks
+- KEIN Design ändern – gleiche Ausgabe wie vorher
+- KEIN Backend-Code anfassen
 
-### Phase 6: Validierung & E2E
-- PDF-Generierung, E-Mail-Versand, Bank-Sync, Relations testen
+**Fehler und Fixes:**
+
+1. **src/pages/ContractCreate.tsx Zeile 47:**
+   - Fehler: `'name' does not exist in type 'Partial<Contract>'`
+   - Fix: Ändere `name: title` zu `title: title` (oder kurz `title,`)
+   - Das Interface `Contract` in `src/hooks/use-contracts.ts` hat das Feld `title`, nicht `name`
+
+2. **src/pages/Calendar.tsx Zeile 546, 550:**
+   - Fehler: `'attendee' is possibly 'null'`
+   - Fix: Füge Null-Guards hinzu:
+     - Zeile 546: `attendee?.id || attendee?.name` → schon mit `?.` aber TypeScript braucht expliziten Guard
+     - Lösung: `key={typeof attendee === 'object' && attendee ? attendee.id || attendee.name : String(attendee)}`
+     - Zeile 550: gleicher Pattern für `attendee?.name?.[0]` → `(attendee && typeof attendee === 'object') ? (attendee.name?.[0] || attendee.email?.[0] || '?') : (String(attendee)?.[0] || '?')`
+
+3. **src/pages/Creditors.tsx Zeile 392:**
+   - Fehler: `'bill.creditor' is possibly 'null'`
+   - Fix: `typeof bill.creditor === 'object' && bill.creditor ? bill.creditor.name || bill.creditor.companyName : (bill.creditor || "")`
+
+4. **src/pages/Debtors.tsx Zeile 412:**
+   - Fehler: `'invoice.debtor' is possibly 'null'`
+   - Fix: `typeof invoice.debtor === 'object' && invoice.debtor ? invoice.debtor.name || invoice.debtor.companyName : (invoice.debtor || "")`
+
+5. **src/pages/DiscountDetail.tsx Zeile 260:**
+   - Fehler: `'usage.customer' is possibly 'null'`
+   - Fix: `typeof usage.customer === 'object' && usage.customer ? usage.customer.name || usage.customer.companyName : (usage.customer || "")`
+
+6. **src/pages/Production.tsx Zeile 434:**
+   - Fehler: `'m' is possibly 'null'`
+   - Fix: `order.assignedTeam.filter(Boolean).map(m => typeof m === 'object' && m ? m.name || m.firstName : String(m || "")).join(", ")`
+
+7. **src/pages/PurchaseInvoiceDetail.tsx Zeile 241:**
+   - Fehler: `'entry.user' is possibly 'null'`
+   - Fix: `typeof entry.user === 'object' && entry.user ? entry.user.name || entry.user.email : (entry.user || "")`
+
+8. **src/pages/PurchaseOrderDetail.tsx Zeile 638:**
+   - Fehler: `'entry.user' is possibly 'null'`
+   - Fix: `typeof entry.user === 'object' && entry.user ? entry.user.name || entry.user.email : (entry.user || "")`
+
+9. **src/pages/Reminders.tsx – MEHRERE STELLEN:**
+   - Zeile 561: `invoice.customer` → `typeof invoice.customer === 'object' && invoice.customer ? invoice.customer.name || invoice.customer.companyName : (invoice.customer || "")`
+   - Zeile 653: `r.customer` → gleicher Pattern
+   - Zeile 654: `r.invoice` → `typeof r.invoice === 'object' && r.invoice ? r.invoice.number || r.invoice.id : (r.invoice || "")`
+   - Zeile 754: `r.customer` → gleicher Pattern wie 653
+   - Zeile 779: `selectedReminderData[0]?.customer` → mit Guard: `const firstReminder = selectedReminderData[0]; const customerName = firstReminder && typeof firstReminder.customer === 'object' && firstReminder.customer ? firstReminder.customer.name || firstReminder.customer.companyName : (firstReminder?.customer || "");` – dann `customerName` verwenden
+   - Zeile 809: `selectedReminderData[0]?.invoice` → gleicher Pattern: Variable vorher extrahieren
+   - Zeile 1015: `invoice.customer` → gleicher Pattern wie 561
+
+**Nach dem Fix:** `npx tsc --noEmit` ausführen und sicherstellen, dass KEINE Build-Errors mehr vorhanden sind.
+```
+
+---
+
+### 🔧 Phase 2: Dedizierte Stats-Endpoints (Backend)
+
+```
+**Aufgabe:** Erstelle dedizierte Stats-Endpoints, damit das Frontend nicht mehr alle Datensätze laden muss (aktuell pageSize:1000).
+
+**NUR Backend-Dateien ändern (`/backend`).** Frontend-Hooks bleiben unverändert.
+
+**Zu erstellen:**
+
+1. **GET /api/customers/stats** → Response: `{ total, active, inactive, prospects, totalRevenue }`
+2. **GET /api/invoices/stats** → Response: `{ total, totalValue, paid, paidValue, outstanding, outstandingValue, overdue, overdueValue }`
+3. **GET /api/products/stats** → Response: `{ total, active, inactive, lowStock, totalValue }`
+4. **GET /api/suppliers/stats** → Response: `{ total, active, totalPurchaseVolume }`
+
+**Vorgehen pro Endpoint:**
+- Neuen Controller-Method mit `@Get('stats')` erstellen
+- Service-Method mit Prisma `count()` und `aggregate()` Queries
+- KEINE Frontend-Dateien ändern – das Frontend wird später angepasst
+
+**Referenz Frontend-Hooks (NUR LESEN, NICHT ÄNDERN):**
+- `src/hooks/use-customers.ts` → `useCustomerStats()`
+- `src/hooks/use-invoices.ts` → `useInvoiceStats()`
+- `src/hooks/use-products.ts` → `useProductStats()`
+- `src/hooks/use-suppliers.ts` → `useSupplierStats()`
+```
+
+---
+
+### 🔧 Phase 3: Company-Ergänzungen (Backend)
+
+```
+**Aufgabe:** Fehlende Felder und Endpoints für die Company-Seite implementieren.
+
+**NUR `/backend` und `schema.prisma` ändern. KEIN Frontend.**
+
+1. **Prisma-Schema (`schema.prisma`):**
+   - Feld `description String?` zum Model `Company` hinzufügen
+   - Migration: `npx prisma migrate dev --name add-company-description`
+
+2. **UpdateCompanyDto (`backend/src/modules/company/dto/`):**
+   - `description?: string` hinzufügen
+   - `country?: string` sicherstellen
+
+3. **GET /api/dashboard/stats:**
+   - Feld `employeeCount` hinzufügen: `await prisma.companyTeamMember.count({ where: { companyId } })`
+
+4. **POST /api/company/logo:**
+   - Multipart/form-data Endpoint
+   - Speichert Datei in `/uploads/logos/`
+   - Aktualisiert `company.logoUrl`
+   - Response: aktualisierte Company
+
+**Referenz Frontend-Hooks (NUR LESEN):**
+- `src/hooks/use-company.ts` → `useCompany()`, `useUpdateCompany()`
+- `src/hooks/use-dashboard.ts` → `useDashboardStats()`
+```
+
+---
+
+### 🔧 Phase 4: Settings-Backend (6 Tabs)
+
+```
+**Aufgabe:** Backend für alle 6 Settings-Tabs implementieren. Aktuell ist die Settings-Seite reine Frontend-Shell ohne Backend-Anbindung.
+
+**NUR `/backend` und `schema.prisma` ändern. KEIN Frontend.**
+
+**Prisma-Schema – Neues Model `CompanySettings`:**
+```prisma
+model CompanySettings {
+  id          String   @id @default(uuid())
+  companyId   String   @unique
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  // Lokalisierung
+  language    String   @default("de")
+  timezone    String   @default("Europe/Zurich")
+  dateFormat  String   @default("DD.MM.YYYY")
+  
+  // Währung
+  currency       String  @default("CHF")
+  exchangeRates  Json?
+  
+  // E-Mail/SMTP
+  smtpHost     String?
+  smtpPort     Int?
+  smtpUser     String?
+  smtpPassword String?
+  smtpFrom     String?
+  smtpFromName String?
+  smtpSsl      Boolean @default(true)
+  
+  // Sicherheit
+  twoFactorEnabled    Boolean @default(false)
+  sessionTimeoutMin   Int     @default(480)
+  passwordMinLength   Int     @default(8)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+
+**Endpoints:**
+- `GET /api/settings` → Gibt CompanySettings zurück
+- `PUT /api/settings` → Aktualisiert CompanySettings
+- `POST /api/settings/smtp/test` → Sendet Test-E-Mail
+- `GET /api/settings/api-keys` → Liste API-Keys
+- `POST /api/settings/api-keys` → Neuen API-Key erstellen
+- `DELETE /api/settings/api-keys/:id` → API-Key löschen
+
+**Referenz Frontend (NUR LESEN):**
+- `src/pages/Settings.tsx` – 3017 Zeilen, enthält alle Tab-Formulare
+- Hooks müssen eventuell noch erstellt werden: `src/hooks/use-settings.ts`
+```
+
+---
+
+### 🔧 Phase 5: Task-Features (Subtasks, Kommentare, Anhänge)
+
+```
+**Aufgabe:** Fehlende Task-Sub-Features im Backend implementieren.
+
+**NUR `/backend` und `schema.prisma` ändern. KEIN Frontend.**
+
+**Prisma-Schema – Neue Models:**
+
+```prisma
+model TaskSubtask {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title     String
+  completed Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaskAttachment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  uploadedById String
+  uploadedBy   User  @relation(fields: [uploadedById], references: [id])
+  createdAt DateTime @default(now())
+}
+```
+
+**Endpoints:**
+- `GET /api/tasks/:id/subtasks` → Liste Subtasks
+- `POST /api/tasks/:id/subtasks` → Erstelle Subtask
+- `PATCH /api/tasks/:id/subtasks/:subtaskId` → Toggle completed / Update title
+- `DELETE /api/tasks/:id/subtasks/:subtaskId` → Lösche Subtask
+
+- `GET /api/tasks/:id/comments` → Liste Kommentare
+- `POST /api/tasks/:id/comments` → Erstelle Kommentar
+- `DELETE /api/tasks/:id/comments/:commentId` → Lösche Kommentar
+
+- `GET /api/tasks/:id/attachments` → Liste Anhänge
+- `POST /api/tasks/:id/attachments` → Upload Anhang (multipart)
+- `DELETE /api/tasks/:id/attachments/:attachmentId` → Lösche Anhang + Datei
+
+**Referenz Frontend (NUR LESEN):**
+- `src/pages/TaskDetail.tsx` – enthält UI für Subtasks, Kommentare, Anhänge
+- `src/hooks/use-tasks.ts` – bestehende Task-Hooks
+```
+
+---
+
+### 🔧 Phase 6: Frontend-Hooks für Stats anpassen
+
+```
+**Aufgabe:** Nach Phase 2 (Stats-Endpoints) die Frontend-Hooks umstellen, damit sie die neuen dedizierten Endpoints nutzen statt alle Daten zu laden.
+
+**NUR `/src/hooks/` ändern. KEIN Design, KEIN JSX, KEIN CSS.**
+
+**Dateien:**
+1. `src/hooks/use-customers.ts` → `useCustomerStats()` auf `GET /api/customers/stats` umstellen (statt pageSize:1000)
+2. `src/hooks/use-invoices.ts` → `useInvoiceStats()` auf `GET /api/invoices/stats` umstellen
+3. `src/hooks/use-products.ts` → `useProductStats()` auf `GET /api/products/stats` umstellen
+4. `src/hooks/use-suppliers.ts` → `useSupplierStats()` auf `GET /api/suppliers/stats` umstellen
+
+**Pattern:**
+```ts
+export function useCustomerStats() {
+  return useQuery({
+    queryKey: ['customers', 'stats'],
+    queryFn: () => api.get('/customers/stats').then(r => r.data),
+  });
+}
+```
+
+**WICHTIG:** Die Response-Typen müssen exakt die gleichen Felder liefern wie die bisherige client-seitige Berechnung, damit das Frontend ohne Änderung funktioniert.
+```
+
+---
+
+### Phasen-Reihenfolge
+
+| Phase | Wer | Was | Abhängigkeit |
+|-------|-----|-----|-------------|
+| 1 | Cursor | Build-Errors fixen (nur `/src`) | Keine |
+| 2 | Cursor | Stats-Endpoints Backend | Keine |
+| 3 | Cursor | Company-Backend | Keine |
+| 4 | Cursor | Settings-Backend | Keine |
+| 5 | Cursor | Task-Features Backend | Keine |
+| 6 | Cursor | Frontend-Hooks Stats | Phase 2 muss fertig sein |
