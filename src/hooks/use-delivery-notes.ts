@@ -150,3 +150,11 @@ export function useDeleteDeliveryNote() {
     },
   });
 }
+
+// Delivery note statistics
+export function useDeliveryNoteStats() {
+  return useQuery({
+    queryKey: [QUERY_KEY, 'stats'],
+    queryFn: () => api.get<{ total: number; draft: number; shipped: number; delivered: number }>('/delivery-notes/stats'),
+  });
+}

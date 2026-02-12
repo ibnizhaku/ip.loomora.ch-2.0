@@ -97,3 +97,60 @@ export function useCustomerStats() {
     isLoading,
   };
 }
+
+// Customer contacts
+export interface CustomerContact {
+  id: string;
+  customerId: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  position?: string;
+  department?: string;
+  isPrimary: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export function useCustomerContacts(customerId: string | undefined) {
+  return useQuery({
+    queryKey: [QUERY_KEY, customerId, 'contacts'],
+    queryFn: () => api.get<CustomerContact[]>(`/customers/${customerId}/contacts`),
+    enabled: !!customerId,
+  });
+}
+
+export function useCreateCustomerContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: string; data: Partial<CustomerContact> }) =>
+      api.post<CustomerContact>(`/customers/${customerId}/contacts`, data),
+    onSuccess: (_, { customerId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, customerId, 'contacts'] });
+    },
+  });
+}
+
+export function useUpdateCustomerContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, contactId, data }: { customerId: string; contactId: string; data: Partial<CustomerContact> }) =>
+      api.put<CustomerContact>(`/customers/${customerId}/contacts/${contactId}`, data),
+    onSuccess: (_, { customerId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, customerId, 'contacts'] });
+    },
+  });
+}
+
+export function useDeleteCustomerContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, contactId }: { customerId: string; contactId: string }) =>
+      api.delete(`/customers/${customerId}/contacts/${contactId}`),
+    onSuccess: (_, { customerId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, customerId, 'contacts'] });
+    },
+  });
+}

@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
+interface TaskComment {
+  id: string;
+  content: string;
+  authorId: string;
+  author?: { id: string; firstName: string; lastName: string };
+  createdAt: string;
+}
+
+interface TaskAttachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -14,6 +31,10 @@ interface Task {
   dueDate?: string;
   completedAt?: string;
   tags?: string[];
+  comments?: TaskComment[];
+  attachments?: TaskAttachment[];
+  subtasks?: Task[];
+  parentId?: string;
   createdAt: string;
 }
 
