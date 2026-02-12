@@ -379,12 +379,14 @@ export class QualityControlService {
       ? Math.round((passed / (passed + failed)) * 100) 
       : 100;
 
+    const pendingChecks = byStatus.find(s => s.status === 'PENDING')?._count || 0;
+
     return {
-      total,
+      totalChecks: total,
+      passedChecks: passed,
+      failedChecks: failed,
       passRate,
-      recentFailed,
-      byStatus: byStatus.map(s => ({ status: s.status, count: s._count })),
-      byType: byType.map(t => ({ type: t.type, count: t._count })),
+      pendingChecks,
     };
   }
 }

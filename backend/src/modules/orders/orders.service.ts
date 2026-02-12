@@ -47,6 +47,9 @@ export class OrdersService {
           project: {
             select: { id: true, number: true, name: true },
           },
+          items: {
+            select: { id: true, description: true, quantity: true, unitPrice: true, total: true, vatRate: true },
+          },
           _count: {
             select: { items: true, invoices: true, deliveryNotes: true },
           },

@@ -342,14 +342,34 @@ export class ServiceTicketsService {
       .filter(s => !['CLOSED', 'RESOLVED'].includes(s.status))
       .reduce((sum, s) => sum + s._count, 0);
 
+    // Completed this month
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const completedThisMonth = await this.prisma.serviceTicket.count({
+      where: { companyId, status: { in: ['CLOSED', 'RESOLVED'] }, updatedAt: { gte: monthStart } },
+    });
+
+    // Scheduled tickets (ASSIGNED status acts as scheduled)
+    const scheduledTickets = byStatus
+      .filter(s => (s.status as string) === 'ASSIGNED')
+      .reduce((sum, s) => sum + s._count, 0);
+
+    // Average resolution time (hours) - from completed tickets in last 30 days
+    const completedTickets = await this.prisma.serviceTicket.findMany({
+      where: { companyId, status: { in: ['CLOSED', 'RESOLVED'] }, updatedAt: { gte: weekAgo } },
+      select: { createdAt: true, updatedAt: true },
+    });
+    const avgResolution = completedTickets.length > 0
+      ? completedTickets.reduce((sum, t) => sum + (t.updatedAt.getTime() - t.createdAt.getTime()), 0) / completedTickets.length / (1000 * 60 * 60)
+      : 0;
+
     return {
-      total,
+      totalTickets: total,
       openTickets,
-      openUrgent,
-      scheduledToday,
-      byStatus: byStatus.map(s => ({ status: s.status, count: s._count })),
-      byPriority: byPriority.map(p => ({ priority: p.priority, count: p._count })),
-      byType: byType.map(t => ({ type: t.serviceType, count: t._count })),
+      scheduledTickets,
+      completedThisMonth,
+      averageResolutionTime: Math.round(avgResolution * 10) / 10,
     };
   }
 

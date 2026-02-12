@@ -184,6 +184,9 @@ model Company {
   bankName      String?
   description   String?
   logoUrl       String?
+  qrIban        String?       // Swiss QR-IBAN für QR-Rechnungen
+  defaultCurrency String     @default("CHF")
+  fiscalYearStart Int        @default(1)  // Monat 1-12
   
   // Multi-Tenant Status
   status        CompanyStatus @default(PENDING_PAYMENT)

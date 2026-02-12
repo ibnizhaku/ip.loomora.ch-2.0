@@ -535,15 +535,25 @@ export class BankImportService {
       }),
     ]);
 
+    // Today's reconciled count
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const reconciledToday = await this.prisma.bankTransaction.count({
+      where: { ...where, status: TransactionStatus.RECONCILED, updatedAt: { gte: todayStart } },
+    });
+
+    // Last import date
+    const lastImport = await this.prisma.bankTransaction.findFirst({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
     return {
-      total,
-      pending,
-      matched,
-      reconciled,
-      ignored,
-      reconciledCredits: creditSum._sum.amount || 0,
-      reconciledDebits: debitSum._sum.amount || 0,
-      reconciliationRate: total > 0 ? Math.round((reconciled / total) * 100) : 0,
+      pendingTransactions: pending,
+      reconciledToday,
+      totalImported: total,
+      lastImportDate: lastImport?.createdAt?.toISOString() || null,
     };
   }
 }

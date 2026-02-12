@@ -310,11 +310,17 @@ export class ProductionOrdersService {
       }),
     ]);
 
+    const inProgress = byStatus.find(s => s.status === 'IN_PROGRESS')?._count || 0;
+    const completed = byStatus.find(s => s.status === 'COMPLETED')?._count || 0;
+    const active = byStatus.filter(s => !['COMPLETED', 'CANCELLED'].includes(s.status as string))
+      .reduce((sum, s) => sum + s._count, 0);
+    const utilizationRate = total > 0 ? Math.round((active / total) * 100) : 0;
+
     return {
-      total,
-      overdue,
-      byStatus: byStatus.map(s => ({ status: s.status, count: s._count })),
-      byPriority: byPriority.map(p => ({ priority: p.priority, count: p._count })),
+      totalOrders: total,
+      inProgress,
+      completed,
+      utilizationRate,
     };
   }
 

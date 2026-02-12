@@ -271,11 +271,47 @@ export class TimeEntriesService {
       });
     }
 
+    // Billable hours (month)
+    const billableEntries = await this.prisma.timeEntry.aggregate({
+      where: {
+        companyId,
+        userId,
+        date: { gte: monthStart, lte: monthEnd },
+        isBillable: true,
+      },
+      _sum: { duration: true },
+    });
+
+    // Project breakdown (month)
+    const projectEntries = await this.prisma.timeEntry.groupBy({
+      by: ['projectId'],
+      where: {
+        companyId,
+        userId,
+        date: { gte: monthStart, lte: monthEnd },
+        projectId: { not: null },
+      },
+      _sum: { duration: true },
+    });
+
+    const projectIds = projectEntries.map(p => p.projectId).filter(Boolean) as string[];
+    const projects = projectIds.length > 0
+      ? await this.prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } })
+      : [];
+    const projectMap = new Map(projects.map(p => [p.id, p.name]));
+
+    const projectBreakdown = projectEntries.map(p => ({
+      projectId: p.projectId || '',
+      projectName: p.projectId ? (projectMap.get(p.projectId) || 'Unbekannt') : 'Kein Projekt',
+      hours: Math.round(((p._sum.duration || 0) / 60) * 10) / 10,
+    }));
+
     return {
-      today: todayEntries._sum.duration || 0,
-      week: weekEntries._sum.duration || 0,
-      month: monthEntries._sum.duration || 0,
-      weekBreakdown: weekDays,
+      todayHours: Math.round(((todayEntries._sum.duration || 0) / 60) * 10) / 10,
+      weekHours: Math.round(((weekEntries._sum.duration || 0) / 60) * 10) / 10,
+      monthHours: Math.round(((monthEntries._sum.duration || 0) / 60) * 10) / 10,
+      billableHours: Math.round(((billableEntries._sum?.duration || 0) / 60) * 10) / 10,
+      projectBreakdown,
     };
   }
 }

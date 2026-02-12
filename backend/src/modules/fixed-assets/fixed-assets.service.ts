@@ -394,22 +394,17 @@ export class FixedAssetsService {
     const totalBookValue = activeAssets.reduce((sum, a) => sum + Number(a.currentBookValue), 0);
     const totalDepreciation = totalAcquisitionCost - totalBookValue;
 
+    const categoryBreakdown = byCategory.map(c => ({
+      category: c.category,
+      count: c.count,
+      value: c.totalBookValue,
+    }));
+
     return {
       totalAssets: assets.length,
-      activeAssets: activeAssets.length,
-      totalAcquisitionCost,
-      totalBookValue,
+      totalValue: totalBookValue,
       totalDepreciation,
-      depreciationPercent: totalAcquisitionCost > 0 
-        ? (totalDepreciation / totalAcquisitionCost * 100).toFixed(1) 
-        : '0',
-      byCategory,
-      byStatus: {
-        active: assets.filter(a => a.status === AssetStatus.ACTIVE).length,
-        fullyDepreciated: assets.filter(a => a.status === AssetStatus.FULLY_DEPRECIATED).length,
-        disposed: assets.filter(a => a.status === AssetStatus.DISPOSED).length,
-        sold: assets.filter(a => a.status === AssetStatus.SOLD).length,
-      },
+      categoryBreakdown,
     };
   }
 }

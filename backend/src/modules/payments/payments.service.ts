@@ -267,21 +267,19 @@ export class PaymentsService {
       }),
     ]);
 
+    // Additional stats needed by frontend
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [pendingPayments, completedThisMonth] = await Promise.all([
+      this.prisma.payment.count({ where: { companyId, status: PaymentStatus.PENDING } }),
+      this.prisma.payment.count({ where: { companyId, status: PaymentStatus.COMPLETED, paymentDate: { gte: monthStart } } }),
+    ]);
+
     return {
-      incoming: {
-        count: incoming._count,
-        total: Number(incoming._sum.amount || 0),
-      },
-      outgoing: {
-        count: outgoing._count,
-        total: Number(outgoing._sum.amount || 0),
-      },
-      netCashflow: Number(incoming._sum.amount || 0) - Number(outgoing._sum.amount || 0),
-      byMethod: byMethod.map(m => ({
-        method: m.method,
-        count: m._count,
-        total: Number(m._sum.amount || 0),
-      })),
+      totalIncoming: Number(incoming._sum.amount || 0),
+      totalOutgoing: Number(outgoing._sum.amount || 0),
+      pendingPayments,
+      completedThisMonth,
     };
   }
 

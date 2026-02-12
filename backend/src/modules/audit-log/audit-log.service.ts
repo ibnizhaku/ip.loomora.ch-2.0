@@ -265,30 +265,29 @@ export class AuditLogService {
 
     const userMap = new Map(users.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
 
+    // Today's entries
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEntries = await this.prisma.auditLog.count({
+      where: { companyId, createdAt: { gte: todayStart } },
+    });
+
     return {
-      totalLogs,
-      period: `${days} Tage`,
-      byAction: byAction.map(a => ({
-        action: a.action,
-        count: a._count,
-      })),
-      byModule: byModule.map(m => ({
-        module: m.module,
-        count: m._count,
-      })),
+      totalEntries: totalLogs,
+      todayEntries,
+      topActions: byAction
+        .sort((a, b) => b._count - a._count)
+        .slice(0, 10)
+        .map(a => ({ action: a.action, count: a._count })),
       topUsers: byUser.map(u => ({
         userId: u.userId,
         userName: userMap.get(u.userId) || 'Unbekannt',
         count: u._count,
       })),
-      recentActivity: recentActivity.map(log => ({
-        id: log.id,
-        action: log.action,
-        module: log.module,
-        entityName: log.entityName,
-        userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System',
-        createdAt: log.createdAt,
-      })),
+      topEntities: byModule
+        .sort((a, b) => b._count - a._count)
+        .slice(0, 10)
+        .map(m => ({ entityType: m.module, count: m._count })),
     };
   }
 

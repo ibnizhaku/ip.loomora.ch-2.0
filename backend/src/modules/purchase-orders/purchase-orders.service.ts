@@ -254,16 +254,18 @@ export class PurchaseOrdersService {
       }),
     ]);
 
+    const statusMap = new Map<string, number>(byStatus.map(s => [s.status as string, s._count]));
+    const valueMap = new Map<string, number>(byStatus.map(s => [s.status as string, Number(s._sum.total || 0)]));
+    const pendingValue = (valueMap.get('DRAFT') || 0) + (valueMap.get('SENT') || 0);
+
     return {
-      total,
-      totalValue: totalValue._sum.total || 0,
-      byStatus: byStatus.map(s => ({
-        status: s.status,
-        count: s._count,
-        value: s._sum.total || 0,
-      })),
-      open: byStatus.filter(s => ['DRAFT', 'SENT', 'CONFIRMED'].includes(s.status as string))
-        .reduce((sum, s) => sum + s._count, 0),
+      totalOrders: total,
+      draftOrders: statusMap.get('DRAFT') || 0,
+      sentOrders: statusMap.get('SENT') || 0,
+      confirmedOrders: statusMap.get('CONFIRMED') || 0,
+      receivedOrders: statusMap.get('CANCELLED') || 0,
+      totalValue: Number(totalValue._sum.total || 0),
+      pendingValue,
     };
   }
 }

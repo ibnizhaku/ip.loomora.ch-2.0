@@ -287,13 +287,24 @@ export class TrainingService {
       }),
     ]);
 
+    // Upcoming trainings
+    const upcomingTrainings = await this.prisma.training.count({
+      where: { companyId, startDate: { gte: new Date() }, status: { not: TrainingStatus.COMPLETED } },
+    });
+
+    // Average rating from completed trainings
+    const ratings = await this.prisma.trainingParticipant.aggregate({
+      where: { training: { companyId, status: TrainingStatus.COMPLETED }, rating: { not: null } },
+      _avg: { rating: true },
+    });
+
     return {
       totalTrainings,
-      completedTrainings,
+      upcomingTrainings,
+      completedThisYear: completedTrainings,
       totalParticipants,
-      totalHours: totalHours._sum.durationHours || 0,
-      yearlyBudget: totalBudget._sum.totalBudget || 0,
-      yearlySpent: spentBudget._sum.totalBudget || 0,
+      averageRating: Math.round((ratings._avg.rating || 0) * 10) / 10,
+      totalCost: Number(spentBudget._sum.totalBudget || 0),
     };
   }
 

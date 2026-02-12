@@ -222,11 +222,14 @@ export class EcommerceService {
       }),
     ]);
 
+    const totalRevenue = Number(allTimeRevenue._sum.total || 0);
+    const averageOrderValue = totalOrders > 0 ? Math.round((totalRevenue / totalOrders) * 100) / 100 : 0;
+
     return {
       totalOrders,
       pendingOrders,
-      monthlyRevenue: monthlyRevenue._sum.total || 0,
-      allTimeRevenue: allTimeRevenue._sum.total || 0,
+      totalRevenue,
+      averageOrderValue,
     };
   }
 
@@ -524,10 +527,15 @@ export class EcommerceService {
       }),
     ]);
 
+    // Active discounts
+    const activeDiscounts = await this.prisma.discount.count({
+      where: { companyId, isActive: true },
+    });
+
     return {
-      total,
-      pending,
-      averageRating: avgRating._avg.rating || 0,
+      pendingReviews: pending,
+      averageRating: Math.round((avgRating._avg.rating || 0) * 10) / 10,
+      activeDiscounts,
     };
   }
 

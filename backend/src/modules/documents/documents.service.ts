@@ -462,20 +462,22 @@ export class DocumentsService {
       }),
     ]);
 
+    // Additional stats needed by frontend
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [totalFolders, recentUploads, archivedDocuments] = await Promise.all([
+      this.prisma.folder.count({ where: { companyId } }),
+      this.prisma.dMSDocument.count({ where: { companyId, createdAt: { gte: sevenDaysAgo } } }),
+      this.prisma.dMSDocument.count({ where: { companyId, status: 'ARCHIVED' } }),
+    ]);
+
     return {
       totalDocuments: totalDocs,
-      totalSize: totalSize._sum.fileSize || 0,
-      totalSizeFormatted: this.formatBytes(totalSize._sum.fileSize || 0),
-      byMimeType: byType.map((t: any) => ({
-        mimeType: t.mimeType || 'unknown',
-        count: t._count,
-        size: t._sum.fileSize || 0,
-      })),
-      byFolder: byFolder.map((f: any) => ({
-        id: f.id,
-        name: f.name,
-        documentCount: f._count.documents,
-      })),
+      totalFolders,
+      totalSize: Number(totalSize._sum.fileSize || 0),
+      recentUploads,
+      archivedDocuments,
     };
   }
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsNotEmpty, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateCompanyDto {
@@ -71,6 +71,21 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ example: 'CH44 3199 9123 0008 8901 2' })
+  @IsOptional()
+  @IsString()
+  qrIban?: string;
+
+  @ApiPropertyOptional({ example: 'CHF' })
+  @IsOptional()
+  @IsString()
+  defaultCurrency?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  fiscalYearStart?: number;
 }
 
 export class CreateTeamMemberDto {

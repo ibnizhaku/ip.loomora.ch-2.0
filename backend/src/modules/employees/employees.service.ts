@@ -193,14 +193,33 @@ export class EmployeesService {
 
   // Statistics
   async getStats(companyId: string) {
-    const [total, active, vacation, sick] = await Promise.all([
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalEmployees, activeEmployees, newThisMonth, departments] = await Promise.all([
       this.prisma.employee.count({ where: { companyId } }),
       this.prisma.employee.count({ where: { companyId, status: 'ACTIVE' } }),
-      this.prisma.employee.count({ where: { companyId, status: 'VACATION' } }),
-      this.prisma.employee.count({ where: { companyId, status: 'SICK' } }),
+      this.prisma.employee.count({ where: { companyId, hireDate: { gte: startOfMonth } } }),
+      this.prisma.employee.groupBy({
+        by: ['departmentId'],
+        where: { companyId },
+        _count: true,
+      }),
     ]);
 
-    return { total, active, vacation, sick };
+    // Build department breakdown with names
+    const deptIds = departments.map(d => d.departmentId).filter(Boolean) as string[];
+    const deptNames = deptIds.length > 0
+      ? await this.prisma.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
+      : [];
+    const deptMap = new Map(deptNames.map(d => [d.id, d.name]));
+
+    const departmentBreakdown = departments.map(d => ({
+      department: d.departmentId ? (deptMap.get(d.departmentId) || 'Unbekannt') : 'Keine Abteilung',
+      count: d._count,
+    }));
+
+    return { totalEmployees, activeEmployees, newThisMonth, departmentBreakdown };
   }
 
   // Departments

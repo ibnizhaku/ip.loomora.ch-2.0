@@ -122,11 +122,10 @@ export class MarketingService {
     ]);
 
     return {
-      total,
-      active,
+      totalCampaigns: total,
+      activeCampaigns: active,
       totalBudget: Number(totalBudget._sum.budget || 0),
       totalSpent: Number(totalSpent._sum.spent || 0),
-      budgetRemaining: Number(totalBudget._sum.budget || 0) - Number(totalSpent._sum.spent || 0),
     };
   }
 
@@ -338,10 +337,16 @@ export class MarketingService {
       _sum: { estimatedValue: true },
     });
 
+    const qualifiedLeads = await this.prisma.lead.count({
+      where: { companyId, status: { in: ['QUALIFIED', 'PROPOSAL', 'NEGOTIATION'] } },
+    });
+    const wonLeads = await this.prisma.lead.count({ where: { companyId, status: 'WON' } });
+    const conversionRate = total > 0 ? Math.round((wonLeads / total) * 100) : 0;
+
     return {
-      total,
-      totalValue: Number(totalValue._sum.estimatedValue || 0),
-      byStatus: statusCounts,
+      totalLeads: total,
+      qualifiedLeads,
+      conversionRate,
     };
   }
 

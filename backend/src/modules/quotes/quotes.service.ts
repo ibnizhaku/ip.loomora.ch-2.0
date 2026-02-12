@@ -47,6 +47,9 @@ export class QuotesService {
           // project: {
           //   select: { id: true, number: true, name: true },
           // },
+          items: {
+            select: { id: true, description: true, quantity: true, unitPrice: true, total: true, vatRate: true },
+          },
           _count: {
             select: { items: true },
           },
@@ -345,18 +348,14 @@ export class QuotesService {
   }
 
   async getStats(companyId: string) {
-    const [draft, sent, confirmed, rejected, totalAgg] = await Promise.all([
+    const [total, draft, sent, confirmed, rejected] = await Promise.all([
+      this.prisma.quote.count({ where: { companyId } }),
       this.prisma.quote.count({ where: { companyId, status: DocumentStatus.DRAFT } }),
       this.prisma.quote.count({ where: { companyId, status: DocumentStatus.SENT } }),
       this.prisma.quote.count({ where: { companyId, status: DocumentStatus.CONFIRMED } }),
       this.prisma.quote.count({ where: { companyId, status: DocumentStatus.CANCELLED } }),
-      this.prisma.quote.aggregate({
-        where: { companyId },
-        _sum: { total: true },
-      }),
     ]);
-    const total = Number(totalAgg._sum.total || 0);
-    return { draft, sent, confirmed, rejected, total };
+    return { total, draft, sent, confirmed, rejected };
   }
 
   async remove(id: string, companyId: string) {

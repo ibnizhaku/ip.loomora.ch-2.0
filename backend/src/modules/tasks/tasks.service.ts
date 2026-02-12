@@ -300,13 +300,14 @@ export class TasksService {
 
   // Statistics
   async getStats(companyId: string) {
-    const [todo, inProgress, review, done] = await Promise.all([
+    const [todo, inProgress, review, done, overdue] = await Promise.all([
       this.prisma.task.count({ where: { companyId, status: 'TODO' } }),
       this.prisma.task.count({ where: { companyId, status: 'IN_PROGRESS' } }),
       this.prisma.task.count({ where: { companyId, status: 'REVIEW' } }),
       this.prisma.task.count({ where: { companyId, status: 'DONE' } }),
+      this.prisma.task.count({ where: { companyId, status: { not: 'DONE' }, dueDate: { lt: new Date() } } }),
     ]);
 
-    return { todo, inProgress, review, done, total: todo + inProgress + review + done };
+    return { total: todo + inProgress + review + done, todo, inProgress, done, overdue };
   }
 }

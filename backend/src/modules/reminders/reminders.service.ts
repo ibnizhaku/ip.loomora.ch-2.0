@@ -305,15 +305,19 @@ export class RemindersService {
 
     const totalFees = byLevel.reduce((sum, l) => sum + Number(l._sum.totalWithFee || 0), 0);
 
+    const sentReminders = await this.prisma.reminder.count({
+      where: { companyId, status: ReminderStatus.SENT },
+    });
+
     return {
       totalReminders,
-      openReminders,
-      overdueInvoices,
-      totalFeesOutstanding: totalFees,
+      pendingReminders: openReminders,
+      sentReminders,
+      totalOutstanding: totalFees,
       byLevel: byLevel.map(l => ({
         level: l.level,
         count: l._count,
-        totalAmount: l._sum.totalWithFee || 0,
+        amount: Number(l._sum.totalWithFee || 0),
       })),
     };
   }
@@ -326,7 +330,7 @@ export class RemindersService {
     const skipped = [];
 
     for (const invoice of overdueInvoices) {
-      const lastReminder = invoice.reminders?.[0]; // Latest reminder (safe navigation)
+      const lastReminder = (invoice as any).reminders?.[0]; // Latest reminder (safe navigation)
       const nextLevel = lastReminder ? Math.min(lastReminder.level + 1, 5) : 1;
 
       // Check if enough days passed since last reminder

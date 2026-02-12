@@ -330,15 +330,23 @@ export class PurchaseInvoicesService {
       }),
     ]);
 
+    const statusMap = new Map<string, { count: number; amount: number }>(
+      byStatus.map(s => [s.status as string, { count: s._count, amount: Number(s._sum.totalAmount || 0) }])
+    );
+    const overdueValue = await this.prisma.purchaseInvoice.aggregate({
+      where: { companyId, status: { in: ['DRAFT', 'SENT'] as any }, dueDate: { lt: today } },
+      _sum: { totalAmount: true },
+    });
+
     return {
-      total,
-      overdue,
-      totalOpenAmount: Number(totalOpen._sum?.totalAmount || 0),
-      byStatus: byStatus.map(s => ({
-        status: s.status,
-        count: s._count,
-        amount: s._sum.totalAmount || 0,
-      })),
+      totalInvoices: total,
+      pendingInvoices: (statusMap.get('DRAFT')?.count || 0) + (statusMap.get('SENT')?.count || 0),
+      approvedInvoices: statusMap.get('CONFIRMED')?.count || 0,
+      paidInvoices: statusMap.get('PAID')?.count || 0,
+      overdueInvoices: overdue,
+      totalValue: byStatus.reduce((sum, s) => sum + Number(s._sum.totalAmount || 0), 0),
+      pendingValue: Number(totalOpen._sum?.totalAmount || 0),
+      overdueValue: Number(overdueValue._sum?.totalAmount || 0),
     };
   }
 }

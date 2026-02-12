@@ -25,6 +25,22 @@ export class UsersService {
       ];
     }
 
+    // Role filter
+    if ((query as any).role) {
+      where.memberships = {
+        some: {
+          companyId,
+          role: { name: { equals: (query as any).role, mode: 'insensitive' } },
+        },
+      };
+    }
+
+    // isActive filter
+    if ((query as any).isActive !== undefined) {
+      const isActiveVal = String((query as any).isActive) === 'true';
+      where.isActive = isActiveVal;
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         where,

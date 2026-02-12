@@ -343,11 +343,42 @@ export class RecruitingService {
       }),
     ]);
 
+    // Interviews this week
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const interviewsThisWeek = await this.prisma.interview.count({
+      where: { companyId, scheduledAt: { gte: weekStart, lte: weekEnd } },
+    });
+
+    // Average time to hire (days) - from hired candidates in last 90 days
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const hiredCandidates = await this.prisma.candidate.findMany({
+      where: { companyId, status: CandidateStatus.HIRED, updatedAt: { gte: ninetyDaysAgo } },
+      select: { createdAt: true, updatedAt: true },
+    });
+    const averageTimeToHire = hiredCandidates.length > 0
+      ? Math.round(hiredCandidates.reduce((sum, c) => sum + (c.updatedAt.getTime() - c.createdAt.getTime()), 0) / hiredCandidates.length / (1000 * 60 * 60 * 24))
+      : 0;
+
+    // Offer acceptance rate
+    const [offers, accepted] = await Promise.all([
+      this.prisma.candidate.count({ where: { companyId, status: { in: [CandidateStatus.HIRED, 'OFFER_DECLINED' as any] } } }),
+      this.prisma.candidate.count({ where: { companyId, status: CandidateStatus.HIRED } }),
+    ]);
+    const offerAcceptanceRate = offers > 0 ? Math.round((accepted / offers) * 100) : 0;
+
     return {
       openPositions,
       totalCandidates,
-      newCandidates,
-      upcomingInterviews: interviews,
+      interviewsThisWeek,
+      averageTimeToHire,
+      offerAcceptanceRate,
     };
   }
 
