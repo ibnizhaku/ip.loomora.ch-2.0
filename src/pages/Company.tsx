@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useCompany, useUpdateCompany } from "@/hooks/use-company";
 import { useDashboardStats } from "@/hooks/use-dashboard";
 import { useCompanyTeam, useAddTeamMember, useRemoveTeamMember } from "@/hooks/use-company-team";
+import { useAuth } from "@/contexts/AuthContext";
 
 const roleOptions = [
   "CEO", "CTO", "CFO", "COO", 
@@ -70,6 +71,7 @@ export default function Company() {
   const { data: company, isLoading, error } = useCompany();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const updateCompany = useUpdateCompany();
+  const { updateActiveCompanyName } = useAuth();
 
   const { data: teamMembers = [], isLoading: teamLoading } = useCompanyTeam();
   const addTeamMember = useAddTeamMember();
@@ -123,6 +125,9 @@ export default function Company() {
         bic: form.bic || undefined,
         bankName: form.bankName || undefined,
       });
+      if (form.name) {
+        updateActiveCompanyName(form.name);
+      }
       toast.success("Unternehmensdaten gespeichert");
       setIsDirty(false);
     } catch (err: any) {

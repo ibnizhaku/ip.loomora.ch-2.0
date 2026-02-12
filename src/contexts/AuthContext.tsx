@@ -62,6 +62,7 @@ interface AuthContextType extends AuthState {
   selectCompany: (companyId: string) => Promise<void>;
   switchCompany: (companyId: string) => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateActiveCompanyName: (name: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -377,6 +378,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const updateActiveCompanyName = (name: string) => {
+    setState(prev => {
+      if (!prev.activeCompany) return prev;
+      const updated = { ...prev.activeCompany, name };
+      localStorage.setItem('auth_company', JSON.stringify(updated));
+      return { ...prev, activeCompany: updated };
+    });
+  };
+
   const value: AuthContextType = {
     ...state,
     login,
@@ -385,6 +395,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     selectCompany,
     switchCompany,
     refreshUser,
+    updateActiveCompanyName,
   };
 
   return (
