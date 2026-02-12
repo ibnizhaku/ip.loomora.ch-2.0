@@ -135,6 +135,7 @@ import CompanyEdit from "./pages/CompanyEdit";
 import Calendar from "./pages/Calendar";
 import Documents from "./pages/Documents";
 import DocumentDetail from "./pages/DocumentDetail";
+import DocumentPreview from "./pages/DocumentPreview";
 import FolderDetail from "./pages/FolderDetail";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
@@ -386,6 +387,7 @@ const App = () => (
               <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
               <Route path="/documents/new" element={<ProtectedLayout><DocumentUpload /></ProtectedLayout>} />
               <Route path="/documents/:id" element={<ProtectedLayout><DocumentDetail /></ProtectedLayout>} />
+              <Route path="/documents/:id/preview" element={<ProtectedLayout><DocumentPreview /></ProtectedLayout>} />
               <Route path="/folders/:id" element={<ProtectedLayout><FolderDetail /></ProtectedLayout>} />
               
               {/* HR / Personal */}
