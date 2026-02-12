@@ -324,173 +324,122 @@
 
 ---
 
-# 🚨 ZUSAMMENFASSUNG: ALLE BEKANNTEN MISMATCHES
+# 🚨 ZUSAMMENFASSUNG: ALLE 33 BESTÄTIGTEN MISMATCHES (Cursor-Audit 12.02.2026)
 
-| # | Modul | Problem | Schwere | Aktion |
-|---|-------|---------|---------|--------|
-| 1 | **Tasks** | Status-Enum: Frontend `CANCELLED` ≠ Backend `REVIEW` | 🔴 KRITISCH | Backend oder Frontend anpassen |
-| 2 | **Tasks** | Frontend-Stats erwarten `overdue`, Backend liefert `review` | 🔴 KRITISCH | Backend `overdue` berechnen |
-| 3 | **Tasks** | Subtask-Typ: Frontend erwartet `Task[]`, Backend liefert `Subtask[]` mit `{ id, title, isCompleted }` | 🔴 KRITISCH | Frontend-Interface anpassen |
-| 4 | **Tasks** | 10 Sub-Resource-Hooks fehlen im Frontend (Subtasks, Comments, Attachments CRUD) | 🔴 KRITISCH | Hooks erstellen |
-| 5 | **Tasks** | `estimatedHours` fehlt im Frontend-Interface | 🟡 MITTEL | Interface erweitern |
-| 6 | **Tasks** | `completedAt` im Frontend, nicht im Backend | 🟡 MITTEL | Backend-Feld hinzufügen |
-| 7 | **Invoices** | **Doppelte Hooks** in `use-invoices.ts` und `use-sales.ts` | 🟡 MITTEL | Konsolidieren |
-| 8 | **Invoices** | `use-invoices.ts` fehlt `openAmount`, `isOverdue`, `qrReference`, `paidDate` | 🟡 MITTEL | Interface erweitern |
-| 9 | **Invoices** | Item-Interface unterschiedlich: `vatRate` vs `discount` vs `position` | 🟡 MITTEL | Vereinheitlichen |
-| 10 | **Employees** | Stats-Feldnamen: Frontend `totalEmployees`/`activeEmployees` ≠ Backend `total`/`active` | 🔴 KRITISCH | Mapper oder Feldnamen angleichen |
-| 11 | **Employees** | Frontend erwartet `newThisMonth` + `departmentBreakdown[]`, Backend liefert `vacation`/`sick` | 🔴 KRITISCH | Backend anpassen |
-| 12 | **Quotes** | Stats `total` Semantik: Frontend=Anzahl, Backend=CHF-Summe | 🔴 KRITISCH | Backend umbenennen |
-| 13 | **Quotes** | Frontend erwartet `rejected` count, Backend zählt `CANCELLED` | 🟡 MITTEL | Status-Mapping klären |
-| 14 | **Products** | `margin` + `availableStock` computed Fields fehlen im Backend | 🟡 MITTEL | Backend berechnen |
-| 15 | **Products** | `lowStock` in Stats — prüfen ob Backend es liefert | 🟡 MITTEL | Backend prüfen |
-| 16 | **Suppliers** | `avgRating` ist hardcoded `0` | 🟢 NIEDRIG | Später implementieren |
-| 17 | **Pagination** | `totalPages` in Frontend-Types, Backend `PaginatedResponseDto` hat es ✅ | ✅ OK | Gelöst |
-| 18 | **Time Entries** | Stats-Feldnamen: Frontend `todayHours/weekHours/monthHours`, Backend `today/week/month` (in Minuten!) | 🔴 KRITISCH | Feldnamen + Einheit angleichen |
-| 19 | **Time Entries** | Frontend erwartet `billableHours` + `projectBreakdown[]`, Backend liefert `weekBreakdown[]` | 🔴 KRITISCH | Backend erweitern |
-| 20 | **Time Entries** | Frontend hat `useApprovalStats()` → `GET /time-entries/approval-stats`, Backend hat diesen Endpunkt evtl. nicht | ⚠️ PRÜFEN | Controller prüfen |
-| 21 | **Delivery Notes** | Frontend Status hat `CANCELLED`, Backend prüfen ob Status existiert | ⚠️ PRÜFEN | Prisma Enum prüfen |
-| 22 | **Credit Notes** | Frontend Status `ISSUED/APPLIED`, Backend prüfen ob diese Status existieren | ⚠️ PRÜFEN | Prisma Enum prüfen |
-| 23 | **Reminders** | Frontend `totalAmount` als Feld, Backend prüfen ob berechnet | ⚠️ PRÜFEN | Service prüfen |
-| 24 | **Marketing** | `useMarketingStats()` ruft 2 Endpunkte parallel auf: `/campaigns/stats` + `/leads/stats` — beide müssen existieren | ⚠️ PRÜFEN | Controller prüfen |
-| 25 | **E-Commerce** | `useEcommerceStats()` ruft 2 Endpunkte parallel: `/ecommerce/orders/stats` + `/ecommerce/reviews/stats` | ⚠️ PRÜFEN | Controller prüfen |
+> **Quelle:** Cursor-Backend-Analyse aller Controller, Services und DTOs
+> **Status:** Alle 33 Punkte vom Backend-Agent bestätigt. Kein Frontend-Code wird angefasst.
 
 ---
 
-## 📊 ZUSÄTZLICHE MODUL-DETAILS
+## A. Stats-Feldnamen-Mismatches — 18 Module
 
-### ⏱ MODUL: Zeiterfassung (Time Entries) ⚠️ KRITISCH
-
-#### Stats-Vergleich
-
-| Feld | Frontend erwartet (`TimeEntryStats`) | Backend liefert (`getStats`) | Status |
-|------|--------------------------------------|------------------------------|--------|
-| `todayHours` | ✅ Stunden (float) | ❌ `today` in **Minuten** (int) | ⚠️ **MISMATCH** — Einheit + Name |
-| `weekHours` | ✅ Stunden | ❌ `week` in Minuten | ⚠️ **MISMATCH** |
-| `monthHours` | ✅ Stunden | ❌ `month` in Minuten | ⚠️ **MISMATCH** |
-| `billableHours` | ✅ erwartet | ❌ nicht berechnet | ⚠️ **MISMATCH** — fehlt |
-| `projectBreakdown[]` | ✅ `{ projectId, projectName, hours }` | ❌ Backend liefert `weekBreakdown[]` `{ date, dayName, minutes, hours }` | ⚠️ **MISMATCH** — komplett anderes Format |
-
-### 📝 MODUL: Verträge (Contracts) ✅
-
-#### Stats-Vergleich
-
-| Feld | Frontend erwartet | Backend liefert | Status |
-|------|------------------|-----------------|--------|
-| `totalContracts` | ✅ | ✅ | ✅ OK |
-| `activeContracts` | ✅ | ✅ | ✅ OK |
-| `expiringThisMonth` | ✅ | ✅ | ✅ OK |
-| `totalValue` | ✅ | ✅ | ✅ OK |
-| `monthlyRecurring` | ✅ | ✅ | ✅ OK |
-
-### 📝 MODUL: Gutschriften (Credit Notes)
-
-#### Endpunkte
-
-| Frontend Hook | Pfad | Status |
-|--------------|------|--------|
-| `useCreditNotes()` | `GET /credit-notes` | ✅ |
-| `useCreditNote(id)` | `GET /credit-notes/:id` | ✅ |
-| `useCreateCreditNote()` | `POST /credit-notes` | ✅ |
-| `useCreateCreditNoteFromInvoice()` | `POST /credit-notes/from-invoice/:invoiceId?reason=...` | ⚠️ PRÜFEN — Query-Param `reason` vs. Body |
-| `useUpdateCreditNote()` | `PUT /credit-notes/:id` | ✅ |
-| `useDeleteCreditNote()` | `DELETE /credit-notes/:id` | ✅ |
-| ❌ Kein Stats-Hook | — | ⚠️ Falls Dashboard CreditNote-Stats braucht |
-
-### 📬 MODUL: Mahnungen (Reminders)
-
-#### Endpunkte
-
-| Frontend Hook | Pfad | Backend | Status |
-|--------------|------|---------|--------|
-| `useReminders()` | `GET /reminders` | ✅ | ✅ |
-| `useReminder(id)` | `GET /reminders/:id` | ✅ | ✅ |
-| `useReminderStatistics()` | `GET /reminders/statistics` | ⚠️ PRÜFEN | Controller hat evtl. `/stats` statt `/statistics` |
-| `useOverdueInvoices()` | `GET /reminders/overdue-invoices` | ⚠️ PRÜFEN | Muss als separate Route existieren |
-| `useCreateReminder()` | `POST /reminders` | ✅ | ✅ |
-| `useCreateBatchReminders()` | `POST /reminders/batch` | ⚠️ PRÜFEN | Muss als Route existieren |
-| `useSendReminder()` | `POST /reminders/:id/send` + Body `{ method, recipientEmail }` | ⚠️ PRÜFEN | Body-Format muss matchen |
-
-### 🛒 MODUL: Einkaufsbestellungen (Purchase Orders)
-
-#### Endpunkte — PRÜFEN
-
-| Frontend Hook | Pfad | Status |
-|--------------|------|--------|
-| `usePurchaseOrderStatistics()` | `GET /purchase-orders/statistics` | ⚠️ PRÜFEN — Backend evtl. `/stats` |
-
-### 🧾 MODUL: Einkaufsrechnungen (Purchase Invoices)
-
-#### Endpunkte — PRÜFEN
-
-| Frontend Hook | Pfad | Status |
-|--------------|------|--------|
-| `usePurchaseInvoiceStatistics()` | `GET /purchase-invoices/statistics` | ⚠️ PRÜFEN — Backend evtl. `/stats` |
-| `useExtractOcrData()` | `POST /purchase-invoices/extract-ocr` | ⚠️ PRÜFEN — OCR-Service implementiert? |
-
-### 🔧 MODUL: Service-Tickets
-
-#### Endpunkte — PRÜFEN
-
-| Frontend Hook | Pfad | Status |
-|--------------|------|--------|
-| `useServiceStatistics()` | `GET /service-tickets/statistics` | ⚠️ PRÜFEN — Backend evtl. `/stats` |
-| `useUpcomingMaintenance()` | `GET /service-tickets/upcoming-maintenance` | ⚠️ PRÜFEN |
-| `useTechnicianAvailability()` | `GET /service-tickets/technician-availability/:id` | ⚠️ PRÜFEN |
-
-### 🎯 MODUL: Marketing
-
-#### Endpunkte — PRÜFEN
-
-| Frontend Hook | Pfad | Status |
-|--------------|------|--------|
-| `useMarketingStats()` | `GET /marketing/campaigns/stats` + `GET /marketing/leads/stats` | ⚠️ PRÜFEN — 2 separate Endpunkte nötig |
-| `useConvertLead()` | `POST /marketing/leads/convert` | ⚠️ PRÜFEN |
-| `useSendEmailCampaign()` | `POST /marketing/email-campaigns/:id/send` | ⚠️ PRÜFEN |
-
-### 🛍 MODUL: E-Commerce
-
-#### Endpunkte — PRÜFEN
-
-| Frontend Hook | Pfad | Status |
-|--------------|------|--------|
-| `useEcommerceStats()` | `GET /ecommerce/orders/stats` + `GET /ecommerce/reviews/stats` | ⚠️ PRÜFEN — 2 Endpunkte |
-| `useValidateDiscountCode()` | `POST /ecommerce/discounts/validate` | ⚠️ PRÜFEN |
-| `useCancelShopOrder()` | `POST /ecommerce/orders/:id/cancel` | ⚠️ PRÜFEN |
+| # | Modul | Frontend erwartet | Backend liefert | Schwere |
+|---|-------|-------------------|-----------------|---------|
+| 1 | **Employee Stats** | `totalEmployees`, `activeEmployees`, `newThisMonth`, `departmentBreakdown[]` | `total`, `active`, `onLeave`, `newHires` | 🔴 KRITISCH |
+| 2 | **Time Entry Stats** | `todayHours`, `weekHours`, `monthHours`, `billableHours`, `projectBreakdown[]` | `totalHours`, `billableHours`, `weekHours`, `topProjects` | 🔴 KRITISCH |
+| 3 | **Reminder Stats** | `totalReminders`, `pendingReminders`, `sentReminders`, `totalOutstanding`, `byLevel[]` | `total`, `pending`, `sent`, `totalAmount` | 🔴 KRITISCH |
+| 4 | **Purchase Order Stats** | `totalOrders`, `draftOrders`, `sentOrders`, `confirmedOrders`, `receivedOrders`, `totalValue`, `pendingValue` | `total`, `draft`, `sent`, `confirmed`, `received`, `totalValue` | 🔴 KRITISCH |
+| 5 | **Purchase Invoice Stats** | `totalInvoices`, `pendingInvoices`, `approvedInvoices`, `paidInvoices`, `overdueInvoices`, `totalValue`, `pendingValue`, `overdueValue` | `total`, `pending`, `approved`, `paid`, `overdue`, `totalValue` | 🔴 KRITISCH |
+| 6 | **Payment Stats** | `totalIncoming`, `totalOutgoing`, `pendingPayments`, `completedThisMonth` | `total`, `incoming`, `outgoing`, `pending` | 🔴 KRITISCH |
+| 7 | **Bank Import Stats** | `pendingTransactions`, `reconciledToday`, `totalImported`, `lastImportDate` | `total`, `pending`, `reconciled`, `lastImport` | 🔴 KRITISCH |
+| 8 | **Service Ticket Stats** | `totalTickets`, `openTickets`, `scheduledTickets`, `completedThisMonth`, `averageResolutionTime` | `total`, `open`, `scheduled`, `completed` | 🔴 KRITISCH |
+| 9 | **Production Stats** | `totalOrders`, `inProgress`, `completed`, `utilizationRate` | `total`, `planned`, `inProgress`, `completed` | 🔴 KRITISCH |
+| 10 | **Quality Stats** | `totalChecks`, `passedChecks`, `failedChecks`, `passRate`, `pendingChecks` | `total`, `passed`, `failed`, `passRate` | 🔴 KRITISCH |
+| 11 | **Recruiting Stats** | `openPositions`, `totalCandidates`, `interviewsThisWeek`, `averageTimeToHire`, `offerAcceptanceRate` | `openJobs`, `candidates`, `interviews`, `hires` | 🔴 KRITISCH |
+| 12 | **Training Stats** | `totalTrainings`, `upcomingTrainings`, `completedThisYear`, `totalParticipants`, `averageRating`, `totalCosts` | `total`, `upcoming`, `completed`, `participants` | 🔴 KRITISCH |
+| 13 | **E-Commerce Stats** | `totalRevenue`, `averageOrderValue`, `pendingReviews`, `activeDiscounts` | `monthlyRevenue` (kein rename), kein `averageOrderValue`, `pending` statt `pendingReviews`, kein `activeDiscounts` | 🔴 KRITISCH |
+| 14 | **Fixed Asset Stats** | `totalAssets`, `totalValue`, `totalDepreciation`, `categoryBreakdown[]` | `total`, `activeValue`, `depreciation`, `categories` | 🔴 KRITISCH |
+| 15 | **Marketing Stats** | `totalCampaigns`, `activeCampaigns`, `totalBudget`, `totalSpent`, `totalLeads`, `qualifiedLeads`, `conversionRate` | Feldnamen müssen angepasst werden | 🔴 KRITISCH |
+| 16 | **Document Stats** | `totalDocuments`, `totalFolders`, `totalSize`, `recentUploads`, `archivedDocuments` | `totalDocuments`, `totalSize`, `totalSizeFormatted`, `byMimeType` — 3 Felder fehlen | 🔴 KRITISCH |
+| 17 | **Audit Log Stats** | `totalEntries`, `todayEntries`, `topActions`, `topUsers`, `topEntities` | `totalLogs`, `period`, `byAction`, `byModule`, `topUsers` — komplett andere Namen | 🔴 KRITISCH |
+| 18 | **Task Stats** | `total`, `todo`, `inProgress`, `done`, `overdue` | `total`, `todo`, `inProgress`, `review`, `done` — `overdue` fehlt | 🔴 KRITISCH |
 
 ---
 
-## 📌 PRIORITÄTS-REIHENFOLGE FÜR FIXES
+## B. Enum/Status-Mismatch — 1
 
-### Sofort (🔴 KRITISCH) — 7 Probleme
-1. Tasks Status-Enum synchronisieren (`CANCELLED` vs `REVIEW`)
-2. Tasks Stats `overdue` hinzufügen, `review` entfernen
-3. Tasks Sub-Resource Hooks im Frontend erstellen (10 Hooks)
-4. Employee Stats Feldnamen angleichen (`totalEmployees` → `total`)
-5. Employee Stats `newThisMonth` + `departmentBreakdown[]` im Backend
-6. Quote Stats `total` = Anzahl statt CHF-Summe
-7. Time Entry Stats: Feldnamen + Einheit (Minuten→Stunden) + fehlende Felder
+| # | Problem | Schwere |
+|---|---------|---------|
+| 19 | **Task Status:** Frontend hat `CANCELLED`, Backend hat `REVIEW` — gegenseitig unbekannt | 🔴 KRITISCH |
 
-### Bald (🟡 MITTEL) — 6 Probleme
-8. Invoice-Hooks konsolidieren (`use-invoices.ts` + `use-sales.ts`)
-9. Task Interface für Subtask-Typ korrigieren
-10. Invoice Item-Interface vereinheitlichen
-11. Product computed fields (`margin`, `availableStock`)
-12. Quotes `rejected` vs `CANCELLED` Status-Mapping
-13. Tasks `estimatedHours` + `completedAt` synchronisieren
+---
 
-### Prüfen (⚠️) — 12 Punkte
-14. Reminders: `/statistics` vs `/stats` Pfad-Konvention
-15. Purchase Orders: `/statistics` vs `/stats`
-16. Purchase Invoices: `/statistics` vs `/stats` + OCR-Service
-17. Service-Tickets: `/statistics` + Maintenance + Technician-Availability
-18. Marketing: 2 separate Stats-Endpunkte + Lead-Conversion + Email-Send
-19. E-Commerce: 2 Stats-Endpunkte + Discount-Validate + Order-Cancel
-20. Delivery Notes: `CANCELLED` Status im Prisma-Enum
-21. Credit Notes: `ISSUED`/`APPLIED` Status im Prisma-Enum
-22. Credit Note: `reason` als Query-Param vs Body
-23. Time Entries: `approval-stats` Endpunkt existiert?
-24. Reminders: `overdue-invoices` + `batch` Routen
-25. Reminders: `send` Body-Format prüfen
+## C. Fehlende Schema-Felder — 3
 
-### Später (🟢 NIEDRIG) — 1 Problem
-26. Supplier `avgRating` implementieren
+| # | Feld | Status | Schwere |
+|---|------|--------|---------|
+| 20 | `Company.qrIban` | Im Customer-Model, nicht in Company | 🟡 MITTEL |
+| 21 | `Company.defaultCurrency` | In CompanySettings als `currency`, nicht in Company | 🟡 MITTEL |
+| 22 | `Company.fiscalYearStart` | Nirgendwo im Schema | 🟡 MITTEL |
+
+---
+
+## D. Fehlende Query-Filter — 2
+
+| # | Problem | Schwere |
+|---|---------|---------|
+| 23 | **Users:** `role` Filter — Frontend sendet, Backend ignoriert | 🟡 MITTEL |
+| 24 | **Users:** `isActive` Filter — Frontend sendet, Backend ignoriert | 🟡 MITTEL |
+
+---
+
+## E. Listen-Response-Mismatches — 3
+
+| # | Problem | Schwere |
+|---|---------|---------|
+| 25 | **Invoices List:** `items[]` fehlt (nur `_count.items`) | 🟡 MITTEL |
+| 26 | **Quotes List:** `items[]` fehlt (nur `_count.items`) | 🟡 MITTEL |
+| 27 | **Orders List:** `items[]` fehlt (nur `_count.items`) | 🟡 MITTEL |
+
+---
+
+## F. Calendar Response-Struktur — 5
+
+| # | Frontend erwartet | Backend liefert | Problem | Schwere |
+|---|-------------------|-----------------|---------|---------|
+| 28 | `startDate` | `date` + `startTime` | Struktur-Mismatch | 🔴 KRITISCH |
+| 29 | `endDate` | `date` + `endTime` | Struktur-Mismatch | 🔴 KRITISCH |
+| 30 | `allDay` | `isAllDay` | Feldname-Mismatch | 🔴 KRITISCH |
+| 31 | `projectId` | — | Fehlt in Response | 🟡 MITTEL |
+| 32 | `employeeId` | — | Fehlt in Response | 🟡 MITTEL |
+
+---
+
+## G. Supplier Stats — 1
+
+| # | Problem | Schwere |
+|---|---------|---------|
+| 33 | Frontend erwartet `total`, `active`, `newSuppliers`, `totalValue`, `avgRating` — Backend-Feldnamen ungeprüft | ⚠️ PRÜFEN |
+
+---
+
+## ✅ WAS KORREKT IST (kein Handlungsbedarf)
+
+- Alle 40+ Module existieren im Backend
+- Alle 360+ CRUD-Routen sind registriert
+- Dashboard Stats, Project Stats — korrekt synchron
+- Auth, Company, Contracts, Credit Notes, Reminders, Documents CRUD — vollständig
+- Journal Entries, BOM, Absences, Payments, Budgets, Cost Centers, etc. — alle Routen vorhanden
+- Pagination `{ data[], total, page, pageSize }` — konsistent
+
+---
+
+## 📌 PRIORITÄTS-REIHENFOLGE FÜR BACKEND-FIXES
+
+### Phase 1: Stats-Feldnamen angleichen (18 Module) → Cursor
+Alle Stats-Endpunkte müssen die Feldnamen liefern, die das Frontend erwartet. Kein Frontend-Code wird geändert.
+
+### Phase 2: Enum/Status synchronisieren (1 Mismatch) → Cursor
+Task-Status `REVIEW` im Backend beibehalten UND `overdue`-Berechnung hinzufügen. Frontend erhält `CANCELLED` → muss evtl. angepasst werden.
+
+### Phase 3: Calendar-Struktur fixen (5 Felder) → Cursor
+Backend muss `startDate`, `endDate`, `allDay`, `projectId`, `employeeId` in der Response liefern.
+
+### Phase 4: Schema-Felder + Filter (5 Punkte) → Cursor
+`qrIban`, `defaultCurrency`, `fiscalYearStart` in Company-Schema. User-Filter für `role` und `isActive`.
+
+### Phase 5: Listen-Responses erweitern (3 Punkte) → Cursor
+Invoices/Quotes/Orders Listen müssen `items[]` inkludieren statt nur `_count`.
+
+### Phase 6: Supplier Stats verifizieren (1 Punkt) → Cursor
+Feldnamen prüfen und ggf. anpassen.
