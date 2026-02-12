@@ -619,6 +619,8 @@ model User {
   
   // Chat relations
   chatMessages      ChatMessage[] @relation("ChatMessageAuthor")
+  chatReactions     ChatReaction[] @relation("ChatReactions")
+  chatMentions      ChatMention[] @relation("ChatMentions")
   
   // Task sub-feature relations
   taskComments      TaskComment[]    @relation("TaskCommentAuthor")
@@ -3981,6 +3983,15 @@ model ChatMessage {
   
   companyId   String
   
+  // Thread Support
+  parentId    String?
+  parent      ChatMessage?  @relation("ChatThread", fields: [parentId], references: [id], onDelete: SetNull)
+  replies     ChatMessage[] @relation("ChatThread")
+  
+  // Reactions & Mentions
+  reactions   ChatReaction[]
+  mentions    ChatMention[]
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -3988,7 +3999,40 @@ model ChatMessage {
   @@index([taskId])
   @@index([companyId])
   @@index([createdAt])
+  @@index([parentId])
   @@map("chat_messages")
+}
+
+model ChatReaction {
+  id          String   @id @default(cuid())
+  emoji       String
+  
+  messageId   String
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("ChatReactions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("chat_reactions")
+}
+
+model ChatMention {
+  id          String   @id @default(cuid())
+  
+  messageId   String
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("ChatMentions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+  @@map("chat_mentions")
 }
 
 // ============================================
