@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import {
+  useNotifications,
+  useUnreadNotificationCount,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+  useDeleteNotification,
+} from "@/hooks/use-notifications";
 import {
   Bell,
   CheckCircle2,
@@ -11,7 +16,6 @@ import {
   Check,
   CheckCheck,
   Settings,
-  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,32 +56,26 @@ const categoryLabels = {
 };
 
 export default function Notifications() {
-  const { data: apiData } = useQuery({ queryKey: ["/notifications"], queryFn: () => api.get<any>("/notifications") });
-  const notifications = apiData?.data || [];
   const [activeTab, setActiveTab] = useState("all");
-  const [notificationList, setNotificationList] = useState(notifications);
+  const category = !["all", "unread"].includes(activeTab) ? activeTab : undefined;
+  const read = activeTab === "unread" ? false : undefined;
 
-  const unreadCount = notificationList.filter((n) => !n.read).length;
+  const { data: apiData } = useNotifications({ category, read, pageSize: 50 });
+  const { data: unreadData } = useUnreadNotificationCount();
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+  const deleteMutation = useDeleteNotification();
 
-  const filteredNotifications = activeTab === "all"
-    ? notificationList
-    : activeTab === "unread"
-    ? notificationList.filter((n) => !n.read)
-    : notificationList.filter((n) => n.category === activeTab);
+  const notifications = apiData?.data || [];
+  const unreadCount = unreadData?.count || 0;
+  const totalCount = apiData?.total || 0;
 
-  const markAsRead = (id: string) => {
-    setNotificationList((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
+  const warningCount = notifications.filter((n) => n.type === "warning" || n.type === "error").length;
+  const readCount = notifications.filter((n) => n.read).length;
 
-  const markAllAsRead = () => {
-    setNotificationList((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotificationList((prev) => prev.filter((n) => n.id !== id));
-  };
+  const markAsRead = (id: string) => markAsReadMutation.mutate(id);
+  const markAllAsRead = () => markAllAsReadMutation.mutate();
+  const deleteNotification = (id: string) => deleteMutation.mutate(id);
 
   return (
     <div className="space-y-6">
@@ -111,7 +109,7 @@ export default function Notifications() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Gesamt</p>
-              <p className="text-2xl font-bold">{notificationList.length}</p>
+              <p className="text-2xl font-bold">{totalCount}</p>
             </div>
           </div>
         </div>
@@ -134,7 +132,7 @@ export default function Notifications() {
             <div>
               <p className="text-sm text-muted-foreground">Warnungen</p>
               <p className="text-2xl font-bold">
-                {notificationList.filter((n) => n.type === "warning" || n.type === "error").length}
+                {warningCount}
               </p>
             </div>
           </div>
@@ -147,7 +145,7 @@ export default function Notifications() {
             <div>
               <p className="text-sm text-muted-foreground">Gelesen</p>
               <p className="text-2xl font-bold">
-                {notificationList.filter((n) => n.read).length}
+                {readCount}
               </p>
             </div>
           </div>
@@ -167,13 +165,13 @@ export default function Notifications() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6 space-y-3">
-          {filteredNotifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-30" />
               <p>Keine Benachrichtigungen</p>
             </div>
           ) : (
-            filteredNotifications.map((notification, index) => {
+            notifications.map((notification, index) => {
               const Icon = typeIcons[notification.type];
               return (
                 <div
@@ -210,7 +208,7 @@ export default function Notifications() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {notification.timestamp}
+                        {notification.time}
                       </p>
                     </div>
                     <div className="flex gap-1">
