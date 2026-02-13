@@ -28,9 +28,9 @@ export function useNotifications(params?: { category?: string; read?: boolean; p
     queryKey: ['notifications', params],
     queryFn: async (): Promise<PaginatedNotifications> => {
       const searchParams = new URLSearchParams();
-      if (params?.category) searchParams.set('category', params.category);
-      if (params?.read !== undefined) searchParams.set('read', String(params.read));
-      if (params?.page) searchParams.set('page', String(params.page));
+      if (params?.category && params.category !== '') searchParams.set('category', params.category);
+      if (typeof params?.read === 'boolean') searchParams.set('read', String(params.read));
+      if (params?.page && params.page > 1) searchParams.set('page', String(params.page));
       if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
       const qs = searchParams.toString();
       return api.get<PaginatedNotifications>(`/notifications${qs ? `?${qs}` : ''}`);
