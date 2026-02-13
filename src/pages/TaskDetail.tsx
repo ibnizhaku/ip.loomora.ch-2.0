@@ -158,6 +158,16 @@ const TaskDetail = () => {
     onError: () => toast.error("Fehler beim Hinzufügen der Unteraufgabe"),
   });
 
+  // Toggle subtask completion
+  const toggleSubtaskMutation = useMutation({
+    mutationFn: ({ subtaskId, isCompleted }: { subtaskId: string; isCompleted: boolean }) =>
+      api.put(`/tasks/${id}/subtasks/${subtaskId}`, { isCompleted }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/tasks", id] });
+    },
+    onError: () => toast.error("Fehler beim Aktualisieren der Unteraufgabe"),
+  });
+
   // Comment mutation
   const addCommentMutation = useMutation({
     mutationFn: (data: { content: string }) => api.post(`/tasks/${id}/comments`, data),
@@ -399,11 +409,18 @@ const TaskDetail = () => {
                       subtask.isCompleted || subtask.status === 'DONE' ? "bg-success/5 border-success/20" : "bg-muted/50"
                     }`}
                   >
-                    <div className={`flex h-5 w-5 items-center justify-center rounded ${
-                      subtask.isCompleted || subtask.status === 'DONE' ? "bg-success text-success-foreground" : "border-2 border-muted-foreground/30"
-                    }`}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSubtaskMutation.mutate({ 
+                        subtaskId: subtask.id, 
+                        isCompleted: !(subtask.isCompleted || subtask.status === 'DONE') 
+                      })}
+                      className={`flex h-5 w-5 items-center justify-center rounded cursor-pointer transition-colors ${
+                        subtask.isCompleted || subtask.status === 'DONE' ? "bg-success text-success-foreground" : "border-2 border-muted-foreground/30 hover:border-primary"
+                      }`}
+                    >
                       {(subtask.isCompleted || subtask.status === 'DONE') && <CheckCircle2 className="h-3 w-3" />}
-                    </div>
+                    </button>
                     <span className={(subtask.isCompleted || subtask.status === 'DONE') ? "line-through text-muted-foreground" : ""}>
                       {subtask.title}
                     </span>
