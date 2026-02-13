@@ -95,8 +95,19 @@ export class TasksController {
   }
 
   @Patch(':id/subtasks/:subtaskId')
-  @ApiOperation({ summary: 'Update a subtask' })
+  @ApiOperation({ summary: 'Update a subtask (PATCH)' })
   updateSubtask(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Param('subtaskId') subtaskId: string,
+    @Body() dto: { title?: string; isCompleted?: boolean },
+  ) {
+    return this.tasksService.updateSubtask(id, subtaskId, user.companyId, dto);
+  }
+
+  @Put(':id/subtasks/:subtaskId')
+  @ApiOperation({ summary: 'Update a subtask (PUT)' })
+  updateSubtaskPut(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
     @Param('subtaskId') subtaskId: string,
