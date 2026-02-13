@@ -45,12 +45,20 @@ export class MessagesService {
         if (project) {
           const resolvedIds: string[] = [];
           for (const mentionName of plainMentions) {
-            const nameParts = mentionName.split(' ');
             const member = project.members.find((m) => {
+              // Match against User name (e.g. "Neti Techloom")
               const empUser = m.employee?.user;
-              if (!empUser) return false;
-              const fullName = `${empUser.firstName} ${empUser.lastName}`;
-              return fullName.toLowerCase() === mentionName.toLowerCase();
+              if (empUser) {
+                const userFullName = `${empUser.firstName} ${empUser.lastName}`;
+                if (userFullName.toLowerCase() === mentionName.toLowerCase()) return true;
+              }
+              // Match against Employee name (e.g. "Vullnet Ziba")
+              const emp = m.employee;
+              if (emp) {
+                const empFullName = `${emp.firstName} ${emp.lastName}`;
+                if (empFullName.toLowerCase() === mentionName.toLowerCase()) return true;
+              }
+              return false;
             });
             if (member?.employee?.user?.id) {
               resolvedIds.push(member.employee.user.id);

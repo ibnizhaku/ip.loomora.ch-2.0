@@ -217,6 +217,7 @@ export default function ProjectDetail() {
   const team = project.members?.map((m: any) => ({
     id: m.id,
     employeeId: m.employee?.id,
+    userId: m.employee?.user?.id,
     initials: `${m.employee?.firstName?.[0] || ''}${m.employee?.lastName?.[0] || ''}`,
     name: `${m.employee?.firstName || ''} ${m.employee?.lastName || ''}`,
     role: m.employee?.position || 'Mitarbeiter',

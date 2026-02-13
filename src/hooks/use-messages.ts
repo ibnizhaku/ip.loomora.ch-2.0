@@ -47,7 +47,7 @@ export function useMessages(params: { projectId?: string; taskId?: string }) {
 export function useSendMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { content: string; projectId?: string; taskId?: string }): Promise<ChatMessageData> => {
+    mutationFn: async (data: { content: string; projectId?: string; taskId?: string; mentionedUserIds?: string[] }): Promise<ChatMessageData> => {
       return api.post<ChatMessageData>('/messages', data);
     },
     onSuccess: (_data, variables) => {

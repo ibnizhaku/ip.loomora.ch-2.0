@@ -24,6 +24,7 @@ interface TeamMember {
   initials: string;
   name: string;
   role: string;
+  userId?: string;
 }
 
 interface Reaction {
@@ -96,6 +97,7 @@ export function ProjectChat({ team, projectId, taskId }: ProjectChatProps) {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -130,6 +132,9 @@ export function ProjectChat({ team, projectId, taskId }: ProjectChatProps) {
     const lastAtIndex = newMessage.lastIndexOf("@");
     const beforeAt = newMessage.slice(0, lastAtIndex);
     setNewMessage(`${beforeAt}@${member.name} `);
+    if (member.userId && !mentionedUserIds.includes(member.userId)) {
+      setMentionedUserIds((prev) => [...prev, member.userId!]);
+    }
     setShowMentions(false);
     textareaRef.current?.focus();
   };
@@ -142,11 +147,13 @@ export function ProjectChat({ team, projectId, taskId }: ProjectChatProps) {
         content: newMessage.trim(),
         ...(projectId ? { projectId } : {}),
         ...(taskId ? { taskId } : {}),
+        ...(mentionedUserIds.length > 0 ? { mentionedUserIds } : {}),
       },
       {
         onSuccess: () => {
           setNewMessage("");
           setReplyingTo(null);
+          setMentionedUserIds([]);
         },
         onError: () => {
           toast.error("Nachricht konnte nicht gesendet werden");

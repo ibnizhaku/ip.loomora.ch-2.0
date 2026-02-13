@@ -99,7 +99,10 @@ export class ProjectsService {
         members: {
           include: {
             employee: {
-              select: { id: true, firstName: true, lastName: true, position: true },
+              select: {
+                id: true, firstName: true, lastName: true, position: true,
+                user: { select: { id: true, firstName: true, lastName: true } },
+              },
             },
           },
         },
