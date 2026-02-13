@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -56,6 +57,7 @@ export class NotificationQueryDto extends PaginationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   read?: boolean;
 }
