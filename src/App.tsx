@@ -8,7 +8,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
-import MarketingPage from "./marketing/MarketingPage";
+import WebsiteLoomora from "./pages/website-loomora";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DocumentsProvider } from "./contexts/DocumentsContext";
 
@@ -453,7 +453,7 @@ const App = () => (
               <Route path="/quality/:id" element={<ProtectedLayout><QualityCheckDetail /></ProtectedLayout>} />
               
               {/* Marketing Website */}
-              <Route path="/website" element={<MarketingPage />} />
+              <Route path="/website" element={<WebsiteLoomora />} />
               
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
