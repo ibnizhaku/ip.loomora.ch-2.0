@@ -61,11 +61,23 @@ import { cn } from "@/lib/utils";
 
 
 
-const roleConfig = {
+const roleConfig: Record<string, { label: string; color: string; icon: any }> = {
+  owner: { label: "Owner", color: "bg-primary/10 text-primary", icon: ShieldAlert },
   admin: { label: "Administrator", color: "bg-destructive/10 text-destructive", icon: ShieldAlert },
   manager: { label: "Manager", color: "bg-warning/10 text-warning", icon: ShieldCheck },
+  member: { label: "Mitarbeiter", color: "bg-info/10 text-info", icon: Shield },
   user: { label: "Benutzer", color: "bg-info/10 text-info", icon: Shield },
   viewer: { label: "Betrachter", color: "bg-muted text-muted-foreground", icon: Shield },
+};
+
+/** Map backend roleName (e.g. "Owner", "Admin", "Member") to roleConfig key */
+const getRoleKey = (user: User): string => {
+  const name = (user.roleName || user.role || '').toLowerCase();
+  if (name === 'owner' || user.isOwner) return 'owner';
+  if (name === 'admin' || name === 'administrator') return 'admin';
+  if (name === 'manager') return 'manager';
+  if (name === 'member') return 'member';
+  return 'user';
 };
 
 const statusConfig = {
@@ -114,10 +126,10 @@ export default function Users() {
       (u.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.email || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter ? u.status === statusFilter : true;
-    const matchesRole = roleFilter ? u.role === roleFilter : true;
+    const matchesRole = roleFilter ? getRoleKey(u) === roleFilter : true;
     const matches2FA = twoFactorFilter !== null ? u.twoFactor === twoFactorFilter : true;
     const matchesFilterStatus = filterUserStatus.length === 0 || filterUserStatus.includes(u.status);
-    const matchesFilterRole = filterUserRole.length === 0 || filterUserRole.includes(u.role);
+    const matchesFilterRole = filterUserRole.length === 0 || filterUserRole.includes(getRoleKey(u));
     return matchesSearch && matchesStatus && matchesRole && matches2FA && matchesFilterStatus && matchesFilterRole;
   });
 
@@ -319,8 +331,9 @@ export default function Users() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.map((user, index) => {
-              const roleCfg = roleConfig[user.role] || roleConfig.user;
+              {filteredUsers.map((user, index) => {
+              const roleKey = getRoleKey(user);
+              const roleCfg = roleConfig[roleKey] || roleConfig.user;
               const RoleIcon = roleCfg.icon;
               return (
                 <TableRow
