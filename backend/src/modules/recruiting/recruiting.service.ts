@@ -80,13 +80,32 @@ export class RecruitingService {
     return posting;
   }
 
-  async createJobPosting(companyId: string, dto: CreateJobPostingDto) {
-    return this.prisma.jobPosting.create({
-      data: {
-        ...dto,
-        companyId,
-      },
-    });
+  async createJobPosting(companyId: string, dto: CreateJobPostingDto & Record<string, any>) {
+    // Map frontend field aliases to schema fields
+    const data: any = {
+      companyId,
+      title: dto.title,
+      description: dto.description,
+      requirements: dto.requirements,
+      benefits: (dto as any).responsibilities || dto.benefits,
+      department: dto.department,
+      location: dto.location,
+      remoteAllowed: dto.remoteAllowed,
+      employmentType: dto.employmentType,
+      status: dto.status,
+      salaryMin: dto.salaryMin,
+      salaryMax: dto.salaryMax,
+      workloadPercent: dto.workloadPercent,
+      startDate: dto.startDate,
+      applicationDeadline: (dto as any).closingDate || dto.applicationDeadline,
+      contactPersonId: dto.contactPersonId,
+      requiredSkills: dto.requiredSkills,
+    };
+
+    // Remove undefined values
+    Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+
+    return this.prisma.jobPosting.create({ data });
   }
 
   async updateJobPosting(id: string, companyId: string, dto: UpdateJobPostingDto) {

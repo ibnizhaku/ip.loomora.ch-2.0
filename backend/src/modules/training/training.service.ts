@@ -84,16 +84,58 @@ export class TrainingService {
     return training;
   }
 
-  async create(companyId: string, dto: CreateTrainingDto) {
-    return this.prisma.training.create({
-      data: {
-        ...dto,
-        companyId,
-      },
+  async create(companyId: string, dto: CreateTrainingDto & Record<string, any>) {
+    // Map frontend field aliases to schema fields
+    const data: any = {
+      companyId,
+      name: (dto as any).title || dto.name,
+      description: dto.description,
+      type: dto.type,
+      status: dto.status,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      durationHours: (dto as any).duration || dto.durationHours,
+      location: dto.location,
+      isOnline: dto.isOnline,
+      meetingUrl: dto.meetingUrl,
+      maxParticipants: dto.maxParticipants,
+      costPerPerson: dto.costPerPerson,
+      totalBudget: (dto as any).cost || dto.totalBudget,
+      provider: dto.provider,
+      instructorId: dto.instructorId,
+      instructorName: (dto as any).instructor || dto.instructorName,
+      targetDepartments: dto.targetDepartments,
+      prerequisites: dto.prerequisites,
+      certificationType: dto.certificationType,
+      isMandatory: dto.isMandatory,
+      notes: dto.notes,
+    };
+
+    // Remove undefined values
+    Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+
+    const training = await this.prisma.training.create({
+      data,
       include: {
         instructor: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+
+    // Add participants if provided
+    const participantIds = (dto as any).participantIds;
+    if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
+      for (const employeeId of participantIds) {
+        await this.prisma.trainingParticipant.create({
+          data: {
+            trainingId: training.id,
+            employeeId,
+            status: 'REGISTERED',
+          },
+        });
+      }
+    }
+
+    return this.findOne(training.id, companyId);
   }
 
   async update(id: string, companyId: string, dto: UpdateTrainingDto) {
@@ -105,9 +147,17 @@ export class TrainingService {
       throw new NotFoundException('Training not found');
     }
 
+    // Map frontend aliases and strip non-schema fields
+    const data: any = { ...dto };
+    if (data.title) { data.name = data.title; delete data.title; }
+    if (data.instructor) { data.instructorName = data.instructor; delete data.instructor; }
+    if (data.duration !== undefined) { data.durationHours = data.duration; delete data.duration; }
+    if (data.cost !== undefined) { data.totalBudget = data.cost; delete data.cost; }
+    delete data.participantIds;
+
     return this.prisma.training.update({
       where: { id },
-      data: dto,
+      data,
     });
   }
 

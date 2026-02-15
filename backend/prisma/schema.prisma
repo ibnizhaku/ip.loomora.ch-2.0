@@ -2056,6 +2056,10 @@ model EmployeeContract {
   probationEnd    DateTime?
   noticePeriod    String?  // 1 Monat, 2 Monate, etc.
   
+  thirteenthMonth Boolean  @default(false)
+  workload        Decimal? @db.Decimal(5, 2)  // e.g. 100.00 for full time
+  workLocation    String?
+  
   notes           String?
   
   createdAt       DateTime @default(now())

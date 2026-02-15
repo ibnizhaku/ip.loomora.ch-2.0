@@ -136,6 +136,33 @@ export class CreateTrainingDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  // Frontend aliases
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  title?: string; // Alias for name
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  instructor?: string; // Alias for instructorName
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  duration?: number; // Alias for durationHours
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  cost?: number; // Alias for totalBudget
+
+  @ApiPropertyOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  participantIds?: string[];
 }
 
 export class UpdateTrainingDto extends PartialType(CreateTrainingDto) {}

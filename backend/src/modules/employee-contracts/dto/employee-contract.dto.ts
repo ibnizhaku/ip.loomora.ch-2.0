@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber, IsBoolean } from 'class-validator';
 
 export class CreateEmployeeContractDto {
   @ApiProperty()
@@ -19,9 +19,10 @@ export class CreateEmployeeContractDto {
   @IsOptional()
   endDate?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  salaryType: string; // Monatslohn, Stundenlohn
+  @IsOptional()
+  salaryType?: string; // Monatslohn, Stundenlohn
 
   @ApiProperty()
   @IsNumber()
@@ -38,9 +39,19 @@ export class CreateEmployeeContractDto {
   wageClass?: string; // A, B, C, D, E, F
 
   @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  gavClass?: string; // Alias for wageClass (GAV Metallbau)
+
+  @ApiPropertyOptional()
   @IsNumber()
   @IsOptional()
   workHoursPerWeek?: number;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  weeklyHours?: number; // Alias for workHoursPerWeek
 
   @ApiPropertyOptional()
   @IsNumber()
@@ -56,6 +67,31 @@ export class CreateEmployeeContractDto {
   @IsString()
   @IsOptional()
   noticePeriod?: string;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  thirteenthMonth?: boolean;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  workload?: number; // e.g. 100 for full time
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  workLocation?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  department?: string; // Passed through, not stored on contract
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  position?: string; // Passed through, not stored on contract
 
   @ApiPropertyOptional()
   @IsString()

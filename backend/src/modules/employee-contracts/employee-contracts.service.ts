@@ -96,14 +96,17 @@ export class EmployeeContractsService {
         contractType: dto.contractType,
         startDate: new Date(dto.startDate),
         endDate: dto.endDate ? new Date(dto.endDate) : null,
-        salaryType: dto.salaryType,
+        salaryType: dto.salaryType || 'Monatslohn',
         baseSalary: dto.baseSalary,
         hourlyRate: dto.hourlyRate,
-        wageClass: dto.wageClass,
-        workHoursPerWeek: dto.workHoursPerWeek || 42.5,
+        wageClass: dto.gavClass || dto.wageClass,
+        workHoursPerWeek: dto.weeklyHours || dto.workHoursPerWeek || 42.5,
         vacationDays: dto.vacationDays || 25,
         probationEnd: dto.probationEnd ? new Date(dto.probationEnd) : null,
         noticePeriod: dto.noticePeriod,
+        thirteenthMonth: dto.thirteenthMonth || false,
+        workload: dto.workload,
+        workLocation: dto.workLocation,
         notes: dto.notes,
       },
       include: {
@@ -127,11 +130,14 @@ export class EmployeeContractsService {
     if (dto.salaryType !== undefined) data.salaryType = dto.salaryType;
     if (dto.baseSalary !== undefined) data.baseSalary = dto.baseSalary;
     if (dto.hourlyRate !== undefined) data.hourlyRate = dto.hourlyRate;
-    if (dto.wageClass !== undefined) data.wageClass = dto.wageClass;
-    if (dto.workHoursPerWeek !== undefined) data.workHoursPerWeek = dto.workHoursPerWeek;
+    if (dto.gavClass !== undefined || dto.wageClass !== undefined) data.wageClass = dto.gavClass || dto.wageClass;
+    if (dto.weeklyHours !== undefined || dto.workHoursPerWeek !== undefined) data.workHoursPerWeek = dto.weeklyHours || dto.workHoursPerWeek;
     if (dto.vacationDays !== undefined) data.vacationDays = dto.vacationDays;
     if (dto.probationEnd !== undefined) data.probationEnd = dto.probationEnd ? new Date(dto.probationEnd) : null;
     if (dto.noticePeriod !== undefined) data.noticePeriod = dto.noticePeriod;
+    if (dto.thirteenthMonth !== undefined) data.thirteenthMonth = dto.thirteenthMonth;
+    if (dto.workload !== undefined) data.workload = dto.workload;
+    if (dto.workLocation !== undefined) data.workLocation = dto.workLocation;
     if (dto.notes !== undefined) data.notes = dto.notes;
 
     return this.prisma.employeeContract.update({

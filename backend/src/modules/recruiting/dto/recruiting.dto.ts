@@ -101,6 +101,17 @@ export class CreateJobPostingDto {
   @IsString({ each: true })
   @IsOptional()
   requiredSkills?: string[];
+
+  // Frontend aliases
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  responsibilities?: string; // Alias for benefits
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  closingDate?: string; // Alias for applicationDeadline
 }
 
 export class UpdateJobPostingDto extends PartialType(CreateJobPostingDto) {}
