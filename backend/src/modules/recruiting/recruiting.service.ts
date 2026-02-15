@@ -16,6 +16,23 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class RecruitingService {
   constructor(private prisma: PrismaService) {}
 
+  // ============== OVERVIEW ==============
+  async getOverview(companyId: string, query: PaginationDto & { status?: string }) {
+    const [candidates, jobs, stats] = await Promise.all([
+      this.findAllCandidates(companyId, { ...query, pageSize: 50 }),
+      this.findAllJobPostings(companyId, { ...query, pageSize: 50 }),
+      this.getRecruitingStats(companyId),
+    ]);
+
+    return {
+      candidates: candidates.data,
+      jobs: jobs.data,
+      stats,
+      totalCandidates: candidates.total,
+      totalJobs: jobs.total,
+    };
+  }
+
   // ============== JOB POSTINGS ==============
   async findAllJobPostings(companyId: string, query: PaginationDto & { status?: string }) {
     const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = query;

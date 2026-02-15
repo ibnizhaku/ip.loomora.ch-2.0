@@ -20,6 +20,12 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class RecruitingController {
   constructor(private recruitingService: RecruitingService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'Get recruiting overview (candidates + jobs)' })
+  getOverview(@CurrentUser() user: CurrentUserPayload, @Query() query: PaginationDto & { status?: string }) {
+    return this.recruitingService.getOverview(user.companyId, query);
+  }
+
   // ============== JOB POSTINGS ==============
   @Get('jobs')
   @ApiOperation({ summary: 'Get all job postings' })
