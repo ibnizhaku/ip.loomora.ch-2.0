@@ -22,27 +22,29 @@ export class CreateAbsenceDto {
   @IsString()
   employeeId: string;
 
-  @ApiProperty({ enum: AbsenceType })
-  @IsEnum(AbsenceType)
-  type: AbsenceType;
+  @ApiProperty({ example: 'VACATION' })
+  @IsString()
+  type: string;
 
   @ApiPropertyOptional({ enum: AbsenceStatus })
   @IsOptional()
-  @IsEnum(AbsenceStatus)
-  status?: AbsenceStatus;
+  @IsString()
+  status?: string;
 
   @ApiProperty({ example: '2024-02-05' })
   @IsDateString()
   startDate: string;
 
-  @ApiProperty({ example: '2024-02-09' })
+  @ApiPropertyOptional({ example: '2024-02-09' })
+  @IsOptional()
   @IsDateString()
-  endDate: string;
+  endDate?: string;
 
-  @ApiProperty({ example: 5 })
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
   @IsNumber()
   @Min(0.5)
-  days: number;
+  days?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

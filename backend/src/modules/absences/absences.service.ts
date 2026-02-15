@@ -145,14 +145,37 @@ export class AbsencesService {
   }
 
   async create(dto: CreateAbsenceDto) {
+    // Map type to uppercase enum (frontend may send lowercase)
+    const typeMap: Record<string, string> = {
+      vacation: 'VACATION', sick: 'SICK', unpaid: 'UNPAID',
+      maternity: 'MATERNITY', paternity: 'PATERNITY', training: 'OTHER', other: 'OTHER',
+    };
+    const normalizedType = typeMap[dto.type?.toLowerCase()] || dto.type?.toUpperCase() || 'OTHER';
+
+    // Map status to uppercase enum
+    const statusMap: Record<string, string> = {
+      pending: 'PENDING', approved: 'APPROVED', rejected: 'REJECTED',
+    };
+    const normalizedStatus = dto.status ? (statusMap[dto.status.toLowerCase()] || dto.status.toUpperCase()) : 'PENDING';
+
+    const startDate = new Date(dto.startDate);
+    const endDate = dto.endDate ? new Date(dto.endDate) : startDate;
+
+    // Auto-calculate days if not provided
+    let days = dto.days;
+    if (!days || days <= 0) {
+      const diffMs = endDate.getTime() - startDate.getTime();
+      days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+    }
+
     return this.prisma.absence.create({
       data: {
         employeeId: dto.employeeId,
-        type: dto.type,
-        status: dto.status || 'PENDING',
-        startDate: new Date(dto.startDate),
-        endDate: new Date(dto.endDate),
-        days: dto.days,
+        type: normalizedType as any,
+        status: normalizedStatus as any,
+        startDate,
+        endDate,
+        days,
         reason: dto.reason,
         notes: dto.notes,
       },
@@ -176,23 +199,34 @@ export class AbsencesService {
       throw new NotFoundException('Absence not found');
     }
 
+    // Normalize type/status to uppercase enum values
+    const typeMap: Record<string, string> = {
+      vacation: 'VACATION', sick: 'SICK', unpaid: 'UNPAID',
+      maternity: 'MATERNITY', paternity: 'PATERNITY', training: 'OTHER', other: 'OTHER',
+    };
+    const statusMap: Record<string, string> = {
+      pending: 'PENDING', approved: 'APPROVED', rejected: 'REJECTED',
+    };
+    const normalizedType = dto.type ? (typeMap[dto.type.toLowerCase()] || dto.type.toUpperCase()) : undefined;
+    const normalizedStatus = dto.status ? (statusMap[dto.status.toLowerCase()] || dto.status.toUpperCase()) : undefined;
+
     const updated = await this.prisma.absence.update({
       where: { id },
       data: {
-        type: dto.type,
-        status: dto.status,
+        type: normalizedType as any,
+        status: normalizedStatus as any,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         days: dto.days,
         reason: dto.reason,
         notes: dto.notes,
-        approvedAt: dto.status === 'APPROVED' ? new Date() : undefined,
+        approvedAt: normalizedStatus === 'APPROVED' ? new Date() : undefined,
       },
     });
 
     // Send notification if status changed to APPROVED or REJECTED
-    if (dto.status && absence.status !== dto.status && absence.employee?.user?.id) {
-      if (dto.status === 'APPROVED') {
+    if (normalizedStatus && absence.status !== normalizedStatus && absence.employee?.user?.id) {
+      if (normalizedStatus === 'APPROVED') {
         await this.notificationsService.create(absence.employee.companyId, {
           title: 'Abwesenheit genehmigt',
           message: `Ihr Urlaubsantrag vom ${absence.startDate.toLocaleDateString('de-CH')} wurde genehmigt`,
@@ -203,7 +237,7 @@ export class AbsencesService {
           sourceType: 'absence',
           sourceId: id,
         });
-      } else if (dto.status === 'REJECTED') {
+      } else if (normalizedStatus === 'REJECTED') {
         await this.notificationsService.create(absence.employee.companyId, {
           title: 'Abwesenheit abgelehnt',
           message: `Ihr Urlaubsantrag vom ${absence.startDate.toLocaleDateString('de-CH')} wurde abgelehnt`,
