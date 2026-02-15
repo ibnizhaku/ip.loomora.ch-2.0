@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, FileText, User, Calendar, Banknote, Clock, Shield, Building2, Edit, Download, Save, X, Loader2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,38 +16,7 @@ import autoTable from "jspdf-autotable";
 import SocialInsuranceEditor, { EmployeeSocialInsurance } from "@/components/contracts/SocialInsuranceEditor";
 import { DEFAULT_SOCIAL_INSURANCE_RATES, SocialInsuranceRates, loadSocialInsuranceRates } from "@/components/settings/SocialInsuranceSettings";
 import { loadExpenseRules, ExpenseRules } from "@/components/settings/ExpenseRulesSettings";
-
-const initialVertragData = {
-  id: "AV-2024-0089",
-  mitarbeiter: "Marco Brunner",
-  personalNr: "MA-0045",
-  position: "Metallbauer EFZ",
-  abteilung: "Produktion",
-  vorgesetzter: "Thomas Meier",
-  vertragsart: "Unbefristet",
-  status: "aktiv",
-  eintrittsdatum: "2022-03-01",
-  probezeit: "3 Monate (bis 31.05.2022)",
-  kündigungsfrist: "2 Monate",
-  arbeitsort: "Werkstatt Zürich",
-  gav: "GAV Metallbau Schweiz",
-  lohnklasse: "C",
-  lohnklasseBeschreibung: "Facharbeiter mit EFZ",
-  wochenarbeitszeit: 42.5,
-  jahresarbeitszeit: 2212,
-  monatslohn: 5400,
-  stundenlohn: 30.42,
-  tage13: true,
-  ferienanspruch: 25,
-  feiertage: 9,
-  ahvNr: "756.1234.5678.90",
-};
-
-// Convert DEFAULT_SOCIAL_INSURANCE_RATES to initial employee social insurance state
-const initialSocialInsurance: EmployeeSocialInsurance = {
-  rates: { ...DEFAULT_SOCIAL_INSURANCE_RATES },
-  overrides: {}
-};
+import { useEmployeeContract, useUpdateEmployeeContract } from "@/hooks/use-employee-contracts";
 
 // Dynamic expense rules - will be loaded from settings
 const getExpenseRulesDisplay = (rules: ExpenseRules) => [
@@ -60,9 +29,13 @@ const getExpenseRulesDisplay = (rules: ExpenseRules) => [
 
 const statusColors: Record<string, string> = {
   aktiv: "bg-success/10 text-success",
+  active: "bg-success/10 text-success",
   gekündigt: "bg-warning/10 text-warning",
+  terminated: "bg-warning/10 text-warning",
   beendet: "bg-muted text-muted-foreground",
+  ended: "bg-muted text-muted-foreground",
   entwurf: "bg-info/10 text-info",
+  draft: "bg-info/10 text-info",
 };
 
 const lohnklassen = [
@@ -77,25 +50,71 @@ const lohnklassen = [
 const vertragsarten = ["Unbefristet", "Befristet", "Temporär", "Praktikum", "Lehrvertrag"];
 const statusOptions = ["aktiv", "gekündigt", "beendet", "entwurf"];
 
+// Convert DEFAULT_SOCIAL_INSURANCE_RATES to initial employee social insurance state
+const initialSocialInsurance: EmployeeSocialInsurance = {
+  rates: { ...DEFAULT_SOCIAL_INSURANCE_RATES },
+  overrides: {}
+};
+
 export default function EmployeeContractDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // API hooks
+  const { data: apiData, isLoading, error } = useEmployeeContract(id || "");
+  const updateMutation = useUpdateEmployeeContract();
+
+  // Map API data to component format
+  const initialData = useMemo(() => {
+    if (!apiData) return null;
+    return {
+      id: apiData.id || id || "",
+      mitarbeiter: apiData.employeeName || (apiData.employee ? `${apiData.employee.firstName} ${apiData.employee.lastName}` : "–"),
+      personalNr: apiData.employeeId || apiData.employee?.id || "",
+      position: apiData.position || apiData.employee?.position || "–",
+      abteilung: apiData.department || apiData.employee?.department || "–",
+      vorgesetzter: apiData.supervisor || "–",
+      vertragsart: apiData.contractType || "Unbefristet",
+      status: apiData.status || "aktiv",
+      eintrittsdatum: apiData.startDate || "",
+      probezeit: apiData.probationEnd || "–",
+      kündigungsfrist: apiData.noticePeriod || "–",
+      arbeitsort: apiData.workLocation || "–",
+      gav: apiData.gav || "GAV Metallbau Schweiz",
+      lohnklasse: apiData.gavClass || "C",
+      lohnklasseBeschreibung: apiData.salaryClassDescription || "Facharbeiter mit EFZ",
+      wochenarbeitszeit: apiData.weeklyHours || 42.5,
+      jahresarbeitszeit: apiData.annualHours || 2212,
+      monatslohn: apiData.baseSalary || 0,
+      stundenlohn: apiData.hourlyRate || 0,
+      tage13: apiData.thirteenthMonth !== false,
+      ferienanspruch: apiData.vacationDays || 20,
+      feiertage: apiData.publicHolidays || 9,
+      ahvNr: apiData.ahvNumber || "",
+    };
+  }, [apiData, id]);
+
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [vertragData, setVertragData] = useState(initialVertragData);
-  const [editData, setEditData] = useState(initialVertragData);
+  const [vertragData, setVertragData] = useState(initialData);
+  const [editData, setEditData] = useState(initialData);
   const [companyRates, setCompanyRates] = useState<SocialInsuranceRates>(DEFAULT_SOCIAL_INSURANCE_RATES);
   const [socialInsurance, setSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
   const [editSocialInsurance, setEditSocialInsurance] = useState<EmployeeSocialInsurance>(initialSocialInsurance);
   const [expenseRules, setExpenseRules] = useState<ExpenseRules | null>(null);
 
+  // Sync API data
+  useEffect(() => {
+    if (initialData) {
+      setVertragData(initialData);
+      setEditData(initialData);
+    }
+  }, [initialData]);
+
   // Load company rates and expense rules on mount
   useEffect(() => {
     const rates = loadSocialInsuranceRates();
     setCompanyRates(rates);
-    // Update social insurance with company rates (keeping any overrides)
     setSocialInsurance(prev => ({
       rates: { ...rates, ...Object.fromEntries(
         Object.entries(prev.rates).filter(([key]) => prev.overrides[key as keyof SocialInsuranceRates])
@@ -103,39 +122,48 @@ export default function EmployeeContractDetail() {
       overrides: prev.overrides
     }));
     
-    // Load expense rules
     const expRules = loadExpenseRules();
     setExpenseRules(expRules);
   }, []);
 
-  // Get display data for expense table
   const spesen = expenseRules ? getExpenseRulesDisplay(expenseRules) : [];
 
   // Check for edit mode from URL param
   useEffect(() => {
     if (searchParams.get("edit") === "true") {
       setIsEditMode(true);
-      setEditData(vertragData);
-      // Clean up URL
+      if (vertragData) setEditData(vertragData);
       searchParams.delete("edit");
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams, vertragData]);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !vertragData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Vertrag nicht gefunden</p>
+        <Link to="/employee-contracts" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("de-CH", {
-      style: "currency",
-      currency: "CHF",
-    }).format(value);
+    return new Intl.NumberFormat("de-CH", { style: "currency", currency: "CHF" }).format(value);
   };
 
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString("de-CH");
-    } catch {
-      return dateStr;
-    }
+    } catch { return dateStr; }
   };
 
   const jahreslohn = vertragData.monatslohn * (vertragData.tage13 ? 13 : 12);
@@ -145,12 +173,10 @@ export default function EmployeeContractDetail() {
   const handlePdfExport = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
     doc.setFontSize(18);
     doc.text("Arbeitsvertrag", pageWidth / 2, 20, { align: "center" });
     doc.setFontSize(10);
     doc.text(`${vertragData.id}`, pageWidth / 2, 28, { align: "center" });
-    
     doc.setFontSize(12);
     doc.text("Mitarbeiter", 14, 42);
     doc.setFontSize(10);
@@ -158,7 +184,6 @@ export default function EmployeeContractDetail() {
     doc.text(`Personal-Nr.: ${vertragData.personalNr}`, 14, 56);
     doc.text(`Position: ${vertragData.position}`, 14, 62);
     doc.text(`Abteilung: ${vertragData.abteilung}`, 14, 68);
-    
     doc.setFontSize(12);
     doc.text("Vertragsdaten", 14, 82);
     doc.setFontSize(10);
@@ -166,7 +191,6 @@ export default function EmployeeContractDetail() {
     doc.text(`Eintrittsdatum: ${formatDate(vertragData.eintrittsdatum)}`, 14, 96);
     doc.text(`Arbeitsort: ${vertragData.arbeitsort}`, 14, 102);
     doc.text(`Kündigungsfrist: ${vertragData.kündigungsfrist}`, 14, 108);
-    
     doc.setFontSize(12);
     doc.text("Entlöhnung (GAV Metallbau)", 14, 122);
     doc.setFontSize(10);
@@ -174,7 +198,6 @@ export default function EmployeeContractDetail() {
     doc.text(`Monatslohn: ${formatCurrency(vertragData.monatslohn)}`, 14, 136);
     doc.text(`Jahreslohn: ${formatCurrency(jahreslohn)} (${vertragData.tage13 ? "13" : "12"} Monatslöhne)`, 14, 142);
     doc.text(`Ferienanspruch: ${vertragData.ferienanspruch} Tage`, 14, 148);
-    
     autoTable(doc, {
       startY: 160,
       head: [["Sozialversicherung", "AG %", "AN %", "Basis"]],
@@ -188,7 +211,6 @@ export default function EmployeeContractDetail() {
       headStyles: { fillColor: [41, 128, 185] },
       styles: { fontSize: 8 },
     });
-
     doc.save(`Arbeitsvertrag_${vertragData.personalNr}.pdf`);
     toast.success("PDF wurde exportiert");
   };
@@ -208,26 +230,43 @@ export default function EmployeeContractDetail() {
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Update local data
-      setVertragData(editData);
-      setSocialInsurance(editSocialInsurance);
-      setIsEditMode(false);
-      toast.success("Vertrag wurde erfolgreich aktualisiert");
-    } catch (error) {
-      toast.error("Fehler beim Speichern des Vertrags");
-    } finally {
-      setIsSaving(false);
-    }
+    if (!editData || !id) return;
+    updateMutation.mutate({
+      id,
+      data: {
+        contractType: editData.vertragsart,
+        status: editData.status,
+        startDate: editData.eintrittsdatum,
+        workLocation: editData.arbeitsort,
+        noticePeriod: editData.kündigungsfrist,
+        weeklyHours: editData.wochenarbeitszeit,
+        gavClass: editData.lohnklasse,
+        baseSalary: editData.monatslohn,
+        hourlyRate: editData.stundenlohn,
+        vacationDays: editData.ferienanspruch,
+        publicHolidays: editData.feiertage,
+        ahvNumber: editData.ahvNr,
+        position: editData.position,
+        department: editData.abteilung,
+      },
+    }, {
+      onSuccess: () => {
+        setVertragData(editData);
+        setSocialInsurance(editSocialInsurance);
+        setIsEditMode(false);
+        toast.success("Vertrag wurde erfolgreich aktualisiert");
+      },
+      onError: () => {
+        toast.error("Fehler beim Speichern des Vertrags");
+      },
+    });
   };
 
   const updateField = (field: string, value: string | number | boolean) => {
-    setEditData(prev => ({ ...prev, [field]: value }));
+    setEditData(prev => prev ? { ...prev, [field]: value } : prev);
   };
+
+  const isSaving = updateMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -245,7 +284,7 @@ export default function EmployeeContractDetail() {
               <Badge className="bg-info/10 text-info">Bearbeitungsmodus</Badge>
             ) : (
               <>
-                <Badge className={statusColors[vertragData.status]}>
+                <Badge className={statusColors[vertragData.status] || "bg-muted"}>
                   {vertragData.status.charAt(0).toUpperCase() + vertragData.status.slice(1)}
                 </Badge>
                 <Badge variant="outline">{vertragData.vertragsart}</Badge>
@@ -306,19 +345,11 @@ export default function EmployeeContractDetail() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="position">Position</Label>
-                      <Input
-                        id="position"
-                        value={editData.position}
-                        onChange={(e) => updateField("position", e.target.value)}
-                      />
+                      <Input id="position" value={editData?.position || ""} onChange={(e) => updateField("position", e.target.value)} />
                     </div>
                     <div>
                       <Label htmlFor="abteilung">Abteilung</Label>
-                      <Input
-                        id="abteilung"
-                        value={editData.abteilung}
-                        onChange={(e) => updateField("abteilung", e.target.value)}
-                      />
+                      <Input id="abteilung" value={editData?.abteilung || ""} onChange={(e) => updateField("abteilung", e.target.value)} />
                     </div>
                   </div>
                 </div>
@@ -344,79 +375,42 @@ export default function EmployeeContractDetail() {
       {/* Vertragsdaten */}
       {isEditMode ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Vertragsdaten</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Vertragsdaten</CardTitle></CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="vertragsart">Vertragsart</Label>
-                <Select
-                  value={editData.vertragsart}
-                  onValueChange={(value) => updateField("vertragsart", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={editData?.vertragsart || ""} onValueChange={(value) => updateField("vertragsart", value)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {vertragsarten.map((art) => (
-                      <SelectItem key={art} value={art}>{art}</SelectItem>
-                    ))}
+                    {vertragsarten.map((art) => (<SelectItem key={art} value={art}>{art}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select
-                  value={editData.status}
-                  onValueChange={(value) => updateField("status", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={editData?.status || ""} onValueChange={(value) => updateField("status", value)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s.charAt(0).toUpperCase() + s.slice(1)}
-                      </SelectItem>
-                    ))}
+                    {statusOptions.map((s) => (<SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="eintrittsdatum">Eintrittsdatum</Label>
-                <Input
-                  id="eintrittsdatum"
-                  type="date"
-                  value={editData.eintrittsdatum}
-                  onChange={(e) => updateField("eintrittsdatum", e.target.value)}
-                />
+                <Input id="eintrittsdatum" type="date" value={editData?.eintrittsdatum || ""} onChange={(e) => updateField("eintrittsdatum", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="arbeitsort">Arbeitsort</Label>
-                <Input
-                  id="arbeitsort"
-                  value={editData.arbeitsort}
-                  onChange={(e) => updateField("arbeitsort", e.target.value)}
-                />
+                <Input id="arbeitsort" value={editData?.arbeitsort || ""} onChange={(e) => updateField("arbeitsort", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="kündigungsfrist">Kündigungsfrist</Label>
-                <Input
-                  id="kündigungsfrist"
-                  value={editData.kündigungsfrist}
-                  onChange={(e) => updateField("kündigungsfrist", e.target.value)}
-                />
+                <Input id="kündigungsfrist" value={editData?.kündigungsfrist || ""} onChange={(e) => updateField("kündigungsfrist", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="wochenarbeitszeit">Wochenarbeitszeit (Std.)</Label>
-                <Input
-                  id="wochenarbeitszeit"
-                  type="number"
-                  step="0.5"
-                  value={editData.wochenarbeitszeit}
-                  onChange={(e) => updateField("wochenarbeitszeit", parseFloat(e.target.value))}
-                />
+                <Input id="wochenarbeitszeit" type="number" step="0.5" value={editData?.wochenarbeitszeit || 0} onChange={(e) => updateField("wochenarbeitszeit", parseFloat(e.target.value))} />
               </div>
             </div>
           </CardContent>
@@ -426,8 +420,7 @@ export default function EmployeeContractDetail() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Eintrittsdatum
+                <Calendar className="h-4 w-4" />Eintrittsdatum
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -438,8 +431,7 @@ export default function EmployeeContractDetail() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Arbeitszeit
+                <Clock className="h-4 w-4" />Arbeitszeit
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -450,8 +442,7 @@ export default function EmployeeContractDetail() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Arbeitsort
+                <Building2 className="h-4 w-4" />Arbeitsort
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -476,69 +467,36 @@ export default function EmployeeContractDetail() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Lohnklasse</Label>
-                  <Select
-                    value={editData.lohnklasse}
-                    onValueChange={(value) => updateField("lohnklasse", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Select value={editData?.lohnklasse || ""} onValueChange={(value) => updateField("lohnklasse", value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {lohnklassen.map((lk) => (
-                        <SelectItem key={lk.value} value={lk.value}>{lk.label}</SelectItem>
-                      ))}
+                      {lohnklassen.map((lk) => (<SelectItem key={lk.value} value={lk.value}>{lk.label}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="monatslohn">Monatslohn (CHF)</Label>
-                    <Input
-                      id="monatslohn"
-                      type="number"
-                      value={editData.monatslohn}
-                      onChange={(e) => updateField("monatslohn", parseFloat(e.target.value))}
-                    />
+                    <Input id="monatslohn" type="number" value={editData?.monatslohn || 0} onChange={(e) => updateField("monatslohn", parseFloat(e.target.value))} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="stundenlohn">Stundenlohn (CHF)</Label>
-                    <Input
-                      id="stundenlohn"
-                      type="number"
-                      step="0.01"
-                      value={editData.stundenlohn}
-                      onChange={(e) => updateField("stundenlohn", parseFloat(e.target.value))}
-                    />
+                    <Input id="stundenlohn" type="number" step="0.01" value={editData?.stundenlohn || 0} onChange={(e) => updateField("stundenlohn", parseFloat(e.target.value))} />
                   </div>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="ferienanspruch">Ferienanspruch (Tage)</Label>
-                  <Input
-                    id="ferienanspruch"
-                    type="number"
-                    value={editData.ferienanspruch}
-                    onChange={(e) => updateField("ferienanspruch", parseInt(e.target.value))}
-                  />
+                  <Input id="ferienanspruch" type="number" value={editData?.ferienanspruch || 0} onChange={(e) => updateField("ferienanspruch", parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="feiertage">Bezahlte Feiertage (Tage)</Label>
-                  <Input
-                    id="feiertage"
-                    type="number"
-                    value={editData.feiertage}
-                    onChange={(e) => updateField("feiertage", parseInt(e.target.value))}
-                  />
+                  <Input id="feiertage" type="number" value={editData?.feiertage || 0} onChange={(e) => updateField("feiertage", parseInt(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ahvNr">AHV-Nummer</Label>
-                  <Input
-                    id="ahvNr"
-                    value={editData.ahvNr}
-                    onChange={(e) => updateField("ahvNr", e.target.value)}
-                    placeholder="756.XXXX.XXXX.XX"
-                  />
+                  <Input id="ahvNr" value={editData?.ahvNr || ""} onChange={(e) => updateField("ahvNr", e.target.value)} placeholder="756.XXXX.XXXX.XX" />
                 </div>
               </div>
             </div>
@@ -548,9 +506,7 @@ export default function EmployeeContractDetail() {
                 <div>
                   <p className="text-sm text-muted-foreground">Lohnklasse</p>
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-primary/10 text-primary text-lg px-3">
-                      Klasse {vertragData.lohnklasse}
-                    </Badge>
+                    <Badge className="bg-primary/10 text-primary text-lg px-3">Klasse {vertragData.lohnklasse}</Badge>
                     <span>{vertragData.lohnklasseBeschreibung}</span>
                   </div>
                 </div>
@@ -634,9 +590,7 @@ export default function EmployeeContractDetail() {
               {spesen.map((sp, i) => (
                 <TableRow key={i}>
                   <TableCell className="font-medium">{sp.bezeichnung}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{sp.betrag}</Badge>
-                  </TableCell>
+                  <TableCell><Badge variant="outline">{sp.betrag}</Badge></TableCell>
                   <TableCell className="text-muted-foreground">{sp.bemerkung}</TableCell>
                 </TableRow>
               ))}
