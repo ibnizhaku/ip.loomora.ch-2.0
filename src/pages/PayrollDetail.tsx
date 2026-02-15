@@ -1,7 +1,9 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { ArrowLeft, Loader2, Users } from "lucide-react";
+import { useCompletePayrollRun } from "@/hooks/use-payroll";
+import { ArrowLeft, Loader2, Users, CheckCircle, FileText, Printer, Send } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,12 +28,23 @@ function formatDate(d?: string | null) {
 
 export default function PayrollDetail() {
   const { id } = useParams();
+  const completeRun = useCompletePayrollRun();
 
   const { data: payroll, isLoading, error } = useQuery({
     queryKey: ["/payroll", id],
     queryFn: () => api.get<any>(`/payroll/${id}`),
     enabled: !!id,
   });
+
+  const isDraft = !payroll?.status || payroll.status === "Entwurf" || payroll.status === "DRAFT";
+
+  const handleComplete = () => {
+    if (!id) return;
+    completeRun.mutate(id, {
+      onSuccess: () => toast.success("Lohnlauf erfolgreich abgeschlossen"),
+      onError: (err: any) => toast.error(err?.message || "Fehler beim Abschliessen"),
+    });
+  };
 
   if (isLoading) {
     return (
@@ -57,22 +70,52 @@ export default function PayrollDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link to="/payroll">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">
-              Lohnlauf — {payroll.period || payroll.periodKey}
-            </h1>
-            <Badge variant="outline">{payroll.status || "Entwurf"}</Badge>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link to="/payroll">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-2xl font-bold">
+                Lohnlauf — {payroll.period || payroll.periodKey}
+              </h1>
+              <Badge variant="outline">{payroll.status || "Entwurf"}</Badge>
+            </div>
+            <p className="text-muted-foreground">
+              {formatDate(payroll.periodStart)} — {formatDate(payroll.periodEnd)}
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            {formatDate(payroll.periodStart)} — {formatDate(payroll.periodEnd)}
-          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <Printer className="h-4 w-4 mr-2" />
+            Drucken
+          </Button>
+          <Button variant="outline" size="sm">
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+          <Button variant="outline" size="sm">
+            <Send className="h-4 w-4 mr-2" />
+            Versenden
+          </Button>
+          {isDraft && (
+            <Button
+              size="sm"
+              onClick={handleComplete}
+              disabled={completeRun.isPending}
+            >
+              {completeRun.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Abschliessen
+            </Button>
+          )}
         </div>
       </div>
 
