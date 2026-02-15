@@ -79,12 +79,12 @@ const Payroll = () => {
   const [showAbschliessenDialog, setShowAbschliessenDialog] = useState(false);
   const currentRun = payrollRuns.find(r => r.status === "In Bearbeitung");
 
-  const totalBrutto = employeePayroll.reduce((sum, e) => sum + e.bruttoLohn, 0);
-  const totalNetto = employeePayroll.reduce((sum, e) => sum + e.nettoLohn, 0);
-  const totalAHV = employeePayroll.reduce((sum, e) => sum + e.ahvIvEo, 0);
-  const totalBVG = employeePayroll.reduce((sum, e) => sum + e.bvg, 0);
+  const totalBrutto = employeePayroll.reduce((sum, e) => sum + (e.bruttoLohn || 0), 0);
+  const totalNetto = employeePayroll.reduce((sum, e) => sum + (e.nettoLohn || 0), 0);
+  const totalAHV = employeePayroll.reduce((sum, e) => sum + (e.ahvIvEo || 0), 0);
+  const totalBVG = employeePayroll.reduce((sum, e) => sum + (e.bvg || 0), 0);
 
-  const uniquePositions = Array.from(new Set(employeePayroll.map((e: any) => String(e.position))));
+  const uniquePositions = Array.from(new Set(employeePayroll.map((e: any) => String(e.position || e.role || ''))));
   const activeFilters = filterStatus.length + filterPosition.length;
 
   const handleStatClick = (filter: string | null) => {
@@ -131,11 +131,13 @@ const Payroll = () => {
   };
 
   const filteredEmployees = employeePayroll.filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.position.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = e.name || `${e.firstName || ''} ${e.lastName || ''}`.trim() || '';
+    const position = e.position || e.role || '';
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      position.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || e.status === statusFilter;
     const matchesFilterStatus = filterStatus.length === 0 || filterStatus.includes(e.status);
-    const matchesFilterPosition = filterPosition.length === 0 || filterPosition.includes(e.position);
+    const matchesFilterPosition = filterPosition.length === 0 || filterPosition.includes(position);
     return matchesSearch && matchesStatus && matchesFilterStatus && matchesFilterPosition;
   });
 
