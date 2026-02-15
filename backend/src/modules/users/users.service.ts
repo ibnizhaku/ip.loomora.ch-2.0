@@ -310,4 +310,143 @@ export class UsersService {
       where: { email: email.toLowerCase() },
     });
   }
+
+  // ─── PERMISSIONS ─────────────────────────────────────────
+
+  private readonly MODULES = [
+    'Dashboard', 'Projekte', 'Aufgaben', 'Zeiterfassung', 'Produktion', 'Stücklisten',
+    'Kunden', 'Rechnungen', 'Buchhaltung', 'Personal', 'Einstellungen',
+  ];
+
+  // Module name → backend permission module key mapping
+  private readonly MODULE_KEY_MAP: Record<string, string> = {
+    'Dashboard': 'dashboard',
+    'Projekte': 'projects',
+    'Aufgaben': 'tasks',
+    'Zeiterfassung': 'time-entries',
+    'Produktion': 'production',
+    'Stücklisten': 'bom',
+    'Kunden': 'customers',
+    'Rechnungen': 'invoices',
+    'Buchhaltung': 'finance',
+    'Personal': 'employees',
+    'Einstellungen': 'settings',
+  };
+
+  async getPermissions(userId: string, companyId: string) {
+    // 1. Get user membership with role
+    const membership = await this.prisma.userCompanyMembership.findFirst({
+      where: { userId, companyId },
+      include: {
+        role: {
+          include: { permissions: true },
+        },
+      },
+    });
+
+    if (!membership) throw new NotFoundException('Benutzer nicht in dieser Company');
+
+    const role = membership.role;
+    const rolePermissions = role?.permissions || [];
+
+    // 2. Get user overrides
+    const overrides = await this.prisma.userPermissionOverride.findMany({
+      where: { userId, companyId },
+    });
+
+    const overrideMap = new Map(overrides.map(o => [o.module, o]));
+
+    // 3. Build permission list per module
+    const permissions = this.MODULES.map(moduleName => {
+      const moduleKey = this.MODULE_KEY_MAP[moduleName] || moduleName.toLowerCase();
+
+      // Check if there's an override for this module
+      const override = overrideMap.get(moduleName);
+      if (override) {
+        return {
+          module: moduleName,
+          read: override.canRead,
+          write: override.canWrite,
+          delete: override.canDelete,
+          source: 'override' as const,
+        };
+      }
+
+      // Fall back to role permissions
+      const rolePerms = rolePermissions.filter(p => p.module === moduleKey);
+      const hasAdmin = rolePerms.some(p => p.permission === 'admin');
+      const hasRead = hasAdmin || rolePerms.some(p => p.permission === 'read');
+      const hasWrite = hasAdmin || rolePerms.some(p => p.permission === 'write');
+      const hasDelete = hasAdmin || rolePerms.some(p => p.permission === 'delete');
+
+      return {
+        module: moduleName,
+        read: hasRead,
+        write: hasWrite,
+        delete: hasDelete,
+        source: 'role' as const,
+      };
+    });
+
+    return {
+      roleId: role?.id || '',
+      roleName: role?.name || 'Unbekannt',
+      permissions,
+    };
+  }
+
+  async updatePermissions(userId: string, companyId: string, permissions: any[]) {
+    // 1. Verify membership
+    const membership = await this.prisma.userCompanyMembership.findFirst({
+      where: { userId, companyId },
+      include: {
+        role: { include: { permissions: true } },
+      },
+    });
+
+    if (!membership) throw new NotFoundException('Benutzer nicht in dieser Company');
+
+    const rolePermissions = membership.role?.permissions || [];
+
+    // 2. Only save overrides (entries with source: "override")
+    const overrides = permissions.filter(p => p.source === 'override');
+
+    // 3. For each override, check if it differs from role default
+    const toUpsert: any[] = [];
+    for (const perm of overrides) {
+      const moduleKey = this.MODULE_KEY_MAP[perm.module] || perm.module.toLowerCase();
+      const rolePerms = rolePermissions.filter(p => p.module === moduleKey);
+      const hasAdmin = rolePerms.some(p => p.permission === 'admin');
+      const roleRead = hasAdmin || rolePerms.some(p => p.permission === 'read');
+      const roleWrite = hasAdmin || rolePerms.some(p => p.permission === 'write');
+      const roleDelete = hasAdmin || rolePerms.some(p => p.permission === 'delete');
+
+      // Only save if different from role default
+      if (perm.read !== roleRead || perm.write !== roleWrite || perm.delete !== roleDelete) {
+        toUpsert.push({
+          userId,
+          companyId,
+          module: perm.module,
+          canRead: !!perm.read,
+          canWrite: !!perm.write,
+          canDelete: !!perm.delete,
+        });
+      }
+    }
+
+    // 4. Delete all current overrides for this user+company
+    await this.prisma.userPermissionOverride.deleteMany({
+      where: { userId, companyId },
+    });
+
+    // 5. Create new overrides
+    if (toUpsert.length > 0) {
+      await this.prisma.userPermissionOverride.createMany({
+        data: toUpsert,
+      });
+    }
+
+    // 6. Return updated permissions
+    return this.getPermissions(userId, companyId);
+  }
 }

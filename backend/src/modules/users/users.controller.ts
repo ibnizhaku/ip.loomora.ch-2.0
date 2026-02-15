@@ -49,4 +49,20 @@ export class UsersController {
   remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.usersService.delete(id, user.companyId);
   }
+
+  @Get(':id/permissions')
+  @ApiOperation({ summary: 'Get user permissions (role + overrides)' })
+  getPermissions(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.getPermissions(id, user.companyId);
+  }
+
+  @Put(':id/permissions')
+  @ApiOperation({ summary: 'Update user permission overrides' })
+  updatePermissions(
+    @Param('id') id: string,
+    @Body() body: { permissions: any[] },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.usersService.updatePermissions(id, user.companyId, body.permissions);
+  }
 }
