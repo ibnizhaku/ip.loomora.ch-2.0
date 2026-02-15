@@ -143,6 +143,19 @@ export function useUserPermissions(userId: string) {
   });
 }
 
+export function useChangeUserPassword() {
+  return useMutation({
+    mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
+      api.put(`/users/${userId}/password`, { newPassword }),
+    onSuccess: () => {
+      toast.success('Passwort erfolgreich geändert');
+    },
+    onError: (error: Error) => {
+      toast.error('Fehler beim Ändern des Passworts', { description: error.message });
+    },
+  });
+}
+
 export function useUpdateUserPermissions() {
   const queryClient = useQueryClient();
   return useMutation({

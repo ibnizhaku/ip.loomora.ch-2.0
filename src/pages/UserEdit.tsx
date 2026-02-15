@@ -2,16 +2,17 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Key, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useUser, useUpdateUser } from "@/hooks/use-users";
+import { useChangeUserPassword } from "@/hooks/use-users";
 import { useRoles } from "@/hooks/use-roles";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Vorname ist erforderlich"),
@@ -224,6 +225,114 @@ export default function UserEdit() {
           </div>
         </form>
       </Form>
+
+      {/* Passwort ändern – separate Sektion */}
+      <PasswordChangeCard userId={id || ""} />
     </div>
+  );
+}
+
+const passwordSchema = z.object({
+  newPassword: z.string().min(8, "Mindestens 8 Zeichen"),
+  confirmPassword: z.string().min(1, "Passwort bestätigen"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwörter stimmen nicht überein",
+  path: ["confirmPassword"],
+});
+
+type PasswordValues = z.infer<typeof passwordSchema>;
+
+function PasswordChangeCard({ userId }: { userId: string }) {
+  const changePassword = useChangeUserPassword();
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const form = useForm<PasswordValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { newPassword: "", confirmPassword: "" },
+  });
+
+  const onSubmit = (values: PasswordValues) => {
+    changePassword.mutate(
+      { userId, newPassword: values.newPassword },
+      { onSuccess: () => form.reset() }
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Key className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <CardTitle>Passwort ändern</CardTitle>
+            <CardDescription>Neues Passwort für diesen Benutzer setzen</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Neues Passwort</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input type={showNew ? "text" : "password"} {...field} />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-10 w-10"
+                          onClick={() => setShowNew(!showNew)}
+                        >
+                          {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Passwort bestätigen</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input type={showConfirm ? "text" : "password"} {...field} />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-10 w-10"
+                          onClick={() => setShowConfirm(!showConfirm)}
+                        >
+                          {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" variant="outline" disabled={changePassword.isPending}>
+                {changePassword.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Key className="mr-2 h-4 w-4" />
+                Passwort setzen
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }
