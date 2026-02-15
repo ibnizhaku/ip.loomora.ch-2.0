@@ -122,9 +122,14 @@ const EmployeeDetail = () => {
     startDate: employee.hireDate ? new Date(employee.hireDate).toLocaleDateString('de-CH') : '-',
     manager: employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : '-',
     employmentType: employee.employmentType || 'Vollzeit',
-    salary: { gross: Number(employee.salary) || 0, net: Math.round((Number(employee.salary) || 0) * 0.78) },
+    salary: { 
+      monthly: Number(employee.salary) || 0, 
+      gross: (Number(employee.salary) || 0) * (employee.contracts?.[0]?.thirteenthMonth ? 13 : 12), 
+      net: Math.round((Number(employee.salary) || 0) * (employee.contracts?.[0]?.thirteenthMonth ? 13 : 12) * 0.78) 
+    },
     vacation: { total: employee.vacationDays || 25, taken: employee.vacationTaken || 0, remaining: (employee.vacationDays || 25) - (employee.vacationTaken || 0) },
-    workingHours: { weekly: employee.workloadPercent ? Math.round(employee.workloadPercent * 0.42) : 42, thisMonth: 0, overtime: 0 },
+    workingHours: { weekly: Number(employee.workHoursPerWeek) || 42, thisMonth: 0, overtime: 0 },
+    contracts: employee.contracts || [],
     skills: employee.skills || [],
     certifications: employee.certifications || [],
     education: employee.education || [],
@@ -260,12 +265,23 @@ const EmployeeDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {employeeData.contracts.length > 0 ? (
+                <DropdownMenuItem onClick={() => navigate(`/employee-contracts/${employeeData.contracts[0].id}`)}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Vertrag anzeigen
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => navigate(`/employee-contracts/new?employeeId=${id}`)}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Vertrag erstellen
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleUploadDocument}>
                 <Download className="h-4 w-4 mr-2" />
                 Dokument hochladen
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSalaryAdjustment}>
-                <FileText className="h-4 w-4 mr-2" />
+                <CreditCard className="h-4 w-4 mr-2" />
                 Gehaltsanpassung
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleRequestVacation}>
@@ -578,19 +594,26 @@ const EmployeeDetail = () => {
               <CardTitle>Projektbeteiligung</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {employeeData.projects.map((project, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border">
-                    <div>
-                      <Link to="/projects/1" className="font-medium hover:text-primary">{project.name}</Link>
-                      <p className="text-sm text-muted-foreground">{project.role}</p>
+              {employeeData.projects.length > 0 ? (
+                <div className="space-y-4">
+                  {employeeData.projects.map((project, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/projects/${project.id || project.projectId}`)}>
+                      <div>
+                        <span className="font-medium hover:text-primary">{project.name}</span>
+                        <p className="text-sm text-muted-foreground">{project.role}</p>
+                      </div>
+                      <Badge className={project.status === "Aktiv" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+                        {project.status}
+                      </Badge>
                     </div>
-                    <Badge className={project.status === "Aktiv" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
-                      {project.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Briefcase className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p>Keine Projekte zugewiesen</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -599,25 +622,32 @@ const EmployeeDetail = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Abwesenheiten</CardTitle>
-              <Button size="sm">Urlaub beantragen</Button>
+              <Button size="sm" onClick={() => navigate(`/absences/new?employeeId=${id}`)}>Urlaub beantragen</Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {employeeData.timeOff.map((entry, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border">
-                    <div>
-                      <p className="font-medium">{entry.type}</p>
-                      <p className="text-sm text-muted-foreground">{entry.from} - {entry.to}</p>
+              {employeeData.timeOff.length > 0 ? (
+                <div className="space-y-4">
+                  {employeeData.timeOff.map((entry, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border">
+                      <div>
+                        <p className="font-medium">{entry.type}</p>
+                        <p className="text-sm text-muted-foreground">{entry.from} - {entry.to}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{entry.days} Tage</p>
+                        <Badge className={entry.status === "Genehmigt" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+                          {entry.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{entry.days} Tage</p>
-                      <Badge className={entry.status === "Genehmigt" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
-                        {entry.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarDays className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p>Keine Abwesenheiten erfasst</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -716,17 +746,58 @@ const EmployeeDetail = () => {
             <CardHeader>
               <CardTitle>Gehaltsinformationen</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 sm:grid-cols-2">
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-3">
+                <div className="p-6 rounded-xl bg-muted/50 border">
+                  <p className="text-sm text-muted-foreground mb-1">Monatslohn (brutto)</p>
+                  <p className="text-3xl font-bold">CHF {employeeData.salary.monthly.toLocaleString("de-CH")}</p>
+                </div>
                 <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
                   <p className="text-sm text-muted-foreground mb-1">Bruttojahresgehalt</p>
                   <p className="text-3xl font-bold">CHF {employeeData.salary.gross.toLocaleString("de-CH")}</p>
+                  {employeeData.contracts[0]?.thirteenthMonth && (
+                    <p className="text-xs text-muted-foreground mt-1">inkl. 13. Monatslohn</p>
+                  )}
                 </div>
                 <div className="p-6 rounded-xl bg-success/5 border border-success/20">
                   <p className="text-sm text-muted-foreground mb-1">Nettojahresgehalt (ca.)</p>
                   <p className="text-3xl font-bold text-success">CHF {employeeData.salary.net.toLocaleString("de-CH")}</p>
                 </div>
               </div>
+
+              {/* Contract details */}
+              {employeeData.contracts.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">VERTRAGSDETAILS</h3>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="flex justify-between text-sm p-3 rounded-lg border">
+                      <span className="text-muted-foreground">Vertragsart</span>
+                      <span className="font-medium capitalize">{employeeData.contracts[0].contractType}</span>
+                    </div>
+                    <div className="flex justify-between text-sm p-3 rounded-lg border">
+                      <span className="text-muted-foreground">Lohnklasse</span>
+                      <span className="font-medium">{employeeData.contracts[0].wageClass || '–'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm p-3 rounded-lg border">
+                      <span className="text-muted-foreground">Kündigungsfrist</span>
+                      <span className="font-medium">{employeeData.contracts[0].noticePeriod?.replace('_', ' ') || '–'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm p-3 rounded-lg border">
+                      <span className="text-muted-foreground">13. Monatslohn</span>
+                      <span className="font-medium">{employeeData.contracts[0].thirteenthMonth ? 'Ja' : 'Nein'}</span>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-4"
+                    onClick={() => navigate(`/employee-contracts/${employeeData.contracts[0].id}`)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Vertrag öffnen
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
