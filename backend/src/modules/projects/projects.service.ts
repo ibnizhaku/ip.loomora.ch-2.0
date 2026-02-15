@@ -54,6 +54,9 @@ export class ProjectsService {
               },
             },
           },
+          tasks: {
+            select: { id: true, title: true, status: true },
+          },
           _count: {
             select: { tasks: true, timeEntries: true },
           },
@@ -63,24 +66,31 @@ export class ProjectsService {
     ]);
 
     // Transform data to match frontend format
-    const transformedData = data.map((p) => ({
-      id: p.id,
-      number: p.number,
-      name: p.name,
-      client: p.customer?.companyName || p.customer?.name || 'Kein Kunde',
-      status: p.status.toLowerCase().replace('_', '-'),
-      priority: p.priority.toLowerCase(),
-      progress: p.progress,
-      budget: Number(p.budget) || 0,
-      spent: Number(p.spent) || 0,
-      startDate: p.startDate?.toISOString().split('T')[0],
-      endDate: p.endDate?.toISOString().split('T')[0],
-      team: p.members.map((m) => 
-        `${m.employee.firstName.charAt(0)}${m.employee.lastName.charAt(0)}`
-      ),
-      taskCount: p._count.tasks,
-      timeEntryCount: p._count.timeEntries,
-    }));
+    const transformedData = data.map((p) => {
+      const totalTasks = p.tasks.length;
+      const doneTasks = p.tasks.filter((t) => t.status === 'DONE').length;
+      const calculatedProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+      return {
+        id: p.id,
+        number: p.number,
+        name: p.name,
+        client: p.customer?.companyName || p.customer?.name || 'Kein Kunde',
+        status: p.status.toLowerCase().replace('_', '-'),
+        priority: p.priority.toLowerCase(),
+        progress: calculatedProgress,
+        budget: Number(p.budget) || 0,
+        spent: Number(p.spent) || 0,
+        startDate: p.startDate?.toISOString().split('T')[0],
+        endDate: p.endDate?.toISOString().split('T')[0],
+        team: p.members.map((m) => 
+          `${m.employee.firstName.charAt(0)}${m.employee.lastName.charAt(0)}`
+        ),
+        tasks: p.tasks,
+        taskCount: p._count.tasks,
+        timeEntryCount: p._count.timeEntries,
+      };
+    });
 
     return this.prisma.createPaginatedResponse(transformedData, total, page, pageSize);
   }
