@@ -73,9 +73,9 @@ export class PayrollController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get payslip by ID' })
-  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.payrollService.findOne(id, user.companyId);
+  @ApiOperation({ summary: 'Get payroll run by ID (with payslips)' })
+  findRunById(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.findRunById(id, user.companyId);
   }
 
   @Post(':id/complete')

@@ -38,6 +38,59 @@ export class PayrollService {
   // ==========================================
 
   /**
+   * GET /payroll/:id — Get a single PayrollRun with its payslips
+   */
+  async findRunById(id: string, companyId: string) {
+    const run = await this.prisma.payrollRun.findFirst({
+      where: { id, companyId },
+      include: {
+        payslips: {
+          include: {
+            employee: {
+              select: { id: true, firstName: true, lastName: true, position: true, email: true },
+            },
+            items: true,
+          },
+          orderBy: { employee: { lastName: 'asc' } },
+        },
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Lohnlauf nicht gefunden');
+    }
+
+    const [y, m] = run.period.split('-').map(Number);
+    const mappedPayslips = run.payslips.map(ps => this.mapPayslipToFrontend(ps as any));
+
+    return {
+      id: run.id,
+      period: `${MONTH_NAMES_DE[m] || run.period} ${y}`,
+      periodKey: run.period,
+      periodStart: run.periodStart.toISOString(),
+      periodEnd: run.periodEnd.toISOString(),
+      status: RUN_STATUS_MAP[run.status] || run.status,
+      employees: run.employees,
+      grossTotal: Number(run.grossTotal),
+      netTotal: Number(run.netTotal),
+      createdAt: run.createdAt.toISOString(),
+      updatedAt: run.updatedAt.toISOString(),
+      data: mappedPayslips,
+      payrollRuns: [{
+        id: run.id,
+        period: `${MONTH_NAMES_DE[m] || run.period} ${y}`,
+        year: y,
+        month: m,
+        employees: run.employees,
+        grossTotal: Number(run.grossTotal),
+        netTotal: Number(run.netTotal),
+        status: RUN_STATUS_MAP[run.status] || run.status,
+        runDate: run.createdAt.toLocaleDateString('de-CH'),
+      }],
+    };
+  }
+
+  /**
    * POST /payroll — Create a new PayrollRun
    */
   async createRun(companyId: string, dto: {
