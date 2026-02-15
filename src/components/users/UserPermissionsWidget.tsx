@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -202,11 +203,34 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
   };
 
   const getSummary = (p: UserPermission) => {
-    if (p.delete) return { label: "Vollzugriff", color: "bg-success/10 text-success" };
-    if (p.write) return { label: "Lesen & Schreiben", color: "bg-info/10 text-info" };
-    if (p.read) return { label: "Nur Lesen", color: "bg-warning/10 text-warning" };
-    return { label: "Kein Zugriff", color: "bg-muted text-muted-foreground" };
+    if (p.delete) return { label: "Vollzugriff", color: "bg-success/10 text-success", level: 3 };
+    if (p.write) return { label: "Lesen & Schreiben", color: "bg-info/10 text-info", level: 2 };
+    if (p.read) return { label: "Nur Lesen", color: "bg-warning/10 text-warning", level: 1 };
+    return { label: "Kein Zugriff", color: "bg-muted text-muted-foreground", level: 0 };
   };
+
+  const setPermissionLevel = (moduleKey: string, level: number) => {
+    const newPerm: UserPermission = {
+      module: moduleKey,
+      read: level >= 1,
+      write: level >= 2,
+      delete: level >= 3,
+      source: "override" as const,
+    };
+    setPermissions((prev) => {
+      const exists = prev.some((p) => p.module === moduleKey);
+      if (exists) return prev.map((p) => (p.module === moduleKey ? newPerm : p));
+      return [...prev, newPerm];
+    });
+    setHasChanges(true);
+  };
+
+  const LEVEL_OPTIONS = [
+    { level: 0, label: "Kein Zugriff", color: "bg-muted text-muted-foreground" },
+    { level: 1, label: "Nur Lesen", color: "bg-warning/10 text-warning" },
+    { level: 2, label: "Lesen & Schreiben", color: "bg-info/10 text-info" },
+    { level: 3, label: "Vollzugriff", color: "bg-success/10 text-success" },
+  ];
 
   const getGroupSummary = (modules: ModuleEntry[]) => {
     const perms = modules.map((m) => getPermForModule(m.key));
@@ -350,7 +374,26 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
                                 <Switch checked={p.delete} onCheckedChange={(v) => handleChange(mod.key, "delete", v)} disabled={isLoading || !p.write} />
                               </TableCell>
                               <TableCell className="text-right">
-                                <Badge className={summary.color}>{summary.label}</Badge>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                                      <Badge className={summary.color}>{summary.label}</Badge>
+                                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    {LEVEL_OPTIONS.map((opt) => (
+                                      <DropdownMenuItem
+                                        key={opt.level}
+                                        onClick={() => setPermissionLevel(mod.key, opt.level)}
+                                        className="cursor-pointer"
+                                      >
+                                        <Badge className={cn(opt.color, "mr-2")}>{opt.label}</Badge>
+                                        {summary.level === opt.level && <span className="ml-auto text-primary">✓</span>}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </TableCell>
                             </TableRow>
                           );
