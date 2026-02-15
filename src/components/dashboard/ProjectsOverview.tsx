@@ -81,6 +81,13 @@ export function ProjectsOverview() {
         {projects.map((project, index) => {
           const statusKey = project.status?.toLowerCase().replace('_', '-') || 'active';
           const config = statusConfig[statusKey] || statusConfig.active;
+          const progress = (() => {
+            if (project.tasks?.length) {
+              const done = project.tasks.filter((t: any) => t.status === 'DONE' || t.status === 'done').length;
+              return Math.round((done / project.tasks.length) * 100);
+            }
+            return project.progress || 0;
+          })();
 
           return (
             <div
@@ -125,9 +132,9 @@ export function ProjectsOverview() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Fortschritt</span>
-                  <span className="font-medium">{project.progress || 0}%</span>
+                  <span className="font-medium">{progress}%</span>
                 </div>
-                <Progress value={project.progress || 0} className="h-2" />
+                <Progress value={progress} className="h-2" />
 
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-1">
