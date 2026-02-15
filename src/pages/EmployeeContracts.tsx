@@ -36,7 +36,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useEmployeeContracts, useDeleteEmployeeContract, useRenewEmployeeContract, useTerminateEmployeeContract } from "@/hooks/use-employee-contracts";
-import { api } from "@/lib/api";
+import { api, downloadPdf } from "@/lib/api";
 
 interface EmployeeContract {
   id: string;
@@ -423,7 +423,7 @@ export default function EmployeeContracts() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => { 
                       e.stopPropagation(); 
-                      api.downloadPdf(`/employee-contracts/${contract.id}/pdf`, `Vertrag_${contract.employeeId}.pdf`);
+                      downloadPdf('employee-contracts' as any, contract.id, `Vertrag_${contract.employeeId}.pdf`);
                     }}>
                       <Download className="h-4 w-4 mr-2" />
                       PDF exportieren

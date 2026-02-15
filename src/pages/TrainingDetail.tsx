@@ -29,68 +29,11 @@ import {
   Building2,
   UserPlus,
   Trash2,
+  Loader2,
 } from "lucide-react";
-
-const initialTrainingData = {
-  id: "WB-2024-0008",
-  title: "Schweissen nach SN EN ISO 9606-1",
-  type: "Zertifizierung",
-  category: "Fachkompetenz",
-  status: "scheduled" as const,
-  description: "Schweisserprüfung für Stahlkonstruktionen nach europäischer Norm. Praktische und theoretische Prüfung für MAG-Schweissen (135) in den Positionen PA, PB, PC, PF.",
-  provider: {
-    name: "SVS Schweizerischer Verein für Schweisstechnik",
-    location: "Basel",
-    contact: "info@svs.ch",
-  },
-  schedule: {
-    startDate: "2024-04-15",
-    endDate: "2024-04-17",
-    duration: "3 Tage",
-    times: "08:00 - 17:00",
-  },
-  location: {
-    type: "external",
-    address: "Grosspeterstrasse 12, 4052 Basel",
-    room: "Schulungszentrum SVS",
-  },
-  costs: {
-    coursesFee: 1850.00,
-    materials: 150.00,
-    travel: 280.00,
-    accommodation: 340.00,
-    total: 2620.00,
-    currency: "CHF",
-  },
-  certification: {
-    name: "Schweisser-Zertifikat EN ISO 9606-1",
-    validityYears: 3,
-    expiresAt: "2027-04-17",
-  },
-  participants: [
-    { id: "MA-001", name: "Thomas Meier", department: "Produktion", status: "confirmed", result: null },
-    { id: "MA-002", name: "Marco Brunner", department: "Produktion", status: "confirmed", result: null },
-    { id: "MA-003", name: "Peter Keller", department: "Montage", status: "waitlist", result: null },
-  ],
-  maxParticipants: 8,
-  documents: [
-    { name: "Kursausschreibung", type: "info" },
-    { name: "Anmeldebestätigung", type: "confirmation" },
-    { name: "Prüfungsordnung", type: "regulation" },
-  ],
-  createdAt: "2024-02-01",
-  createdBy: "HR Team",
-};
-
-// Available employees for adding
-const availableEmployees = [
-  { id: "MA-004", name: "Hans Weber", department: "Produktion" },
-  { id: "MA-005", name: "Stefan Schmid", department: "Montage" },
-  { id: "MA-006", name: "Michael Huber", department: "Produktion" },
-  { id: "MA-007", name: "Andreas Müller", department: "Werkstatt" },
-  { id: "MA-008", name: "Daniel Fischer", department: "Montage" },
-  { id: "MA-009", name: "Reto Steiner", department: "Produktion" },
-];
+import { useTraining, useUpdateTraining, useRemoveParticipant, useRegisterForTraining } from "@/hooks/use-training";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const getStatusConfig = (status: string) => {
   switch (status) {
@@ -110,6 +53,7 @@ const getStatusConfig = (status: string) => {
 const getParticipantStatusConfig = (status: string) => {
   switch (status) {
     case "confirmed":
+    case "registered":
       return { label: "Bestätigt", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" };
     case "waitlist":
       return { label: "Warteliste", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" };
@@ -131,57 +75,138 @@ export default function TrainingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const [trainingData, setTrainingData] = useState(initialTrainingData);
+  const { data: apiTraining, isLoading } = useTraining(id);
+  const updateMutation = useUpdateTraining();
+  const removeMutation = useRemoveParticipant();
+  const registerMutation = useRegisterForTraining();
+
+  // Fetch available employees for adding participants
+  const { data: employeesData } = useQuery({
+    queryKey: ["/employees"],
+    queryFn: () => api.get<any>("/employees"),
+  });
+
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddParticipantsDialog, setShowAddParticipantsDialog] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  
   const [editForm, setEditForm] = useState({
-    title: trainingData.title,
-    description: trainingData.description,
-    status: trainingData.status as string,
-    startDate: trainingData.schedule.startDate,
-    endDate: trainingData.schedule.endDate,
-    times: trainingData.schedule.times,
-    room: trainingData.location.room,
-    address: trainingData.location.address,
-    coursesFee: trainingData.costs.coursesFee.toString(),
-    maxParticipants: trainingData.maxParticipants.toString(),
+    title: "",
+    description: "",
+    status: "scheduled",
+    startDate: "",
+    endDate: "",
+    times: "",
+    room: "",
+    address: "",
+    coursesFee: "0",
+    maxParticipants: "10",
   });
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!apiTraining) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Schulung nicht gefunden</p>
+        <Button variant="link" onClick={() => navigate("/training")}>Zurück zur Übersicht</Button>
+      </div>
+    );
+  }
+
+  // Map API data
+  const trainingData = {
+    id: apiTraining.id || id,
+    title: apiTraining.title || "",
+    type: apiTraining.type || "",
+    category: apiTraining.category || "",
+    status: apiTraining.status || "scheduled",
+    description: apiTraining.description || "",
+    provider: {
+      name: apiTraining.provider || "",
+      location: apiTraining.location || "",
+      contact: "",
+    },
+    schedule: {
+      startDate: apiTraining.startDate || "",
+      endDate: apiTraining.endDate || "",
+      duration: apiTraining.duration ? `${apiTraining.duration} Tage` : "–",
+      times: "",
+    },
+    location: {
+      type: apiTraining.isOnline ? "online" : "external",
+      address: apiTraining.location || "",
+      room: apiTraining.meetingUrl || apiTraining.location || "",
+    },
+    costs: {
+      coursesFee: Number(apiTraining.cost || 0),
+      materials: 0,
+      travel: 0,
+      accommodation: 0,
+      total: Number(apiTraining.cost || 0),
+    },
+    certification: {
+      name: apiTraining.learningObjectives?.[0] || "",
+      validityYears: 0,
+      expiresAt: "",
+    },
+    participants: (apiTraining.participations || []).map((p: any) => ({
+      id: p.id || p.employeeId,
+      name: p.employee ? `${p.employee.firstName} ${p.employee.lastName}` : "–",
+      department: "",
+      status: p.status || "confirmed",
+      result: p.score != null ? (p.score >= 50 ? "passed" : "failed") : null,
+    })),
+    maxParticipants: apiTraining.maxParticipants || 10,
+    documents: (apiTraining.materials || []).map((m: string) => ({ name: m, type: "info" })),
+  };
+
   const statusConfig = getStatusConfig(trainingData.status);
-  const confirmedCount = trainingData.participants.filter(p => p.status === "confirmed").length;
+  const confirmedCount = trainingData.participants.filter((p: any) => p.status === "confirmed" || p.status === "registered").length;
+
+  // Initialize edit form from data (only on first render with data)
+  if (editForm.title === "" && trainingData.title) {
+    setEditForm({
+      title: trainingData.title,
+      description: trainingData.description,
+      status: trainingData.status,
+      startDate: trainingData.schedule.startDate,
+      endDate: trainingData.schedule.endDate,
+      times: trainingData.schedule.times,
+      room: trainingData.location.room,
+      address: trainingData.location.address,
+      coursesFee: String(trainingData.costs.coursesFee),
+      maxParticipants: String(trainingData.maxParticipants),
+    });
+  }
+
+
 
   const handleEditSave = () => {
-    const coursesFee = parseFloat(editForm.coursesFee) || 0;
-    const newTotal = coursesFee + trainingData.costs.materials + trainingData.costs.travel + trainingData.costs.accommodation;
-    
-    setTrainingData(prev => ({
-      ...prev,
-      title: editForm.title,
-      description: editForm.description,
-      status: editForm.status as typeof prev.status,
-      schedule: {
-        ...prev.schedule,
+    updateMutation.mutate({
+      id: id!,
+      data: {
+        title: editForm.title,
+        description: editForm.description,
+        status: editForm.status,
         startDate: editForm.startDate,
         endDate: editForm.endDate,
-        times: editForm.times,
+        cost: parseFloat(editForm.coursesFee) || 0,
+        maxParticipants: parseInt(editForm.maxParticipants) || 10,
+        location: editForm.address,
       },
-      location: {
-        ...prev.location,
-        room: editForm.room,
-        address: editForm.address,
+    }, {
+      onSuccess: () => {
+        setShowEditDialog(false);
+        toast.success("Schulung aktualisiert");
       },
-      costs: {
-        ...prev.costs,
-        coursesFee,
-        total: newTotal,
-      },
-      maxParticipants: parseInt(editForm.maxParticipants) || prev.maxParticipants,
-    }));
-    
-    setShowEditDialog(false);
-    toast.success("Schulung aktualisiert");
+      onError: () => toast.error("Fehler beim Speichern"),
+    });
   };
 
   const handleAddParticipants = () => {
@@ -190,48 +215,40 @@ export default function TrainingDetail() {
       return;
     }
     
-    const newParticipants = selectedEmployees.map(empId => {
-      const emp = availableEmployees.find(e => e.id === empId)!;
-      const confirmedCount = trainingData.participants.filter(p => p.status === "confirmed").length;
-      const willBeOnWaitlist = confirmedCount >= trainingData.maxParticipants;
-      
-      return {
-        id: emp.id,
-        name: emp.name,
-        department: emp.department,
-        status: willBeOnWaitlist ? "waitlist" : "confirmed",
-        result: null,
-      };
-    });
-    
-    setTrainingData(prev => ({
-      ...prev,
-      participants: [...prev.participants, ...newParticipants],
-    }));
-    
-    setShowAddParticipantsDialog(false);
-    setSelectedEmployees([]);
-    toast.success(`${newParticipants.length} Teilnehmer hinzugefügt`);
+    Promise.all(
+      selectedEmployees.map(empId =>
+        registerMutation.mutateAsync({ trainingId: id!, employeeId: empId })
+      )
+    ).then(() => {
+      setShowAddParticipantsDialog(false);
+      setSelectedEmployees([]);
+      toast.success(`${selectedEmployees.length} Teilnehmer hinzugefügt`);
+    }).catch(() => toast.error("Fehler beim Hinzufügen"));
   };
 
   const handleRemoveParticipant = (participantId: string) => {
-    setTrainingData(prev => ({
-      ...prev,
-      participants: prev.participants.filter(p => p.id !== participantId),
-    }));
-    toast.info("Teilnehmer entfernt");
+    removeMutation.mutate({ trainingId: id!, participantId }, {
+      onSuccess: () => toast.info("Teilnehmer entfernt"),
+      onError: () => toast.error("Fehler beim Entfernen"),
+    });
   };
 
   const handleToggleEmployee = (empId: string) => {
     setSelectedEmployees(prev => 
       prev.includes(empId) 
-        ? prev.filter(id => id !== empId)
+        ? prev.filter(i => i !== empId)
         : [...prev, empId]
     );
   };
 
-  const availableToAdd = availableEmployees.filter(
-    emp => !trainingData.participants.some(p => p.id === emp.id)
+  const allEmployees = (employeesData?.data || []).map((e: any) => ({
+    id: e.id,
+    name: e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.name || "–",
+    department: e.department || "",
+  }));
+
+  const availableToAdd = allEmployees.filter(
+    (emp: any) => !trainingData.participants.some((p: any) => p.id === emp.id)
   );
 
   return (
@@ -315,7 +332,7 @@ export default function TrainingDetail() {
               <CardTitle>Beschreibung</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">{trainingData.description}</p>
+              <p className="text-muted-foreground">{trainingData.description || "Keine Beschreibung vorhanden"}</p>
             </CardContent>
           </Card>
 
@@ -331,67 +348,72 @@ export default function TrainingDetail() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mitarbeiter</TableHead>
-                    <TableHead>Abteilung</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ergebnis</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {trainingData.participants.map((participant) => {
-                    const pStatus = getParticipantStatusConfig(participant.status);
-                    return (
-                      <TableRow key={participant.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>
-                                {participant.name.split(" ").map(n => n[0]).join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{participant.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{participant.department}</TableCell>
-                        <TableCell>
-                          <Badge className={pStatus.color} variant="secondary">
-                            {pStatus.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {participant.result === "passed" && (
-                            <Badge variant="outline" className="text-green-600">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Bestanden
+              {trainingData.participants.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">Noch keine Teilnehmer registriert</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mitarbeiter</TableHead>
+                      <TableHead>Abteilung</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ergebnis</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {trainingData.participants.map((participant: any) => {
+                      const pStatus = getParticipantStatusConfig(participant.status);
+                      return (
+                        <TableRow key={participant.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {participant.name.split(" ").map((n: string) => n[0]).join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium">{participant.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{participant.department}</TableCell>
+                          <TableCell>
+                            <Badge className={pStatus.color} variant="secondary">
+                              {pStatus.label}
                             </Badge>
-                          )}
-                          {participant.result === "failed" && (
-                            <Badge variant="outline" className="text-red-600">
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Nicht bestanden
-                            </Badge>
-                          )}
-                          {!participant.result && <span className="text-muted-foreground">-</span>}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveParticipant(participant.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell>
+                            {participant.result === "passed" && (
+                              <Badge variant="outline" className="text-green-600">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Bestanden
+                              </Badge>
+                            )}
+                            {participant.result === "failed" && (
+                              <Badge variant="outline" className="text-red-600">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Nicht bestanden
+                              </Badge>
+                            )}
+                            {!participant.result && <span className="text-muted-foreground">-</span>}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveParticipant(participant.id)}
+                              disabled={removeMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
 
@@ -406,18 +428,6 @@ export default function TrainingDetail() {
                   <TableRow>
                     <TableCell>Kursgebühren</TableCell>
                     <TableCell className="text-right">{formatCurrency(trainingData.costs.coursesFee)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Materialkosten</TableCell>
-                    <TableCell className="text-right">{formatCurrency(trainingData.costs.materials)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Reisekosten</TableCell>
-                    <TableCell className="text-right">{formatCurrency(trainingData.costs.travel)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Unterkunft</TableCell>
-                    <TableCell className="text-right">{formatCurrency(trainingData.costs.accommodation)}</TableCell>
                   </TableRow>
                   <TableRow className="font-bold">
                     <TableCell>Gesamtkosten</TableCell>
@@ -442,15 +452,11 @@ export default function TrainingDetail() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Beginn</span>
-                <span>{new Date(trainingData.schedule.startDate).toLocaleDateString("de-CH")}</span>
+                <span>{trainingData.schedule.startDate ? new Date(trainingData.schedule.startDate).toLocaleDateString("de-CH") : "–"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Ende</span>
-                <span>{new Date(trainingData.schedule.endDate).toLocaleDateString("de-CH")}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Zeiten</span>
-                <span>{trainingData.schedule.times}</span>
+                <span>{trainingData.schedule.endDate ? new Date(trainingData.schedule.endDate).toLocaleDateString("de-CH") : "–"}</span>
               </div>
             </CardContent>
           </Card>
@@ -464,8 +470,8 @@ export default function TrainingDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p className="font-medium">{trainingData.location.room}</p>
-              <p className="text-muted-foreground">{trainingData.location.address}</p>
+              <p className="font-medium">{trainingData.location.room || "–"}</p>
+              <p className="text-muted-foreground">{trainingData.location.address || "–"}</p>
             </CardContent>
           </Card>
 
@@ -478,50 +484,45 @@ export default function TrainingDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p className="font-medium">{trainingData.provider.name}</p>
-              <p className="text-muted-foreground">{trainingData.provider.location}</p>
-              <p className="text-muted-foreground">{trainingData.provider.contact}</p>
+              <p className="font-medium">{trainingData.provider.name || "–"}</p>
+              <p className="text-muted-foreground">{trainingData.provider.location || "–"}</p>
             </CardContent>
           </Card>
 
           {/* Zertifizierung */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Award className="h-4 w-4" />
-                Zertifizierung
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <p className="font-medium">{trainingData.certification.name}</p>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gültigkeit</span>
-                <span>{trainingData.certification.validityYears} Jahre</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Ablauf</span>
-                <span>{new Date(trainingData.certification.expiresAt).toLocaleDateString("de-CH")}</span>
-              </div>
-            </CardContent>
-          </Card>
+          {trainingData.certification.name && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Award className="h-4 w-4" />
+                  Zertifizierung
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p className="font-medium">{trainingData.certification.name}</p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Dokumente */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Dokumente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {trainingData.documents.map((doc, index) => (
-                <Button key={index} variant="outline" className="w-full justify-start">
-                  <Download className="h-4 w-4 mr-2" />
-                  {doc.name}
-                </Button>
-              ))}
-            </CardContent>
-          </Card>
+          {trainingData.documents.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Dokumente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {trainingData.documents.map((doc: any, index: number) => (
+                  <Button key={index} variant="outline" className="w-full justify-start">
+                    <Download className="h-4 w-4 mr-2" />
+                    {doc.name}
+                  </Button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -598,24 +599,7 @@ export default function TrainingDetail() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="times">Zeiten</Label>
-              <Input
-                id="times"
-                placeholder="z.B. 08:00 - 17:00"
-                value={editForm.times}
-                onChange={(e) => setEditForm(prev => ({ ...prev, times: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="room">Raum/Ort</Label>
-              <Input
-                id="room"
-                value={editForm.room}
-                onChange={(e) => setEditForm(prev => ({ ...prev, room: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="address">Adresse</Label>
+              <Label htmlFor="address">Adresse/Ort</Label>
               <Input
                 id="address"
                 value={editForm.address}
@@ -637,7 +621,8 @@ export default function TrainingDetail() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleEditSave}>
+            <Button onClick={handleEditSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Speichern
             </Button>
           </DialogFooter>
@@ -665,7 +650,7 @@ export default function TrainingDetail() {
               </p>
             ) : (
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {availableToAdd.map((emp) => (
+                {availableToAdd.map((emp: any) => (
                   <div
                     key={emp.id}
                     className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
@@ -677,7 +662,7 @@ export default function TrainingDetail() {
                     />
                     <Avatar className="h-8 w-8">
                       <AvatarFallback>
-                        {emp.name.split(" ").map(n => n[0]).join("")}
+                        {emp.name.split(" ").map((n: string) => n[0]).join("")}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -696,7 +681,7 @@ export default function TrainingDetail() {
             }}>
               Abbrechen
             </Button>
-            <Button onClick={handleAddParticipants} disabled={selectedEmployees.length === 0}>
+            <Button onClick={handleAddParticipants} disabled={selectedEmployees.length === 0 || registerMutation.isPending}>
               <UserPlus className="h-4 w-4 mr-2" />
               {selectedEmployees.length} hinzufügen
             </Button>

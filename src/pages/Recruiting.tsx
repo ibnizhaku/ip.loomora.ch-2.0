@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { 
   Plus, 
@@ -66,13 +66,13 @@ const statusConfig: Record<string, { color: string }> = {
 
 const Recruiting = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/recruiting"], queryFn: () => api.get<any>("/recruiting") });
   const jobPostings = apiData?.jobPostings || [];
-  const initialApplicants: any[] = apiData?.applicants || [];
+  const applicants: any[] = apiData?.applicants || [];
   const interviews = apiData?.interviews || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [applicants, setApplicants] = useState(initialApplicants);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterSource, setFilterSource] = useState<string[]>([]);
 
@@ -82,8 +82,23 @@ const Recruiting = () => {
     a.status === "In Prüfung" || a.status === "Interview geplant"
   ).length;
   const newThisWeek = applicants.filter(a => a.status === "Neu").length;
-  const uniqueSources = Array.from(new Set(initialApplicants.map((a: any) => String(a.source))));
+  const uniqueSources = Array.from(new Set(applicants.map((a: any) => String(a.source))));
   const activeFilters = filterStatus.length + filterSource.length;
+
+  // API mutations
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/recruiting/candidates/${id}`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/recruiting"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/recruiting/candidates/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/recruiting"] });
+      toast.success("Bewerbung gelöscht");
+    },
+    onError: () => toast.error("Fehler beim Löschen"),
+  });
 
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
@@ -96,27 +111,23 @@ const Recruiting = () => {
 
   const handleSendOffer = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setApplicants(prev => prev.map(app => 
-      app.id === id ? { ...app, status: "Angebot gesendet" } : app
-    ));
-    const applicant = applicants.find(a => a.id === id);
-    toast.success(`Angebot an ${applicant?.name} gesendet`);
+    const applicant = applicants.find((a: any) => a.id === id);
+    updateStatusMutation.mutate({ id, status: "Angebot gesendet" }, {
+      onSuccess: () => toast.success(`Angebot an ${applicant?.name} gesendet`),
+    });
   };
 
   const handleReject = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setApplicants(prev => prev.map(app => 
-      app.id === id ? { ...app, status: "Abgelehnt" } : app
-    ));
-    const applicant = applicants.find(a => a.id === id);
-    toast.info(`Absage an ${applicant?.name} gesendet`);
+    const applicant = applicants.find((a: any) => a.id === id);
+    updateStatusMutation.mutate({ id, status: "Abgelehnt" }, {
+      onSuccess: () => toast.info(`Absage an ${applicant?.name} gesendet`),
+    });
   };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const applicant = applicants.find(a => a.id === id);
-    setApplicants(prev => prev.filter(app => app.id !== id));
-    toast.success(`Bewerbung von ${applicant?.name} gelöscht`);
+    deleteMutation.mutate(id);
   };
 
   const filteredApplicants = applicants.filter(a => {

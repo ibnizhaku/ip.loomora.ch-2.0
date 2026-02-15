@@ -128,8 +128,26 @@ const Absences = () => {
     },
   });
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [requests, setRequests] = useState<AbsenceRequest[]>(absenceRequests);
+  // Approve mutation
+  const approveMutation = useMutation({
+    mutationFn: (id: number) => api.post(`/absences/${id}/approve`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/absences"] });
+      toast.success("Antrag genehmigt");
+    },
+    onError: () => toast.error("Fehler beim Genehmigen"),
+  });
+
+  // Reject mutation
+  const rejectAbsenceMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => api.post(`/absences/${id}/reject`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/absences"] });
+    },
+    onError: () => toast.error("Fehler beim Ablehnen"),
+  });
+
+  const requests = absenceRequests;
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string[]>([]);
   const [filterRequestStatus, setFilterRequestStatus] = useState<string[]>([]);
@@ -161,9 +179,10 @@ const Absences = () => {
     return matchesSearch && matchesStatus && matchesFilterType && matchesFilterStatus;
   });
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const handleApprove = (id: number, name: string) => {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "Genehmigt" as const } : r));
-    toast.success(`Antrag von ${name} genehmigt`);
+    approveMutation.mutate(id);
   };
 
   const openRejectDialog = (request: AbsenceRequest) => {
@@ -173,13 +192,12 @@ const Absences = () => {
 
   const handleRejectConfirm = (reason: string) => {
     if (selectedRequest) {
-      setRequests(prev => prev.map(r => 
-        r.id === selectedRequest.id 
-          ? { ...r, status: "Abgelehnt" as const, rejectionReason: reason } 
-          : r
-      ));
-      toast.error(`Antrag von ${selectedRequest.employee} abgelehnt`, {
-        description: reason ? `Grund: ${reason}` : undefined,
+      rejectAbsenceMutation.mutate({ id: selectedRequest.id, reason }, {
+        onSuccess: () => {
+          toast.error(`Antrag von ${selectedRequest.employee} abgelehnt`, {
+            description: reason ? `Grund: ${reason}` : undefined,
+          });
+        },
       });
     }
   };
