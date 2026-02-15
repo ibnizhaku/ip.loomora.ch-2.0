@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, FileText, Plus } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, FileText, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,48 +9,88 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ChecklistDialog } from "@/components/quality/ChecklistDialog";
 import { PhotoUploadDialog } from "@/components/quality/PhotoUploadDialog";
-
-const qcData = {
-  id: "QC-2024-0178",
-  werkauftrag: "WA-2024-0156",
-  projekt: "Stahlkonstruktion Hallendach",
-  projektNr: "PRJ-2024-0015",
-  prüfer: "Andreas Steiner",
-  datum: "29.01.2024",
-  status: "bestanden",
-  gesamtbewertung: 92,
-  prüfnorm: "SN EN 1090-2",
-  ausführungsklasse: "EXC2",
-};
-
-const prüfpunkte = [
-  { id: 1, kategorie: "Massgenauigkeit", punkt: "Längenmasse", soll: "±2mm", ist: "+1.2mm", gewicht: 15, status: "ok" },
-  { id: 2, kategorie: "Massgenauigkeit", punkt: "Winkelmasse", soll: "±1°", ist: "+0.3°", gewicht: 10, status: "ok" },
-  { id: 3, kategorie: "Schweissnähte", punkt: "Sichtprüfung VT", soll: "Klasse C", ist: "Klasse C", gewicht: 20, status: "ok" },
-  { id: 4, kategorie: "Schweissnähte", punkt: "Nahtvorbereitung", soll: "ISO 9692-1", ist: "konform", gewicht: 10, status: "ok" },
-  { id: 5, kategorie: "Schweissnähte", punkt: "Nahtdicke a-Mass", soll: "a=5mm min", ist: "a=5.2mm", gewicht: 15, status: "ok" },
-  { id: 6, kategorie: "Oberfläche", punkt: "Korrosionsschutz", soll: "C3 mittel", ist: "C3 mittel", gewicht: 10, status: "ok" },
-  { id: 7, kategorie: "Oberfläche", punkt: "Schichtdicke", soll: "≥80μm", ist: "72μm", gewicht: 10, status: "mangel" },
-  { id: 8, kategorie: "Verbindungen", punkt: "Schraubenanzug", soll: "M.A. Drehmoment", ist: "konform", gewicht: 10, status: "ok" },
-];
-
-const mängel = [
-  { id: 1, beschreibung: "Schichtdicke Grundierung unterschritten an 2 Stellen", schwere: "leicht", massnahme: "Nachbeschichtung erforderlich", frist: "31.01.2024" },
-];
+import { useQualityCheck } from "@/hooks/use-quality-control";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   bestanden: { label: "Bestanden", color: "bg-success/10 text-success", icon: CheckCircle2 },
   "mit-mängeln": { label: "Mit Mängeln", color: "bg-warning/10 text-warning", icon: AlertTriangle },
   "nicht-bestanden": { label: "Nicht bestanden", color: "bg-destructive/10 text-destructive", icon: XCircle },
   offen: { label: "Offen", color: "bg-muted text-muted-foreground", icon: ClipboardCheck },
+  PENDING: { label: "Offen", color: "bg-muted text-muted-foreground", icon: ClipboardCheck },
+  IN_PROGRESS: { label: "In Prüfung", color: "bg-info/10 text-info", icon: ClipboardCheck },
+  PASSED: { label: "Bestanden", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  FAILED: { label: "Nicht bestanden", color: "bg-destructive/10 text-destructive", icon: XCircle },
+  CONDITIONAL: { label: "Mit Mängeln", color: "bg-warning/10 text-warning", icon: AlertTriangle },
 };
 
 export default function QualityCheckDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: apiCheck, isLoading } = useQualityCheck(id || "");
 
-  const okCount = prüfpunkte.filter(p => p.status === "ok").length;
-  const StatusIcon = statusConfig[qcData.status].icon;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!apiCheck) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/quality"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-bold">Prüfung nicht gefunden</h1>
+            <p className="text-muted-foreground">Die angeforderte QS-Prüfung existiert nicht.</p>
+          </div>
+        </div>
+        <Button onClick={() => navigate("/quality")}>Zurück</Button>
+      </div>
+    );
+  }
+
+  const check = apiCheck as any;
+
+  const qcData = {
+    id: check.number || check.id,
+    werkauftrag: check.productionOrderId || "",
+    projekt: check.checklist?.name || "",
+    projektNr: check.productionOrderId || "",
+    prüfer: check.inspector ? `${check.inspector.firstName} ${check.inspector.lastName}` : "",
+    datum: check.completedDate ? new Date(check.completedDate).toLocaleDateString("de-CH") : check.createdAt ? new Date(check.createdAt).toLocaleDateString("de-CH") : "",
+    status: check.status || "PENDING",
+    gesamtbewertung: check.results ? Math.round((check.results.filter((r: any) => r.passed).length / Math.max(check.results.length, 1)) * 100) : 0,
+    prüfnorm: check.type || "",
+    ausführungsklasse: "",
+  };
+
+  const prüfpunkte = (check.results || []).map((r: any, idx: number) => ({
+    id: idx + 1,
+    kategorie: "",
+    punkt: r.checklistItemId || `Prüfpunkt ${idx + 1}`,
+    soll: "",
+    ist: r.value || "",
+    gewicht: 0,
+    status: r.passed ? "ok" : "mangel",
+  }));
+
+  const mängel = (check.results || [])
+    .filter((r: any) => !r.passed && r.notes)
+    .map((r: any, idx: number) => ({
+      id: idx + 1,
+      beschreibung: r.notes || "",
+      schwere: "leicht",
+      massnahme: "",
+      frist: "",
+    }));
+
+  const okCount = prüfpunkte.filter((p: any) => p.status === "ok").length;
+  const statusKey = qcData.status;
+  const StatusIcon = (statusConfig[statusKey] || statusConfig["offen"]).icon;
 
   return (
     <div className="space-y-6">
@@ -64,9 +104,9 @@ export default function QualityCheckDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">{qcData.id}</h1>
-            <Badge className={statusConfig[qcData.status].color}>
+            <Badge className={statusConfig[statusKey]?.color || "bg-muted text-muted-foreground"}>
               <StatusIcon className="mr-1 h-3 w-3" />
-              {statusConfig[qcData.status].label}
+              {statusConfig[statusKey]?.label || statusKey}
             </Badge>
             <Badge variant="outline">{qcData.ausführungsklasse}</Badge>
           </div>

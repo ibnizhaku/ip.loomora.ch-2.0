@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Wrench, Clock, User, MessageSquare, CheckCircle2, AlertTriangle, FileText, Calendar, MoreHorizontal, Timer, Edit, Trash2, Printer, RotateCcw, UserPlus, Copy, Ban, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, Wrench, Clock, User, MessageSquare, CheckCircle2, AlertTriangle, FileText, Calendar, MoreHorizontal, Timer, Edit, Trash2, Printer, RotateCcw, UserPlus, Copy, Ban, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,34 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-
-const initialServiceData = {
-  id: "TKT-2024-0456",
-  titel: "Reparatur Schweissnaht Halle 3",
-  beschreibung: "Schweissnaht am Hauptträger zeigt Risse. Dringende Inspektion und Reparatur erforderlich.",
-  kunde: "Müller Industrie AG",
-  kundenNr: "KD-2024-0015",
-  kontakt: "Hans Müller",
-  telefon: "+41 44 567 89 00",
-  email: "h.mueller@mueller-industrie.ch",
-  standort: "Industriestrasse 45, 8005 Zürich",
-  status: "in-bearbeitung",
-  priorität: "hoch",
-  kategorie: "Reparatur",
-  erstelltAm: "28.01.2024 09:15",
-  fälligBis: "30.01.2024 17:00",
-  zugewiesen: "Marco Brunner",
-  geschätzteZeit: 4,
-  effektiveZeit: 2.5,
-  materialkosten: 185.00,
-};
-
-const initialAktivitäten = [
-  { zeit: "28.01.2024 14:30", user: "MB", typ: "Notiz", text: "Vor-Ort-Besichtigung abgeschlossen. Riss ist ca. 15cm lang, oberflächlich. Kann geschweisst werden." },
-  { zeit: "28.01.2024 11:00", user: "MB", typ: "Status", text: "Status geändert zu 'In Bearbeitung'" },
-  { zeit: "28.01.2024 09:30", user: "PS", typ: "Zuweisung", text: "Ticket zugewiesen an Marco Brunner" },
-  { zeit: "28.01.2024 09:15", user: "System", typ: "Erstellt", text: "Ticket erstellt via Kundenportal" },
-];
+import { useServiceTicket, useUpdateServiceTicket, useDeleteServiceTicket } from "@/hooks/use-service-tickets";
 
 const technicians = [
   { id: "1", name: "Marco Brunner", kürzel: "MB" },
@@ -59,6 +32,12 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   "warten": { label: "Warten auf Kunde", color: "bg-muted text-muted-foreground" },
   "erledigt": { label: "Erledigt", color: "bg-success/10 text-success" },
   "storniert": { label: "Storniert", color: "bg-destructive/10 text-destructive" },
+  "OPEN": { label: "Offen", color: "bg-info/10 text-info" },
+  "SCHEDULED": { label: "Geplant", color: "bg-muted text-muted-foreground" },
+  "IN_PROGRESS": { label: "In Bearbeitung", color: "bg-warning/10 text-warning" },
+  "WAITING_PARTS": { label: "Warten auf Teile", color: "bg-muted text-muted-foreground" },
+  "COMPLETED": { label: "Erledigt", color: "bg-success/10 text-success" },
+  "CANCELLED": { label: "Storniert", color: "bg-destructive/10 text-destructive" },
 };
 
 const prioritätConfig: Record<string, { label: string; color: string }> = {
@@ -66,35 +45,94 @@ const prioritätConfig: Record<string, { label: string; color: string }> = {
   mittel: { label: "Mittel", color: "bg-info/10 text-info" },
   hoch: { label: "Hoch", color: "bg-warning/10 text-warning" },
   kritisch: { label: "Kritisch", color: "bg-destructive/10 text-destructive" },
+  LOW: { label: "Niedrig", color: "bg-muted text-muted-foreground" },
+  MEDIUM: { label: "Mittel", color: "bg-info/10 text-info" },
+  HIGH: { label: "Hoch", color: "bg-warning/10 text-warning" },
+  URGENT: { label: "Kritisch", color: "bg-destructive/10 text-destructive" },
 };
 
 export default function ServiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: apiTicket, isLoading } = useServiceTicket(id || "");
+  // All hooks must be before early returns
   const [comment, setComment] = useState("");
-  const [serviceData, setServiceData] = useState(initialServiceData);
-  const [aktivitäten, setAktivitäten] = useState(initialAktivitäten);
-  
-  // Dialog states
+  const [serviceData, setServiceData] = useState<any>({
+    id: "", titel: "", beschreibung: "", kunde: "", kundenNr: "", kontakt: "", telefon: "", email: "", standort: "",
+    status: "OPEN", priorität: "MEDIUM", kategorie: "", erstelltAm: "", fälligBis: "", zugewiesen: "",
+    geschätzteZeit: 0, effektiveZeit: 0, materialkosten: 0,
+  });
+  const [aktivitäten, setAktivitäten] = useState<any[]>([]);
   const [timeTrackingOpen, setTimeTrackingOpen] = useState(false);
   const [statusChangeOpen, setStatusChangeOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [assignTechnicianOpen, setAssignTechnicianOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  
-  // Form states
   const [timeHours, setTimeHours] = useState("");
   const [timeMinutes, setTimeMinutes] = useState("");
   const [timeDate, setTimeDate] = useState(new Date().toISOString().split("T")[0]);
   const [timeNotes, setTimeNotes] = useState("");
-  const [newStatus, setNewStatus] = useState(serviceData.status);
+  const [newStatus, setNewStatus] = useState("");
   const [selectedTechnician, setSelectedTechnician] = useState("");
-  
-  // Edit form states
-  const [editTitle, setEditTitle] = useState(serviceData.titel);
-  const [editDescription, setEditDescription] = useState(serviceData.beschreibung);
-  const [editPriority, setEditPriority] = useState(serviceData.priorität);
-  const [editCategory, setEditCategory] = useState(serviceData.kategorie);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPriority, setEditPriority] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [dataInitialized, setDataInitialized] = useState(false);
+
+  // Sync API data to state once loaded
+  if (apiTicket && !dataInitialized) {
+    const ticket = apiTicket as any;
+    const mapped = {
+      id: ticket.number || ticket.id,
+      titel: ticket.title || "",
+      beschreibung: ticket.description || "",
+      kunde: ticket.customer?.name || "",
+      kundenNr: ticket.customerId || "",
+      kontakt: "", telefon: "", email: "", standort: "",
+      status: ticket.status || "OPEN",
+      priorität: ticket.priority || "MEDIUM",
+      kategorie: ticket.serviceType || "",
+      erstelltAm: ticket.createdAt ? new Date(ticket.createdAt).toLocaleString("de-CH") : "",
+      fälligBis: ticket.scheduledDate ? new Date(ticket.scheduledDate).toLocaleString("de-CH") : "",
+      zugewiesen: ticket.technician ? `${ticket.technician.firstName} ${ticket.technician.lastName}` : "",
+      geschätzteZeit: ticket.estimatedHours || 0,
+      effektiveZeit: ticket.actualHours || 0,
+      materialkosten: ticket.billedAmount || 0,
+    };
+    setServiceData(mapped);
+    setNewStatus(mapped.status);
+    setEditTitle(mapped.titel);
+    setEditDescription(mapped.beschreibung);
+    setEditPriority(mapped.priorität);
+    setEditCategory(mapped.kategorie);
+    setDataInitialized(true);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!apiTicket) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/service"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-bold">Ticket nicht gefunden</h1>
+            <p className="text-muted-foreground">Das angeforderte Service-Ticket existiert nicht.</p>
+          </div>
+        </div>
+        <Button onClick={() => navigate("/service")}>Zurück</Button>
+      </div>
+    );
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {

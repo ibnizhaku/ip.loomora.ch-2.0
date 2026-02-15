@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Layers, Calculator, FileText, Plus, Trash2, Edit, Factory, Wrench, Calendar, Clock, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Package, Layers, Calculator, FileText, Plus, Trash2, Edit, Factory, Wrench, Calendar, Clock, Users, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useBom } from "@/hooks/use-bom";
 
 interface BOMPosition {
   id: string;
@@ -46,32 +47,6 @@ interface ProductionOperation {
   selected: boolean;
 }
 
-const bomData = {
-  id: "STL-2024-0042",
-  bezeichnung: "Stahlkonstruktion Hallendach 12x24m",
-  projekt: "Industriehalle Müller AG",
-  projektNr: "PRJ-2024-0015",
-  status: "aktiv",
-  version: "2.1",
-  erstelltAm: "15.01.2024",
-  geändertAm: "28.01.2024",
-  ersteller: "Thomas Meier",
-  gesamtgewicht: "4'850 kg",
-  materialkosten: 28450.00,
-  fertigungszeit: "42 Std.",
-};
-
-const positionen: BOMPosition[] = [
-  { id: "1", artikelNr: "ST-HEA-200", bezeichnung: "HEA 200 Träger S355", einheit: "lfm", menge: 96, einzelpreis: 85.50, total: 8208.00, lagerbestand: 120 },
-  { id: "2", artikelNr: "ST-IPE-180", bezeichnung: "IPE 180 Pfetten S235", einheit: "lfm", menge: 144, einzelpreis: 52.30, total: 7531.20, lagerbestand: 200 },
-  { id: "3", artikelNr: "ST-ROR-100", bezeichnung: "Rohr 100x100x5 S355", einheit: "lfm", menge: 48, einzelpreis: 68.00, total: 3264.00, lagerbestand: 85 },
-  { id: "4", artikelNr: "ST-BLE-8", bezeichnung: "Stahlblech 8mm S235", einheit: "m²", menge: 24, einzelpreis: 142.00, total: 3408.00, lagerbestand: 45 },
-  { id: "5", artikelNr: "ST-WIN-80", bezeichnung: "Winkelstahl 80x80x8", einheit: "lfm", menge: 36, einzelpreis: 28.50, total: 1026.00, lagerbestand: 150 },
-  { id: "6", artikelNr: "VB-M16-HV", bezeichnung: "HV-Schrauben M16x60 10.9", einheit: "Stk", menge: 480, einzelpreis: 2.85, total: 1368.00, lagerbestand: 2500 },
-  { id: "7", artikelNr: "VB-M20-HV", bezeichnung: "HV-Schrauben M20x80 10.9", einheit: "Stk", menge: 192, einzelpreis: 4.20, total: 806.40, lagerbestand: 1200 },
-  { id: "8", artikelNr: "ZB-ANKER", bezeichnung: "Fundamentanker M24 verzinkt", einheit: "Stk", menge: 32, einzelpreis: 48.50, total: 1552.00, lagerbestand: 64 },
-];
-
 const defaultOperations: ProductionOperation[] = [
   { id: "op-1", name: "Zuschnitt", workstation: "Säge", hours: 8, selected: true },
   { id: "op-2", name: "CNC-Bearbeitung", workstation: "CNC-Fräse", hours: 12, selected: true },
@@ -89,6 +64,7 @@ const statusColors: Record<string, string> = {
 export default function BOMDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: apiBom, isLoading } = useBom(id || "");
   const [showProductionDialog, setShowProductionDialog] = useState(false);
   const [productionStep, setProductionStep] = useState(1);
   const [operations, setOperations] = useState<ProductionOperation[]>(defaultOperations);
@@ -100,6 +76,59 @@ export default function BOMDetail() {
     notes: "",
     reserveMaterial: true,
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!apiBom) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/bom"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-bold">Stückliste nicht gefunden</h1>
+            <p className="text-muted-foreground">Die angeforderte Stückliste existiert nicht.</p>
+          </div>
+        </div>
+        <Button onClick={() => navigate("/bom")}>Zurück</Button>
+      </div>
+    );
+  }
+
+  const bom = apiBom as any;
+
+  const bomData = {
+    id: bom.name || bom.id,
+    bezeichnung: bom.description || bom.name || "",
+    projekt: bom.project?.name || "",
+    projektNr: bom.projectId || "",
+    status: "aktiv",
+    version: "1.0",
+    erstelltAm: bom.createdAt ? new Date(bom.createdAt).toLocaleDateString("de-CH") : "",
+    geändertAm: "",
+    ersteller: "",
+    gesamtgewicht: "",
+    materialkosten: bom.materialCost || bom.total || 0,
+    fertigungszeit: "",
+  };
+
+  const positionen: BOMPosition[] = (bom.items || []).map((item: any, idx: number) => ({
+    id: String(idx + 1),
+    artikelNr: item.productId || `POS-${idx + 1}`,
+    bezeichnung: item.description || "",
+    einheit: item.unit || "Stk",
+    menge: item.quantity || 0,
+    einzelpreis: item.unitPrice || 0,
+    total: (item.quantity || 0) * (item.unitPrice || 0),
+    lagerbestand: 0,
+  }));
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
