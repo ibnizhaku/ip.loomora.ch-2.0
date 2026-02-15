@@ -5,7 +5,7 @@ import { CreatePayslipDto, UpdatePayslipDto } from './dto/payroll.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
-// /payslips controller — list + detail
+// /payslips controller — list + detail + send
 @ApiTags('Payslips')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -34,6 +34,12 @@ export class PayslipsController {
   @ApiOperation({ summary: 'Get payslip by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.payrollService.findOne(id, user.companyId);
+  }
+
+  @Post(':id/send')
+  @ApiOperation({ summary: 'Send payslip to employee' })
+  sendPayslip(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.sendPayslip(id, user.companyId);
   }
 }
 

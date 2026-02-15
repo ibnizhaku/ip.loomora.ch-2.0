@@ -2161,6 +2161,7 @@ model Payslip {
   
   // Payment info
   paymentDate     DateTime?
+  sendDate        DateTime?
   status          PayslipStatus @default(DRAFT)
   notes           String?
   
