@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   Truck, 
@@ -95,6 +95,7 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const DeliveryNoteDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: rawDn, isLoading, error } = useDeliveryNote(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
 
@@ -209,9 +210,9 @@ const DeliveryNoteDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem>Sendungsverfolgung öffnen</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/delivery-notes/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Lieferschein wird dupliziert...")}>Duplizieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Sendungsverfolgung wird geöffnet...")}>Sendungsverfolgung öffnen</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

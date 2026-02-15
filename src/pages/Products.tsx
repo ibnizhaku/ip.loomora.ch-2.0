@@ -364,7 +364,7 @@ export default function Products() {
                           <Eye className="h-4 w-4 mr-2" />
                           Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}`); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/products/${product.id}/edit`); }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>

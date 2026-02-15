@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   Receipt, 
@@ -122,6 +122,7 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const InvoiceDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: rawInvoice, isLoading, error } = useInvoice(id);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
 
@@ -246,13 +247,13 @@ const InvoiceDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Rechnung wird per E-Mail gesendet...")}>
                 <Mail className="h-4 w-4 mr-2" />
                 Per E-Mail senden
               </DropdownMenuItem>
-              <DropdownMenuItem>Gutschrift erstellen</DropdownMenuItem>
-              <DropdownMenuItem>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/credit-notes/new?invoiceId=${id}`)}>Gutschrift erstellen</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Rechnung wird dupliziert...")}>Duplizieren</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Rechnung wird storniert...")}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
