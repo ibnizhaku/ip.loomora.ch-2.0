@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
+import { CreateCustomerDto, UpdateCustomerDto, CreateContactDto, UpdateContactDto } from './dto/customer.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -72,7 +72,7 @@ export class CustomersController {
   @ApiOperation({ summary: 'Add a contact to a customer' })
   addContact(
     @Param('id') id: string,
-    @Body() dto: { firstName: string; lastName: string; email?: string; phone?: string; position?: string; isPrimary?: boolean },
+    @Body() dto: CreateContactDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.customersService.addContact(id, user.companyId, dto);
@@ -83,7 +83,7 @@ export class CustomersController {
   updateContact(
     @Param('id') id: string,
     @Param('contactId') contactId: string,
-    @Body() dto: { firstName?: string; lastName?: string; email?: string; phone?: string; position?: string; isPrimary?: boolean },
+    @Body() dto: UpdateContactDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.customersService.updateContact(id, contactId, user.companyId, dto);

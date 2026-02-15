@@ -62,6 +62,26 @@ export class CreateCustomerDto {
   vatNumber?: string;
 
   @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  taxId?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  vatId?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  iban?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  salutation?: string;
+
+  @ApiPropertyOptional()
   @IsNumber()
   @IsOptional()
   @Min(0)
@@ -93,6 +113,52 @@ export class UpdateCustomerDto extends PartialType(CreateCustomerDto) {
   @IsOptional()
   isActive?: boolean;
 }
+
+// ========================
+// CONTACT DTOs
+// ========================
+
+export class CreateContactDto {
+  @ApiProperty()
+  @IsString()
+  firstName: string;
+
+  @ApiProperty()
+  @IsString()
+  lastName: string;
+
+  @ApiPropertyOptional()
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  mobile?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  position?: string;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isPrimary?: boolean;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class UpdateContactDto extends PartialType(CreateContactDto) {}
 
 export class CustomerResponseDto {
   @ApiProperty()

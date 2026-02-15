@@ -671,6 +671,9 @@ model Customer {
   email           String?
   website         String?
   vatNumber       String?
+  taxId           String?
+  vatId           String?
+  iban            String?
   
   // Payment terms
   paymentTermDays Int      @default(30)

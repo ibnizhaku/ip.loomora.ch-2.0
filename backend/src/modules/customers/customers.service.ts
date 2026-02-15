@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
+import { CreateCustomerDto, UpdateCustomerDto, CreateContactDto, UpdateContactDto } from './dto/customer.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Injectable()
@@ -272,9 +272,7 @@ export class CustomersService {
     });
   }
 
-  async addContact(customerId: string, companyId: string, dto: {
-    firstName: string; lastName: string; email?: string; phone?: string; position?: string; isPrimary?: boolean;
-  }) {
+  async addContact(customerId: string, companyId: string, dto: CreateContactDto) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, companyId },
     });
@@ -295,15 +293,15 @@ export class CustomersService {
         lastName: dto.lastName,
         email: dto.email,
         phone: dto.phone,
+        mobile: dto.mobile,
         position: dto.position,
         isPrimary: dto.isPrimary || false,
+        notes: dto.notes,
       },
     });
   }
 
-  async updateContact(customerId: string, contactId: string, companyId: string, dto: {
-    firstName?: string; lastName?: string; email?: string; phone?: string; position?: string; isPrimary?: boolean;
-  }) {
+  async updateContact(customerId: string, contactId: string, companyId: string, dto: UpdateContactDto) {
     const customer = await this.prisma.customer.findFirst({ where: { id: customerId, companyId } });
     if (!customer) throw new NotFoundException('Customer not found');
 
