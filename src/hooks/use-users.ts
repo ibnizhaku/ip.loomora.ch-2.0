@@ -120,3 +120,40 @@ export function useDeleteUser() {
     },
   });
 }
+
+export interface UserPermission {
+  module: string;
+  read: boolean;
+  write: boolean;
+  delete: boolean;
+  source: 'role' | 'override';
+}
+
+export interface UserPermissionsResponse {
+  roleId: string;
+  roleName: string;
+  permissions: UserPermission[];
+}
+
+export function useUserPermissions(userId: string) {
+  return useQuery({
+    queryKey: [QUERY_KEY, userId, 'permissions'],
+    queryFn: () => api.get<UserPermissionsResponse>(`/users/${userId}/permissions`),
+    enabled: !!userId,
+  });
+}
+
+export function useUpdateUserPermissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, permissions }: { userId: string; permissions: UserPermission[] }) =>
+      api.put(`/users/${userId}/permissions`, { permissions }),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, userId, 'permissions'] });
+      toast.success('Berechtigungen gespeichert');
+    },
+    onError: (error: Error) => {
+      toast.error('Fehler beim Speichern', { description: error.message });
+    },
+  });
+}
