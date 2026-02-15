@@ -101,4 +101,11 @@ export class CashBookController {
   ) {
     return this.cashBookService.performClosing(user.companyId, registerId, dto);
   }
+
+  // Alias: GET /cash-book/:id → same as GET /cash-book/transactions/:id
+  @Get(':id')
+  @ApiOperation({ summary: 'Get cash book entry by ID' })
+  findById(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.cashBookService.findOne(id, user.companyId);
+  }
 }

@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsNumber, IsDateString, IsEnum, IsBoolean } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
 
 export enum AssetCategory {
   BUILDINGS = 'BUILDINGS',           // Immobilien (4%)
@@ -79,31 +80,7 @@ export class CreateFixedAssetDto {
   depreciationAccountId?: string;
 }
 
-export class UpdateFixedAssetDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  serialNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  location?: string;
-
-  @IsOptional()
-  @IsNumber()
-  residualValue?: number;
-
-  @IsOptional()
-  @IsString()
-  costCenterId?: string;
-}
+export class UpdateFixedAssetDto extends PartialType(CreateFixedAssetDto) {}
 
 export class DisposeAssetDto {
   @IsDateString()

@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 
 export enum PurchaseInvoiceStatus {
   DRAFT = 'DRAFT',
@@ -67,36 +68,10 @@ export class CreatePurchaseInvoiceDto {
   items: PurchaseInvoiceItemDto[];
 }
 
-export class UpdatePurchaseInvoiceDto {
+export class UpdatePurchaseInvoiceDto extends PartialType(CreatePurchaseInvoiceDto) {
   @IsOptional()
   @IsEnum(PurchaseInvoiceStatus)
   status?: PurchaseInvoiceStatus;
-
-  @IsOptional()
-  @IsString()
-  externalNumber?: string;
-
-  @IsOptional()
-  @IsDateString()
-  invoiceDate?: string;
-
-  @IsOptional()
-  @IsDateString()
-  dueDate?: string;
-
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsOptional()
-  @IsString()
-  documentUrl?: string;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PurchaseInvoiceItemDto)
-  items?: PurchaseInvoiceItemDto[];
 }
 
 // OCR Import result structure

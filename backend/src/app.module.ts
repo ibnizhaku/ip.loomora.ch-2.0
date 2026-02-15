@@ -42,6 +42,7 @@ import { CashBookModule } from './modules/cash-book/cash-book.module';
 import { VatReturnsModule } from './modules/vat-returns/vat-returns.module';
 import { FixedAssetsModule } from './modules/fixed-assets/fixed-assets.module';
 // HR Extensions
+import { PayrollModule } from './modules/payroll/payroll.module';
 import { SwissdecModule } from './modules/swissdec/swissdec.module';
 import { GavMetallbauModule } from './modules/gav-metallbau/gav-metallbau.module';
 // import { WithholdingTaxModule } from './modules/withholding-tax/withholding-tax.module'; // Disabled: Decimal type issues
@@ -123,6 +124,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     VatReturnsModule,
     FixedAssetsModule,
     // HR Extensions
+    PayrollModule,
     SwissdecModule,
     GavMetallbauModule,
     // WithholdingTaxModule,

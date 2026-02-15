@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
 
 export class CreateCostCenterDto {
   @IsString()
@@ -28,35 +29,7 @@ export class CreateCostCenterDto {
   isActive?: boolean;
 }
 
-export class UpdateCostCenterDto {
-  @IsOptional()
-  @IsString()
-  number?: string;
-
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  parentId?: string;
-
-  @IsOptional()
-  @IsString()
-  managerId?: string;
-
-  @IsOptional()
-  @IsNumber()
-  budgetAmount?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
+export class UpdateCostCenterDto extends PartialType(CreateCostCenterDto) {}
 
 export class CostCenterReportDto {
   startDate: string;

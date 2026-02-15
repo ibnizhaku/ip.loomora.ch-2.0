@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 
 export enum PurchaseOrderStatus {
   DRAFT = 'DRAFT',
@@ -59,28 +60,10 @@ export class CreatePurchaseOrderDto {
   items: PurchaseOrderItemDto[];
 }
 
-export class UpdatePurchaseOrderDto {
+export class UpdatePurchaseOrderDto extends PartialType(CreatePurchaseOrderDto) {
   @IsOptional()
   @IsEnum(PurchaseOrderStatus)
   status?: PurchaseOrderStatus;
-
-  @IsOptional()
-  @IsDateString()
-  expectedDate?: string;
-
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsOptional()
-  @IsString()
-  deliveryAddress?: string;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PurchaseOrderItemDto)
-  items?: PurchaseOrderItemDto[];
 }
 
 export class SendPurchaseOrderDto {

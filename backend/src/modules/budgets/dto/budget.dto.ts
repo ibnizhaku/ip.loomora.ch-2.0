@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsNumber, IsDateString, IsArray, ValidateNested, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 
 export enum BudgetStatus {
   DRAFT = 'DRAFT',
@@ -58,24 +59,10 @@ export class CreateBudgetDto {
   lines: BudgetLineDto[];
 }
 
-export class UpdateBudgetDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
+export class UpdateBudgetDto extends PartialType(CreateBudgetDto) {
   @IsOptional()
   @IsEnum(BudgetStatus)
   status?: BudgetStatus;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BudgetLineDto)
-  lines?: BudgetLineDto[];
 }
 
 export class BudgetComparisonDto {

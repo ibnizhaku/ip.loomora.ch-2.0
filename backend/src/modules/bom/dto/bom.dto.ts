@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsArray, ValidateNested, IsNumber, IsBoolean, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 
 export enum BomItemType {
   MATERIAL = 'MATERIAL',
@@ -71,29 +72,7 @@ export class CreateBomDto {
   items: BomItemDto[];
 }
 
-export class UpdateBomDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isTemplate?: boolean;
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BomItemDto)
-  items?: BomItemDto[];
-}
+export class UpdateBomDto extends PartialType(CreateBomDto) {}
 
 // Predefined Swiss Metallbau templates
 export const BOM_TEMPLATES = [

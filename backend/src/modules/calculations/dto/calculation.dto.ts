@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsArray, ValidateNested, IsNumber, IsEnum, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 
 export enum CalculationStatus {
   DRAFT = 'DRAFT',
@@ -100,48 +101,10 @@ export class CreateCalculationDto {
   items: CalculationItemDto[];
 }
 
-export class UpdateCalculationDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
+export class UpdateCalculationDto extends PartialType(CreateCalculationDto) {
   @IsOptional()
   @IsEnum(CalculationStatus)
   status?: CalculationStatus;
-
-  @IsOptional()
-  @IsNumber()
-  materialMarkup?: number;
-
-  @IsOptional()
-  @IsNumber()
-  laborMarkup?: number;
-
-  @IsOptional()
-  @IsNumber()
-  overheadPercent?: number;
-
-  @IsOptional()
-  @IsNumber()
-  profitMargin?: number;
-
-  @IsOptional()
-  @IsNumber()
-  riskMargin?: number;
-
-  @IsOptional()
-  @IsNumber()
-  discount?: number;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CalculationItemDto)
-  items?: CalculationItemDto[];
 }
 
 export class CalculationResultDto {

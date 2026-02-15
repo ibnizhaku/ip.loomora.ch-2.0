@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsArray, IsNumber, IsDateString, IsBoolean } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
 
 export enum ServiceTicketStatus {
   OPEN = 'OPEN',
@@ -74,42 +75,14 @@ export class CreateServiceTicketDto {
   tags?: string[];
 }
 
-export class UpdateServiceTicketDto {
-  @IsOptional()
-  @IsString()
-  title?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
+export class UpdateServiceTicketDto extends PartialType(CreateServiceTicketDto) {
   @IsOptional()
   @IsEnum(ServiceTicketStatus)
   status?: ServiceTicketStatus;
 
   @IsOptional()
-  @IsEnum(ServiceTicketPriority)
-  priority?: ServiceTicketPriority;
-
-  @IsOptional()
-  @IsString()
-  assignedTechnicianId?: string;
-
-  @IsOptional()
-  @IsDateString()
-  scheduledDate?: string;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedHours?: number;
-
-  @IsOptional()
   @IsString()
   resolution?: string;
-
-  @IsOptional()
-  @IsArray()
-  tags?: string[];
 }
 
 export class ServiceReportDto {

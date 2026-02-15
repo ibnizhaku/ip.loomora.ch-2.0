@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 
 export enum ProductionOrderStatus {
   PLANNED = 'PLANNED',
@@ -93,30 +94,10 @@ export class CreateProductionOrderDto {
   operations?: ProductionOperationDto[];
 }
 
-export class UpdateProductionOrderDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
+export class UpdateProductionOrderDto extends PartialType(CreateProductionOrderDto) {
   @IsOptional()
   @IsEnum(ProductionOrderStatus)
   status?: ProductionOrderStatus;
-
-  @IsOptional()
-  @IsEnum(ProductionPriority)
-  priority?: ProductionPriority;
-
-  @IsOptional()
-  @IsDateString()
-  plannedStartDate?: string;
-
-  @IsOptional()
-  @IsDateString()
-  plannedEndDate?: string;
 
   @IsOptional()
   @IsDateString()
@@ -125,16 +106,6 @@ export class UpdateProductionOrderDto {
   @IsOptional()
   @IsDateString()
   actualEndDate?: string;
-
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductionOperationDto)
-  operations?: ProductionOperationDto[];
 }
 
 export class TimeBookingDto {

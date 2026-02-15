@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -28,17 +29,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Create new user in company' })
   create(
     @CurrentUser() user: CurrentUserPayload,
-    @Body() dto: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone?: string;
-      role?: string;
-      createEmployee?: boolean;
-      position?: string;
-      departmentId?: string;
-      hireDate?: string;
-    },
+    @Body() dto: CreateUserDto,
   ) {
     return this.usersService.create(user.companyId, dto);
   }
@@ -48,14 +39,7 @@ export class UsersController {
   update(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id') id: string,
-    @Body() dto: {
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-      phone?: string;
-      role?: string;
-      isActive?: boolean;
-    },
+    @Body() dto: UpdateUserDto,
   ) {
     return this.usersService.update(id, user.companyId, dto);
   }
