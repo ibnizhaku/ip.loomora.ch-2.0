@@ -5,26 +5,12 @@ import { CreatePayslipDto, UpdatePayslipDto } from './dto/payroll.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
-// Alias controller for /payslips/:id route
+// /payslips controller — list + detail
 @ApiTags('Payslips')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('payslips')
 export class PayslipsController {
-  constructor(private readonly payrollService: PayrollService) {}
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get payslip by ID (alias)' })
-  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.payrollService.findOne(id, user.companyId);
-  }
-}
-
-@ApiTags('Payroll')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@Controller('payroll')
-export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
   @Get()
@@ -33,16 +19,14 @@ export class PayrollController {
     @CurrentUser() user: CurrentUserPayload,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
-    @Query('year') year?: string,
-    @Query('month') month?: string,
     @Query('employeeId') employeeId?: string,
+    @Query('period') period?: string,
   ) {
-    return this.payrollService.findAll(user.companyId, {
+    return this.payrollService.findAllPayslips(user.companyId, {
       page: page ? parseInt(page) : undefined,
       pageSize: pageSize ? parseInt(pageSize) : undefined,
-      year: year ? parseInt(year) : undefined,
-      month: month ? parseInt(month) : undefined,
       employeeId,
+      period,
     });
   }
 
@@ -50,6 +34,54 @@ export class PayrollController {
   @ApiOperation({ summary: 'Get payslip by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.payrollService.findOne(id, user.companyId);
+  }
+}
+
+// /payroll controller — Lohnlauf-Verwaltung
+@ApiTags('Payroll')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('payroll')
+export class PayrollController {
+  constructor(private readonly payrollService: PayrollService) {}
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get payroll statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.getStats(user.companyId);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get payroll overview with runs and employee data' })
+  findAll(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('employeeId') employeeId?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.payrollService.findAll(user.companyId, {
+      page: page ? parseInt(page) : undefined,
+      pageSize: pageSize ? parseInt(pageSize) : undefined,
+      year: year ? parseInt(year) : undefined,
+      month: month ? parseInt(month) : undefined,
+      employeeId,
+      status,
+    });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get payslip by ID' })
+  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.findOne(id, user.companyId);
+  }
+
+  @Post(':id/complete')
+  @ApiOperation({ summary: 'Complete a payroll run (mark all payslips as paid)' })
+  completeRun(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.completeRun(id, user.companyId);
   }
 
   @Post()
