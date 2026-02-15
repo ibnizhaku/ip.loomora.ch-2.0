@@ -10,78 +10,122 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useUserPermissions, useUpdateUserPermissions, type UserPermission } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
 
+interface ModuleEntry {
+  key: string;
+  label: string;
+}
+
 interface ModuleGroup {
   label: string;
-  modules: string[];
+  modules: ModuleEntry[];
 }
 
 const MODULE_GROUPS: ModuleGroup[] = [
   {
     label: "Hauptmenü",
-    modules: ["dashboard", "projects", "tasks", "calendar"],
+    modules: [
+      { key: "dashboard", label: "Dashboard" },
+      { key: "projects", label: "Projekte" },
+      { key: "tasks", label: "Aufgaben" },
+      { key: "calendar", label: "Kalender" },
+    ],
   },
   {
     label: "CRM",
-    modules: ["customers"],
+    modules: [
+      { key: "customers", label: "Kunden" },
+      { key: "suppliers", label: "Lieferanten" },
+    ],
   },
   {
     label: "Verkauf",
-    modules: ["invoices"],
+    modules: [
+      { key: "quotes", label: "Angebote" },
+      { key: "orders", label: "Aufträge" },
+      { key: "delivery-notes", label: "Lieferscheine" },
+      { key: "invoices", label: "Rechnungen" },
+      { key: "credit-notes", label: "Gutschriften" },
+      { key: "reminders", label: "Mahnwesen" },
+    ],
   },
   {
     label: "Verwaltung",
-    modules: ["time-entries", "purchase-orders", "inventory", "products", "bom", "calculation", "production", "quality", "service", "contracts", "documents", "reports"],
+    modules: [
+      { key: "time-entries", label: "Zeiterfassung" },
+      { key: "purchase-orders", label: "Einkauf" },
+      { key: "purchase-invoices", label: "Einkaufsrechnungen" },
+      { key: "inventory", label: "Lager" },
+      { key: "products", label: "Produkte" },
+      { key: "bom", label: "Stücklisten" },
+      { key: "calculation", label: "Kalkulation" },
+      { key: "production", label: "Produktion" },
+      { key: "quality", label: "QS-Prüfung" },
+      { key: "service", label: "Service" },
+      { key: "contracts", label: "Verträge" },
+      { key: "documents", label: "Dokumente" },
+      { key: "reports", label: "Berichte" },
+    ],
   },
   {
     label: "Buchhaltung",
-    modules: ["finance"],
+    modules: [
+      { key: "finance", label: "Controlling" },
+      { key: "cash-book", label: "Kassenbuch" },
+      { key: "cost-centers", label: "Kostenstellen" },
+      { key: "budgets", label: "Budgets" },
+      { key: "debtors", label: "Debitoren" },
+      { key: "creditors", label: "Kreditoren" },
+      { key: "bank-accounts", label: "Zahlungsverkehr" },
+      { key: "chart-of-accounts", label: "Kontenplan" },
+      { key: "journal-entries", label: "Buchungsjournal" },
+      { key: "general-ledger", label: "Hauptbuch" },
+      { key: "balance-sheet", label: "Bilanz & GuV" },
+      { key: "vat-returns", label: "MWST-Abrechnung" },
+      { key: "fixed-assets", label: "Anlagenbuchhaltung" },
+    ],
   },
   {
     label: "Personal (HR)",
-    modules: ["employees"],
+    modules: [
+      { key: "employees", label: "Mitarbeiter" },
+      { key: "employee-contracts", label: "Arbeitsverträge" },
+      { key: "payroll", label: "Lohnabrechnung" },
+      { key: "absences", label: "Abwesenheiten" },
+      { key: "travel-expenses", label: "Reisekosten" },
+      { key: "recruiting", label: "Recruiting" },
+      { key: "training", label: "Schulungen" },
+      { key: "departments", label: "Abteilungen" },
+      { key: "orgchart", label: "Organigramm" },
+    ],
   },
   {
     label: "Marketing",
-    modules: ["marketing"],
+    modules: [
+      { key: "campaigns", label: "Kampagnen" },
+      { key: "leads", label: "Leads" },
+      { key: "email-marketing", label: "E-Mail Marketing" },
+    ],
   },
   {
     label: "E-Commerce",
-    modules: ["ecommerce"],
+    modules: [
+      { key: "shop", label: "Online-Shop" },
+      { key: "discounts", label: "Rabatte" },
+      { key: "reviews", label: "Bewertungen" },
+    ],
   },
   {
     label: "Administration",
-    modules: ["settings"],
+    modules: [
+      { key: "users", label: "Benutzer" },
+      { key: "roles", label: "Rollen" },
+      { key: "company", label: "Unternehmen" },
+      { key: "settings", label: "Einstellungen" },
+    ],
   },
 ];
 
-// Human-readable labels for module keys
-const MODULE_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  projects: "Projekte",
-  tasks: "Aufgaben",
-  calendar: "Kalender",
-  customers: "Kunden & Lieferanten",
-  invoices: "Angebote, Aufträge & Rechnungen",
-  "time-entries": "Zeiterfassung",
-  "purchase-orders": "Einkauf",
-  inventory: "Lager",
-  products: "Produkte",
-  bom: "Stücklisten",
-  calculation: "Kalkulation",
-  production: "Produktion",
-  quality: "QS-Prüfung",
-  service: "Service",
-  contracts: "Verträge",
-  documents: "Dokumente",
-  reports: "Berichte",
-  finance: "Buchhaltung & Controlling",
-  employees: "Personal & HR",
-  marketing: "Marketing",
-  ecommerce: "E-Commerce",
-  settings: "Einstellungen & Benutzer",
-};
-
-const ALL_MODULES = MODULE_GROUPS.flatMap((g) => g.modules);
+const ALL_MODULE_KEYS = MODULE_GROUPS.flatMap((g) => g.modules.map((m) => m.key));
 
 interface Props {
   userId: string;
@@ -96,7 +140,6 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
   const [hasChanges, setHasChanges] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  // Sync API data into local state
   useEffect(() => {
     if (permData?.permissions) {
       setPermissions(permData.permissions);
@@ -104,11 +147,9 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
     }
   }, [permData]);
 
-  // Build display permissions: merge API data with all known modules
-  const displayPermissions: UserPermission[] = ALL_MODULES.map((mod) => {
-    const existing = permissions.find((p) => p.module === mod);
-    return existing || { module: mod, read: false, write: false, delete: false, source: "role" as const };
-  });
+  const getPermForModule = (key: string): UserPermission => {
+    return permissions.find((p) => p.module === key) || { module: key, read: false, write: false, delete: false, source: "role" as const };
+  };
 
   const handleChange = (module: string, type: "read" | "write" | "delete", value: boolean) => {
     const updatePerm = (p: UserPermission): UserPermission => {
@@ -120,12 +161,30 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
       return { ...p, [type]: value, source: "override" as const };
     };
 
-    // If module exists in state, update it; otherwise add it
     setPermissions((prev) => {
       const exists = prev.some((p) => p.module === module);
       if (exists) return prev.map(updatePerm);
       const newPerm: UserPermission = { module, read: false, write: false, delete: false, source: "role" as const };
       return [...prev, updatePerm(newPerm)];
+    });
+    setHasChanges(true);
+  };
+
+  const handleGroupToggleAll = (modules: ModuleEntry[], enable: boolean) => {
+    setPermissions((prev) => {
+      let updated = [...prev];
+      for (const mod of modules) {
+        const idx = updated.findIndex((p) => p.module === mod.key);
+        const newPerm: UserPermission = enable
+          ? { module: mod.key, read: true, write: true, delete: true, source: "override" as const }
+          : { module: mod.key, read: false, write: false, delete: false, source: "override" as const };
+        if (idx >= 0) {
+          updated[idx] = newPerm;
+        } else {
+          updated.push(newPerm);
+        }
+      }
+      return updated;
     });
     setHasChanges(true);
   };
@@ -149,8 +208,8 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
     return { label: "Kein Zugriff", color: "bg-muted text-muted-foreground" };
   };
 
-  const getGroupSummary = (modules: string[]) => {
-    const perms = modules.map((m) => displayPermissions.find((p) => p.module === m)!);
+  const getGroupSummary = (modules: ModuleEntry[]) => {
+    const perms = modules.map((m) => getPermForModule(m.key));
     const allFull = perms.every((p) => p.delete);
     const allNone = perms.every((p) => !p.read);
     const hasOverride = perms.some((p) => p.source === "override");
@@ -178,6 +237,7 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
                     • Rolle: <Badge variant="outline" className="ml-1">{permData.roleName}</Badge>
                   </span>
                 )}
+                <span className="ml-2 text-xs">({ALL_MODULE_KEYS.length} Module)</span>
               </CardDescription>
             </div>
           </div>
@@ -202,7 +262,7 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
           {MODULE_GROUPS.map((group) => {
             const isOpen = openGroups[group.label] ?? false;
             const groupSummary = getGroupSummary(group.modules);
-            const groupPerms = group.modules.map((m) => displayPermissions.find((p) => p.module === m)!);
+            const allFull = group.modules.every((m) => getPermForModule(m.key).delete);
 
             return (
               <Collapsible key={group.label} open={isOpen} onOpenChange={() => toggleGroup(group.label)}>
@@ -210,62 +270,84 @@ export default function UserPermissionsWidget({ userId, userName }: Props) {
                   <div className="flex items-center gap-3">
                     <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
                     <span className="font-medium text-sm">{group.label}</span>
-                    <span className="text-xs text-muted-foreground">({group.modules.length} Module)</span>
+                    <span className="text-xs text-muted-foreground">({group.modules.length})</span>
                   </div>
-                  <Badge className={groupSummary.color}>{groupSummary.label}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={groupSummary.color}>{groupSummary.label}</Badge>
+                  </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="ml-2 border-l-2 border-border pl-2 mt-1 mb-2">
+                    {/* Group quick actions */}
+                    <div className="flex items-center gap-2 px-4 py-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={(e) => { e.stopPropagation(); handleGroupToggleAll(group.modules, true); }}
+                      >
+                        Alle aktivieren
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={(e) => { e.stopPropagation(); handleGroupToggleAll(group.modules, false); }}
+                      >
+                        Alle deaktivieren
+                      </Button>
+                    </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Modul</TableHead>
-                          <TableHead className="text-center w-24">
+                          <TableHead className="text-center w-20">
                             <Tooltip>
                               <TooltipTrigger className="flex items-center gap-1 mx-auto">
                                 <Eye className="h-3.5 w-3.5" /> Lesen
                               </TooltipTrigger>
-                              <TooltipContent>Daten ansehen und lesen</TooltipContent>
+                              <TooltipContent>Daten ansehen</TooltipContent>
                             </Tooltip>
                           </TableHead>
-                          <TableHead className="text-center w-24">
+                          <TableHead className="text-center w-20">
                             <Tooltip>
                               <TooltipTrigger className="flex items-center gap-1 mx-auto">
                                 <Edit2 className="h-3.5 w-3.5" /> Schreiben
                               </TooltipTrigger>
-                              <TooltipContent>Daten erstellen und bearbeiten</TooltipContent>
+                              <TooltipContent>Daten bearbeiten</TooltipContent>
                             </Tooltip>
                           </TableHead>
-                          <TableHead className="text-center w-24">
+                          <TableHead className="text-center w-20">
                             <Tooltip>
                               <TooltipTrigger className="flex items-center gap-1 mx-auto">
                                 <Trash2 className="h-3.5 w-3.5" /> Löschen
                               </TooltipTrigger>
-                              <TooltipContent>Daten unwiderruflich löschen</TooltipContent>
+                              <TooltipContent>Daten löschen</TooltipContent>
                             </Tooltip>
                           </TableHead>
-                          <TableHead className="text-right w-32">Status</TableHead>
+                          <TableHead className="text-right w-28">Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {groupPerms.map((p) => {
+                        {group.modules.map((mod) => {
+                          const p = getPermForModule(mod.key);
                           const summary = getSummary(p);
                           return (
-                            <TableRow key={p.module} className={p.source === "override" ? "bg-accent/30" : ""}>
+                            <TableRow key={mod.key} className={p.source === "override" ? "bg-accent/30" : ""}>
                               <TableCell className="font-medium text-sm">
-                                {MODULE_LABELS[p.module] || p.module}
+                                {mod.label}
                                 {p.source === "override" && (
                                   <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Override</Badge>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                <Switch checked={p.read} onCheckedChange={(v) => handleChange(p.module, "read", v)} disabled={isLoading} />
+                                <Switch checked={p.read} onCheckedChange={(v) => handleChange(mod.key, "read", v)} disabled={isLoading} />
                               </TableCell>
                               <TableCell className="text-center">
-                                <Switch checked={p.write} onCheckedChange={(v) => handleChange(p.module, "write", v)} disabled={isLoading || !p.read} />
+                                <Switch checked={p.write} onCheckedChange={(v) => handleChange(mod.key, "write", v)} disabled={isLoading || !p.read} />
                               </TableCell>
                               <TableCell className="text-center">
-                                <Switch checked={p.delete} onCheckedChange={(v) => handleChange(p.module, "delete", v)} disabled={isLoading || !p.write} />
+                                <Switch checked={p.delete} onCheckedChange={(v) => handleChange(mod.key, "delete", v)} disabled={isLoading || !p.write} />
                               </TableCell>
                               <TableCell className="text-right">
                                 <Badge className={summary.color}>{summary.label}</Badge>
