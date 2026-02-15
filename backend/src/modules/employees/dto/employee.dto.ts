@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, IsEmail, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, IsEmail, IsArray, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -95,6 +95,41 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   iban?: string;
+
+  @ApiPropertyOptional({ example: 'Bahnhofstrasse 1' })
+  @IsOptional()
+  @IsString()
+  street?: string;
+
+  @ApiPropertyOptional({ example: '8001' })
+  @IsOptional()
+  @IsString()
+  zip?: string;
+
+  @ApiPropertyOptional({ example: 'Zürich' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  managerId?: string;
+
+  @ApiPropertyOptional({ type: [Object] })
+  @IsOptional()
+  @IsArray()
+  skills?: any[];
+
+  @ApiPropertyOptional({ type: [Object] })
+  @IsOptional()
+  @IsArray()
+  certifications?: any[];
+
+  @ApiPropertyOptional({ type: [Object] })
+  @IsOptional()
+  @IsArray()
+  education?: any[];
 }
 
 export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {

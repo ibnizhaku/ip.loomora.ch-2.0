@@ -66,6 +66,17 @@ export class EmployeesService {
         department: true,
         contracts: { orderBy: { startDate: 'desc' } },
         absences: { orderBy: { startDate: 'desc' }, take: 10 },
+        manager: { select: { id: true, firstName: true, lastName: true, position: true } },
+        projectMemberships: {
+          include: {
+            project: { select: { id: true, name: true, status: true } },
+          },
+        },
+        documents: {
+          select: { id: true, name: true, createdAt: true, storageUrl: true },
+          orderBy: { createdAt: 'desc' as const },
+          take: 20,
+        },
       },
     });
 
@@ -73,7 +84,55 @@ export class EmployeesService {
       throw new NotFoundException('Employee not found');
     }
 
-    return mapEmployeeResponse(employee);
+    // Calculate vacationTaken: approved vacation days in current year
+    const currentYear = new Date().getFullYear();
+    const yearStart = new Date(currentYear, 0, 1);
+    const yearEnd = new Date(currentYear + 1, 0, 1);
+
+    const vacationAgg = await this.prisma.absence.aggregate({
+      where: {
+        employeeId: id,
+        type: 'VACATION',
+        status: 'APPROVED',
+        startDate: { gte: yearStart, lt: yearEnd },
+      },
+      _sum: { days: true },
+    });
+
+    const vacationTaken = Number(vacationAgg._sum.days || 0);
+
+    const mapped = mapEmployeeResponse(employee);
+    const emp = employee as any;
+
+    return {
+      ...mapped,
+      // Address fields
+      street: emp.street || null,
+      zip: emp.zip || null,
+      city: emp.city || null,
+      // Vacation
+      vacationTaken,
+      // Manager
+      manager: emp.manager || null,
+      // Projects via memberships
+      projects: (emp.projectMemberships || []).map((pm: any) => ({
+        id: pm.project.id,
+        name: pm.project.name,
+        role: pm.role || 'Mitglied',
+        status: pm.project.status || 'Aktiv',
+      })),
+      // Documents
+      documents: (emp.documents || []).map((doc: any) => ({
+        id: doc.id,
+        name: doc.name || 'Dokument',
+        date: doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('de-CH') : '',
+        url: doc.storageUrl || null,
+      })),
+      // JSON profile fields
+      skills: Array.isArray(emp.skills) ? emp.skills : (emp.skills ? JSON.parse(emp.skills) : []),
+      certifications: Array.isArray(emp.certifications) ? emp.certifications : (emp.certifications ? JSON.parse(emp.certifications) : []),
+      education: Array.isArray(emp.education) ? emp.education : (emp.education ? JSON.parse(emp.education) : []),
+    };
   }
 
   async create(companyId: string, dto: CreateEmployeeDto) {
@@ -119,6 +178,13 @@ export class EmployeesService {
         employmentType: dto.employmentType,
         workloadPercent: dto.workloadPercent || 100,
         iban: dto.iban,
+        street: dto.street,
+        zip: dto.zip,
+        city: dto.city,
+        managerId: dto.managerId || null,
+        skills: dto.skills || [],
+        certifications: dto.certifications || [],
+        education: dto.education || [],
         companyId,
       },
       include: {
@@ -174,6 +240,13 @@ export class EmployeesService {
         workloadPercent: dto.workloadPercent,
         iban: dto.iban,
         notes: dto.notes,
+        street: dto.street,
+        zip: dto.zip,
+        city: dto.city,
+        managerId: dto.managerId !== undefined ? (dto.managerId || null) : undefined,
+        skills: dto.skills !== undefined ? dto.skills : undefined,
+        certifications: dto.certifications !== undefined ? dto.certifications : undefined,
+        education: dto.education !== undefined ? dto.education : undefined,
       },
     });
   }

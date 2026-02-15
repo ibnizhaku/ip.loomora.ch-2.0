@@ -1993,11 +1993,26 @@ model Employee {
   employmentType  String?  // Vollzeit, Teilzeit
   workloadPercent Int      @default(100)
   
+  // Address
+  street          String?
+  zip             String?
+  city            String?
+
   // Bank details
   iban            String?
   
   avatarUrl       String?
   notes           String?
+
+  // Profile data (stored as JSON arrays)
+  skills          Json?    @default("[]")
+  certifications  Json?    @default("[]")
+  education       Json?    @default("[]")
+
+  // Manager (self-relation)
+  managerId       String?
+  manager         Employee? @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates    Employee[] @relation("EmployeeManager")
   
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -2031,6 +2046,7 @@ model Employee {
   @@unique([companyId, number])
   @@index([companyId])
   @@index([departmentId])
+  @@index([managerId])
   @@map("employees")
 }
 

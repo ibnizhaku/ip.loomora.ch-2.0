@@ -68,9 +68,11 @@ export function mapEmployeeResponse(employee: any) {
   return {
     ...rest,
     employeeNumber: number,
+    ahvNumber: ahvNumber || null,
     socialSecurityNumber: ahvNumber,
     bankAccount: iban,
-    department: department?.name || null,
+    iban: iban || null,
+    department: department ? (typeof department === 'object' ? department : { name: department }) : null,
     departmentId,
     // Flatten contract fields for frontend compatibility
     salary: activeContract?.baseSalary ? Number(activeContract.baseSalary) : undefined,
