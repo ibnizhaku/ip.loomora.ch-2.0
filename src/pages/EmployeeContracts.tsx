@@ -95,6 +95,14 @@ const statusLabels = {
   draft: "Entwurf",
 };
 
+// Extrahiert .name aus Objekten wie {id, name} — verhindert React Error #31
+function extractName(value: any, fallback = "–"): string {
+  if (!value) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value.name) return value.name;
+  return fallback;
+}
+
 export default function EmployeeContracts() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,7 +128,7 @@ export default function EmployeeContracts() {
     weeklyHours: c.weeklyHours || 42.5,
     baseSalary: c.baseSalary || 0,
     status: c.status || "active",
-    department: c.department || c.employee?.department || "–",
+    department: extractName(c.department) !== "–" ? extractName(c.department) : extractName(c.employee?.department),
     noticePeriod: c.noticePeriod || "–",
     vacationDays: c.vacationDays || 20,
   }));
