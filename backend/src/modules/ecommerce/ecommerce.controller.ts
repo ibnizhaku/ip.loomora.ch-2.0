@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { EcommerceService } from './ecommerce.service';
 import { 
@@ -142,13 +142,26 @@ export class EcommerceController {
   }
 
   @Put('reviews/:id')
-  @ApiOperation({ summary: 'Moderate review' })
+  @ApiOperation({ summary: 'Update review' })
   updateReview(
     @Param('id') id: string,
     @Body() dto: UpdateReviewDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.ecommerceService.updateReview(id, user.companyId, dto);
+  }
+
+  @Patch('reviews/:id')
+  @ApiOperation({ summary: 'Moderate review (approve/reject)' })
+  moderateReview(
+    @Param('id') id: string,
+    @Body() body: { isApproved?: boolean; status?: string },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    const status = body.isApproved !== undefined
+      ? (body.isApproved ? 'APPROVED' : 'REJECTED')
+      : body.status;
+    return this.ecommerceService.updateReview(id, user.companyId, { status } as any);
   }
 
   @Delete('reviews/:id')

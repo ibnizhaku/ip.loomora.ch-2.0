@@ -28,6 +28,18 @@ if (!existsSync(UPLOAD_DIR)) {
   mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+// Alias controller for /dms/documents routes (frontend DMS hooks)
+@Controller('dms/documents')
+@UseGuards(JwtAuthGuard)
+export class DmsDocumentsController {
+  constructor(private readonly documentsService: DocumentsService) {}
+
+  @Get(':id')
+  findById(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.documentsService.findDocumentById(id, user.companyId);
+  }
+}
+
 @Controller('documents')
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {

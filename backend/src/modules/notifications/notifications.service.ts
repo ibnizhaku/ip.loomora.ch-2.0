@@ -6,6 +6,14 @@ import { CreateNotificationDto, NotificationQueryDto } from './dto/notification.
 export class NotificationsService {
   constructor(private prisma: PrismaService) {}
 
+  async findOne(id: string, userId: string, companyId: string) {
+    const notification = await this.prisma.notification.findFirst({
+      where: { id, userId, companyId },
+    });
+    if (!notification) throw new NotFoundException('Benachrichtigung nicht gefunden');
+    return notification;
+  }
+
   async findAll(userId: string, companyId: string, query: NotificationQueryDto) {
     const { page = 1, pageSize = 50, category, read } = query;
     const { skip, take } = this.prisma.getPagination(page, pageSize);

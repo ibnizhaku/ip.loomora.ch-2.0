@@ -32,6 +32,12 @@ export class NotificationsController {
     return this.notificationsService.markAllAsRead(user.userId, user.companyId);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get notification by ID' })
+  findOne(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+    return this.notificationsService.findOne(id, user.userId, user.companyId);
+  }
+
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark notification as read' })
   markAsRead(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
