@@ -313,25 +313,84 @@ export class UsersService {
 
   // ─── PERMISSIONS ─────────────────────────────────────────
 
-  private readonly MODULES = [
-    'Dashboard', 'Projekte', 'Aufgaben', 'Zeiterfassung', 'Produktion', 'Stücklisten',
-    'Kunden', 'Rechnungen', 'Buchhaltung', 'Personal', 'Einstellungen',
+  // All 55 granular module keys (matching frontend sidebar 1:1)
+  private readonly ALL_MODULES = [
+    // Hauptmenü
+    'dashboard', 'projects', 'tasks', 'calendar',
+    // CRM
+    'customers', 'suppliers',
+    // Verkauf
+    'quotes', 'orders', 'delivery-notes', 'invoices', 'credit-notes', 'reminders',
+    // Verwaltung
+    'time-entries', 'purchase-orders', 'purchase-invoices', 'inventory', 'products',
+    'bom', 'calculation', 'production', 'quality', 'service', 'contracts', 'documents', 'reports',
+    // Buchhaltung
+    'finance', 'cash-book', 'cost-centers', 'budgets', 'debtors', 'creditors',
+    'bank-accounts', 'chart-of-accounts', 'journal-entries', 'general-ledger',
+    'balance-sheet', 'vat-returns', 'fixed-assets',
+    // Personal (HR)
+    'employees', 'employee-contracts', 'payroll', 'absences', 'travel-expenses',
+    'recruiting', 'training', 'departments', 'orgchart',
+    // Marketing
+    'campaigns', 'leads', 'email-marketing',
+    // E-Commerce
+    'shop', 'discounts', 'reviews',
+    // Administration
+    'users', 'roles', 'company', 'settings',
   ];
 
-  // Module name → backend permission module key mapping
-  private readonly MODULE_KEY_MAP: Record<string, string> = {
-    'Dashboard': 'dashboard',
-    'Projekte': 'projects',
-    'Aufgaben': 'tasks',
-    'Zeiterfassung': 'time-entries',
-    'Produktion': 'production',
-    'Stücklisten': 'bom',
-    'Kunden': 'customers',
-    'Rechnungen': 'invoices',
-    'Buchhaltung': 'finance',
-    'Personal': 'employees',
-    'Einstellungen': 'settings',
+  // Old broad keys → new granular keys (for migration/inheritance)
+  private readonly PARENT_MAP: Record<string, string[]> = {
+    'invoices': ['quotes', 'orders', 'delivery-notes', 'invoices', 'credit-notes', 'reminders'],
+    'finance': ['finance', 'cash-book', 'cost-centers', 'budgets', 'debtors', 'creditors',
+      'bank-accounts', 'chart-of-accounts', 'journal-entries', 'general-ledger',
+      'balance-sheet', 'vat-returns', 'fixed-assets'],
+    'employees': ['employees', 'employee-contracts', 'payroll', 'absences', 'travel-expenses',
+      'recruiting', 'training', 'departments', 'orgchart'],
+    'settings': ['users', 'roles', 'company', 'settings'],
   };
+
+  /**
+   * Resolve role permissions: if role has a broad key (e.g. "invoices"),
+   * expand it to all granular children. Returns a Map<moduleKey, {read,write,delete}>
+   */
+  private resolveRolePermissions(rolePerms: any[]): Map<string, { read: boolean; write: boolean; delete: boolean }> {
+    // Collect raw permissions by module key
+    const rawMap = new Map<string, Set<string>>();
+    for (const rp of rolePerms) {
+      if (!rawMap.has(rp.module)) rawMap.set(rp.module, new Set());
+      rawMap.get(rp.module)!.add(rp.permission);
+    }
+
+    // Expand broad keys into granular keys
+    const resolved = new Map<string, { read: boolean; write: boolean; delete: boolean }>();
+
+    for (const [moduleKey, actions] of rawMap) {
+      const hasAdmin = actions.has('admin');
+      const read = hasAdmin || actions.has('read');
+      const write = hasAdmin || actions.has('write');
+      const del = hasAdmin || actions.has('delete');
+      const permObj = { read, write, delete: del };
+
+      // If this is a broad parent key, expand to all children
+      const children = this.PARENT_MAP[moduleKey];
+      if (children) {
+        for (const child of children) {
+          // Only set if not already set by a more specific permission
+          if (!resolved.has(child)) {
+            resolved.set(child, { ...permObj });
+          }
+        }
+      }
+
+      // Also set the key itself (covers both direct and parent keys)
+      if (!resolved.has(moduleKey)) {
+        resolved.set(moduleKey, permObj);
+      }
+    }
+
+    return resolved;
+  }
 
   async getPermissions(userId: string, companyId: string) {
     // 1. Get user membership with role
@@ -349,22 +408,21 @@ export class UsersService {
     const role = membership.role;
     const rolePermissions = role?.permissions || [];
 
-    // 2. Get user overrides
+    // 2. Resolve role permissions (expand broad keys to granular)
+    const roleMap = this.resolveRolePermissions(rolePermissions);
+
+    // 3. Get user overrides
     const overrides = await this.prisma.userPermissionOverride.findMany({
       where: { userId, companyId },
     });
-
     const overrideMap = new Map(overrides.map(o => [o.module, o]));
 
-    // 3. Build permission list per module
-    const permissions = this.MODULES.map(moduleName => {
-      const moduleKey = this.MODULE_KEY_MAP[moduleName] || moduleName.toLowerCase();
-
-      // Check if there's an override for this module
-      const override = overrideMap.get(moduleName);
+    // 4. Build permission list for ALL 55 modules
+    const permissions = this.ALL_MODULES.map(moduleKey => {
+      const override = overrideMap.get(moduleKey);
       if (override) {
         return {
-          module: moduleName,
+          module: moduleKey,
           read: override.canRead,
           write: override.canWrite,
           delete: override.canDelete,
@@ -372,18 +430,12 @@ export class UsersService {
         };
       }
 
-      // Fall back to role permissions
-      const rolePerms = rolePermissions.filter(p => p.module === moduleKey);
-      const hasAdmin = rolePerms.some(p => p.permission === 'admin');
-      const hasRead = hasAdmin || rolePerms.some(p => p.permission === 'read');
-      const hasWrite = hasAdmin || rolePerms.some(p => p.permission === 'write');
-      const hasDelete = hasAdmin || rolePerms.some(p => p.permission === 'delete');
-
+      const rolePerm = roleMap.get(moduleKey);
       return {
-        module: moduleName,
-        read: hasRead,
-        write: hasWrite,
-        delete: hasDelete,
+        module: moduleKey,
+        read: rolePerm?.read || false,
+        write: rolePerm?.write || false,
+        delete: rolePerm?.delete || false,
         source: 'role' as const,
       };
     });
@@ -406,20 +458,18 @@ export class UsersService {
 
     if (!membership) throw new NotFoundException('Benutzer nicht in dieser Company');
 
-    const rolePermissions = membership.role?.permissions || [];
+    // 2. Resolve role defaults (expanded)
+    const roleMap = this.resolveRolePermissions(membership.role?.permissions || []);
 
-    // 2. Only save overrides (entries with source: "override")
-    const overrides = permissions.filter(p => p.source === 'override');
+    // 3. Only save overrides (entries with source: "override")
+    const overrideEntries = permissions.filter(p => p.source === 'override');
 
-    // 3. For each override, check if it differs from role default
     const toUpsert: any[] = [];
-    for (const perm of overrides) {
-      const moduleKey = this.MODULE_KEY_MAP[perm.module] || perm.module.toLowerCase();
-      const rolePerms = rolePermissions.filter(p => p.module === moduleKey);
-      const hasAdmin = rolePerms.some(p => p.permission === 'admin');
-      const roleRead = hasAdmin || rolePerms.some(p => p.permission === 'read');
-      const roleWrite = hasAdmin || rolePerms.some(p => p.permission === 'write');
-      const roleDelete = hasAdmin || rolePerms.some(p => p.permission === 'delete');
+    for (const perm of overrideEntries) {
+      const rolePerm = roleMap.get(perm.module);
+      const roleRead = rolePerm?.read || false;
+      const roleWrite = rolePerm?.write || false;
+      const roleDelete = rolePerm?.delete || false;
 
       // Only save if different from role default
       if (perm.read !== roleRead || perm.write !== roleWrite || perm.delete !== roleDelete) {

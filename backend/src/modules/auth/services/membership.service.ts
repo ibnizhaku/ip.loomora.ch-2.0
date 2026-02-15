@@ -119,88 +119,59 @@ export class MembershipService {
     const company = membership.company;
     const subscription = company.subscriptions[0] || null;
 
-    // Permissions aus Rolle extrahieren
-    const rolePermissions = membership.role.permissions.map(
-      (p) => `${p.module}:${p.permission}`,
-    );
+    // ─── Granulare Permission-Auflösung ───────────────────────
 
-    // UserPermissionOverrides laden und mit Rollen-Defaults mergen
+    // Old broad keys → new granular keys (for backward-compatible expansion)
+    const PARENT_MAP: Record<string, string[]> = {
+      'invoices': ['quotes', 'orders', 'delivery-notes', 'invoices', 'credit-notes', 'reminders'],
+      'finance': ['finance', 'cash-book', 'cost-centers', 'budgets', 'debtors', 'creditors',
+        'bank-accounts', 'chart-of-accounts', 'journal-entries', 'general-ledger',
+        'balance-sheet', 'vat-returns', 'fixed-assets'],
+      'employees': ['employees', 'employee-contracts', 'payroll', 'absences', 'travel-expenses',
+        'recruiting', 'training', 'departments', 'orgchart'],
+      'settings': ['users', 'roles', 'company', 'settings'],
+    };
+
+    // 1. Expand role permissions into granular module:action pairs
+    const mergedPermSet = new Set<string>();
+
+    for (const rp of membership.role.permissions) {
+      const actions = rp.permission === 'admin' ? ['read', 'write', 'delete', 'admin'] : [rp.permission];
+      const children = PARENT_MAP[rp.module];
+
+      if (children) {
+        // Expand broad key to all granular children
+        for (const child of children) {
+          for (const action of actions) {
+            mergedPermSet.add(`${child}:${action}`);
+          }
+        }
+      }
+      // Also always add the key itself
+      for (const action of actions) {
+        mergedPermSet.add(`${rp.module}:${action}`);
+      }
+    }
+
+    // 2. Load and apply UserPermissionOverrides
     const overrides = await this.prisma.userPermissionOverride.findMany({
       where: { userId, companyId },
     });
 
-    // Backend-Module-Key → German-Name mapping (Umkehr der Frontend-Map)
-    const REVERSE_MODULE_MAP: Record<string, string> = {
-      'dashboard': 'Dashboard',
-      'projects': 'Projekte',
-      'tasks': 'Aufgaben',
-      'time-entries': 'Zeiterfassung',
-      'production': 'Produktion',
-      'bom': 'Stücklisten',
-      'customers': 'Kunden',
-      'invoices': 'Rechnungen',
-      'finance': 'Buchhaltung',
-      'employees': 'Personal',
-      'settings': 'Einstellungen',
-    };
-
-    // German-Name → Backend-Module-Key
-    const MODULE_KEY_MAP: Record<string, string> = {
-      'Dashboard': 'dashboard',
-      'Projekte': 'projects',
-      'Aufgaben': 'tasks',
-      'Zeiterfassung': 'time-entries',
-      'Produktion': 'production',
-      'Stücklisten': 'bom',
-      'Kunden': 'customers',
-      'Rechnungen': 'invoices',
-      'Buchhaltung': 'finance',
-      'Personal': 'employees',
-      'Einstellungen': 'settings',
-    };
-
     if (overrides.length > 0) {
-      // Build override map: German module name → override entry
-      const overrideMap = new Map(overrides.map(o => [o.module, o]));
+      for (const override of overrides) {
+        const moduleKey = override.module;
 
-      // Collect all unique backend module keys from role permissions
-      const roleModules = new Set(membership.role.permissions.map(p => p.module));
-
-      // Start with role permissions as base
-      const mergedPermSet = new Set<string>();
-
-      // Process each backend module
-      const allModuleKeys = new Set([
-        ...roleModules,
-        ...overrides.map(o => MODULE_KEY_MAP[o.module] || o.module.toLowerCase()),
-      ]);
-
-      for (const moduleKey of allModuleKeys) {
-        const germanName = REVERSE_MODULE_MAP[moduleKey] || moduleKey;
-        const override = overrideMap.get(germanName);
-
-        if (override) {
-          // Override replaces role defaults for this module
-          if (override.canRead) mergedPermSet.add(`${moduleKey}:read`);
-          if (override.canWrite) mergedPermSet.add(`${moduleKey}:write`);
-          if (override.canDelete) mergedPermSet.add(`${moduleKey}:delete`);
-        } else {
-          // Use role defaults for this module
-          for (const rp of membership.role.permissions) {
-            if (rp.module === moduleKey) {
-              mergedPermSet.add(`${rp.module}:${rp.permission}`);
-            }
-          }
+        // Remove all existing permissions for this module
+        for (const action of ['read', 'write', 'delete', 'admin']) {
+          mergedPermSet.delete(`${moduleKey}:${action}`);
         }
-      }
 
-      return {
-        membership,
-        company,
-        subscription,
-        role: membership.role,
-        permissions: Array.from(mergedPermSet),
-      };
+        // Add back only the override values
+        if (override.canRead) mergedPermSet.add(`${moduleKey}:read`);
+        if (override.canWrite) mergedPermSet.add(`${moduleKey}:write`);
+        if (override.canDelete) mergedPermSet.add(`${moduleKey}:delete`);
+      }
     }
 
     return {
@@ -208,7 +179,7 @@ export class MembershipService {
       company,
       subscription,
       role: membership.role,
-      permissions: rolePermissions,
+      permissions: Array.from(mergedPermSet),
     };
   }
 
