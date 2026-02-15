@@ -115,7 +115,6 @@ export default function CustomerDetail() {
 
   const getStatusBadge = () => {
     if (!customer.isActive) return { label: "Inaktiv", color: "bg-muted text-muted-foreground" };
-    if (!customer.totalRevenue || customer.totalRevenue === 0) return { label: "Interessent", color: "bg-info/10 text-info" };
     return { label: "Aktiv", color: "bg-success/10 text-success" };
   };
 
