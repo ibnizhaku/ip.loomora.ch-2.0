@@ -112,12 +112,15 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Aktuellen User und Company-Info abrufen' })
   async getMe(@CurrentUser() user: CurrentUserPayload) {
+    // Load fresh permissions from DB (role + overrides) instead of stale JWT
+    const { permissions } = await this.authService.getFreshPermissions(user.userId, user.companyId);
+
     return {
       userId: user.userId,
       email: user.email,
       companyId: user.companyId,
       role: user.role,
-      permissions: user.permissions,
+      permissions,
       isOwner: user.isOwner,
     };
   }

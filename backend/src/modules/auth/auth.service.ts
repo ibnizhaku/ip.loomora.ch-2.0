@@ -447,6 +447,15 @@ export class AuthService {
     await this.tokenService.revokeAllUserTokens(userId);
   }
 
+  /**
+   * Lädt Permissions frisch aus DB (Rolle + Overrides) — nicht aus JWT-Cache.
+   * Wird von /auth/me verwendet, damit Widget-Änderungen sofort sichtbar sind.
+   */
+  async getFreshPermissions(userId: string, companyId: string): Promise<{ permissions: string[] }> {
+    const { permissions } = await this.membershipService.validateMembership(userId, companyId);
+    return { permissions };
+  }
+
   // ==========================================
   // PRIVATE HELPERS
   // ==========================================
