@@ -245,6 +245,7 @@ model Company {
   teamMembers   CompanyTeamMember[]
   companySettings CompanySettings?
   notifications Notification[]
+  payrollRuns   PayrollRun[]
   
   @@index([status])
   @@index([slug])
@@ -2100,10 +2101,43 @@ model Absence {
 // HR: PAYROLL
 // ============================================
 
+enum PayrollRunStatus {
+  DRAFT
+  PROCESSING
+  COMPLETED
+}
+
+model PayrollRun {
+  id              String   @id @default(cuid())
+  period          String   // "2026-02"
+  periodStart     DateTime
+  periodEnd       DateTime
+  status          PayrollRunStatus @default(DRAFT)
+  employees       Int      @default(0)
+  grossTotal      Decimal  @default(0) @db.Decimal(14, 2)
+  netTotal        Decimal  @default(0) @db.Decimal(14, 2)
+  
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  payslips        Payslip[]
+  
+  @@unique([companyId, period])
+  @@index([companyId])
+  @@map("payroll_runs")
+}
+
 model Payslip {
   id              String   @id @default(cuid())
   employeeId      String
   employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Optional link to PayrollRun
+  payrollRunId    String?
+  payrollRun      PayrollRun? @relation(fields: [payrollRunId], references: [id])
   
   // Period (year/month for easier querying)
   year            Int
@@ -2139,6 +2173,7 @@ model Payslip {
   @@unique([employeeId, year, month])
   @@index([employeeId])
   @@index([year, month])
+  @@index([payrollRunId])
   @@map("payslips")
 }
 

@@ -79,15 +79,15 @@ export class PayrollController {
   }
 
   @Post(':id/complete')
-  @ApiOperation({ summary: 'Complete a payroll run (mark all payslips as paid)' })
+  @ApiOperation({ summary: 'Complete a payroll run' })
   completeRun(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.payrollService.completeRun(id, user.companyId);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create new payslip' })
-  create(@Body() dto: CreatePayslipDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.payrollService.create(user.companyId, dto);
+  @ApiOperation({ summary: 'Create new payroll run' })
+  createRun(@Body() dto: any, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.createRun(user.companyId, dto);
   }
 
   @Put(':id')
