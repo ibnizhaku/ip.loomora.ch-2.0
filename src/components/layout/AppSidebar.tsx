@@ -414,7 +414,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                             className={cn(
                               "group/item relative w-full justify-between rounded-lg transition-all duration-200",
                               "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                              isActive && "bg-primary/10 backdrop-blur-xl border border-primary/20 shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.15)] text-sidebar-accent-foreground font-medium"
+                              isActive && "bg-white/15 dark:bg-white/10 backdrop-blur-2xl border border-white/30 dark:border-white/15 shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.25),inset_0_1px_0_0_rgba(255,255,255,0.25),inset_0_-1px_0_0_rgba(255,255,255,0.05)] text-sidebar-accent-foreground font-medium ring-1 ring-white/10"
                             )}
                           >
                             <span className="flex items-center gap-3">
@@ -445,7 +445,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                                     className={cn(
                                       "relative rounded-md py-2 transition-all duration-200",
                                       "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                                      isSubActive && "bg-primary/10 backdrop-blur-xl border border-primary/20 shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.15)] text-sidebar-accent-foreground font-medium"
+                                      isSubActive && "bg-white/15 dark:bg-white/10 backdrop-blur-2xl border border-white/30 dark:border-white/15 shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.25),inset_0_1px_0_0_rgba(255,255,255,0.25),inset_0_-1px_0_0_rgba(255,255,255,0.05)] text-sidebar-accent-foreground font-medium ring-1 ring-white/10"
                                     )}
                                   >
                                     <NavLink to={subItem.url}>
@@ -467,7 +467,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                         className={cn(
                           "group/item relative rounded-lg transition-all duration-200",
                           "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                          isActive && "bg-primary/10 backdrop-blur-xl border border-primary/20 shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.15)] text-sidebar-accent-foreground font-medium"
+                          isActive && "bg-white/15 dark:bg-white/10 backdrop-blur-2xl border border-white/30 dark:border-white/15 shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.25),inset_0_1px_0_0_rgba(255,255,255,0.25),inset_0_-1px_0_0_rgba(255,255,255,0.05)] text-sidebar-accent-foreground font-medium ring-1 ring-white/10"
                         )}
                       >
                         <NavLink to={item.url} className="flex items-center gap-3">
