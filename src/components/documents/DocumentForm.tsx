@@ -70,6 +70,7 @@ interface DocumentFormProps {
   editMode?: boolean;
   initialData?: any;
   onSave?: (data: any) => Promise<any>;
+  defaultCustomerId?: string;
 }
 
 // Customer type from API (matches src/types/api.ts)
@@ -114,7 +115,7 @@ const companyBankAccount = {
   uid: "CHE-123.456.789 MWST",
 };
 
-export function DocumentForm({ type, editMode = false, initialData, onSave }: DocumentFormProps) {
+export function DocumentForm({ type, editMode = false, initialData, onSave, defaultCustomerId }: DocumentFormProps) {
   const navigate = useNavigate();
   const [customerSearch, setCustomerSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -136,6 +137,16 @@ export function DocumentForm({ type, editMode = false, initialData, onSave }: Do
 
   const customers = useMemo(() => customersData?.data || [], [customersData]);
   const products = useMemo(() => productsData?.data || [], [productsData]);
+
+  // Pre-select customer from URL param
+  const defaultCustomerApplied = useState(false);
+  if (defaultCustomerId && !defaultCustomerApplied[0] && customers.length > 0 && !selectedCustomer) {
+    const found = customers.find((c: any) => c.id === defaultCustomerId);
+    if (found) {
+      setSelectedCustomer(found as any);
+      defaultCustomerApplied[1](true);
+    }
+  }
 
   const isQuote = type === "quote";
   const isInvoice = type === "invoice";

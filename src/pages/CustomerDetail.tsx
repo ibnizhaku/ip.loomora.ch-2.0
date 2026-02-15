@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -26,13 +27,22 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCustomer, useDeleteCustomer } from "@/hooks/use-customers";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useCustomer, useDeleteCustomer, useCreateCustomerContact } from "@/hooks/use-customers";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -73,6 +83,18 @@ export default function CustomerDetail() {
   const navigate = useNavigate();
   const { data: customer, isLoading, error } = useCustomer(id);
   const deleteCustomer = useDeleteCustomer();
+  const createContact = useCreateCustomerContact();
+
+  // Contact dialog state
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    position: "",
+    isPrimary: false,
+  });
 
   const handleDelete = async () => {
     if (!customer) return;
@@ -84,6 +106,29 @@ export default function CustomerDetail() {
       } catch (error) {
         toast.error("Fehler beim Löschen. Möglicherweise gibt es verknüpfte Daten.");
       }
+    }
+  };
+
+  const handleCreateContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    try {
+      await createContact.mutateAsync({
+        customerId: id,
+        data: {
+          firstName: contactForm.firstName,
+          lastName: contactForm.lastName,
+          email: contactForm.email || undefined,
+          phone: contactForm.phone || undefined,
+          position: contactForm.position || undefined,
+          isPrimary: contactForm.isPrimary,
+        },
+      });
+      toast.success("Kontakt hinzugefügt");
+      setContactDialogOpen(false);
+      setContactForm({ firstName: "", lastName: "", email: "", phone: "", position: "", isPrimary: false });
+    } catch (error) {
+      toast.error("Fehler beim Hinzufügen des Kontakts");
     }
   };
 
@@ -166,13 +211,13 @@ export default function CustomerDetail() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate("/quotes/new")}>
+            <DropdownMenuItem onClick={() => navigate(`/quotes/new?customerId=${id}`)}>
               Angebot erstellen
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/invoices/new")}>
+            <DropdownMenuItem onClick={() => navigate(`/invoices/new?customerId=${id}`)}>
               Rechnung erstellen
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/projects/new")}>
+            <DropdownMenuItem onClick={() => navigate(`/projects/new?customerId=${id}`)}>
               Projekt anlegen
             </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
@@ -314,14 +359,14 @@ export default function CustomerDetail() {
         </div>
       </div>
 
-      {/* Ansprechpartner Section - Own area below Übersicht & Kontaktdaten */}
+      {/* Ansprechpartner Section */}
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
             <h3 className="font-semibold">Ansprechpartner ({contacts.length})</h3>
           </div>
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => setContactDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             Kontakt hinzufügen
           </Button>
@@ -377,6 +422,78 @@ export default function CustomerDetail() {
         )}
       </div>
 
+      {/* Contact Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kontakt hinzufügen</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateContact} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="contact-firstName">Vorname *</Label>
+                <Input
+                  id="contact-firstName"
+                  value={contactForm.firstName}
+                  onChange={(e) => setContactForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-lastName">Nachname *</Label>
+                <Input
+                  id="contact-lastName"
+                  value={contactForm.lastName}
+                  onChange={(e) => setContactForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact-email">E-Mail</Label>
+              <Input
+                id="contact-email"
+                type="email"
+                value={contactForm.email}
+                onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact-phone">Telefon</Label>
+              <Input
+                id="contact-phone"
+                value={contactForm.phone}
+                onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact-position">Position</Label>
+              <Input
+                id="contact-position"
+                value={contactForm.position}
+                onChange={(e) => setContactForm(prev => ({ ...prev, position: e.target.value }))}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={contactForm.isPrimary}
+                onCheckedChange={(checked) => setContactForm(prev => ({ ...prev, isPrimary: checked }))}
+              />
+              <Label>Hauptkontakt</Label>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setContactDialogOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" disabled={createContact.isPending} className="gap-2">
+                {createContact.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Hinzufügen
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Full Width - Tabs */}
       <div>
         <Tabs defaultValue="projects" className="space-y-4">
@@ -392,7 +509,7 @@ export default function CustomerDetail() {
           <TabsContent value="projects" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Projekte ({projects.length})</h3>
-              <Button size="sm" className="gap-2" onClick={() => navigate("/projects/new")}>
+              <Button size="sm" className="gap-2" onClick={() => navigate(`/projects/new?customerId=${id}`)}>
                 <Plus className="h-4 w-4" />
                 Neues Projekt
               </Button>
@@ -436,7 +553,7 @@ export default function CustomerDetail() {
           <TabsContent value="invoices" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Rechnungen ({invoices.length})</h3>
-              <Button size="sm" className="gap-2" onClick={() => navigate("/invoices/new")}>
+              <Button size="sm" className="gap-2" onClick={() => navigate(`/invoices/new?customerId=${id}`)}>
                 <Plus className="h-4 w-4" />
                 Neue Rechnung
               </Button>
@@ -483,7 +600,7 @@ export default function CustomerDetail() {
           <TabsContent value="delivery-notes" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Lieferscheine ({deliveryNotes.length})</h3>
-              <Button size="sm" className="gap-2" onClick={() => navigate("/delivery-notes/new")}>
+              <Button size="sm" className="gap-2" onClick={() => navigate(`/delivery-notes/new?customerId=${id}`)}>
                 <Plus className="h-4 w-4" />
                 Neuer Lieferschein
               </Button>
@@ -524,7 +641,7 @@ export default function CustomerDetail() {
           <TabsContent value="orders" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Aufträge ({orders.length})</h3>
-              <Button size="sm" className="gap-2" onClick={() => navigate("/orders/new")}>
+              <Button size="sm" className="gap-2" onClick={() => navigate(`/orders/new?customerId=${id}`)}>
                 <Plus className="h-4 w-4" />
                 Neuer Auftrag
               </Button>
@@ -556,8 +673,8 @@ export default function CustomerDetail() {
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        {order.totalAmount && (
-                          <span className="font-medium">CHF {(order.totalAmount || 0).toLocaleString("de-CH")}</span>
+                        {order.total && (
+                          <span className="font-medium">CHF {(order.total || 0).toLocaleString("de-CH")}</span>
                         )}
                         <Badge className={ordStatus.color}>
                           {ordStatus.label}
@@ -573,7 +690,7 @@ export default function CustomerDetail() {
           <TabsContent value="tasks" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Aufgaben ({tasks.length})</h3>
-              <Button size="sm" className="gap-2" onClick={() => navigate("/tasks/new")}>
+              <Button size="sm" className="gap-2" onClick={() => navigate(`/tasks/new?customerId=${id}`)}>
                 <Plus className="h-4 w-4" />
                 Neue Aufgabe
               </Button>

@@ -20,6 +20,7 @@ import ProjectEdit from "./pages/ProjectEdit";
 import ProjectCreate from "./pages/ProjectCreate";
 import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
+import CustomerEdit from "./pages/CustomerEdit";
 import TimeTracking from "./pages/TimeTracking";
 import Invoices from "./pages/Invoices";
 import InvoiceDetail from "./pages/InvoiceDetail";
@@ -274,6 +275,7 @@ const App = () => (
               <Route path="/customers" element={<ProtectedLayout><Customers /></ProtectedLayout>} />
               <Route path="/customers/new" element={<ProtectedLayout><CustomerCreate /></ProtectedLayout>} />
               <Route path="/customers/:id" element={<ProtectedLayout><CustomerDetail /></ProtectedLayout>} />
+              <Route path="/customers/:id/edit" element={<ProtectedLayout><CustomerEdit /></ProtectedLayout>} />
               <Route path="/suppliers" element={<ProtectedLayout><Suppliers /></ProtectedLayout>} />
               <Route path="/suppliers/new" element={<ProtectedLayout><SupplierCreate /></ProtectedLayout>} />
               <Route path="/suppliers/:id" element={<ProtectedLayout><SupplierDetail /></ProtectedLayout>} />

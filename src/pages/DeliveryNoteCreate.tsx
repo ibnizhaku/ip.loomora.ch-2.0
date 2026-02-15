@@ -1,8 +1,11 @@
+import { useSearchParams } from "react-router-dom";
 import { DocumentForm } from "@/components/documents/DocumentForm";
 import { useCreateDeliveryNote } from "@/hooks/use-delivery-notes";
 import { toast } from "sonner";
 
 export default function DeliveryNoteCreate() {
+  const [searchParams] = useSearchParams();
+  const defaultCustomerId = searchParams.get("customerId") || undefined;
   const createDeliveryNote = useCreateDeliveryNote();
 
   const handleSave = async (data: any) => {
@@ -11,5 +14,5 @@ export default function DeliveryNoteCreate() {
     return result;
   };
 
-  return <DocumentForm type="delivery-note" onSave={handleSave} />;
+  return <DocumentForm type="delivery-note" onSave={handleSave} defaultCustomerId={defaultCustomerId} />;
 }
