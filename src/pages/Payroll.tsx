@@ -73,7 +73,7 @@ const Payroll = () => {
   const navigate = useNavigate();
   const completeRunMutation = useCompletePayrollRun();
   const sendPayslipMutation = useSendPayslip();
-  const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/payroll") });
+  const { data: apiData } = useQuery({ queryKey: ["payroll"], queryFn: () => api.get<any>("/payroll") });
   const payrollRuns: any[] = apiData?.payrollRuns || [];
   const employeePayroll: any[] = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,9 +81,11 @@ const Payroll = () => {
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterPosition, setFilterPosition] = useState<string[]>([]);
   const [showAbschliessenDialog, setShowAbschliessenDialog] = useState(false);
-  // Show first active/in-progress run, fallback to latest run
-  const currentRun = payrollRuns.find(r => r.status === "In Bearbeitung") 
-    || payrollRuns.find(r => r.status === "Entwurf")
+  // Show the most relevant run: current month first, then latest draft, then latest overall
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const currentRun = payrollRuns.find(r => r.periodKey === currentMonthKey && (r.status === "Entwurf" || r.status === "In Bearbeitung"))
+    || payrollRuns.find(r => r.status === "In Bearbeitung")
+    || payrollRuns.filter(r => r.status === "Entwurf").sort((a: any, b: any) => (a.periodKey > b.periodKey ? -1 : 1))[0]
     || payrollRuns[0];
   const totalBrutto = employeePayroll.reduce((sum, e) => sum + (e.bruttoLohn || 0), 0);
   const totalNetto = employeePayroll.reduce((sum, e) => sum + (e.nettoLohn || 0), 0);
