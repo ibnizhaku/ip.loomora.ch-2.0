@@ -51,6 +51,8 @@ import {
   Factory,
   ClipboardCheck,
   Wrench,
+  Shield,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -179,18 +181,18 @@ const salesItems: NavItem[] = [
 
 const managementItems: NavItem[] = [
   { title: "Zeiterfassung", url: "/time-tracking", icon: Clock, keywords: ["time", "stunden"], permission: "time-entries" },
-  { title: "Einkauf", url: "/purchase-orders", icon: ShoppingCart },
-  { title: "Einkaufsrechnungen", url: "/purchase-invoices", icon: Receipt, keywords: ["kreditor", "lieferant"] },
-  { title: "Lager", url: "/inventory", icon: Package, keywords: ["inventory", "bestand"] },
-  { title: "Produkte", url: "/products", icon: Box, keywords: ["artikel", "material"] },
+  { title: "Einkauf", url: "/purchase-orders", icon: ShoppingCart, permission: "purchase-orders" },
+  { title: "Einkaufsrechnungen", url: "/purchase-invoices", icon: Receipt, keywords: ["kreditor", "lieferant"], permission: "purchase-invoices" },
+  { title: "Lager", url: "/inventory", icon: Package, keywords: ["inventory", "bestand"], permission: "inventory" },
+  { title: "Produkte", url: "/products", icon: Box, keywords: ["artikel", "material"], permission: "products" },
   { title: "Stücklisten", url: "/bom", icon: Layers, keywords: ["bom", "material"], permission: "bom" },
-  { title: "Kalkulation", url: "/calculation", icon: Calculator, keywords: ["kalk", "preis"] },
+  { title: "Kalkulation", url: "/calculation", icon: Calculator, keywords: ["kalk", "preis"], permission: "calculation" },
   { title: "Produktion", url: "/production", icon: Factory, keywords: ["werkstatt", "fertigung"], permission: "production" },
-  { title: "QS-Prüfung", url: "/quality", icon: ClipboardCheck, keywords: ["qualität", "prüfung"] },
-  { title: "Service", url: "/service", icon: Wrench, keywords: ["wartung", "reparatur"] },
-  { title: "Verträge", url: "/contracts", icon: FileSignature },
-  { title: "Dokumente", url: "/documents", icon: Folder },
-  { title: "Berichte", url: "/reports", icon: BarChart3 },
+  { title: "QS-Prüfung", url: "/quality", icon: ClipboardCheck, keywords: ["qualität", "prüfung"], permission: "quality" },
+  { title: "Service", url: "/service", icon: Wrench, keywords: ["wartung", "reparatur"], permission: "service" },
+  { title: "Verträge", url: "/contracts", icon: FileSignature, permission: "contracts" },
+  { title: "Dokumente", url: "/documents", icon: Folder, permission: "documents" },
+  { title: "Berichte", url: "/reports", icon: BarChart3, permission: "reports" },
 ];
 
 const accountingItems: NavItem[] = [
@@ -316,16 +318,19 @@ const marketingItems: NavItem[] = [
     title: "Kampagnen",
     url: "/campaigns",
     icon: Megaphone,
+    permission: "campaigns",
   },
   {
     title: "Leads",
     url: "/leads",
     icon: UserCheck,
+    permission: "leads",
   },
   {
     title: "E-Mail Marketing",
     url: "/email-marketing",
     icon: Mail,
+    permission: "email-marketing",
   },
 ];
 
@@ -334,16 +339,19 @@ const ecommerceItems: NavItem[] = [
     title: "Online-Shop",
     url: "/shop",
     icon: Store,
+    permission: "shop",
   },
   {
     title: "Rabatte",
     url: "/discounts",
     icon: Percent,
+    permission: "discounts",
   },
   {
     title: "Bewertungen",
     url: "/reviews",
     icon: Star,
+    permission: "reviews",
   },
 ];
 
@@ -352,12 +360,24 @@ const adminItems: NavItem[] = [
     title: "Benutzer",
     url: "/users",
     icon: UserCog,
-    permission: "settings",
+    permission: "users",
+  },
+  {
+    title: "Rollen",
+    url: "/roles",
+    icon: Shield,
+    permission: "roles",
   },
   {
     title: "Unternehmen",
     url: "/company",
     icon: Building2,
+    permission: "company",
+  },
+  {
+    title: "Einstellungen",
+    url: "/settings",
+    icon: Settings,
     permission: "settings",
   },
 ];
@@ -397,8 +417,8 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
   // Force open when searching and has results
   const shouldBeOpen = searchQuery ? filteredItems.length > 0 : isOpen;
 
-  // Don't render if no items match search
-  if (searchQuery && filteredItems.length === 0) {
+  // Don't render if no items match search or permissions
+  if (filteredItems.length === 0) {
     return null;
   }
 
