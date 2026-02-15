@@ -7,6 +7,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  roleName?: string;
   status: string;
   lastLogin: string;
   twoFactor: boolean;
