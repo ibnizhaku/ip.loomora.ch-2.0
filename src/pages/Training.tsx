@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { 
   Plus, 
@@ -73,27 +73,41 @@ const formatCHF = (amount: number) => {
 
 const Training = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/training"], queryFn: () => api.get<any>("/training") });
-  const trainings = apiData?.trainings || apiData?.data || [];
+  const trainingsList = apiData?.trainings || apiData?.data || [];
   const employeeTrainings = apiData?.employeeTrainings || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterTrainingStatus, setFilterTrainingStatus] = useState<string[]>([]);
   const [filterTrainingType, setFilterTrainingType] = useState<string[]>([]);
-  const [trainingsList, setTrainingsList] = useState(trainings);
-  
-  useEffect(() => {
-    if (trainings.length > 0) {
-      setTrainingsList(trainings);
-    }
-  }, [trainings]);
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/training/${id}`, { status: "Abgesagt" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/training"] });
+      queryClient.invalidateQueries({ queryKey: ["trainings"] });
+      toast.error("Schulung abgesagt");
+    },
+    onError: () => toast.error("Fehler beim Absagen"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/training/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/training"] });
+      queryClient.invalidateQueries({ queryKey: ["trainings"] });
+      toast.success("Schulung gelöscht");
+    },
+    onError: () => toast.error("Fehler beim Löschen"),
+  });
 
   const totalTrainings = trainingsList.length;
-  const totalParticipants = trainingsList.reduce((sum, t) => sum + t.participants, 0);
-  const avgHours = Math.round(employeeTrainings.reduce((sum, e) => sum + e.hoursThisYear, 0) / employeeTrainings.length);
+  const totalParticipants = trainingsList.reduce((sum: number, t: any) => sum + (t.participants || 0), 0);
+  const avgHours = employeeTrainings.length > 0 ? Math.round(employeeTrainings.reduce((sum: number, e: any) => sum + (e.hoursThisYear || 0), 0) / employeeTrainings.length) : 0;
   const totalBudget = 15000;
-  const usedBudget = trainingsList.reduce((sum, t) => sum + t.cost, 0);
-  const budgetPercent = Math.round((usedBudget / totalBudget) * 100);
+  const usedBudget = trainingsList.reduce((sum: number, t: any) => sum + (t.cost || 0), 0);
+  const budgetPercent = totalBudget > 0 ? Math.round((usedBudget / totalBudget) * 100) : 0;
   const activeFilters = filterTrainingStatus.length + filterTrainingType.length;
 
   const handleStatClick = (filter: string | null) => {
@@ -107,15 +121,14 @@ const Training = () => {
 
   const handleCancel = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setTrainingsList(prev => prev.map(t => t.id === id ? { ...t, status: "Abgesagt" } : t));
-    toast.error("Schulung abgesagt");
+    cancelMutation.mutate(id);
   };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const training = trainingsList.find(t => t.id === id);
-    setTrainingsList(prev => prev.filter(t => t.id !== id));
-    toast.success(`${training?.title} gelöscht`);
+    if (confirm("Schulung wirklich löschen?")) {
+      deleteMutation.mutate(id);
+    }
   };
 
   const filteredTrainings = trainingsList.filter(t => {
@@ -387,18 +400,21 @@ const Training = () => {
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}>
                                 Details anzeigen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Teilnehmerverwaltung geöffnet"); }}>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}?tab=participants`); }}>
+                                <Users className="mr-2 h-4 w-4" />
                                 Teilnehmer verwalten
                             </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}/edit`); }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Bearbeiten
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("Teilnehmer hinzugefügt"); }}>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}?tab=participants&add=true`); }}>
                                 <UserPlus className="mr-2 h-4 w-4" />
                                 Teilnehmer hinzufügen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("PDF wird erstellt..."); }}>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); 
+                                import("@/lib/api").then(m => m.downloadPdf('training' as any, training.id, `Schulung_${training.title}.pdf`));
+                              }}>
                                 <Download className="mr-2 h-4 w-4" />
                                 PDF Export
                               </DropdownMenuItem>

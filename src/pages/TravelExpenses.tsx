@@ -132,9 +132,8 @@ export default function TravelExpenses() {
     queryKey: ["/travel-expenses"],
     queryFn: () => api.get<any>("/travel-expenses"),
   });
-  const initialExpenses = apiData?.data || [];
+  const expenses: TravelExpense[] = apiData?.data || [];
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [expenses, setExpenses] = useState<TravelExpense[]>(initialExpenses);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterDestination, setFilterDestination] = useState<string[]>([]);
   const [expenseRules, setExpenseRules] = useState<ExpenseRules | null>(null);
@@ -184,22 +183,44 @@ export default function TravelExpenses() {
     setFilterDestination([]);
   };
 
+  // API mutations for approve/reject/duplicate
+  const approveMutation = useMutation({
+    mutationFn: (expId: string) => api.post(`/travel-expenses/${expId}/approve`, {}),
+    onSuccess: (_, expId) => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses"] });
+      const expense = expenses.find(exp => exp.id === expId);
+      toast.success(`Reisekostenabrechnung ${expense?.number} genehmigt`);
+    },
+    onError: () => toast.error("Fehler beim Genehmigen"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (expId: string) => api.post(`/travel-expenses/${expId}/reject`, {}),
+    onSuccess: (_, expId) => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses"] });
+      const expense = expenses.find(exp => exp.id === expId);
+      toast.error(`Reisekostenabrechnung ${expense?.number} abgelehnt`);
+    },
+    onError: () => toast.error("Fehler beim Ablehnen"),
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (expId: string) => api.post(`/travel-expenses/${expId}/duplicate`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses"] });
+      toast.success("Reisekostenabrechnung dupliziert");
+    },
+    onError: () => toast.error("Fehler beim Duplizieren"),
+  });
+
   const handleApprove = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setExpenses(prev => prev.map(exp => 
-      exp.id === id ? { ...exp, status: "approved" as const } : exp
-    ));
-    const expense = expenses.find(exp => exp.id === id);
-    toast.success(`Reisekostenabrechnung ${expense?.number} genehmigt`);
+    approveMutation.mutate(id);
   };
 
   const handleReject = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setExpenses(prev => prev.map(exp => 
-      exp.id === id ? { ...exp, status: "rejected" as const } : exp
-    ));
-    const expense = expenses.find(exp => exp.id === id);
-    toast.error(`Reisekostenabrechnung ${expense?.number} abgelehnt`);
+    rejectMutation.mutate(id);
   };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
@@ -209,17 +230,7 @@ export default function TravelExpenses() {
 
   const handleDuplicate = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const expense = expenses.find(exp => exp.id === id);
-    if (expense) {
-      const newExpense: TravelExpense = {
-        ...expense,
-        id: String(Date.now()),
-        number: `RK-2024-${String(expenses.length + 1).padStart(3, "0")}`,
-        status: "draft",
-      };
-      setExpenses(prev => [newExpense, ...prev]);
-      toast.success(`Reisekostenabrechnung dupliziert`);
-    }
+    duplicateMutation.mutate(id);
   };
 
   const filteredExpenses = expenses.filter((exp) => {
