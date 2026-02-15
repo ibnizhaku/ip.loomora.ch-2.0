@@ -18,13 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useServiceTicket, useUpdateServiceTicket, useDeleteServiceTicket } from "@/hooks/use-service-tickets";
-
-const technicians = [
-  { id: "1", name: "Marco Brunner", kürzel: "MB" },
-  { id: "2", name: "Thomas Müller", kürzel: "TM" },
-  { id: "3", name: "Peter Schmidt", kürzel: "PS" },
-  { id: "4", name: "Michael Weber", kürzel: "MW" },
-];
+import { useEmployees } from "@/hooks/use-employees";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   "offen": { label: "Offen", color: "bg-info/10 text-info" },
@@ -55,6 +49,12 @@ export default function ServiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: apiTicket, isLoading } = useServiceTicket(id || "");
+  const { data: employeesData } = useEmployees({ pageSize: 200 });
+  const technicians = (employeesData as any)?.data?.map((e: any) => ({
+    id: e.id,
+    name: `${e.firstName} ${e.lastName}`,
+    kürzel: `${(e.firstName || "")[0] || ""}${(e.lastName || "")[0] || ""}`,
+  })) || [];
   // All hooks must be before early returns
   const [comment, setComment] = useState("");
   const [serviceData, setServiceData] = useState<any>({
