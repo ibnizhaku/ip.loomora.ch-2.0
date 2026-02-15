@@ -147,12 +147,19 @@ export class PayrollService {
       throw new BadRequestException('Ungültige Periode. Format: YYYY-MM');
     }
 
-    // Check for existing run
+    // Check for existing run — delete old one and recreate
     const existing = await this.prisma.payrollRun.findFirst({
       where: { companyId, period: dto.period },
+      include: { payslips: { select: { id: true } } },
     });
     if (existing) {
-      throw new BadRequestException(`Lohnlauf für ${dto.period} existiert bereits`);
+      // Delete old payslip items, then payslips, then the run
+      const payslipIds = existing.payslips.map(ps => ps.id);
+      if (payslipIds.length > 0) {
+        await this.prisma.payslipItem.deleteMany({ where: { payslipId: { in: payslipIds } } });
+        await this.prisma.payslip.deleteMany({ where: { id: { in: payslipIds } } });
+      }
+      await this.prisma.payrollRun.delete({ where: { id: existing.id } });
     }
 
     // Default period dates
@@ -163,8 +170,11 @@ export class PayrollService {
       ? new Date(dto.periodEnd)
       : new Date(year, month, 0); // Last day of month
 
-    // Get employees to include in this run
-    const employeeWhere: any = { companyId, status: 'ACTIVE' };
+    // Get employees to include in this run (case-insensitive status)
+    const employeeWhere: any = {
+      companyId,
+      status: { equals: 'active', mode: 'insensitive' },
+    };
     if (dto.employeeIds?.length) {
       employeeWhere.id = { in: dto.employeeIds };
     }
