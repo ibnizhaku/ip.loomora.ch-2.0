@@ -351,8 +351,9 @@ const Payroll = () => {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="employees" className="space-y-6">
+      <Tabs defaultValue="history" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="history">Lohnlauf-Historie</TabsTrigger>
           <TabsTrigger value="employees">Mitarbeitende ({currentRun?.period || "–"})</TabsTrigger>
           <TabsTrigger value="gav">GAV Metallbau</TabsTrigger>
           <TabsTrigger value="contributions">Sozialversicherungen</TabsTrigger>
