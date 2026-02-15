@@ -75,7 +75,6 @@ const Payroll = () => {
   const sendPayslipMutation = useSendPayslip();
   const { data: apiData } = useQuery({ queryKey: ["payroll"], queryFn: () => api.get<any>("/payroll") });
   const payrollRuns: any[] = apiData?.payrollRuns || [];
-  const employeePayroll: any[] = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
@@ -87,8 +86,17 @@ const Payroll = () => {
     || payrollRuns.find(r => r.status === "In Bearbeitung")
     || payrollRuns.filter(r => r.status === "Entwurf").sort((a: any, b: any) => (a.periodKey > b.periodKey ? -1 : 1))[0]
     || payrollRuns[0];
-  const totalBrutto = employeePayroll.reduce((sum, e) => sum + (e.bruttoLohn || 0), 0);
-  const totalNetto = employeePayroll.reduce((sum, e) => sum + (e.nettoLohn || 0), 0);
+
+  // Fetch detail data of the current run to get its payslips
+  const { data: currentRunDetail } = useQuery({
+    queryKey: ["payroll", currentRun?.id],
+    queryFn: () => api.get<any>(`/payroll/${currentRun.id}`),
+    enabled: !!currentRun?.id,
+  });
+  const employeePayroll: any[] = currentRunDetail?.data || currentRunDetail?.payslips || [];
+
+  const totalBrutto = employeePayroll.reduce((sum, e) => sum + (e.bruttoLohn || e.grossSalary || 0), 0);
+  const totalNetto = employeePayroll.reduce((sum, e) => sum + (e.nettoLohn || e.netSalary || 0), 0);
   const totalAHV = employeePayroll.reduce((sum, e) => sum + (e.ahvIvEo || 0), 0);
   const totalBVG = employeePayroll.reduce((sum, e) => sum + (e.bvg || 0), 0);
 
