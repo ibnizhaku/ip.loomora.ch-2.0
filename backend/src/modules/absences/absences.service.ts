@@ -47,7 +47,16 @@ export class AbsencesService {
       this.prisma.absence.count({ where }),
     ]);
 
-    return this.prisma.createPaginatedResponse(data, total, page, pageSize);
+    // Add employee.name for frontend compatibility
+    const mapped = data.map((a: any) => ({
+      ...a,
+      employee: a.employee ? {
+        ...a.employee,
+        name: `${a.employee.firstName || ''} ${a.employee.lastName || ''}`.trim(),
+      } : null,
+    }));
+
+    return this.prisma.createPaginatedResponse(mapped, total, page, pageSize);
   }
 
   async getStats(companyId: string) {
