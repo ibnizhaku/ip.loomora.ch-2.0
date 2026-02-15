@@ -152,7 +152,7 @@ export default function CustomerDetail() {
               </h1>
               <p className="text-muted-foreground">{customer.number} • {customer.name}</p>
             </div>
-            <Badge className={status.color}>{status.label}</Badge>
+            <Badge className={`${status.color} h-6 leading-none`}>{status.label}</Badge>
           </div>
         </div>
         <Button variant="outline" className="gap-2" onClick={() => navigate(`/customers/${id}/edit`)}>
