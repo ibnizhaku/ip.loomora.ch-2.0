@@ -46,7 +46,7 @@ export default function PayrollDetail() {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 
   const { data: payroll, isLoading, error } = useQuery({
-    queryKey: ["/payroll", id],
+    queryKey: ["payroll", id],
     queryFn: () => api.get<any>(`/payroll/${id}`),
     enabled: !!id,
   });
