@@ -233,27 +233,27 @@ export default function Customers() {
 
                   {/* Contact Info */}
                   <div className="space-y-2 mb-4">
-                    {customer.name && customer.companyName && (
+                     {customer.name && customer.companyName && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <User className="h-3.5 w-3.5" />
+                        <User className="h-3.5 w-3.5 text-primary" />
                         {customer.name}
                       </div>
                     )}
                     {customer.email && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Mail className="h-3.5 w-3.5" />
+                        <Mail className="h-3.5 w-3.5 text-primary" />
                         <span className="truncate">{customer.email}</span>
                       </div>
                     )}
                     {(customer.phone || customer.mobile) && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="h-3.5 w-3.5" />
+                        <Phone className="h-3.5 w-3.5 text-primary" />
                         {customer.phone || customer.mobile}
                       </div>
                     )}
                     {customer.city && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5" />
+                        <MapPin className="h-3.5 w-3.5 text-primary" />
                         {customer.zipCode} {customer.city}
                       </div>
                     )}
@@ -261,12 +261,11 @@ export default function Customers() {
 
                   {/* Bottom Stats */}
                   <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Euro className="h-3.5 w-3.5 text-success" />
-                      <span className="font-medium">CHF {(customer.totalRevenue || 0).toLocaleString("de-CH")}</span>
+                     <div className="flex items-center gap-1.5 text-sm">
+                      <span className="font-medium text-success">CHF {(customer.totalRevenue || 0).toLocaleString("de-CH")}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <FolderKanban className="h-3.5 w-3.5" />
+                      <FolderKanban className="h-3.5 w-3.5 text-primary" />
                       {customer.projectCount || 0} Projekte
                     </div>
                   </div>
