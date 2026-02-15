@@ -40,6 +40,12 @@ export class EmployeesController {
     return this.employeesService.getDepartments(user.companyId);
   }
 
+  @Get('orgchart')
+  @ApiOperation({ summary: 'Get organization chart data' })
+  getOrgchart(@CurrentUser() user: CurrentUserPayload) {
+    return this.employeesService.getOrgchart(user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get employee by ID' })
   findOne(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {

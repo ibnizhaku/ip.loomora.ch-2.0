@@ -28,6 +28,12 @@ export class AbsencesController {
     return this.absencesService.findAll(user.companyId, query);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get absence statistics' })
+  getStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.absencesService.getStats(user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get absence by ID' })
   findOne(@Param('id') id: string) {

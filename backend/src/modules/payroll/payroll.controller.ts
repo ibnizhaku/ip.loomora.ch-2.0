@@ -5,6 +5,21 @@ import { CreatePayslipDto, UpdatePayslipDto } from './dto/payroll.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
+// Alias controller for /payslips/:id route
+@ApiTags('Payslips')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('payslips')
+export class PayslipsController {
+  constructor(private readonly payrollService: PayrollService) {}
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get payslip by ID (alias)' })
+  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.findOne(id, user.companyId);
+  }
+}
+
 @ApiTags('Payroll')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)

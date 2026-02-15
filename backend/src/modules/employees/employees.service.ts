@@ -229,4 +229,45 @@ export class EmployeesService {
       orderBy: { name: 'asc' },
     });
   }
+
+  // Orgchart
+  async getOrgchart(companyId: string) {
+    const departments = await this.prisma.department.findMany({
+      where: { companyId },
+      include: {
+        employees: {
+          where: { status: 'ACTIVE' },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            position: true,
+            email: true,
+            phone: true,
+          },
+          orderBy: { lastName: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Look up managers by managerId
+    const managerIds = departments.map(d => d.managerId).filter(Boolean) as string[];
+    const managers = managerIds.length > 0
+      ? await this.prisma.employee.findMany({
+          where: { id: { in: managerIds } },
+          select: { id: true, firstName: true, lastName: true, position: true },
+        })
+      : [];
+
+    const managerMap = new Map(managers.map(m => [m.id, m]));
+
+    return departments.map(dept => ({
+      id: dept.id,
+      name: dept.name,
+      manager: dept.managerId ? managerMap.get(dept.managerId) || null : null,
+      employees: dept.employees,
+      employeeCount: dept.employees.length,
+    }));
+  }
 }

@@ -50,11 +50,63 @@ export class AbsencesService {
     return this.prisma.createPaginatedResponse(data, total, page, pageSize);
   }
 
+  async getStats(companyId: string) {
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    const [total, pending, approved, rejected, byType, todayAbsent] = await Promise.all([
+      this.prisma.absence.count({ where: { employee: { companyId } } }),
+      this.prisma.absence.count({ where: { employee: { companyId }, status: 'PENDING' } }),
+      this.prisma.absence.count({ where: { employee: { companyId }, status: 'APPROVED' } }),
+      this.prisma.absence.count({ where: { employee: { companyId }, status: 'REJECTED' } }),
+      this.prisma.absence.groupBy({
+        by: ['type'],
+        where: { employee: { companyId }, startDate: { gte: yearStart } },
+        _count: true,
+        _sum: { days: true },
+      }),
+      this.prisma.absence.count({
+        where: {
+          employee: { companyId },
+          status: 'APPROVED',
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+      }),
+    ]);
+
+    const sickDays = byType.find(t => t.type === 'SICK')?._sum?.days || 0;
+    const vacationDays = byType.find(t => t.type === 'VACATION')?._sum?.days || 0;
+
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      todayAbsent,
+      sickDaysThisYear: Number(sickDays),
+      vacationDaysThisYear: Number(vacationDays),
+      byType: byType.map(t => ({ type: t.type, count: t._count, totalDays: Number(t._sum?.days || 0) })),
+    };
+  }
+
   async findById(id: string) {
     const absence = await this.prisma.absence.findUnique({
       where: { id },
       include: {
-        employee: { select: { id: true, firstName: true, lastName: true, email: true } },
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            contracts: {
+              orderBy: { startDate: 'desc' },
+              take: 1,
+              select: { vacationDays: true },
+            },
+          },
+        },
       },
     });
 
@@ -62,7 +114,34 @@ export class AbsencesService {
       throw new NotFoundException('Absence not found');
     }
 
-    return absence;
+    // Get vacation quota from latest contract
+    const vacationDays = (absence.employee as any).contracts?.[0]?.vacationDays || 25;
+
+    // Get all absences this year for this employee (Verlauf / history)
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+    const history = await this.prisma.absence.findMany({
+      where: {
+        employeeId: absence.employeeId,
+        startDate: { gte: yearStart },
+      },
+      orderBy: { startDate: 'desc' },
+      select: { id: true, type: true, status: true, startDate: true, endDate: true, days: true, reason: true },
+    });
+
+    // Calculate used vacation days
+    const usedVacation = history
+      .filter(a => a.type === 'VACATION' && a.status === 'APPROVED')
+      .reduce((sum, a) => sum + Number(a.days), 0);
+
+    return {
+      ...absence,
+      kontingent: {
+        vacationDays,
+        usedVacation,
+        remainingVacation: vacationDays - usedVacation,
+      },
+      verlauf: history,
+    };
   }
 
   async create(dto: CreateAbsenceDto) {
