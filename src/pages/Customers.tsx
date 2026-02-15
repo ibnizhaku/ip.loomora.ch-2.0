@@ -11,11 +11,15 @@ import {
   Building2,
   User,
   Loader2,
+  LayoutGrid,
+  List,
+  Euro,
+  FolderKanban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -43,6 +47,7 @@ const statusConfig = {
 export default function Customers() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   
   const { data, isLoading, error } = useCustomers({ search: searchQuery, pageSize: 100 });
   const stats = useCustomerStats();
@@ -135,7 +140,7 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters + View Toggle */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -146,9 +151,29 @@ export default function Customers() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon">
+            <Filter className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center rounded-lg border border-border bg-card p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "table" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "cards" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -168,8 +193,128 @@ export default function Customers() {
         </div>
       )}
 
-      {/* Table */}
-      {!isLoading && !error && (
+      {/* Card View */}
+      {!isLoading && !error && viewMode === "cards" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {customers.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+              {searchQuery ? "Keine Kunden gefunden" : "Noch keine Kunden vorhanden"}
+            </div>
+          ) : (
+            customers.map((customer, index) => {
+              const status = getCustomerStatus(customer);
+              return (
+                <div
+                  key={customer.id}
+                  className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/customers/${customer.id}`)}
+                >
+                  {/* Top: Avatar + Name + Status */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+                          {(customer.companyName || customer.name)
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{customer.companyName || customer.name}</p>
+                        <p className="text-sm text-muted-foreground">{customer.number}</p>
+                      </div>
+                    </div>
+                    <Badge className={statusConfig[status].color}>
+                      {statusConfig[status].label}
+                    </Badge>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2 mb-4">
+                    {customer.name && customer.companyName && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <User className="h-3.5 w-3.5" />
+                        {customer.name}
+                      </div>
+                    )}
+                    {customer.email && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-3.5 w-3.5" />
+                        <span className="truncate">{customer.email}</span>
+                      </div>
+                    )}
+                    {(customer.phone || customer.mobile) && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-3.5 w-3.5" />
+                        {customer.phone || customer.mobile}
+                      </div>
+                    )}
+                    {customer.city && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {customer.zipCode} {customer.city}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Stats */}
+                  <div className="flex items-center justify-between pt-3 border-t border-border">
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <Euro className="h-3.5 w-3.5 text-success" />
+                      <span className="font-medium">CHF {(customer.totalRevenue || 0).toLocaleString("de-CH")}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <FolderKanban className="h-3.5 w-3.5" />
+                      {customer.projectCount || 0} Projekte
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}`)}>
+                          Details
+                        </DropdownMenuItem>
+                        {customer.email && (
+                          <DropdownMenuItem onClick={() => window.location.href = `mailto:${customer.email}`}>
+                            E-Mail senden
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(customer.id, customer.name);
+                          }}
+                        >
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Table View */}
+      {!isLoading && !error && viewMode === "table" && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
