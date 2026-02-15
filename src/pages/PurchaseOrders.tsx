@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { 
   Plus, 
   Search, 
@@ -241,8 +242,8 @@ const PurchaseOrders = () => {
                           <DropdownMenuItem onClick={() => navigate("/goods-receipts/new")}>
                             Wareneingang buchen
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${order.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Bestellung wird storniert...")}>Stornieren</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

@@ -362,7 +362,7 @@ const TaskDetail = () => {
                     {opt.label}
                   </DropdownMenuItem>
                 ))}
-              <DropdownMenuItem>Duplizieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Aufgabe wird dupliziert...")}>Duplizieren</DropdownMenuItem>
               <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Löschen

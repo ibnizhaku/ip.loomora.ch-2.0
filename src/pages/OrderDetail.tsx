@@ -232,7 +232,7 @@ const OrderDetail = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => navigate(`/orders/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onClick={() => { toast.info("Auftrag wird dupliziert..."); }}>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Auftrag wird storniert...")}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

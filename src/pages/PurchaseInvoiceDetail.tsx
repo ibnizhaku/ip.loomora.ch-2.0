@@ -33,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const purchaseInvoiceData = {
   id: "ER-2024-0028",
@@ -127,8 +128,8 @@ const PurchaseInvoiceDetail = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => navigate(`/purchase-invoices/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem>Bestellung anzeigen</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Bestellung wird angezeigt...")}>Bestellung anzeigen</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Rechnung wird storniert...")}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

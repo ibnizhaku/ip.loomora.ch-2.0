@@ -273,16 +273,16 @@ export default function Quotes() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => toast.info("Angebot wird dupliziert...")}>
                           <Copy className="h-4 w-4" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2" onClick={() => toast.info("Angebot wird versendet...")}>
                           <Send className="h-4 w-4" />
                           Versenden
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
                           <ArrowRight className="h-4 w-4" />
                           In Rechnung umwandeln
                         </DropdownMenuItem>

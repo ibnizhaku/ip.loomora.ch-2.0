@@ -447,7 +447,7 @@ export default function Contracts() {
                           <Eye className="h-4 w-4 mr-2" />
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/contracts/${contract.id}`)}>
+                        <DropdownMenuItem onClick={() => navigate(`/contracts/${contract.id}/edit`)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>

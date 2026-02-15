@@ -436,7 +436,7 @@ export default function PurchaseInvoices() {
                         <Eye className="h-4 w-4 mr-2" />
                         Ansehen
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/purchase-invoices/${invoice.id}/edit`)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>

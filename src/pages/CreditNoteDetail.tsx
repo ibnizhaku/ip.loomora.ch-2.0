@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   FileText, 
@@ -31,6 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const creditNoteData = {
   id: "GS-2024-0012",
@@ -105,8 +106,8 @@ const CreditNoteDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Gutschrift wird dupliziert...")}>Duplizieren</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Gutschrift wird storniert...")}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
