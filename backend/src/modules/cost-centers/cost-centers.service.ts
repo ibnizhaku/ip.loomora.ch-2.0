@@ -55,6 +55,21 @@ export class CostCentersService {
         parent: { select: { id: true, number: true, name: true } },
         children: { select: { id: true, number: true, name: true } },
         manager: { select: { id: true, firstName: true, lastName: true } },
+        budgetLines: {
+          include: {
+            budget: { select: { id: true, name: true, number: true, year: true, period: true, status: true } },
+            account: { select: { id: true, number: true, name: true } },
+          },
+          orderBy: { budget: { year: 'desc' } },
+        },
+        journalLines: {
+          include: {
+            account: { select: { id: true, number: true, name: true, type: true } },
+            journalEntry: { select: { id: true, number: true, date: true, description: true, status: true } },
+          },
+          orderBy: { journalEntry: { date: 'desc' } },
+          take: 50,
+        },
       },
     });
 
@@ -62,7 +77,23 @@ export class CostCentersService {
       throw new NotFoundException('Kostenstelle nicht gefunden');
     }
 
-    return costCenter;
+    // Map journalLines as transactions for frontend
+    const transactions = costCenter.journalLines.map(line => ({
+      id: line.id,
+      date: line.journalEntry.date,
+      number: line.journalEntry.number,
+      description: line.journalEntry.description || line.description,
+      account: line.account,
+      debit: line.debit,
+      credit: line.credit,
+      status: line.journalEntry.status,
+      journalEntryId: line.journalEntry.id,
+    }));
+
+    return {
+      ...costCenter,
+      transactions,
+    };
   }
 
   async create(companyId: string, dto: CreateCostCenterDto) {

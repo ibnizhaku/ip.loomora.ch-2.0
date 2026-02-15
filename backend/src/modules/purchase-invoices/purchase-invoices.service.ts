@@ -70,7 +70,25 @@ export class PurchaseInvoicesService {
       where: { id, companyId },
       include: {
         supplier: true,
-        purchaseOrder: { select: { id: true, number: true } },
+        purchaseOrder: {
+          select: {
+            id: true,
+            number: true,
+            items: {
+              select: {
+                id: true,
+                position: true,
+                description: true,
+                quantity: true,
+                unit: true,
+                unitPrice: true,
+                vatRate: true,
+                total: true,
+              },
+              orderBy: { position: 'asc' },
+            },
+          },
+        },
         payments: { select: { id: true, amount: true, paymentDate: true, method: true } },
       },
     });
@@ -79,7 +97,25 @@ export class PurchaseInvoicesService {
       throw new NotFoundException('Einkaufsrechnung nicht gefunden');
     }
 
-    return mapPurchaseInvoiceResponse(purchaseInvoice);
+    const mapped = mapPurchaseInvoiceResponse(purchaseInvoice);
+
+    // Provide items[] for frontend — derive from purchaseOrder items or create synthetic entry
+    const items = (purchaseInvoice.purchaseOrder as any)?.items || [
+      {
+        id: `${purchaseInvoice.id}-line`,
+        description: `Einkaufsrechnung ${purchaseInvoice.number}`,
+        quantity: 1,
+        unitPrice: Number(purchaseInvoice.subtotal),
+        totalPrice: Number(purchaseInvoice.subtotal),
+        vatRate: this.VAT_RATE,
+        vatAmount: Number(purchaseInvoice.vatAmount),
+      },
+    ];
+
+    return {
+      ...mapped,
+      items,
+    };
   }
 
   async create(companyId: string, dto: CreatePurchaseInvoiceDto) {

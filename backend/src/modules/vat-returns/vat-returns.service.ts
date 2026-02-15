@@ -64,7 +64,48 @@ export class VatReturnsService {
       throw new NotFoundException('MwSt-Abrechnung nicht gefunden');
     }
 
-    return vatReturn;
+    // Build virtual lines[] array from the data JSON for frontend consumption
+    const data = (vatReturn.data || {}) as Record<string, any>;
+    const lines = [];
+
+    if (data.totalRevenue !== undefined) {
+      lines.push({ ziffer: '200', label: 'Gesamtumsatz', amount: data.totalRevenue || 0 });
+    }
+    if (data.exportRevenue !== undefined) {
+      lines.push({ ziffer: '220', label: 'Nicht steuerbare Leistungen (Export)', amount: data.exportRevenue || 0 });
+    }
+    if (data.exemptRevenue !== undefined) {
+      lines.push({ ziffer: '230', label: 'Von der Steuer befreite Leistungen', amount: data.exemptRevenue || 0 });
+    }
+    if (data.otherDeductions !== undefined) {
+      lines.push({ ziffer: '235', label: 'Sonstige Abzüge', amount: data.otherDeductions || 0 });
+    }
+    if (data.taxableRevenue81 !== undefined) {
+      lines.push({ ziffer: '302', label: 'Steuerbare Leistungen 8.1%', amount: data.taxableRevenue81 || 0, vatRate: 8.1 });
+    }
+    if (data.taxableRevenue26 !== undefined) {
+      lines.push({ ziffer: '312', label: 'Steuerbare Leistungen 2.6%', amount: data.taxableRevenue26 || 0, vatRate: 2.6 });
+    }
+    if (data.taxableRevenue38 !== undefined) {
+      lines.push({ ziffer: '342', label: 'Steuerbare Leistungen 3.8%', amount: data.taxableRevenue38 || 0, vatRate: 3.8 });
+    }
+    if (data.inputTaxMaterial !== undefined) {
+      lines.push({ ziffer: '400', label: 'Vorsteuer auf Materialaufwand', amount: data.inputTaxMaterial || 0 });
+    }
+    if (data.inputTaxInvestments !== undefined) {
+      lines.push({ ziffer: '405', label: 'Vorsteuer auf Investitionen', amount: data.inputTaxInvestments || 0 });
+    }
+    if (data.inputTaxServices !== undefined) {
+      lines.push({ ziffer: '410', label: 'Vorsteuer auf Dienstleistungen', amount: data.inputTaxServices || 0 });
+    }
+    if (data.inputTaxCorrections !== undefined) {
+      lines.push({ ziffer: '415', label: 'Vorsteuerkorrekturen', amount: data.inputTaxCorrections || 0 });
+    }
+
+    return {
+      ...vatReturn,
+      lines,
+    };
   }
 
   async create(companyId: string, dto: CreateVatReturnDto) {

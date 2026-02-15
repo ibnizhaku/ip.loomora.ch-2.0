@@ -90,8 +90,17 @@ export class PaymentsService {
       include: {
         customer: true,
         supplier: true,
-        invoice: { include: { items: true } },
-        purchaseInvoice: true,
+        invoice: {
+          include: {
+            items: true,
+            customer: { select: { id: true, name: true, email: true } },
+          },
+        },
+        purchaseInvoice: {
+          include: {
+            supplier: { select: { id: true, name: true } },
+          },
+        },
         bankAccount: true,
       },
     });
@@ -100,7 +109,19 @@ export class PaymentsService {
       throw new NotFoundException('Zahlung nicht gefunden');
     }
 
-    return payment;
+    // Provide invoices[] array for SepaPaymentDetail frontend
+    const invoices: any[] = [];
+    if (payment.invoice) {
+      invoices.push(payment.invoice);
+    }
+    if (payment.purchaseInvoice) {
+      invoices.push(payment.purchaseInvoice);
+    }
+
+    return {
+      ...payment,
+      invoices,
+    };
   }
 
   async create(companyId: string, dto: CreatePaymentDto) {
