@@ -1,37 +1,14 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, User, Clock, CheckCircle2, XCircle, AlertCircle, FileText } from "lucide-react";
+import { ArrowLeft, Calendar, User, Clock, CheckCircle2, XCircle, AlertCircle, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-
-const abwesenheitData = {
-  id: "ABW-2024-0089",
-  mitarbeiter: "Marco Brunner",
-  personalNr: "MA-0045",
-  abteilung: "Produktion",
-  typ: "Ferien",
-  status: "genehmigt",
-  von: "19.02.2024",
-  bis: "23.02.2024",
-  tage: 5,
-  stunden: 42.5,
-  bemerkung: "Skiferien mit Familie",
-  beantragtAm: "15.01.2024",
-  genehmigtVon: "Thomas Meier",
-  genehmigtAm: "16.01.2024",
-  vertretung: "Andreas Steiner",
-};
-
-const kontingent = {
-  ferienTotal: 25,
-  ferienGenommen: 8,
-  ferienGeplant: 5,
-  ferienRest: 12,
-  überstundenSaldo: 24.5,
-};
+import { toast } from "sonner";
+import { useAbsence, useUpdateAbsence } from "@/hooks/use-absences";
+import { useMemo } from "react";
 
 const abwesenheitsTypen = [
   { typ: "Ferien", icon: "🏖️", farbe: "bg-success/10 text-success" },
@@ -42,24 +19,107 @@ const abwesenheitsTypen = [
   { typ: "Unbezahlt", icon: "📋", farbe: "bg-muted text-muted-foreground" },
 ];
 
-const verlauf = [
-  { datum: "16.01.2024 09:15", aktion: "Genehmigt", user: "Thomas Meier", notiz: "Vertretung durch A. Steiner bestätigt" },
-  { datum: "15.01.2024 14:30", aktion: "Beantragt", user: "Marco Brunner", notiz: "" },
-];
-
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   beantragt: { label: "Beantragt", color: "bg-warning/10 text-warning", icon: Clock },
+  Ausstehend: { label: "Ausstehend", color: "bg-warning/10 text-warning", icon: Clock },
+  pending: { label: "Beantragt", color: "bg-warning/10 text-warning", icon: Clock },
   genehmigt: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  Genehmigt: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  approved: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
   abgelehnt: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
+  Abgelehnt: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
+  rejected: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
   storniert: { label: "Storniert", color: "bg-muted text-muted-foreground", icon: AlertCircle },
+  cancelled: { label: "Storniert", color: "bg-muted text-muted-foreground", icon: AlertCircle },
 };
 
 export default function AbsenceDetail() {
   const { id } = useParams();
+  const { data: apiData, isLoading, error } = useAbsence(id || "");
+  const updateMutation = useUpdateAbsence();
+
+  const abwesenheitData = useMemo(() => {
+    if (!apiData) return null;
+    return {
+      id: apiData.id || id,
+      mitarbeiter: apiData.employee ? `${apiData.employee.firstName} ${apiData.employee.lastName}` : (apiData as any).employeeName || "–",
+      personalNr: apiData.employeeId || "",
+      abteilung: (apiData as any).department || "–",
+      typ: apiData.type || "Ferien",
+      status: apiData.status || "beantragt",
+      von: apiData.startDate || "–",
+      bis: apiData.endDate || "–",
+      tage: apiData.days || 0,
+      stunden: (apiData as any).hours || 0,
+      bemerkung: apiData.reason || "",
+      beantragtAm: (apiData as any).requestedAt || (apiData as any).createdAt || "–",
+      genehmigtVon: apiData.approvedBy || "–",
+      genehmigtAm: apiData.approvedAt || "–",
+      vertretung: (apiData as any).substitute || "–",
+    };
+  }, [apiData, id]);
+
+  const kontingent = useMemo(() => {
+    const k = (apiData as any)?.quota || (apiData as any)?.contingent;
+    return {
+      ferienTotal: k?.total || 25,
+      ferienGenommen: k?.taken || 0,
+      ferienGeplant: k?.planned || 0,
+      ferienRest: k?.remaining || 0,
+      überstundenSaldo: k?.overtimeBalance || 0,
+    };
+  }, [apiData]);
+
+  const verlauf = useMemo(() => {
+    return (apiData as any)?.history || (apiData as any)?.approvalHistory || [];
+  }, [apiData]);
+
+  const handleApprove = () => {
+    if (!id) return;
+    updateMutation.mutate({ id, data: { status: "approved" } }, {
+      onSuccess: () => toast.success("Abwesenheit genehmigt"),
+      onError: () => toast.error("Fehler beim Genehmigen"),
+    });
+  };
+
+  const handleReject = () => {
+    if (!id) return;
+    updateMutation.mutate({ id, data: { status: "rejected" } }, {
+      onSuccess: () => toast.success("Abwesenheit abgelehnt"),
+      onError: () => toast.error("Fehler beim Ablehnen"),
+    });
+  };
+
+  const handleCancel = () => {
+    if (!id) return;
+    updateMutation.mutate({ id, data: { status: "cancelled" } }, {
+      onSuccess: () => toast.success("Abwesenheit storniert"),
+      onError: () => toast.error("Fehler beim Stornieren"),
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !abwesenheitData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Abwesenheit nicht gefunden</p>
+        <Link to="/absences" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
 
   const currentTyp = abwesenheitsTypen.find(t => t.typ === abwesenheitData.typ);
-  const StatusIcon = statusConfig[abwesenheitData.status].icon;
-  const ferienVerbraucht = ((kontingent.ferienGenommen + kontingent.ferienGeplant) / kontingent.ferienTotal) * 100;
+  const statusInfo = statusConfig[abwesenheitData.status] || statusConfig.beantragt;
+  const StatusIcon = statusInfo.icon;
+  const ferienVerbraucht = kontingent.ferienTotal > 0 ? ((kontingent.ferienGenommen + kontingent.ferienGeplant) / kontingent.ferienTotal) * 100 : 0;
+  const isPending = updateMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -73,9 +133,9 @@ export default function AbsenceDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">{abwesenheitData.id}</h1>
-            <Badge className={statusConfig[abwesenheitData.status].color}>
+            <Badge className={statusInfo.color}>
               <StatusIcon className="mr-1 h-3 w-3" />
-              {statusConfig[abwesenheitData.status].label}
+              {statusInfo.label}
             </Badge>
             <Badge className={currentTyp?.farbe}>
               {currentTyp?.icon} {abwesenheitData.typ}
@@ -84,20 +144,20 @@ export default function AbsenceDetail() {
           <p className="text-muted-foreground">{abwesenheitData.mitarbeiter} • {abwesenheitData.abteilung}</p>
         </div>
         <div className="flex gap-2">
-          {abwesenheitData.status === "beantragt" && (
+          {(abwesenheitData.status === "beantragt" || abwesenheitData.status === "Ausstehend" || abwesenheitData.status === "pending") && (
             <>
-              <Button variant="outline" className="text-destructive">
+              <Button variant="outline" className="text-destructive" onClick={handleReject} disabled={isPending}>
                 <XCircle className="mr-2 h-4 w-4" />
                 Ablehnen
               </Button>
-              <Button>
+              <Button onClick={handleApprove} disabled={isPending}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Genehmigen
               </Button>
             </>
           )}
-          {abwesenheitData.status === "genehmigt" && (
-            <Button variant="outline">
+          {(abwesenheitData.status === "genehmigt" || abwesenheitData.status === "Genehmigt" || abwesenheitData.status === "approved") && (
+            <Button variant="outline" onClick={handleCancel} disabled={isPending}>
               Stornieren
             </Button>
           )}
@@ -121,7 +181,7 @@ export default function AbsenceDetail() {
             </div>
             <div className="text-right">
               <p className="text-4xl font-bold text-primary">{abwesenheitData.tage}</p>
-              <p className="text-sm text-muted-foreground">Arbeitstage ({abwesenheitData.stunden} Std.)</p>
+              <p className="text-sm text-muted-foreground">Arbeitstage{abwesenheitData.stunden ? ` (${abwesenheitData.stunden} Std.)` : ""}</p>
             </div>
           </div>
         </CardContent>
@@ -151,17 +211,20 @@ export default function AbsenceDetail() {
               </div>
             </div>
 
-            <Separator />
-
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Vertretung</p>
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">AS</AvatarFallback>
-                </Avatar>
-                <span className="font-medium">{abwesenheitData.vertretung}</span>
-              </div>
-            </div>
+            {abwesenheitData.vertretung && abwesenheitData.vertretung !== "–" && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Vertretung</p>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-xs">{abwesenheitData.vertretung.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium">{abwesenheitData.vertretung}</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             {abwesenheitData.bemerkung && (
               <>
@@ -230,12 +293,16 @@ export default function AbsenceDetail() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Genehmigt von</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Avatar className="h-6 w-6">
-                  <AvatarFallback className="text-xs">TM</AvatarFallback>
-                </Avatar>
-                <span className="font-medium">{abwesenheitData.genehmigtVon}</span>
-              </div>
+              {abwesenheitData.genehmigtVon && abwesenheitData.genehmigtVon !== "–" ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">{abwesenheitData.genehmigtVon.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium">{abwesenheitData.genehmigtVon}</span>
+                </div>
+              ) : (
+                <p className="font-medium text-muted-foreground">–</p>
+              )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Genehmigt am</p>
@@ -246,25 +313,27 @@ export default function AbsenceDetail() {
       </Card>
 
       {/* Verlauf */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Verlauf</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {verlauf.map((v, i) => (
-              <div key={i} className="flex gap-4 pb-4 border-b last:border-0">
-                <div className="text-sm text-muted-foreground w-36">{v.datum}</div>
-                <div className="flex-1">
-                  <Badge variant="outline">{v.aktion}</Badge>
-                  <span className="ml-2 text-sm">durch {v.user}</span>
-                  {v.notiz && <p className="text-sm text-muted-foreground mt-1">{v.notiz}</p>}
+      {verlauf.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Verlauf</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {verlauf.map((v: any, i: number) => (
+                <div key={i} className="flex gap-4 pb-4 border-b last:border-0">
+                  <div className="text-sm text-muted-foreground w-36">{v.datum || v.date || ""}</div>
+                  <div className="flex-1">
+                    <Badge variant="outline">{v.aktion || v.action || ""}</Badge>
+                    <span className="ml-2 text-sm">durch {v.user || ""}</span>
+                    {(v.notiz || v.note) && <p className="text-sm text-muted-foreground mt-1">{v.notiz || v.note}</p>}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

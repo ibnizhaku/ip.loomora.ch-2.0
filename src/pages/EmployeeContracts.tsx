@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,124 +35,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { useEmployeeContracts, useDeleteEmployeeContract, useRenewEmployeeContract, useTerminateEmployeeContract } from "@/hooks/use-employee-contracts";
+import { api } from "@/lib/api";
 
 interface EmployeeContract {
   id: string;
   employeeId: string;
   employeeName: string;
   contractType: "unbefristet" | "befristet" | "temporär" | "praktikum" | "lehrvertrag";
-  gavClass: "A" | "B" | "C" | "D" | "E" | "F"; // GAV Metallbau Lohnklassen
+  gavClass: "A" | "B" | "C" | "D" | "E" | "F";
   startDate: string;
   endDate?: string;
   probationEnd?: string;
-  workload: number; // Percentage 0-100
+  workload: number;
   weeklyHours: number;
-  baseSalary: number; // Monthly in CHF
+  baseSalary: number;
   status: "active" | "expiring" | "expired" | "draft";
   department: string;
   noticePeriod: string;
   vacationDays: number;
 }
-
-const contracts: EmployeeContract[] = [
-  {
-    id: "1",
-    employeeId: "EMP-001",
-    employeeName: "Max Keller",
-    contractType: "unbefristet",
-    gavClass: "A",
-    startDate: "01.01.2020",
-    probationEnd: "01.04.2020",
-    workload: 100,
-    weeklyHours: 42.5,
-    baseSalary: 9500,
-    status: "active",
-    department: "Geschäftsleitung",
-    noticePeriod: "3 Monate",
-    vacationDays: 25,
-  },
-  {
-    id: "2",
-    employeeId: "EMP-002",
-    employeeName: "Anna Meier",
-    contractType: "unbefristet",
-    gavClass: "B",
-    startDate: "01.03.2021",
-    probationEnd: "01.06.2021",
-    workload: 100,
-    weeklyHours: 42.5,
-    baseSalary: 7200,
-    status: "active",
-    department: "Produktion",
-    noticePeriod: "2 Monate",
-    vacationDays: 22,
-  },
-  {
-    id: "3",
-    employeeId: "EMP-003",
-    employeeName: "Thomas Brunner",
-    contractType: "befristet",
-    gavClass: "C",
-    startDate: "01.06.2023",
-    endDate: "31.05.2024",
-    probationEnd: "01.09.2023",
-    workload: 100,
-    weeklyHours: 42.5,
-    baseSalary: 6200,
-    status: "expiring",
-    department: "Montage",
-    noticePeriod: "1 Monat",
-    vacationDays: 20,
-  },
-  {
-    id: "4",
-    employeeId: "EMP-004",
-    employeeName: "Lisa Weber",
-    contractType: "unbefristet",
-    gavClass: "D",
-    startDate: "15.09.2022",
-    probationEnd: "15.12.2022",
-    workload: 80,
-    weeklyHours: 34,
-    baseSalary: 4960,
-    status: "active",
-    department: "Administration",
-    noticePeriod: "2 Monate",
-    vacationDays: 20,
-  },
-  {
-    id: "5",
-    employeeId: "EMP-005",
-    employeeName: "Marco Steiner",
-    contractType: "lehrvertrag",
-    gavClass: "F",
-    startDate: "01.08.2023",
-    endDate: "31.07.2027",
-    workload: 100,
-    weeklyHours: 42.5,
-    baseSalary: 850,
-    status: "active",
-    department: "Produktion",
-    noticePeriod: "gem. OR",
-    vacationDays: 25,
-  },
-  {
-    id: "6",
-    employeeId: "EMP-006",
-    employeeName: "Sandra Huber",
-    contractType: "temporär",
-    gavClass: "E",
-    startDate: "01.01.2024",
-    endDate: "28.02.2024",
-    workload: 100,
-    weeklyHours: 42.5,
-    baseSalary: 5100,
-    status: "expired",
-    department: "Logistik",
-    noticePeriod: "7 Tage",
-    vacationDays: 20,
-  },
-];
 
 const gavClasses = {
   A: { label: "Klasse A - Kader/Spezialisten", minSalary: 7500, color: "bg-primary/10 text-primary" },
@@ -198,6 +101,30 @@ export default function EmployeeContracts() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [gavFilter, setGavFilter] = useState("all");
 
+  // API hooks
+  const { data: apiData, isLoading } = useEmployeeContracts();
+  const deleteMutation = useDeleteEmployeeContract();
+  const renewMutation = useRenewEmployeeContract();
+  const terminateMutation = useTerminateEmployeeContract();
+
+  const contracts: EmployeeContract[] = (apiData?.data || []).map((c: any) => ({
+    id: c.id,
+    employeeId: c.employeeId || c.employee?.id || "",
+    employeeName: c.employeeName || (c.employee ? `${c.employee.firstName} ${c.employee.lastName}` : "–"),
+    contractType: c.contractType || "unbefristet",
+    gavClass: c.gavClass || "C",
+    startDate: c.startDate || "–",
+    endDate: c.endDate,
+    probationEnd: c.probationEnd,
+    workload: c.workload || 100,
+    weeklyHours: c.weeklyHours || 42.5,
+    baseSalary: c.baseSalary || 0,
+    status: c.status || "active",
+    department: c.department || c.employee?.department || "–",
+    noticePeriod: c.noticePeriod || "–",
+    vacationDays: c.vacationDays || 20,
+  }));
+
   const handleStatClick = (status: string) => {
     setStatusFilter(statusFilter === status ? "all" : status);
   };
@@ -217,6 +144,14 @@ export default function EmployeeContracts() {
     .filter((c) => c.status === "active" || c.status === "expiring")
     .reduce((sum, c) => sum + c.baseSalary, 0);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -235,13 +170,13 @@ export default function EmployeeContracts() {
               ...contracts.map(c => [
                 c.employeeName,
                 c.employeeId,
-                contractTypeLabels[c.contractType],
+                contractTypeLabels[c.contractType] || c.contractType,
                 `GAV ${c.gavClass}`,
                 c.startDate,
                 c.endDate || "-",
                 `${c.workload}%`,
                 `CHF ${c.baseSalary}`,
-                statusLabels[c.status],
+                statusLabels[c.status] || c.status,
               ].join(";"))
             ].join("\n");
             
@@ -392,6 +327,13 @@ export default function EmployeeContracts() {
 
       {/* Contracts List */}
       <div className="space-y-3">
+        {filteredContracts.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <FileSignature className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="font-medium">Keine Verträge gefunden</p>
+            <p className="text-sm">Passen Sie die Filter an oder erstellen Sie einen neuen Vertrag.</p>
+          </div>
+        )}
         {filteredContracts.map((contract, index) => (
           <div
             key={contract.id}
@@ -409,8 +351,8 @@ export default function EmployeeContracts() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">{contract.employeeName}</h3>
-                    <Badge className={statusStyles[contract.status]}>
-                      {statusLabels[contract.status]}
+                    <Badge className={statusStyles[contract.status] || "bg-muted"}>
+                      {statusLabels[contract.status] || contract.status}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -420,11 +362,11 @@ export default function EmployeeContracts() {
               </div>
 
               <div className="flex items-center gap-6">
-                <Badge className={contractTypeStyles[contract.contractType]}>
-                  {contractTypeLabels[contract.contractType]}
+                <Badge className={contractTypeStyles[contract.contractType] || "bg-muted"}>
+                  {contractTypeLabels[contract.contractType] || contract.contractType}
                 </Badge>
 
-                <Badge className={gavClasses[contract.gavClass].color}>
+                <Badge className={gavClasses[contract.gavClass]?.color || "bg-muted"}>
                   GAV {contract.gavClass}
                 </Badge>
 
@@ -469,15 +411,32 @@ export default function EmployeeContracts() {
                       <Edit className="h-4 w-4 mr-2" />
                       Bearbeiten
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("Vertrag wird verlängert..."); }}>
+                    <DropdownMenuItem onClick={(e) => { 
+                      e.stopPropagation(); 
+                      renewMutation.mutate(contract.id, {
+                        onSuccess: () => toast.success("Vertrag wird verlängert..."),
+                        onError: () => toast.error("Fehler beim Verlängern"),
+                      });
+                    }}>
                       <Copy className="h-4 w-4 mr-2" />
                       Verlängern
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("PDF wird erstellt..."); }}>
+                    <DropdownMenuItem onClick={(e) => { 
+                      e.stopPropagation(); 
+                      api.downloadPdf(`/employee-contracts/${contract.id}/pdf`, `Vertrag_${contract.employeeId}.pdf`);
+                    }}>
                       <Download className="h-4 w-4 mr-2" />
                       PDF exportieren
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); toast.success("Kündigungsprozess gestartet"); }}>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (confirm("Kündigungsprozess wirklich starten?")) {
+                        terminateMutation.mutate({ id: contract.id, data: {} }, {
+                          onSuccess: () => toast.success("Kündigungsprozess gestartet"),
+                          onError: () => toast.error("Fehler beim Kündigen"),
+                        });
+                      }
+                    }}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Kündigen
                     </DropdownMenuItem>
