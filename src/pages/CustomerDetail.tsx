@@ -16,6 +16,10 @@ import {
   ExternalLink,
   Trash2,
   Loader2,
+  Users,
+  Truck,
+  ShoppingCart,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +52,20 @@ const invoiceStatusConfig = {
   PARTIAL: { label: "Teilbezahlt", color: "bg-warning/10 text-warning" },
   OVERDUE: { label: "Überfällig", color: "bg-destructive/10 text-destructive" },
   CANCELLED: { label: "Storniert", color: "bg-muted text-muted-foreground" },
+};
+
+const orderStatusConfig = {
+  DRAFT: { label: "Entwurf", color: "bg-muted text-muted-foreground" },
+  CONFIRMED: { label: "Bestätigt", color: "bg-info/10 text-info" },
+  IN_PROGRESS: { label: "In Bearbeitung", color: "bg-warning/10 text-warning" },
+  COMPLETED: { label: "Abgeschlossen", color: "bg-success/10 text-success" },
+  CANCELLED: { label: "Storniert", color: "bg-destructive/10 text-destructive" },
+};
+
+const taskStatusConfig = {
+  TODO: { label: "Offen", color: "bg-muted text-muted-foreground" },
+  IN_PROGRESS: { label: "In Bearbeitung", color: "bg-warning/10 text-warning" },
+  DONE: { label: "Erledigt", color: "bg-success/10 text-success" },
 };
 
 export default function CustomerDetail() {
@@ -105,6 +123,9 @@ export default function CustomerDetail() {
   const projects = (customer as any).projects || [];
   const invoices = (customer as any).invoices || [];
   const contacts = (customer as any).contacts || [];
+  const deliveryNotes = (customer as any).deliveryNotes || [];
+  const orders = (customer as any).orders || [];
+  const tasks = (customer as any).tasks || [];
 
   return (
     <div className="space-y-6">
@@ -294,13 +315,78 @@ export default function CustomerDetail() {
         </div>
       </div>
 
+      {/* Ansprechpartner Section - Own area below Übersicht & Kontaktdaten */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            <h3 className="font-semibold">Ansprechpartner ({contacts.length})</h3>
+          </div>
+          <Button size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Kontakt hinzufügen
+          </Button>
+        </div>
+
+        {contacts.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground rounded-xl border border-dashed">
+            Noch keine Ansprechpartner vorhanden
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {contacts.map((contact: any) => (
+              <div
+                key={contact.id}
+                className="p-4 rounded-xl border border-border bg-muted/30 hover:border-primary/20 transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {`${contact.firstName?.[0] || ''}${contact.lastName?.[0] || ''}`}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{contact.firstName} {contact.lastName}</p>
+                      <p className="text-sm text-muted-foreground">{contact.position}</p>
+                    </div>
+                  </div>
+                  {contact.isPrimary && (
+                    <Badge variant="outline" className="text-xs">
+                      Hauptkontakt
+                    </Badge>
+                  )}
+                </div>
+                {contact.email && (
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    {contact.email}
+                  </a>
+                )}
+                {contact.phone && (
+                  <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                    <Phone className="h-3.5 w-3.5" />
+                    {contact.phone}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Full Width - Tabs */}
       <div>
         <Tabs defaultValue="projects" className="space-y-4">
           <TabsList>
             <TabsTrigger value="projects">Projekte</TabsTrigger>
             <TabsTrigger value="invoices">Rechnungen</TabsTrigger>
-            <TabsTrigger value="contacts">Ansprechpartner</TabsTrigger>
+            <TabsTrigger value="delivery-notes">Lieferscheine</TabsTrigger>
+            <TabsTrigger value="orders">Aufträge</TabsTrigger>
+            <TabsTrigger value="tasks">Aufgaben</TabsTrigger>
             <TabsTrigger value="notes">Notizen</TabsTrigger>
           </TabsList>
 
@@ -395,55 +481,136 @@ export default function CustomerDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="contacts" className="space-y-4">
+          <TabsContent value="delivery-notes" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Ansprechpartner ({contacts.length})</h3>
-              <Button size="sm" className="gap-2">
+              <h3 className="font-semibold">Lieferscheine ({deliveryNotes.length})</h3>
+              <Button size="sm" className="gap-2" onClick={() => navigate("/delivery-notes/new")}>
                 <Plus className="h-4 w-4" />
-                Kontakt hinzufügen
+                Neuer Lieferschein
               </Button>
             </div>
 
-            {contacts.length === 0 ? (
+            {deliveryNotes.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground rounded-xl border border-dashed">
-                Noch keine Ansprechpartner vorhanden
+                Noch keine Lieferscheine vorhanden
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {contacts.map((contact: any) => (
+              <div className="space-y-3">
+                {deliveryNotes.map((note: any) => (
                   <div
-                    key={contact.id}
-                    className="p-4 rounded-xl border border-border bg-card"
+                    key={note.id}
+                    className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-all cursor-pointer"
+                    onClick={() => navigate(`/delivery-notes/${note.id}`)}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {`${contact.firstName?.[0] || ''}${contact.lastName?.[0] || ''}`}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{contact.firstName} {contact.lastName}</p>
-                          <p className="text-sm text-muted-foreground">{contact.position}</p>
-                        </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                        <Truck className="h-5 w-5 text-muted-foreground" />
                       </div>
-                      {contact.isPrimary && (
-                        <Badge variant="outline" className="text-xs">
-                          Hauptkontakt
-                        </Badge>
-                      )}
+                      <div>
+                        <p className="font-medium">{note.number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {note.date ? format(new Date(note.date), "dd.MM.yyyy", { locale: de }) : "—"}
+                        </p>
+                      </div>
                     </div>
-                    {contact.email && (
-                      <a
-                        href={`mailto:${contact.email}`}
-                        className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
-                      >
-                        <Mail className="h-3.5 w-3.5" />
-                        {contact.email}
-                      </a>
-                    )}
+                    <Badge className={note.status === 'DELIVERED' ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+                      {note.status === 'DELIVERED' ? 'Geliefert' : note.status || 'Entwurf'}
+                    </Badge>
                   </div>
                 ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Aufträge ({orders.length})</h3>
+              <Button size="sm" className="gap-2" onClick={() => navigate("/orders/new")}>
+                <Plus className="h-4 w-4" />
+                Neuer Auftrag
+              </Button>
+            </div>
+
+            {orders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+                Noch keine Aufträge vorhanden
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order: any) => {
+                  const ordStatus = orderStatusConfig[order.status as keyof typeof orderStatusConfig] || orderStatusConfig.DRAFT;
+                  return (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-all cursor-pointer"
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                          <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{order.number}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {order.date ? format(new Date(order.date), "dd.MM.yyyy", { locale: de }) : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {order.totalAmount && (
+                          <span className="font-medium">CHF {(order.totalAmount || 0).toLocaleString("de-CH")}</span>
+                        )}
+                        <Badge className={ordStatus.color}>
+                          {ordStatus.label}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="tasks" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Aufgaben ({tasks.length})</h3>
+              <Button size="sm" className="gap-2" onClick={() => navigate("/tasks/new")}>
+                <Plus className="h-4 w-4" />
+                Neue Aufgabe
+              </Button>
+            </div>
+
+            {tasks.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+                Noch keine Aufgaben vorhanden
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tasks.map((task: any) => {
+                  const tStatus = taskStatusConfig[task.status as keyof typeof taskStatusConfig] || taskStatusConfig.TODO;
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-all cursor-pointer"
+                      onClick={() => navigate(`/tasks/${task.id}`)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                          <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{task.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {task.dueDate || "Kein Fälligkeitsdatum"}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={tStatus.color}>
+                        {tStatus.label}
+                      </Badge>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
