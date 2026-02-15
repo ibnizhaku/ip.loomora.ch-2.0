@@ -425,6 +425,7 @@ const App = () => (
               <Route path="/payroll/new" element={<ProtectedLayout><PayrollCreate /></ProtectedLayout>} />
               <Route path="/payroll/:id" element={<ProtectedLayout><PayrollDetail /></ProtectedLayout>} />
               <Route path="/payslips/:id" element={<ProtectedLayout><PayslipDetail /></ProtectedLayout>} />
+              <Route path="/payroll/payslip/:id" element={<ProtectedLayout><PayslipDetail /></ProtectedLayout>} />
               <Route path="/absences" element={<ProtectedLayout><Absences /></ProtectedLayout>} />
               <Route path="/absences/new" element={<ProtectedLayout><AbsenceCreate /></ProtectedLayout>} />
               <Route path="/absences/:id" element={<ProtectedLayout><AbsenceDetail /></ProtectedLayout>} />
