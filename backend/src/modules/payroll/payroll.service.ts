@@ -138,6 +138,7 @@ export class PayrollService {
     employees?: number;
     employeeIds?: string[];
   }) {
+    try {
     // Parse period (e.g. "2026-02")
     const [yearStr, monthStr] = (dto.period || '').split('-');
     const year = parseInt(yearStr);
@@ -170,10 +171,10 @@ export class PayrollService {
       ? new Date(dto.periodEnd)
       : new Date(year, month, 0); // Last day of month
 
-    // Get employees to include in this run (case-insensitive status)
+    // Get employees to include in this run (enum is ACTIVE)
     const employeeWhere: any = {
       companyId,
-      status: { equals: 'active', mode: 'insensitive' },
+      status: 'ACTIVE',
     };
     if (dto.employeeIds?.length) {
       employeeWhere.id = { in: dto.employeeIds };
@@ -298,6 +299,11 @@ export class PayrollService {
       status: RUN_STATUS_MAP[updated.status] || updated.status,
       runDate: updated.createdAt.toLocaleDateString('de-CH'),
     };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      console.error('createRun failed:', error);
+      throw new BadRequestException(`Fehler beim Erstellen des Lohnlaufs: ${error.message || error}`);
+    }
   }
 
   /**
