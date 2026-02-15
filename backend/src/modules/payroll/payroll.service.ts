@@ -41,53 +41,90 @@ export class PayrollService {
    * GET /payroll/:id — Get a single PayrollRun with its payslips
    */
   async findRunById(id: string, companyId: string) {
-    const run = await this.prisma.payrollRun.findFirst({
-      where: { id, companyId },
-      include: {
-        payslips: {
-          include: {
-            employee: {
-              select: { id: true, firstName: true, lastName: true, position: true, email: true },
+    try {
+      const run = await this.prisma.payrollRun.findFirst({
+        where: { id, companyId },
+        include: {
+          payslips: {
+            include: {
+              employee: true,
+              items: true,
             },
-            items: true,
           },
-          orderBy: { employee: { lastName: 'asc' } },
         },
-      },
-    });
+      });
 
-    if (!run) {
-      throw new NotFoundException('Lohnlauf nicht gefunden');
-    }
+      if (!run) {
+        throw new NotFoundException('Lohnlauf nicht gefunden');
+      }
 
-    const [y, m] = run.period.split('-').map(Number);
-    const mappedPayslips = run.payslips.map(ps => this.mapPayslipToFrontend(ps as any));
+      // Safe period parsing
+      const parts = (run.period || '').split('-');
+      const y = parseInt(parts[0]) || 0;
+      const m = parseInt(parts[1]) || 0;
+      const periodLabel = m >= 1 && m <= 12
+        ? `${MONTH_NAMES_DE[m]} ${y}`
+        : run.period;
 
-    return {
-      id: run.id,
-      period: `${MONTH_NAMES_DE[m] || run.period} ${y}`,
-      periodKey: run.period,
-      periodStart: run.periodStart.toISOString(),
-      periodEnd: run.periodEnd.toISOString(),
-      status: RUN_STATUS_MAP[run.status] || run.status,
-      employees: run.employees,
-      grossTotal: Number(run.grossTotal),
-      netTotal: Number(run.netTotal),
-      createdAt: run.createdAt.toISOString(),
-      updatedAt: run.updatedAt.toISOString(),
-      data: mappedPayslips,
-      payrollRuns: [{
+      // Map payslips safely
+      const mappedPayslips = (run.payslips || []).map(ps => {
+        try {
+          return this.mapPayslipToFrontend(ps as any);
+        } catch {
+          // Fallback for broken payslip data
+          const emp = (ps as any).employee;
+          return {
+            id: ps.id,
+            employeeId: ps.employeeId,
+            name: emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : 'Unbekannt',
+            firstName: emp?.firstName || '',
+            lastName: emp?.lastName || '',
+            position: emp?.position || '',
+            bruttoLohn: Number(ps.grossSalary || 0),
+            nettoLohn: Number(ps.netSalary || 0),
+            ahvIvEo: 0, alv: 0, bvg: 0, nbuKtg: 0, quellensteuer: 0,
+            status: PAYSLIP_STATUS_MAP[ps.status] || ps.status,
+            year: ps.year,
+            month: ps.month,
+          };
+        }
+      });
+
+      // Sort by lastName
+      mappedPayslips.sort((a: any, b: any) =>
+        (a.lastName || '').localeCompare(b.lastName || '')
+      );
+
+      return {
         id: run.id,
-        period: `${MONTH_NAMES_DE[m] || run.period} ${y}`,
-        year: y,
-        month: m,
-        employees: run.employees,
-        grossTotal: Number(run.grossTotal),
-        netTotal: Number(run.netTotal),
+        period: periodLabel,
+        periodKey: run.period,
+        periodStart: run.periodStart?.toISOString() || null,
+        periodEnd: run.periodEnd?.toISOString() || null,
         status: RUN_STATUS_MAP[run.status] || run.status,
-        runDate: run.createdAt.toLocaleDateString('de-CH'),
-      }],
-    };
+        employees: run.employees,
+        grossTotal: Number(run.grossTotal || 0),
+        netTotal: Number(run.netTotal || 0),
+        createdAt: run.createdAt?.toISOString() || null,
+        updatedAt: run.updatedAt?.toISOString() || null,
+        data: mappedPayslips,
+        payrollRuns: [{
+          id: run.id,
+          period: periodLabel,
+          year: y,
+          month: m,
+          employees: run.employees,
+          grossTotal: Number(run.grossTotal || 0),
+          netTotal: Number(run.netTotal || 0),
+          status: RUN_STATUS_MAP[run.status] || run.status,
+          runDate: run.createdAt ? run.createdAt.toLocaleDateString('de-CH') : null,
+        }],
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      console.error('findRunById failed:', error);
+      throw new BadRequestException(`Fehler beim Laden des Lohnlaufs: ${error.message || error}`);
+    }
   }
 
   /**
@@ -722,17 +759,20 @@ export class PayrollService {
 
   private mapPayslipToFrontend(payslip: any) {
     const items = payslip.items || [];
-    const gross = Number(payslip.grossSalary);
+    const gross = Number(payslip.grossSalary || 0);
+    const emp = payslip.employee || {};
+    const firstName = emp.firstName || '';
+    const lastName = emp.lastName || '';
     return {
       id: payslip.id,
       employeeId: payslip.employeeId,
-      name: `${payslip.employee.firstName} ${payslip.employee.lastName}`,
-      firstName: payslip.employee.firstName,
-      lastName: payslip.employee.lastName,
-      position: payslip.employee.position || '',
-      role: payslip.employee.position || '',
+      name: `${firstName} ${lastName}`.trim() || 'Unbekannt',
+      firstName,
+      lastName,
+      position: emp.position || '',
+      role: emp.position || '',
       bruttoLohn: gross,
-      nettoLohn: Number(payslip.netSalary),
+      nettoLohn: Number(payslip.netSalary || 0),
       ahvIvEo: this.sumItemsByType(items, ['ahv', 'social', 'ahv_iv_eo']) || gross * RATES.AHV_IV_EO / 100,
       alv: this.sumItemsByType(items, ['alv', 'unemployment']) || gross * RATES.ALV / 100,
       bvg: this.sumItemsByType(items, ['bvg', 'pension']) || gross * RATES.BVG / 100,
