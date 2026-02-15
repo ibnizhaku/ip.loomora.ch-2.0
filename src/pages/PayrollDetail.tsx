@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -40,6 +40,7 @@ function formatDate(d?: string | null) {
 
 export default function PayrollDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const completeRun = useCompletePayrollRun();
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 
@@ -129,15 +130,18 @@ export default function PayrollDetail() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => {
+            payslips.forEach((ps: any) => handlePayslipPdf(ps));
+            if (payslips.length === 0) toast.info("Keine Lohnabrechnungen vorhanden");
+          }}>
             <FileText className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast.info("Versand wird vorbereitet…")}>
             <Send className="h-4 w-4 mr-2" />
             Versenden
           </Button>
@@ -208,8 +212,8 @@ export default function PayrollDetail() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payslips.map((ps: any) => (
-                  <TableRow key={ps.id}>
+                 {payslips.map((ps: any) => (
+                  <TableRow key={ps.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/payslips/${ps.id}`)}>
                     <TableCell className="font-medium">
                       {ps.name || `${ps.firstName || ""} ${ps.lastName || ""}`.trim() || "—"}
                     </TableCell>
