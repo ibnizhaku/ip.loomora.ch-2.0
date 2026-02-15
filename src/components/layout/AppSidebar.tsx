@@ -414,7 +414,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                             className={cn(
                               "group/item relative w-full justify-between rounded-lg transition-all duration-200",
                               "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                              isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                              isActive && "bg-primary/10 backdrop-blur-xl border border-primary/20 shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.15)] text-sidebar-accent-foreground font-medium"
                             )}
                           >
                             <span className="flex items-center gap-3">
@@ -445,7 +445,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                                     className={cn(
                                       "relative rounded-md py-2 transition-all duration-200",
                                       "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                                      isSubActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                      isSubActive && "bg-primary/10 backdrop-blur-xl border border-primary/20 shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.15)] text-sidebar-accent-foreground font-medium"
                                     )}
                                   >
                                     <NavLink to={subItem.url}>
@@ -467,7 +467,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
                         className={cn(
                           "group/item relative rounded-lg transition-all duration-200",
                           "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                          isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                          isActive && "bg-primary/10 backdrop-blur-xl border border-primary/20 shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.15)] text-sidebar-accent-foreground font-medium"
                         )}
                       >
                         <NavLink to={item.url} className="flex items-center gap-3">
