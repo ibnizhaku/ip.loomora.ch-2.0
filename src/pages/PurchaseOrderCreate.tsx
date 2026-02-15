@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   ArrowLeft, 
   Plus, 
@@ -105,6 +105,8 @@ type DeliveryMethod = "email" | "pdf" | "print";
 
 export default function PurchaseOrderCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultSupplierId = searchParams.get("supplierId") || "";
   const [step, setStep] = useState<"supplier" | "products" | "review">("supplier");
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<SupplierData | null>(null);
@@ -133,6 +135,14 @@ export default function PurchaseOrderCreate() {
   const suppliers = useMemo(() => suppliersData?.data || [], [suppliersData]);
   const projects = useMemo(() => projectsData?.data || [], [projectsData]);
   const allProducts = useMemo(() => productsData?.data || [], [productsData]);
+
+  // Auto-select supplier from query param
+  useEffect(() => {
+    if (defaultSupplierId && suppliers.length > 0 && !selectedSupplier) {
+      const found = suppliers.find((s: any) => s.id === defaultSupplierId);
+      if (found) setSelectedSupplier(found);
+    }
+  }, [defaultSupplierId, suppliers, selectedSupplier]);
 
   // Filter products by selected supplier
   const supplierProducts = selectedSupplier 

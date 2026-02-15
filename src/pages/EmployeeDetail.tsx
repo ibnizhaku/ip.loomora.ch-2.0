@@ -171,8 +171,7 @@ const EmployeeDetail = () => {
   };
 
   const handleEdit = () => {
-    toast.info("Bearbeitungsmodus wird geladen...");
-    // In real app: navigate(`/hr/${id}/edit`)
+    navigate(`/hr/${id}/edit`);
   };
 
   const handleUploadDocument = () => {

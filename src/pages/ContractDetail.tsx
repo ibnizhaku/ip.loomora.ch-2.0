@@ -261,7 +261,7 @@ const ContractDetail = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Verlängern
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/contracts/${id}/edit`)}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>

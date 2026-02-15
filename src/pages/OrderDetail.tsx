@@ -211,11 +211,11 @@ const OrderDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/delivery-notes/new?orderId=${id}&customerId=${orderData.customer.id || ''}`)}>
             <Truck className="h-4 w-4 mr-2" />
             Lieferschein erstellen
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/new?orderId=${id}&customerId=${orderData.customer.id || ''}`)}>
             <FileText className="h-4 w-4 mr-2" />
             Rechnung erstellen
           </Button>
