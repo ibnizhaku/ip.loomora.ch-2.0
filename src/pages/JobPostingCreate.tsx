@@ -6,7 +6,8 @@ import {
   MapPin,
   Calendar,
   Users,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,14 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-
-const departments = [
-  "Produktion",
-  "Konstruktion",
-  "Montage",
-  "Administration",
-  "Projektmanagement",
-];
+import { useDepartments } from "@/hooks/use-departments";
+import { useCreateJobPosting } from "@/hooks/use-recruiting";
 
 const employmentTypes = [
   { value: "fulltime", label: "Vollzeit" },
@@ -33,6 +28,10 @@ const employmentTypes = [
 
 const JobPostingCreate = () => {
   const navigate = useNavigate();
+  const { data: departmentsData, isLoading: deptsLoading } = useDepartments({ pageSize: 100 });
+  const departments = (departmentsData as any)?.data || departmentsData || [];
+  const createJob = useCreateJobPosting();
+
   const [formData, setFormData] = useState({
     title: "",
     department: "",
@@ -52,10 +51,23 @@ const JobPostingCreate = () => {
       return;
     }
 
-    toast.success("Stellenausschreibung erstellt", {
-      description: formData.title
+    createJob.mutate({
+      title: formData.title,
+      department: formData.department,
+      location: formData.location,
+      employmentType: formData.employmentType,
+      description: formData.description,
+      requirements: formData.requirements,
+      responsibilities: formData.benefits,
+      closingDate: formData.deadline || undefined,
+      status: "Aktiv",
+    } as any, {
+      onSuccess: () => {
+        toast.success("Stellenausschreibung erstellt", { description: formData.title });
+        navigate("/recruiting");
+      },
+      onError: () => toast.error("Fehler beim Erstellen"),
     });
-    navigate("/recruiting");
   };
 
   return (
@@ -98,11 +110,13 @@ const JobPostingCreate = () => {
                   onValueChange={(value) => setFormData({ ...formData, department: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Auswählen..." />
+                    <SelectValue placeholder={deptsLoading ? "Laden..." : "Auswählen..."} />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    {Array.isArray(departments) && departments.map((dept: any) => (
+                      <SelectItem key={dept.id || dept} value={dept.name || dept}>
+                        {dept.name || dept}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -250,7 +264,8 @@ const JobPostingCreate = () => {
         <Button variant="secondary" onClick={() => toast.info("Als Entwurf gespeichert")}>
           Als Entwurf speichern
         </Button>
-        <Button onClick={handleSubmit}>
+        <Button onClick={handleSubmit} disabled={createJob.isPending}>
+          {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Stelle veröffentlichen
         </Button>
       </div>

@@ -1,14 +1,49 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Calendar } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { useEmployees } from "@/hooks/use-employees";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function AbsenceCreate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: employeesData, isLoading: employeesLoading } = useEmployees({ pageSize: 200 });
+  const employees = (employeesData as any)?.data || employeesData || [];
+
+  const [formData, setFormData] = useState({
+    employeeId: "",
+    type: "",
+    startDate: "",
+    endDate: "",
+    notes: "",
+  });
+
+  const createAbsence = useMutation({
+    mutationFn: (data: typeof formData) => api.post("/absences", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/absences"] });
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
+      toast.success("Abwesenheit erfolgreich erfasst");
+      navigate("/absences");
+    },
+    onError: () => toast.error("Fehler beim Erfassen der Abwesenheit"),
+  });
+
+  const handleSubmit = () => {
+    if (!formData.employeeId || !formData.type || !formData.startDate) {
+      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
+      return;
+    }
+    createAbsence.mutate(formData);
+  };
 
   return (
     <div className="space-y-6">
@@ -31,21 +66,23 @@ export default function AbsenceCreate() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Mitarbeiter</Label>
-            <Select>
+            <Label>Mitarbeiter *</Label>
+            <Select value={formData.employeeId} onValueChange={(v) => setFormData({ ...formData, employeeId: v })}>
               <SelectTrigger>
-                <SelectValue placeholder="Mitarbeiter auswählen" />
+                <SelectValue placeholder={employeesLoading ? "Laden..." : "Mitarbeiter auswählen"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Thomas Müller</SelectItem>
-                <SelectItem value="2">Anna Schmidt</SelectItem>
-                <SelectItem value="3">Michael Weber</SelectItem>
+                {Array.isArray(employees) && employees.map((emp: any) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Abwesenheitstyp</Label>
-            <Select>
+            <Label>Abwesenheitstyp *</Label>
+            <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Typ auswählen" />
               </SelectTrigger>
@@ -60,25 +97,25 @@ export default function AbsenceCreate() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Von</Label>
-              <Input type="date" />
+              <Label>Von *</Label>
+              <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Bis</Label>
-              <Input type="date" />
+              <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Bemerkung</Label>
-            <Textarea placeholder="Optionale Bemerkung" rows={3} />
+            <Textarea placeholder="Optionale Bemerkung" rows={3} value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
           </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2">
-          <Save className="h-4 w-4" />
+        <Button className="gap-2" onClick={handleSubmit} disabled={createAbsence.isPending}>
+          {createAbsence.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Abwesenheit erfassen
         </Button>
       </div>

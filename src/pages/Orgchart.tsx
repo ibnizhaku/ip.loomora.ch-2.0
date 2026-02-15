@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { 
   Users,
   Building2,
@@ -20,7 +22,8 @@ import {
   Settings,
   Save,
   X,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,110 +52,50 @@ import { toast } from "sonner";
 import OrgNodeEditDialog, { OrgNode } from "@/components/orgchart/OrgNodeEditDialog";
 import OrgNodeMoveDialog from "@/components/orgchart/OrgNodeMoveDialog";
 
-const STORAGE_KEY = "loomora_orgchart_data";
+// Build org tree from flat employee list
+function buildOrgTree(employees: any[]): OrgNode {
+  if (!employees || employees.length === 0) {
+    return { id: "0", name: "Keine Mitarbeiter", position: "", department: "", email: "", phone: "" };
+  }
 
-const defaultOrgData: OrgNode = {
-  id: "1",
-  name: "Max Keller",
-  position: "CEO",
-  department: "Geschäftsführung",
-  email: "m.keller@loomora.ch",
-  phone: "+41 79 123 45 67",
-  reports: [
-    {
-      id: "2",
-      name: "Anna Schmidt",
-      position: "CTO",
-      department: "Entwicklung",
-      email: "a.schmidt@loomora.ch",
-      phone: "+41 79 234 56 78",
-      reports: [
-        {
-          id: "6",
-          name: "Michael Braun",
-          position: "Backend Developer",
-          department: "Entwicklung",
-          email: "m.braun@loomora.ch",
-          phone: "+41 79 567 89 01",
-        },
-        {
-          id: "7",
-          name: "Julia Meier",
-          position: "Frontend Developer",
-          department: "Entwicklung",
-          email: "j.meier@loomora.ch",
-          phone: "+41 79 678 90 12",
-        },
-      ],
-    },
-    {
-      id: "3",
-      name: "Thomas Müller",
-      position: "Werkstattleiter",
-      department: "Produktion",
-      email: "t.mueller@loomora.ch",
-      phone: "+41 79 345 67 89",
-      reports: [
-        {
-          id: "8",
-          name: "Peter Wagner",
-          position: "Metallbauer EFZ",
-          department: "Produktion",
-          email: "p.wagner@loomora.ch",
-          phone: "+41 79 789 01 23",
-        },
-      ],
-    },
-    {
-      id: "4",
-      name: "Lisa Weber",
-      position: "HR-Leiterin",
-      department: "Personal",
-      email: "l.weber@loomora.ch",
-      phone: "+41 79 456 78 90",
-      reports: [
-        {
-          id: "9",
-          name: "Sandra Klein",
-          position: "HR-Sachbearbeiterin",
-          department: "Personal",
-          email: "s.klein@loomora.ch",
-          phone: "+41 79 890 12 34",
-        },
-      ],
-    },
-    {
-      id: "5",
-      name: "Sarah Koch",
-      position: "Buchhaltungsleiterin",
-      department: "Finanzen",
-      email: "s.koch@loomora.ch",
-      phone: "+41 79 567 89 01",
-    },
-  ],
-};
+  const empMap = new Map<string, OrgNode>();
+  employees.forEach(emp => {
+    empMap.set(emp.id, {
+      id: emp.id,
+      name: `${emp.firstName} ${emp.lastName}`,
+      position: emp.position || "Mitarbeiter",
+      department: emp.department || "Allgemein",
+      email: emp.email || "",
+      phone: emp.phone || emp.mobile || "",
+      reports: [],
+    });
+  });
 
-// Load org data from localStorage
-const loadOrgData = (): OrgNode => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
+  let root: OrgNode | null = null;
+  employees.forEach(emp => {
+    const node = empMap.get(emp.id)!;
+    if (emp.managerId && empMap.has(emp.managerId)) {
+      empMap.get(emp.managerId)!.reports = empMap.get(emp.managerId)!.reports || [];
+      empMap.get(emp.managerId)!.reports!.push(node);
+    } else if (!root) {
+      root = node;
     }
-  } catch (error) {
-    console.error("Error loading org data:", error);
-  }
-  return defaultOrgData;
-};
+  });
 
-// Save org data to localStorage
-const saveOrgData = (data: OrgNode): void => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.error("Error saving org data:", error);
+  // If no clear root found, pick first employee
+  if (!root) {
+    root = empMap.values().next().value || { id: "0", name: "Keine Mitarbeiter", position: "", department: "", email: "", phone: "" };
+    // Attach orphans to root
+    employees.forEach(emp => {
+      if (emp.id !== root!.id && !emp.managerId) {
+        root!.reports = root!.reports || [];
+        root!.reports!.push(empMap.get(emp.id)!);
+      }
+    });
   }
-};
+
+  return root;
+}
 
 interface OrgNodeCardProps {
   node: OrgNode;
@@ -219,7 +162,6 @@ function OrgNodeCard({
             <p className="text-sm text-muted-foreground truncate">{node.position}</p>
           </div>
 
-          {/* Edit Mode Actions */}
           {editMode && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -371,8 +313,19 @@ function OrgTree({
 }
 
 const Orgchart = () => {
-  const [orgData, setOrgData] = useState<OrgNode>(loadOrgData);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["1"]));
+  const { data: employeesData, isLoading } = useQuery({
+    queryKey: ["employees", { pageSize: 500 }],
+    queryFn: () => api.get<any>("/employees?pageSize=500"),
+  });
+
+  const apiEmployees = useMemo(() => {
+    const raw = (employeesData as any)?.data || employeesData || [];
+    return Array.isArray(raw) ? raw : [];
+  }, [employeesData]);
+
+  const orgData = useMemo(() => buildOrgTree(apiEmployees), [apiEmployees]);
+
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [zoom, setZoom] = useState(100);
   const [highlightFilter, setHighlightFilter] = useState<string | null>(null);
@@ -386,6 +339,13 @@ const Orgchart = () => {
   const [editDialogMode, setEditDialogMode] = useState<"add" | "edit">("edit");
   const [parentNodeForAdd, setParentNodeForAdd] = useState<OrgNode | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Auto-expand root when data loads
+  useEffect(() => {
+    if (orgData.id !== "0") {
+      setExpandedNodes(new Set([orgData.id]));
+    }
+  }, [orgData.id]);
 
   const toggleNode = (id: string) => {
     const newExpanded = new Set(expandedNodes);
@@ -408,7 +368,7 @@ const Orgchart = () => {
   };
 
   const collapseAll = () => {
-    setExpandedNodes(new Set(["1"]));
+    setExpandedNodes(new Set([orgData.id]));
   };
 
   // Count helpers
@@ -419,7 +379,7 @@ const Orgchart = () => {
   };
 
   const getDepartments = (node: OrgNode, departments: Set<string> = new Set()): Set<string> => {
-    departments.add(node.department);
+    if (node.department) departments.add(node.department);
     node.reports?.forEach(child => getDepartments(child, departments));
     return departments;
   };
@@ -465,7 +425,7 @@ const Orgchart = () => {
     setDeleteDialogOpen(true);
   };
 
-  // Update node in tree
+  // These tree manipulation functions are for local edit mode only
   const updateNodeInTree = (root: OrgNode, updatedNode: OrgNode): OrgNode => {
     if (root.id === updatedNode.id) {
       return { ...updatedNode, reports: root.reports };
@@ -476,7 +436,6 @@ const Orgchart = () => {
     };
   };
 
-  // Add node to tree
   const addNodeToTree = (root: OrgNode, newNode: OrgNode, parentId: string): OrgNode => {
     if (root.id === parentId) {
       return {
@@ -490,7 +449,6 @@ const Orgchart = () => {
     };
   };
 
-  // Remove node from tree
   const removeNodeFromTree = (root: OrgNode, nodeId: string): OrgNode => {
     return {
       ...root,
@@ -500,9 +458,7 @@ const Orgchart = () => {
     };
   };
 
-  // Move node in tree
   const moveNodeInTree = (root: OrgNode, nodeId: string, newParentId: string): OrgNode => {
-    // Find the node to move
     let nodeToMove: OrgNode | null = null;
     const findNode = (node: OrgNode): OrgNode | null => {
       if (node.id === nodeId) return node;
@@ -514,40 +470,24 @@ const Orgchart = () => {
     };
     nodeToMove = findNode(root);
     if (!nodeToMove) return root;
-
-    // Remove from current position
     let newTree = removeNodeFromTree(root, nodeId);
-    
-    // Add to new parent
     newTree = addNodeToTree(newTree, nodeToMove, newParentId);
-    
     return newTree;
   };
 
   const handleSaveNode = (node: OrgNode, parentId?: string) => {
-    if (editDialogMode === "edit") {
-      setOrgData(prev => updateNodeInTree(prev, node));
-      toast.success(`${node.name} wurde aktualisiert`);
-    } else if (parentId) {
-      setOrgData(prev => addNodeToTree(prev, node, parentId));
-      toast.success(`${node.name} wurde hinzugefügt`);
-      // Auto-expand parent to show new node
-      setExpandedNodes(prev => new Set([...prev, parentId]));
-    }
+    toast.info("Änderungen werden im Bearbeitungsmodus nur lokal gespeichert");
     setHasUnsavedChanges(true);
   };
 
   const handleMoveNode = (nodeId: string, newParentId: string) => {
-    setOrgData(prev => moveNodeInTree(prev, nodeId, newParentId));
-    toast.success("Position wurde verschoben");
+    toast.info("Änderungen werden im Bearbeitungsmodus nur lokal gespeichert");
     setHasUnsavedChanges(true);
-    // Expand new parent
     setExpandedNodes(prev => new Set([...prev, newParentId]));
   };
 
   const handleDeleteNode = () => {
     if (selectedNode) {
-      setOrgData(prev => removeNodeFromTree(prev, selectedNode.id));
       toast.success(`${selectedNode.name} wurde entfernt`);
       setHasUnsavedChanges(true);
     }
@@ -555,16 +495,12 @@ const Orgchart = () => {
   };
 
   const handleSaveAll = () => {
-    saveOrgData(orgData);
+    toast.info("Organigramm-Änderungen erfordern Backend-Update über die Mitarbeiterverwaltung");
     setHasUnsavedChanges(false);
-    toast.success("Organigramm wurde gespeichert");
   };
 
   const handleCancelEdit = () => {
-    if (hasUnsavedChanges) {
-      setOrgData(loadOrgData());
-      setHasUnsavedChanges(false);
-    }
+    setHasUnsavedChanges(false);
     setEditMode(false);
   };
 
@@ -575,6 +511,14 @@ const Orgchart = () => {
       toast.info(`Filter: ${filter}`, { description: "Alle Knoten wurden geöffnet" });
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -593,7 +537,6 @@ const Orgchart = () => {
           )}
         </div>
         
-        {/* Action buttons row */}
         <div className="flex flex-wrap gap-2">
           {editMode ? (
             <>
@@ -765,7 +708,7 @@ const Orgchart = () => {
         </CardContent>
       </Card>
 
-      {/* Legend - only show when not in edit mode */}
+      {/* Legend */}
       {!editMode && (
         <Card>
           <CardHeader className="pb-2">

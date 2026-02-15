@@ -13,7 +13,9 @@ import {
   Upload,
   File,
   Image,
-  X
+  X,
+  Loader2,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +24,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useEmployees } from "@/hooks/use-employees";
+import { useCreateTravelExpense } from "@/hooks/use-travel-expenses";
 
 interface ExpenseItem {
   id: string;
@@ -37,6 +42,7 @@ interface UploadedFile {
   name: string;
   size: number;
   type: string;
+  dataUrl?: string;
 }
 
 const categoryConfig = {
@@ -53,7 +59,12 @@ const formatCHF = (amount: number) => {
 const TravelExpenseCreate = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: employeesData, isLoading: employeesLoading } = useEmployees({ pageSize: 200 });
+  const employees = (employeesData as any)?.data || employeesData || [];
+  const createExpense = useCreateTravelExpense();
+
   const [formData, setFormData] = useState({
+    employeeId: "",
     purpose: "",
     destination: "",
     startDate: "",
@@ -64,6 +75,7 @@ const TravelExpenseCreate = () => {
     { id: "1", category: "transport", description: "", amount: "", date: "" }
   ]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
 
   const addItem = () => {
     setItems([...items, { 
@@ -99,15 +111,22 @@ const TravelExpenseCreate = () => {
     const files = e.target.files;
     if (!files) return;
     
-    const newFiles: UploadedFile[] = Array.from(files).map(file => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    }));
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const newFile: UploadedFile = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          dataUrl: ev.target?.result as string,
+        };
+        setUploadedFiles(prev => [...prev, newFile]);
+      };
+      reader.readAsDataURL(file);
+    });
     
-    setUploadedFiles(prev => [...prev, ...newFiles]);
-    toast.success(`${newFiles.length} Datei(en) hinzugefügt`);
+    toast.success(`${files.length} Datei(en) hinzugefügt`);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -121,15 +140,34 @@ const TravelExpenseCreate = () => {
   };
 
   const handleSubmit = () => {
-    if (!formData.purpose || !formData.destination || !formData.startDate) {
+    if (!formData.employeeId || !formData.purpose || !formData.destination || !formData.startDate) {
       toast.error("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
-    toast.success("Reisekostenabrechnung erstellt", {
-      description: `${formData.purpose} - CHF ${formatCHF(totalAmount)}`
+    createExpense.mutate({
+      employeeId: formData.employeeId,
+      purpose: formData.purpose,
+      destination: formData.destination,
+      startDate: formData.startDate,
+      endDate: formData.endDate || formData.startDate,
+      totalAmount,
+      status: "Eingereicht",
+      items: items.map(item => ({
+        category: item.category,
+        description: item.description,
+        amount: parseFloat(item.amount) || 0,
+        date: item.date,
+      })),
+    }, {
+      onSuccess: () => {
+        toast.success("Reisekostenabrechnung erstellt", {
+          description: `${formData.purpose} - CHF ${formatCHF(totalAmount)}`
+        });
+        navigate("/travel-expenses");
+      },
+      onError: () => toast.error("Fehler beim Erstellen"),
     });
-    navigate("/travel-expenses");
   };
 
   return (
@@ -155,6 +193,22 @@ const TravelExpenseCreate = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="employeeId">Mitarbeiter *</Label>
+              <Select value={formData.employeeId} onValueChange={(v) => setFormData({ ...formData, employeeId: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder={employeesLoading ? "Laden..." : "Mitarbeiter auswählen"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.isArray(employees) && employees.map((emp: any) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.firstName} {emp.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="purpose">Reisezweck *</Label>
@@ -380,6 +434,14 @@ const TravelExpenseCreate = () => {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setPreviewFile(file)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive"
                       onClick={() => removeFile(file.id)}
                     >
@@ -435,10 +497,33 @@ const TravelExpenseCreate = () => {
         <Button variant="secondary" onClick={() => toast.info("Als Entwurf gespeichert")}>
           Als Entwurf speichern
         </Button>
-        <Button onClick={handleSubmit}>
+        <Button onClick={handleSubmit} disabled={createExpense.isPending}>
+          {createExpense.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Einreichen
         </Button>
       </div>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[65vh]">
+            {previewFile?.type.startsWith("image/") ? (
+              <img src={previewFile.dataUrl} alt={previewFile.name} className="w-full rounded-lg" />
+            ) : previewFile?.type === "application/pdf" ? (
+              <iframe src={previewFile.dataUrl} className="w-full h-[60vh] rounded-lg" />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <File className="h-16 w-16 mb-4" />
+                <p>Vorschau nicht verfügbar für diesen Dateityp</p>
+                <p className="text-sm">{previewFile?.name} ({previewFile ? formatFileSize(previewFile.size) : ""})</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

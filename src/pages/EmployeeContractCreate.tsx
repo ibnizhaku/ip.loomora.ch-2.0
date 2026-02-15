@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, FileSignature, User, Clock, Coins, Calendar, Info } from "lucide-react";
+import { ArrowLeft, Save, FileSignature, User, Clock, Coins, Calendar, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { useEmployees } from "@/hooks/use-employees";
+import { useCreateEmployeeContract } from "@/hooks/use-employee-contracts";
 
 // GAV Metallbau Lohnklassen mit Mindestlöhnen 2024
 const gavClasses = [
@@ -50,15 +52,12 @@ const getVacationDays = (age: number): number => {
   return 20;
 };
 
-const employees = [
-  { id: "EMP-007", name: "Neuer Mitarbeiter" },
-  { id: "EMP-001", name: "Max Keller" },
-  { id: "EMP-002", name: "Anna Meier" },
-  { id: "EMP-003", name: "Thomas Brunner" },
-];
-
 export default function EmployeeContractCreate() {
   const navigate = useNavigate();
+  const { data: employeesData, isLoading: employeesLoading } = useEmployees({ pageSize: 200 });
+  const createContract = useCreateEmployeeContract();
+  const employees = (employeesData as any)?.data || employeesData || [];
+
   const [formData, setFormData] = useState({
     employeeId: "",
     contractType: "",
@@ -125,8 +124,28 @@ export default function EmployeeContractCreate() {
       return;
     }
     
-    toast.success("Arbeitsvertrag wurde erfolgreich erstellt");
-    navigate("/employee-contracts");
+    createContract.mutate({
+      employeeId: formData.employeeId,
+      contractType: formData.contractType,
+      startDate: formData.startDate,
+      endDate: formData.endDate || undefined,
+      baseSalary: parseFloat(formData.baseSalary),
+      workload: parseFloat(formData.workload),
+      weeklyHours: parseFloat(formData.weeklyHours),
+      noticePeriod: formData.noticePeriod,
+      vacationDays: parseInt(formData.vacationDays),
+      gavClass: formData.gavClass,
+      thirteenthMonth: formData.has13thSalary,
+      department: formData.department,
+      position: formData.jobTitle,
+      workLocation: formData.workLocation,
+    }, {
+      onSuccess: () => {
+        toast.success("Arbeitsvertrag wurde erfolgreich erstellt");
+        navigate("/employee-contracts");
+      },
+      onError: () => toast.error("Fehler beim Erstellen des Vertrags"),
+    });
   };
 
   const selectedGavClass = gavClasses.find(g => g.value === formData.gavClass);
@@ -179,12 +198,12 @@ export default function EmployeeContractCreate() {
                 <Label htmlFor="employeeId">Mitarbeiter *</Label>
                 <Select value={formData.employeeId} onValueChange={(v) => handleChange("employeeId", v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Mitarbeiter wählen" />
+                    <SelectValue placeholder={employeesLoading ? "Laden..." : "Mitarbeiter wählen"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.map((emp) => (
+                    {Array.isArray(employees) && employees.map((emp: any) => (
                       <SelectItem key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.id})
+                        {emp.firstName} {emp.lastName} {emp.employeeNumber ? `(${emp.employeeNumber})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -486,8 +505,8 @@ export default function EmployeeContractCreate() {
           <Button type="button" variant="outline" onClick={() => navigate("/employee-contracts")}>
             Abbrechen
           </Button>
-          <Button type="submit" className="gap-2">
-            <Save className="h-4 w-4" />
+          <Button type="submit" className="gap-2" disabled={createContract.isPending}>
+            {createContract.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Vertrag erstellen
           </Button>
         </div>

@@ -6,7 +6,8 @@ import {
   Users,
   Calendar,
   Plus,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,15 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-
-const employees = [
-  { id: "1", name: "Thomas Müller" },
-  { id: "2", name: "Lisa Weber" },
-  { id: "3", name: "Michael Schneider" },
-  { id: "4", name: "Sandra Fischer" },
-  { id: "5", name: "Pedro Santos" },
-  { id: "6", name: "Hans Keller" },
-];
+import { useEmployees } from "@/hooks/use-employees";
+import { useCreateTraining } from "@/hooks/use-training";
 
 const trainingTypes = [
   { value: "workshop", label: "Workshop" },
@@ -40,6 +34,10 @@ const formatCHF = (amount: number) => {
 
 const TrainingCreate = () => {
   const navigate = useNavigate();
+  const { data: employeesData, isLoading: employeesLoading } = useEmployees({ pageSize: 200 });
+  const employees = (employeesData as any)?.data || employeesData || [];
+  const createTraining = useCreateTraining();
+
   const [formData, setFormData] = useState({
     title: "",
     type: "",
@@ -69,10 +67,28 @@ const TrainingCreate = () => {
       return;
     }
 
-    toast.success("Schulung erstellt", {
-      description: `${formData.title} am ${formData.date}`
+    createTraining.mutate({
+      title: formData.title,
+      type: formData.type,
+      instructor: formData.trainer,
+      startDate: formData.date,
+      endDate: formData.endDate || undefined,
+      duration: parseInt(formData.duration) || 0,
+      location: formData.location,
+      maxParticipants: parseInt(formData.maxParticipants) || undefined,
+      cost: parseInt(formData.cost) || 0,
+      description: formData.description,
+      isOnline: false,
+      status: "Geplant",
+    } as any, {
+      onSuccess: () => {
+        toast.success("Schulung erstellt", {
+          description: `${formData.title} am ${formData.date}`
+        });
+        navigate("/training");
+      },
+      onError: () => toast.error("Fehler beim Erstellen der Schulung"),
     });
-    navigate("/training");
   };
 
   return (
@@ -267,26 +283,37 @@ const TrainingCreate = () => {
           <CardDescription>Wählen Sie die Mitarbeitenden für diese Schulung aus</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {employees.map(employee => (
-              <div
-                key={employee.id}
-                className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
-                  selectedEmployees.includes(employee.id)
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30"
-                }`}
-                onClick={() => toggleEmployee(employee.id)}
-              >
-                <Checkbox
-                  checked={selectedEmployees.includes(employee.id)}
-                  onCheckedChange={() => toggleEmployee(employee.id)}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <span className="font-medium">{employee.name}</span>
-              </div>
-            ))}
-          </div>
+          {employeesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.isArray(employees) && employees.map((employee: any) => (
+                <div
+                  key={employee.id}
+                  className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                    selectedEmployees.includes(employee.id)
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/30"
+                  }`}
+                  onClick={() => toggleEmployee(employee.id)}
+                >
+                  <Checkbox
+                    checked={selectedEmployees.includes(employee.id)}
+                    onCheckedChange={() => toggleEmployee(employee.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div>
+                    <span className="font-medium">{employee.firstName} {employee.lastName}</span>
+                    {employee.position && (
+                      <p className="text-xs text-muted-foreground">{employee.position}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -295,7 +322,8 @@ const TrainingCreate = () => {
         <Button variant="outline" onClick={() => navigate("/training")}>
           Abbrechen
         </Button>
-        <Button onClick={handleSubmit}>
+        <Button onClick={handleSubmit} disabled={createTraining.isPending}>
+          {createTraining.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Schulung erstellen
         </Button>
       </div>
