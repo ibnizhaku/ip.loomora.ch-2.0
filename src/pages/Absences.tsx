@@ -16,7 +16,10 @@ import {
   Users,
   AlertCircle,
   Stethoscope,
-  X
+  X,
+  Trash2,
+  Eye,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,6 +46,16 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import AbsenceRejectDialog from "@/components/absences/AbsenceRejectDialog";
@@ -50,31 +64,55 @@ import { loadAbsenceWorkflowConfig, getRequiredAbsenceStages, AUTO_CONFIRMED_TYP
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+// Backend → Frontend type mapping
+const typeMap: Record<string, string> = {
+  VACATION: "Ferien",
+  SICK: "Krankheit",
+  ACCIDENT: "Unfall",
+  MATERNITY: "Mutterschaft",
+  PATERNITY: "Vaterschaft",
+  MILITARY: "Militär",
+  TRAINING: "Fortbildung",
+  SPECIAL: "Sonderurlaub",
+  UNPAID: "Unbezahlt",
+};
+
+// Backend → Frontend status mapping
+const statusMap: Record<string, string> = {
+  PENDING: "Ausstehend",
+  APPROVED: "Genehmigt",
+  REJECTED: "Abgelehnt",
+  CANCELLED: "Storniert",
+  CONFIRMED: "Bestätigt",
+};
+
+const mapType = (raw: string) => typeMap[raw] || raw;
+const mapStatus = (raw: string) => statusMap[raw] || raw;
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr || dateStr === "–") return "–";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+};
+
 interface AbsenceRequest {
-  id: number;
+  id: string;
   employee: string;
+  employeeId: string;
   type: string;
   from: string;
   to: string;
   days: number;
-  status: "Ausstehend" | "Genehmigt" | "Bestätigt" | "Abgelehnt";
+  status: string;
   requestDate: string;
   note?: string;
   rejectionReason?: string;
   currentStageIndex: number;
   approvalHistory: AbsenceApprovalProgress[];
 }
-
-
-// Ferienkonten nach GAV Metallbau (altersabhängig)
-const employeeVacation = [
-  { id: "1", name: "Thomas Müller", position: "Metallbauer EFZ", age: 32, total: 20, taken: 8, planned: 5, remaining: 7 },
-  { id: "2", name: "Lisa Weber", position: "Metallbaukonstrukteurin", age: 28, total: 20, taken: 12, planned: 0, remaining: 8 },
-  { id: "3", name: "Michael Schneider", position: "Vorarbeiter", age: 52, total: 25, taken: 10, planned: 8, remaining: 7 },
-  { id: "4", name: "Sandra Fischer", position: "Kaufm. Angestellte", age: 45, total: 20, taken: 15, planned: 0, remaining: 5 },
-  { id: "5", name: "Pedro Santos", position: "Metallbauer EFZ", age: 19, total: 25, taken: 5, planned: 10, remaining: 10 },
-  { id: "6", name: "Hans Keller", position: "Werkstattleiter", age: 61, total: 30, taken: 18, planned: 0, remaining: 12 },
-];
 
 const typeConfig: Record<string, { color: string; icon: any }> = {
   "Ferien": { color: "bg-info/10 text-info", icon: Palmtree },
@@ -85,6 +123,7 @@ const typeConfig: Record<string, { color: string; icon: any }> = {
   "Militär": { color: "bg-muted text-muted-foreground", icon: Calendar },
   "Fortbildung": { color: "bg-success/10 text-success", icon: GraduationCap },
   "Sonderurlaub": { color: "bg-muted text-muted-foreground", icon: Calendar },
+  "Unbezahlt": { color: "bg-muted text-muted-foreground", icon: Calendar },
 };
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
@@ -92,45 +131,73 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
   "Genehmigt": { color: "bg-success/10 text-success", icon: CheckCircle2 },
   "Bestätigt": { color: "bg-success/10 text-success", icon: CheckCircle2 },
   "Abgelehnt": { color: "bg-destructive/10 text-destructive", icon: XCircle },
+  "Storniert": { color: "bg-muted text-muted-foreground", icon: AlertCircle },
 };
 
 const Absences = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch data from API
-  const { data: apiData } = useQuery({
+  // Fetch absences from API
+  const { data: apiData, isLoading } = useQuery({
     queryKey: ["/absences"],
     queryFn: () => api.get<any>("/absences"),
   });
-  const absenceRequests = (apiData?.data || []).map((raw: any) => ({
-    ...raw,
-    employee: raw.employee?.name || raw.employee || raw.employeeName || "–",
-    type: raw.type || "Ferien",
-    from: raw.from || raw.startDate || "–",
-    to: raw.to || raw.endDate || "–",
+
+  // Fetch employees for Ferienübersicht
+  const { data: employeesApiData } = useQuery({
+    queryKey: ["/employees", { pageSize: 200 }],
+    queryFn: () => api.get<any>("/employees?pageSize=200"),
+  });
+
+  const absenceRequests: AbsenceRequest[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id,
+    employee: raw.employee?.name || `${raw.employee?.firstName || ""} ${raw.employee?.lastName || ""}`.trim() || "–",
+    employeeId: raw.employeeId || raw.employee?.id || "",
+    type: mapType(raw.type),
+    from: formatDate(raw.startDate || raw.from),
+    to: formatDate(raw.endDate || raw.to),
     days: Number(raw.days || raw.duration || 0),
-    status: raw.status || "Ausstehend",
-    requestDate: raw.requestDate || raw.createdAt || "–",
+    status: mapStatus(raw.status),
+    requestDate: formatDate(raw.createdAt || raw.requestDate),
+    note: raw.notes || raw.reason || "",
+    rejectionReason: raw.rejectionReason || "",
     currentStageIndex: raw.currentStageIndex || 0,
     approvalHistory: raw.approvalHistory || [],
   }));
 
+  // Map employees for Ferienübersicht
+  const employeeVacation = ((employeesApiData as any)?.data || []).map((emp: any) => {
+    const contract = emp.contracts?.[0];
+    const vacDays = contract?.vacationDays || emp.vacationDays || 25;
+    const taken = emp.vacationTaken || 0;
+    const birthDate = emp.dateOfBirth ? new Date(emp.dateOfBirth) : null;
+    const age = birthDate ? Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+    return {
+      id: emp.id,
+      name: `${emp.firstName} ${emp.lastName}`,
+      position: emp.position || "–",
+      age,
+      total: vacDays,
+      taken,
+      planned: 0,
+      remaining: vacDays - taken,
+    };
+  });
+
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.delete(`/absences/${id}`),
+    mutationFn: (id: string) => api.delete(`/absences/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/absences"] });
       toast.success("Abwesenheit erfolgreich gelöscht");
     },
-    onError: () => {
-      toast.error("Fehler beim Löschen der Abwesenheit");
-    },
+    onError: () => toast.error("Fehler beim Löschen"),
   });
 
   // Approve mutation
   const approveMutation = useMutation({
-    mutationFn: (id: number) => api.post(`/absences/${id}/approve`, {}),
+    mutationFn: (id: string) => api.post(`/absences/${id}/approve`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/absences"] });
       toast.success("Antrag genehmigt");
@@ -140,7 +207,7 @@ const Absences = () => {
 
   // Reject mutation
   const rejectAbsenceMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) => api.post(`/absences/${id}/reject`, { reason }),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.post(`/absences/${id}/reject`, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/absences"] });
     },
@@ -151,15 +218,18 @@ const Absences = () => {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string[]>([]);
   const [filterRequestStatus, setFilterRequestStatus] = useState<string[]>([]);
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AbsenceRequest | null>(null);
+
   // Reject dialog state
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<AbsenceRequest | null>(null);
   
   const pendingRequests = requests.filter(r => r.status === "Ausstehend");
 
-  const totalFerien = employeeVacation.reduce((sum, e) => sum + e.total, 0);
-  const genommenFerien = employeeVacation.reduce((sum, e) => sum + e.taken, 0);
+  const totalFerien = employeeVacation.reduce((sum: number, e: any) => sum + e.total, 0);
+  const genommenFerien = employeeVacation.reduce((sum: number, e: any) => sum + e.taken, 0);
   const activeFilters = filterType.length + filterRequestStatus.length;
 
   const handleStatClick = (filter: string | null) => {
@@ -171,8 +241,6 @@ const Absences = () => {
     setFilterRequestStatus([]);
   };
 
-  const [searchTerm, setSearchTerm] = useState("");
-
   const filteredRequests = requests.filter(r => {
     const matchesSearch = (r.employee || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || r.status === statusFilter || r.type === statusFilter;
@@ -181,7 +249,7 @@ const Absences = () => {
     return matchesSearch && matchesStatus && matchesFilterType && matchesFilterStatus;
   });
 
-  const handleApprove = (id: number, name: string) => {
+  const handleApprove = (id: string) => {
     approveMutation.mutate(id);
   };
 
@@ -200,6 +268,20 @@ const Absences = () => {
         },
       });
     }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, request: AbsenceRequest) => {
+    e.stopPropagation();
+    setDeleteTarget(request);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id);
+    }
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
   };
 
   return (
@@ -228,9 +310,9 @@ const Absences = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">{totalFerien} Tage</div>
+                <div className="text-2xl font-bold">{totalFerien || 0} Tage</div>
                 <p className="text-sm text-muted-foreground">Ferienanspruch Total</p>
-                <Progress value={(genommenFerien / totalFerien) * 100} className="mt-2" />
+                {totalFerien > 0 && <Progress value={(genommenFerien / totalFerien) * 100} className="mt-2" />}
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
                 <Palmtree className="h-5 w-5 text-success" />
@@ -259,19 +341,21 @@ const Absences = () => {
         </Card>
         <Card 
           className={cn(
-            "cursor-pointer transition-all hover:border-orange-500/50",
-            statusFilter === "Krankheit" && "border-orange-500 ring-2 ring-orange-500/20"
+            "cursor-pointer transition-all hover:border-destructive/50",
+            statusFilter === "Krankheit" && "border-destructive ring-2 ring-destructive/20"
           )}
           onClick={() => handleStatClick("Krankheit")}
         >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">10 Tage</div>
+                <div className="text-2xl font-bold">
+                  {requests.filter(r => r.type === "Krankheit").reduce((s, r) => s + r.days, 0)} Tage
+                </div>
                 <p className="text-sm text-muted-foreground">Krankheitstage (Jahr)</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
-                <Stethoscope className="h-5 w-5 text-orange-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                <Stethoscope className="h-5 w-5 text-destructive" />
               </div>
             </div>
           </CardContent>
@@ -286,7 +370,7 @@ const Absences = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-bold">1</div>
+                <div className="text-2xl font-bold">{requests.filter(r => r.status === "Genehmigt").length}</div>
                 <p className="text-sm text-muted-foreground">Heute abwesend</p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
@@ -401,6 +485,17 @@ const Absences = () => {
 
           <Card>
             <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mb-3 opacity-50" />
+                  <p className="font-medium">Keine Abwesenheiten gefunden</p>
+                  <p className="text-sm">Erstellen Sie eine neue Abwesenheit oder passen Sie die Filter an.</p>
+                </div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -430,14 +525,14 @@ const Absences = () => {
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="text-xs">
-                                {request.employee.split(" ").map(n => n[0]).join("")}
+                                {(request.employee || "").split(" ").map((n: string) => n[0]).join("")}
                               </AvatarFallback>
                             </Avatar>
                             <span className="font-medium">{request.employee}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={type.color}>
+                          <Badge className={type?.color || "bg-muted text-muted-foreground"}>
                             <TypeIcon className="h-3 w-3 mr-1" />
                             {request.type}
                           </Badge>
@@ -447,20 +542,10 @@ const Absences = () => {
                         <TableCell className="text-right font-medium">{request.days}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Badge className={status.color}>
+                            <Badge className={status?.color || "bg-muted text-muted-foreground"}>
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {request.status}
                             </Badge>
-                            {request.status === "Ausstehend" && !AUTO_CONFIRMED_TYPES.includes(request.type) && (
-                              <AbsenceApprovalStatus
-                                absenceType={request.type}
-                                days={request.days}
-                                currentStageIndex={request.currentStageIndex}
-                                approvalHistory={request.approvalHistory}
-                                status={request.status}
-                                compact
-                              />
-                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
@@ -474,11 +559,16 @@ const Absences = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/absences/${request.id}`); }}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Details anzeigen
+                              </DropdownMenuItem>
                               {request.status === "Ausstehend" && (
                                 <>
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem 
                                     className="text-success"
-                                    onClick={(e) => { e.stopPropagation(); handleApprove(request.id, request.employee); }}
+                                    onClick={(e) => { e.stopPropagation(); handleApprove(request.id); }}
                                   >
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     Genehmigen
@@ -492,8 +582,13 @@ const Absences = () => {
                                   </DropdownMenuItem>
                                 </>
                               )}
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/absences/${request.id}`); }}>
-                                Details anzeigen
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={(e) => handleDeleteClick(e, request)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Löschen
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -503,6 +598,7 @@ const Absences = () => {
                   })}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -510,10 +606,16 @@ const Absences = () => {
         <TabsContent value="overview">
           <Card>
             <CardHeader>
-              <CardTitle>Ferienkonten 2024</CardTitle>
+              <CardTitle>Ferienkonten {new Date().getFullYear()}</CardTitle>
               <CardDescription>Anspruch gemäss GAV Metallbau (altersabhängig)</CardDescription>
             </CardHeader>
             <CardContent>
+              {employeeVacation.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mb-3 opacity-50" />
+                  <p className="font-medium">Keine Mitarbeiterdaten verfügbar</p>
+                </div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -527,15 +629,15 @@ const Absences = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employeeVacation.map((emp) => {
-                    const usedPercent = ((emp.taken + emp.planned) / emp.total) * 100;
+                  {employeeVacation.map((emp: any) => {
+                    const usedPercent = emp.total > 0 ? ((emp.taken + emp.planned) / emp.total) * 100 : 0;
                     return (
                       <TableRow key={emp.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="text-xs">
-                                {emp.name.split(" ").map(n => n[0]).join("")}
+                                {emp.name.split(" ").map((n: string) => n[0]).join("")}
                               </AvatarFallback>
                             </Avatar>
                             <div>
@@ -544,7 +646,7 @@ const Absences = () => {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>{emp.age} J.</TableCell>
+                        <TableCell>{emp.age > 0 ? `${emp.age} J.` : "–"}</TableCell>
                         <TableCell className="text-right">{emp.total}</TableCell>
                         <TableCell className="text-right">{emp.taken}</TableCell>
                         <TableCell className="text-right text-info">{emp.planned || "-"}</TableCell>
@@ -560,6 +662,7 @@ const Absences = () => {
                   })}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -632,6 +735,24 @@ const Absences = () => {
           onConfirm={handleRejectConfirm}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Abwesenheit löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && `Möchten Sie die ${deleteTarget.type} von ${deleteTarget.employee} (${deleteTarget.from} - ${deleteTarget.to}) wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

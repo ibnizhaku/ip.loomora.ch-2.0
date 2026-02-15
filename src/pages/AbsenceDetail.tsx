@@ -1,14 +1,46 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, User, Clock, CheckCircle2, XCircle, AlertCircle, FileText, Loader2 } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Calendar, User, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useAbsence, useUpdateAbsence } from "@/hooks/use-absences";
+import { useAbsence, useDeleteAbsence } from "@/hooks/use-absences";
 import { useMemo } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+
+// Backend → Frontend mapping
+const typeMap: Record<string, string> = {
+  VACATION: "Ferien", SICK: "Krankheit", ACCIDENT: "Unfall",
+  MATERNITY: "Mutterschaft", PATERNITY: "Vaterschaft", MILITARY: "Militär",
+  TRAINING: "Weiterbildung", SPECIAL: "Sonderurlaub", UNPAID: "Unbezahlt",
+};
+const statusMap: Record<string, string> = {
+  PENDING: "Ausstehend", APPROVED: "Genehmigt", REJECTED: "Abgelehnt",
+  CANCELLED: "Storniert", CONFIRMED: "Bestätigt",
+};
+const mapType = (raw: string) => typeMap[raw] || raw;
+const mapStatus = (raw: string) => statusMap[raw] || raw;
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr || dateStr === "–") return "–";
+  try { return new Date(dateStr).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" }); }
+  catch { return dateStr; }
+};
 
 const abwesenheitsTypen = [
   { typ: "Ferien", icon: "🏖️", farbe: "bg-success/10 text-success" },
@@ -17,86 +49,114 @@ const abwesenheitsTypen = [
   { typ: "Militär", icon: "🎖️", farbe: "bg-warning/10 text-warning" },
   { typ: "Weiterbildung", icon: "📚", farbe: "bg-info/10 text-info" },
   { typ: "Unbezahlt", icon: "📋", farbe: "bg-muted text-muted-foreground" },
+  { typ: "Mutterschaft", icon: "👶", farbe: "bg-primary/10 text-primary" },
+  { typ: "Vaterschaft", icon: "👶", farbe: "bg-primary/10 text-primary" },
+  { typ: "Sonderurlaub", icon: "📅", farbe: "bg-muted text-muted-foreground" },
 ];
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  beantragt: { label: "Beantragt", color: "bg-warning/10 text-warning", icon: Clock },
-  Ausstehend: { label: "Ausstehend", color: "bg-warning/10 text-warning", icon: Clock },
-  pending: { label: "Beantragt", color: "bg-warning/10 text-warning", icon: Clock },
-  genehmigt: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
-  Genehmigt: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
-  approved: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
-  abgelehnt: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
-  Abgelehnt: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
-  rejected: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
-  storniert: { label: "Storniert", color: "bg-muted text-muted-foreground", icon: AlertCircle },
-  cancelled: { label: "Storniert", color: "bg-muted text-muted-foreground", icon: AlertCircle },
+  "Ausstehend": { label: "Ausstehend", color: "bg-warning/10 text-warning", icon: Clock },
+  "Genehmigt": { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  "Bestätigt": { label: "Bestätigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  "Abgelehnt": { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: XCircle },
+  "Storniert": { label: "Storniert", color: "bg-muted text-muted-foreground", icon: AlertCircle },
 };
 
 export default function AbsenceDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: apiData, isLoading, error } = useAbsence(id || "");
-  const updateMutation = useUpdateAbsence();
+  const deleteMutation = useDeleteAbsence();
+
+  // Approve/Reject via dedicated endpoints
+  const approveMutation = useMutation({
+    mutationFn: () => api.post(`/absences/${id}/approve`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
+      queryClient.invalidateQueries({ queryKey: ["absences", id] });
+      toast.success("Abwesenheit genehmigt");
+    },
+    onError: () => toast.error("Fehler beim Genehmigen"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (reason?: string) => api.post(`/absences/${id}/reject`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
+      queryClient.invalidateQueries({ queryKey: ["absences", id] });
+      toast.success("Abwesenheit abgelehnt");
+    },
+    onError: () => toast.error("Fehler beim Ablehnen"),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => api.post(`/absences/${id}/cancel`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
+      queryClient.invalidateQueries({ queryKey: ["absences", id] });
+      toast.success("Abwesenheit storniert");
+    },
+    onError: () => toast.error("Fehler beim Stornieren"),
+  });
 
   const abwesenheitData = useMemo(() => {
     if (!apiData) return null;
     return {
       id: apiData.id || id,
-      mitarbeiter: apiData.employee ? `${apiData.employee.firstName} ${apiData.employee.lastName}` : (apiData as any).employeeName || "–",
+      mitarbeiter: apiData.employee ? `${apiData.employee.firstName} ${apiData.employee.lastName}` : "–",
       personalNr: apiData.employeeId || "",
-      abteilung: (apiData as any).department || "–",
-      typ: apiData.type || "Ferien",
-      status: apiData.status || "beantragt",
-      von: apiData.startDate || "–",
-      bis: apiData.endDate || "–",
-      tage: apiData.days || 0,
+      abteilung: (apiData as any).department || (apiData as any).employee?.department?.name || "–",
+      typ: mapType(apiData.type || ""),
+      status: mapStatus(apiData.status || ""),
+      von: formatDate(apiData.startDate || ""),
+      bis: formatDate(apiData.endDate || ""),
+      tage: Number(apiData.days) || 0,
       stunden: (apiData as any).hours || 0,
-      bemerkung: apiData.reason || "",
-      beantragtAm: (apiData as any).requestedAt || (apiData as any).createdAt || "–",
+      bemerkung: apiData.reason || (apiData as any).notes || "",
+      beantragtAm: formatDate((apiData as any).createdAt || ""),
       genehmigtVon: apiData.approvedBy || "–",
-      genehmigtAm: apiData.approvedAt || "–",
+      genehmigtAm: formatDate(apiData.approvedAt || ""),
       vertretung: (apiData as any).substitute || "–",
     };
   }, [apiData, id]);
 
+  // Map kontingent from backend response
   const kontingent = useMemo(() => {
-    const k = (apiData as any)?.quota || (apiData as any)?.contingent;
+    const k = (apiData as any)?.kontingent || (apiData as any)?.quota || (apiData as any)?.contingent;
     return {
-      ferienTotal: k?.total || 25,
-      ferienGenommen: k?.taken || 0,
+      ferienTotal: k?.vacationDays || k?.total || 25,
+      ferienGenommen: k?.usedVacation || k?.taken || 0,
       ferienGeplant: k?.planned || 0,
-      ferienRest: k?.remaining || 0,
+      ferienRest: k?.remainingVacation || k?.remaining || 0,
       überstundenSaldo: k?.overtimeBalance || 0,
     };
   }, [apiData]);
 
+  // Map verlauf from backend
   const verlauf = useMemo(() => {
-    return (apiData as any)?.history || (apiData as any)?.approvalHistory || [];
+    const raw = (apiData as any)?.verlauf || (apiData as any)?.history || (apiData as any)?.approvalHistory || [];
+    return raw.map((v: any) => ({
+      datum: formatDate(v.startDate || v.date || v.datum || v.createdAt || ""),
+      aktion: mapType(v.type || v.action || v.aktion || ""),
+      status: mapStatus(v.status || ""),
+      user: v.user || v.approvedBy || "",
+      notiz: v.reason || v.note || v.notiz || "",
+    }));
   }, [apiData]);
 
-  const handleApprove = () => {
+  const handleDelete = () => {
     if (!id) return;
-    updateMutation.mutate({ id, data: { status: "approved" } }, {
-      onSuccess: () => toast.success("Abwesenheit genehmigt"),
-      onError: () => toast.error("Fehler beim Genehmigen"),
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("Abwesenheit gelöscht");
+        navigate("/absences");
+      },
+      onError: () => toast.error("Fehler beim Löschen"),
     });
   };
 
-  const handleReject = () => {
-    if (!id) return;
-    updateMutation.mutate({ id, data: { status: "rejected" } }, {
-      onSuccess: () => toast.success("Abwesenheit abgelehnt"),
-      onError: () => toast.error("Fehler beim Ablehnen"),
-    });
-  };
-
-  const handleCancel = () => {
-    if (!id) return;
-    updateMutation.mutate({ id, data: { status: "cancelled" } }, {
-      onSuccess: () => toast.success("Abwesenheit storniert"),
-      onError: () => toast.error("Fehler beim Stornieren"),
-    });
-  };
+  const isPending = approveMutation.isPending || rejectMutation.isPending || cancelMutation.isPending;
 
   if (isLoading) {
     return (
@@ -116,10 +176,9 @@ export default function AbsenceDetail() {
   }
 
   const currentTyp = abwesenheitsTypen.find(t => t.typ === abwesenheitData.typ);
-  const statusInfo = statusConfig[abwesenheitData.status] || statusConfig.beantragt;
+  const statusInfo = statusConfig[abwesenheitData.status] || statusConfig["Ausstehend"];
   const StatusIcon = statusInfo.icon;
   const ferienVerbraucht = kontingent.ferienTotal > 0 ? ((kontingent.ferienGenommen + kontingent.ferienGeplant) / kontingent.ferienTotal) * 100 : 0;
-  const isPending = updateMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -132,35 +191,58 @@ export default function AbsenceDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">{abwesenheitData.id}</h1>
+            <h1 className="font-display text-2xl font-bold">{abwesenheitData.typ}</h1>
             <Badge className={statusInfo.color}>
               <StatusIcon className="mr-1 h-3 w-3" />
               {statusInfo.label}
             </Badge>
-            <Badge className={currentTyp?.farbe}>
-              {currentTyp?.icon} {abwesenheitData.typ}
-            </Badge>
+            {currentTyp && (
+              <Badge className={currentTyp.farbe}>
+                {currentTyp.icon} {abwesenheitData.typ}
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground">{abwesenheitData.mitarbeiter} • {abwesenheitData.abteilung}</p>
         </div>
-        <div className="flex gap-2">
-          {(abwesenheitData.status === "beantragt" || abwesenheitData.status === "Ausstehend" || abwesenheitData.status === "pending") && (
+        <div className="flex gap-2 flex-wrap">
+          {abwesenheitData.status === "Ausstehend" && (
             <>
-              <Button variant="outline" className="text-destructive" onClick={handleReject} disabled={isPending}>
+              <Button variant="outline" className="text-destructive" onClick={() => rejectMutation.mutate("")} disabled={isPending}>
                 <XCircle className="mr-2 h-4 w-4" />
                 Ablehnen
               </Button>
-              <Button onClick={handleApprove} disabled={isPending}>
+              <Button onClick={() => approveMutation.mutate()} disabled={isPending}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Genehmigen
               </Button>
             </>
           )}
-          {(abwesenheitData.status === "genehmigt" || abwesenheitData.status === "Genehmigt" || abwesenheitData.status === "approved") && (
-            <Button variant="outline" onClick={handleCancel} disabled={isPending}>
+          {abwesenheitData.status === "Genehmigt" && (
+            <Button variant="outline" onClick={() => cancelMutation.mutate()} disabled={isPending}>
               Stornieren
             </Button>
           )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="icon" className="text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Abwesenheit löschen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Diese Aktion kann nicht rückgängig gemacht werden.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Löschen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -200,7 +282,7 @@ export default function AbsenceDetail() {
             <div className="flex items-center gap-4">
               <Avatar className="h-12 w-12">
                 <AvatarFallback>
-                  {abwesenheitData.mitarbeiter.split(" ").map(n => n[0]).join("")}
+                  {abwesenheitData.mitarbeiter.split(" ").map((n: string) => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -218,7 +300,7 @@ export default function AbsenceDetail() {
                   <p className="text-sm text-muted-foreground mb-1">Vertretung</p>
                   <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">{abwesenheitData.vertretung.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                      <AvatarFallback className="text-xs">{abwesenheitData.vertretung.split(" ").map((n: string) => n[0]).join("")}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{abwesenheitData.vertretung}</span>
                   </div>
@@ -243,7 +325,7 @@ export default function AbsenceDetail() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Ferienkontingent 2024</CardTitle>
+              <CardTitle>Ferienkontingent {new Date().getFullYear()}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -296,7 +378,7 @@ export default function AbsenceDetail() {
               {abwesenheitData.genehmigtVon && abwesenheitData.genehmigtVon !== "–" ? (
                 <div className="flex items-center gap-2 mt-1">
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{abwesenheitData.genehmigtVon.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{abwesenheitData.genehmigtVon.split(" ").map((n: string) => n[0]).join("")}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{abwesenheitData.genehmigtVon}</span>
                 </div>
@@ -322,11 +404,12 @@ export default function AbsenceDetail() {
             <div className="space-y-4">
               {verlauf.map((v: any, i: number) => (
                 <div key={i} className="flex gap-4 pb-4 border-b last:border-0">
-                  <div className="text-sm text-muted-foreground w-36">{v.datum || v.date || ""}</div>
+                  <div className="text-sm text-muted-foreground w-36">{v.datum}</div>
                   <div className="flex-1">
-                    <Badge variant="outline">{v.aktion || v.action || ""}</Badge>
-                    <span className="ml-2 text-sm">durch {v.user || ""}</span>
-                    {(v.notiz || v.note) && <p className="text-sm text-muted-foreground mt-1">{v.notiz || v.note}</p>}
+                    <Badge variant="outline">{v.aktion}</Badge>
+                    {v.status && <Badge className="ml-2" variant="secondary">{v.status}</Badge>}
+                    {v.user && <span className="ml-2 text-sm">durch {v.user}</span>}
+                    {v.notiz && <p className="text-sm text-muted-foreground mt-1">{v.notiz}</p>}
                   </div>
                 </div>
               ))}
