@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,21 @@ import { useEmployees } from "@/hooks/use-employees";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+const absenceTypes = [
+  { value: "VACATION", label: "Ferien" },
+  { value: "SICK", label: "Krankheit" },
+  { value: "ACCIDENT", label: "Unfall" },
+  { value: "MATERNITY", label: "Mutterschaft" },
+  { value: "PATERNITY", label: "Vaterschaft" },
+  { value: "MILITARY", label: "Militär" },
+  { value: "TRAINING", label: "Weiterbildung" },
+  { value: "SPECIAL", label: "Sonderurlaub" },
+  { value: "UNPAID", label: "Unbezahlter Urlaub" },
+];
+
 export default function AbsenceCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { data: employeesData, isLoading: employeesLoading } = useEmployees({ pageSize: 200 });
   const employees = (employeesData as any)?.data || employeesData || [];
@@ -25,6 +38,14 @@ export default function AbsenceCreate() {
     endDate: "",
     notes: "",
   });
+
+  // Pre-fill employeeId from URL params
+  useEffect(() => {
+    const empId = searchParams.get("employeeId") || searchParams.get("employee");
+    if (empId) {
+      setFormData(prev => ({ ...prev, employeeId: empId }));
+    }
+  }, [searchParams]);
 
   const createAbsence = useMutation({
     mutationFn: (data: typeof formData) => api.post("/absences", data),
@@ -87,11 +108,9 @@ export default function AbsenceCreate() {
                 <SelectValue placeholder="Typ auswählen" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="vacation">Ferien</SelectItem>
-                <SelectItem value="sick">Krankheit</SelectItem>
-                <SelectItem value="unpaid">Unbezahlter Urlaub</SelectItem>
-                <SelectItem value="training">Weiterbildung</SelectItem>
-                <SelectItem value="other">Sonstiges</SelectItem>
+                {absenceTypes.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
