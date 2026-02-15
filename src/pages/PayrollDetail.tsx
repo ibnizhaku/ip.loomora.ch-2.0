@@ -109,7 +109,7 @@ export default function PayrollDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="space-y-4">
         <div className="flex items-center gap-4">
           <Link to="/payroll">
             <Button variant="ghost" size="icon">
@@ -128,7 +128,7 @@ export default function PayrollDetail() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm">
             <Printer className="h-4 w-4 mr-2" />
             Drucken
