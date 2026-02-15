@@ -171,6 +171,8 @@ const Absences = () => {
     setFilterRequestStatus([]);
   };
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const filteredRequests = requests.filter(r => {
     const matchesSearch = (r.employee || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || r.status === statusFilter || r.type === statusFilter;
@@ -178,8 +180,6 @@ const Absences = () => {
     const matchesFilterStatus = filterRequestStatus.length === 0 || filterRequestStatus.includes(r.status);
     return matchesSearch && matchesStatus && matchesFilterType && matchesFilterStatus;
   });
-
-  const [searchTerm, setSearchTerm] = useState("");
 
   const handleApprove = (id: number, name: string) => {
     approveMutation.mutate(id);
