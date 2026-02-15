@@ -1,8 +1,9 @@
 import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useCompletePayrollRun } from "@/hooks/use-payroll";
-import { ArrowLeft, Loader2, Users, CheckCircle, FileText, Printer, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Users, CheckCircle, FileText, Printer, Send, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { generatePayslipPdf } from "@/lib/payslip-pdf";
 
 function formatCHF(v?: number | null) {
   return `CHF ${(Number(v) || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
@@ -29,6 +41,7 @@ function formatDate(d?: string | null) {
 export default function PayrollDetail() {
   const { id } = useParams();
   const completeRun = useCompletePayrollRun();
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 
   const { data: payroll, isLoading, error } = useQuery({
     queryKey: ["/payroll", id],
@@ -41,9 +54,35 @@ export default function PayrollDetail() {
   const handleComplete = () => {
     if (!id) return;
     completeRun.mutate(id, {
-      onSuccess: () => toast.success("Lohnlauf erfolgreich abgeschlossen"),
+      onSuccess: () => {
+        toast.success("Lohnlauf erfolgreich abgeschlossen");
+        setShowCompleteDialog(false);
+      },
       onError: (err: any) => toast.error(err?.message || "Fehler beim Abschliessen"),
     });
+  };
+
+  const handlePayslipPdf = (ps: any) => {
+    try {
+      generatePayslipPdf({
+        employeeName: ps.name || `${ps.firstName || ""} ${ps.lastName || ""}`.trim() || "Mitarbeiter",
+        position: ps.position || "—",
+        ahvNumber: ps.ahvNumber || ps.employee?.ahvNumber || "",
+        period: payroll?.period || "",
+        periodStart: payroll?.periodStart,
+        periodEnd: payroll?.periodEnd,
+        grossSalary: Number(ps.bruttoLohn || ps.grossSalary || 0),
+        netSalary: Number(ps.nettoLohn || ps.netSalary || 0),
+        earnings: ps.earnings || [],
+        deductions: ps.deductions || [],
+        employerName: ps.employer?.name || payroll?.companyName || "Arbeitgeber",
+        employerAddress: ps.employer?.address || "",
+        bankAccount: ps.bankAccount,
+      });
+      toast.success("PDF wurde erstellt");
+    } catch {
+      toast.error("Fehler bei der PDF-Erstellung");
+    }
   };
 
   if (isLoading) {
@@ -105,7 +144,7 @@ export default function PayrollDetail() {
           {isDraft && (
             <Button
               size="sm"
-              onClick={handleComplete}
+              onClick={() => setShowCompleteDialog(true)}
               disabled={completeRun.isPending}
             >
               {completeRun.isPending ? (
@@ -165,6 +204,7 @@ export default function PayrollDetail() {
                   <TableHead className="text-right">Brutto</TableHead>
                   <TableHead className="text-right">Netto</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aktion</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -178,6 +218,11 @@ export default function PayrollDetail() {
                     <TableCell className="text-right">{formatCHF(ps.nettoLohn || ps.netSalary)}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{ps.status || "Entwurf"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handlePayslipPdf(ps)} title="PDF herunterladen">
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -207,6 +252,32 @@ export default function PayrollDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bestätigungsdialog für Abschluss */}
+      <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lohnlauf abschliessen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dieser Lohnlauf für <strong>{payroll.period}</strong> mit{" "}
+              <strong>{payslips.length} Mitarbeiter(n)</strong> und einem Nettolohn von{" "}
+              <strong>{formatCHF(netTotal)}</strong> wird unwiderruflich abgeschlossen.
+              Danach können keine Änderungen mehr vorgenommen werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={completeRun.isPending}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleComplete} disabled={completeRun.isPending}>
+              {completeRun.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Ja, abschliessen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
