@@ -56,6 +56,8 @@ import {
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePayslips } from "@/hooks/use-payroll";
+import { CreditCard } from "lucide-react";
 
 // Onboarding checklist items
 interface OnboardingItem {
@@ -82,6 +84,8 @@ const EmployeeDetail = () => {
     queryFn: () => api.get<any>(`/employees/${id}`),
     enabled: !!id,
   });
+
+  const { data: payslipsData } = usePayslips({ employeeId: id });
 
   const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>([]);
   const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);
@@ -336,6 +340,7 @@ const EmployeeDetail = () => {
           <TabsTrigger value="projects">Projekte</TabsTrigger>
           <TabsTrigger value="timeoff">Abwesenheiten</TabsTrigger>
           <TabsTrigger value="documents">Dokumente</TabsTrigger>
+          <TabsTrigger value="payslips">Lohnabrechnungen</TabsTrigger>
           <TabsTrigger value="salary">Gehalt</TabsTrigger>
         </TabsList>
 
@@ -638,6 +643,70 @@ const EmployeeDetail = () => {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payslips">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Lohnabrechnungen
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => navigate("/payroll")}>
+                Zur Lohnbuchhaltung
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {payslipsData?.data && payslipsData.data.length > 0 ? (
+                <div className="space-y-3">
+                  {payslipsData.data.map((slip) => {
+                    const statusMap: Record<string, { label: string; class: string }> = {
+                      paid: { label: "Ausbezahlt", class: "bg-success/10 text-success" },
+                      pending: { label: "Ausstehend", class: "bg-warning/10 text-warning" },
+                      draft: { label: "Entwurf", class: "bg-muted text-muted-foreground" },
+                    };
+                    const st = statusMap[slip.status] || { label: slip.status, class: "bg-muted text-muted-foreground" };
+                    return (
+                      <div
+                        key={slip.id}
+                        className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/payroll/payslip/${slip.id}`)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{slip.period}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {slip.paymentDate ? new Date(slip.paymentDate).toLocaleDateString("de-CH") : "Kein Zahlungsdatum"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="font-medium">
+                              {slip.netSalary
+                                ? new Intl.NumberFormat("de-CH", { style: "currency", currency: "CHF" }).format(slip.netSalary)
+                                : "–"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Netto</p>
+                          </div>
+                          <Badge className={st.class}>{st.label}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CreditCard className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p>Keine Lohnabrechnungen vorhanden</p>
+                  <p className="text-sm mt-1">Lohnabrechnungen werden über die Lohnbuchhaltung erstellt.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
