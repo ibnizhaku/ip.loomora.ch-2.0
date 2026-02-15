@@ -119,17 +119,96 @@ export class MembershipService {
     const company = membership.company;
     const subscription = company.subscriptions[0] || null;
 
-    // Permissions extrahieren
-    const permissions = membership.role.permissions.map(
+    // Permissions aus Rolle extrahieren
+    const rolePermissions = membership.role.permissions.map(
       (p) => `${p.module}:${p.permission}`,
     );
+
+    // UserPermissionOverrides laden und mit Rollen-Defaults mergen
+    const overrides = await this.prisma.userPermissionOverride.findMany({
+      where: { userId, companyId },
+    });
+
+    // Backend-Module-Key → German-Name mapping (Umkehr der Frontend-Map)
+    const REVERSE_MODULE_MAP: Record<string, string> = {
+      'dashboard': 'Dashboard',
+      'projects': 'Projekte',
+      'tasks': 'Aufgaben',
+      'time-entries': 'Zeiterfassung',
+      'production': 'Produktion',
+      'bom': 'Stücklisten',
+      'customers': 'Kunden',
+      'invoices': 'Rechnungen',
+      'finance': 'Buchhaltung',
+      'employees': 'Personal',
+      'settings': 'Einstellungen',
+    };
+
+    // German-Name → Backend-Module-Key
+    const MODULE_KEY_MAP: Record<string, string> = {
+      'Dashboard': 'dashboard',
+      'Projekte': 'projects',
+      'Aufgaben': 'tasks',
+      'Zeiterfassung': 'time-entries',
+      'Produktion': 'production',
+      'Stücklisten': 'bom',
+      'Kunden': 'customers',
+      'Rechnungen': 'invoices',
+      'Buchhaltung': 'finance',
+      'Personal': 'employees',
+      'Einstellungen': 'settings',
+    };
+
+    if (overrides.length > 0) {
+      // Build override map: German module name → override entry
+      const overrideMap = new Map(overrides.map(o => [o.module, o]));
+
+      // Collect all unique backend module keys from role permissions
+      const roleModules = new Set(membership.role.permissions.map(p => p.module));
+
+      // Start with role permissions as base
+      const mergedPermSet = new Set<string>();
+
+      // Process each backend module
+      const allModuleKeys = new Set([
+        ...roleModules,
+        ...overrides.map(o => MODULE_KEY_MAP[o.module] || o.module.toLowerCase()),
+      ]);
+
+      for (const moduleKey of allModuleKeys) {
+        const germanName = REVERSE_MODULE_MAP[moduleKey] || moduleKey;
+        const override = overrideMap.get(germanName);
+
+        if (override) {
+          // Override replaces role defaults for this module
+          if (override.canRead) mergedPermSet.add(`${moduleKey}:read`);
+          if (override.canWrite) mergedPermSet.add(`${moduleKey}:write`);
+          if (override.canDelete) mergedPermSet.add(`${moduleKey}:delete`);
+        } else {
+          // Use role defaults for this module
+          for (const rp of membership.role.permissions) {
+            if (rp.module === moduleKey) {
+              mergedPermSet.add(`${rp.module}:${rp.permission}`);
+            }
+          }
+        }
+      }
+
+      return {
+        membership,
+        company,
+        subscription,
+        role: membership.role,
+        permissions: Array.from(mergedPermSet),
+      };
+    }
 
     return {
       membership,
       company,
       subscription,
       role: membership.role,
-      permissions,
+      permissions: rolePermissions,
     };
   }
 
