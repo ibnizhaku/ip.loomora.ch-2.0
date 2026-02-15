@@ -59,7 +59,7 @@ import { ContractsModule } from './modules/contracts/contracts.module';
 // Recruiting
 import { RecruitingModule } from './modules/recruiting/recruiting.module';
 // Training
-// import { TrainingModule } from './modules/training/training.module'; // Disabled: department type issues
+import { TrainingModule } from './modules/training/training.module';
 // Bank Import (camt.054)
 import { BankImportModule } from './modules/bank-import/bank-import.module';
 // Documents (DMS)
@@ -143,7 +143,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     // Recruiting
     RecruitingModule,
     // Training
-    // TrainingModule,
+    TrainingModule,
     // Bank Import (camt.054)
     BankImportModule,
     // Documents (DMS)
