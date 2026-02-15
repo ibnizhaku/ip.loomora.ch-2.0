@@ -80,13 +80,28 @@ export class CustomersService {
         projects: {
           take: 5,
           orderBy: { createdAt: 'desc' },
+          include: {
+            tasks: {
+              select: { id: true, title: true, status: true, dueDate: true },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
         },
         invoices: {
           take: 5,
           orderBy: { createdAt: 'desc' },
         },
+        deliveryNotes: {
+          select: { id: true, number: true, status: true, date: true },
+          orderBy: { createdAt: 'desc' },
+        },
+        orders: {
+          select: { id: true, number: true, status: true, date: true, totalAmount: true },
+          orderBy: { createdAt: 'desc' },
+        },
+        contacts: true,
         _count: {
-          select: { projects: true, invoices: true, quotes: true, orders: true },
+          select: { projects: true, invoices: true, quotes: true, orders: true, deliveryNotes: true },
         },
       },
     });
@@ -108,8 +123,14 @@ export class CustomersService {
       },
     });
 
+    // Flatten tasks from all projects for convenience
+    const tasks = customer.projects.flatMap((p) =>
+      (p as any).tasks?.map((t: any) => ({ ...t, projectId: p.id, projectName: p.name })) || []
+    );
+
     return {
       ...customer,
+      tasks,
       totalRevenue: invoiceStats._sum.totalAmount || 0,
       totalPaid: invoiceStats._sum.paidAmount || 0,
       openInvoices,
