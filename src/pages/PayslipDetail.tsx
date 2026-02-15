@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Download, Mail, Printer, Calendar, User, Building2, CreditCard, FileText, Clock, Calculator, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePayslip, useSendPayslip } from "@/hooks/use-payroll";
-import { downloadPdf } from "@/lib/api";
+import { generatePayslipPdf } from "@/lib/payslip-pdf";
 
 const getStatusConfig = (status: string) => {
   switch (status) {
@@ -95,7 +95,26 @@ export default function PayslipDetail() {
   const handlePrint = () => { window.print(); };
 
   const handlePdfExport = () => {
-    downloadPdf('invoices' as any, id!, `Lohnabrechnung_${payslipData.period}.pdf`);
+    try {
+      generatePayslipPdf({
+        employeeName: payslipData.employee.name,
+        position: payslipData.employee.position,
+        ahvNumber: payslipData.employee.ahvNumber,
+        period: payslipData.period,
+        periodStart: payslipData.periodStart,
+        periodEnd: payslipData.periodEnd,
+        grossSalary: grossSalary,
+        netSalary: netSalary,
+        earnings: payslipData.earnings,
+        deductions: payslipData.deductions,
+        employerName: payslipData.employer.name,
+        employerAddress: payslipData.employer.address,
+        bankAccount: payslipData.bankAccount,
+      });
+      toast.success("PDF wurde erstellt");
+    } catch {
+      toast.error("Fehler bei der PDF-Erstellung");
+    }
   };
 
   return (
@@ -284,9 +303,7 @@ export default function PayslipDetail() {
               <Button variant="outline" className="w-full justify-start" onClick={() => navigate(`/payroll`)}>
                 <FileText className="h-4 w-4 mr-2" />Jahresübersicht
               </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={() => {
-                downloadPdf('invoices' as any, id!, `Lohnausweis_${payslipData.employee.name}.pdf`);
-              }}>
+              <Button variant="outline" className="w-full justify-start" onClick={handlePdfExport}>
                 <FileText className="h-4 w-4 mr-2" />Lohnausweis generieren
               </Button>
             </CardContent>

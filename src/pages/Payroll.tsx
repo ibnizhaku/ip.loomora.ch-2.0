@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useCompletePayrollRun } from "@/hooks/use-payroll";
 import { 
   Search, 
   Filter,
@@ -69,6 +70,7 @@ const formatCHF = (amount: number | undefined | null) => {
 
 const Payroll = () => {
   const navigate = useNavigate();
+  const completeRunMutation = useCompletePayrollRun();
   const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/payroll") });
   const payrollRuns: any[] = apiData?.payrollRuns || [];
   const employeePayroll: any[] = apiData?.data || [];
@@ -123,13 +125,18 @@ const Payroll = () => {
   };
 
   const handleLohnlaufAbschliessen = () => {
-    setShowAbschliessenDialog(false);
-    toast.success("Lohnlauf Februar 2024 wird abgeschlossen...");
-    setTimeout(() => {
-      toast.success("Lohnlauf erfolgreich abgeschlossen", {
-        description: "Alle Lohnabrechnungen wurden finalisiert"
-      });
-    }, 1500);
+    if (!currentRun?.id) return;
+    completeRunMutation.mutate(currentRun.id, {
+      onSuccess: () => {
+        setShowAbschliessenDialog(false);
+        toast.success("Lohnlauf erfolgreich abgeschlossen", {
+          description: "Alle Lohnabrechnungen wurden finalisiert"
+        });
+      },
+      onError: (err: any) => {
+        toast.error(err?.message || "Fehler beim Abschliessen");
+      },
+    });
   };
 
   const filteredEmployees = employeePayroll.filter(e => {
@@ -267,7 +274,10 @@ const Payroll = () => {
                 <Badge className={(statusConfig[currentRun.status] || defaultPayrollStatus).color}>
                   {currentRun.status}
                 </Badge>
-                <Button onClick={() => setShowAbschliessenDialog(true)}>
+                <Button onClick={() => navigate(`/payroll/${currentRun.id}`)}>
+                  Details
+                </Button>
+                <Button onClick={() => setShowAbschliessenDialog(true)} disabled={completeRunMutation.isPending}>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Abschliessen
                 </Button>
@@ -312,11 +322,15 @@ const Payroll = () => {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAbschliessenDialog(false)}>
+            <Button variant="outline" onClick={() => setShowAbschliessenDialog(false)} disabled={completeRunMutation.isPending}>
               Abbrechen
             </Button>
-            <Button onClick={handleLohnlaufAbschliessen}>
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+            <Button onClick={handleLohnlaufAbschliessen} disabled={completeRunMutation.isPending}>
+              {completeRunMutation.isPending ? (
+                <Calculator className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
               Jetzt abschliessen
             </Button>
           </DialogFooter>
