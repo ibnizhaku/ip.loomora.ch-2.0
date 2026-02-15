@@ -2125,7 +2125,7 @@ model PayrollRun {
   
   payslips        Payslip[]
   
-  @@unique([companyId, period])
+  @@index([companyId, period])
   @@index([companyId])
   @@map("payroll_runs")
 }
@@ -2170,7 +2170,7 @@ model Payslip {
   // Relations - ALL line items stored here (earnings, deductions, expenses, employer contributions)
   items           PayslipItem[]
   
-  @@unique([employeeId, year, month])
+  @@index([employeeId, year, month])
   @@index([employeeId])
   @@index([year, month])
   @@index([payrollRunId])

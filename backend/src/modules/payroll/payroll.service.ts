@@ -19,7 +19,8 @@ const MONTH_NAMES_DE = [
 const PAYSLIP_STATUS_MAP: Record<string, string> = {
   DRAFT: 'Entwurf',
   PENDING: 'In Bearbeitung',
-  PAID: 'Abgeschlossen',
+  PAID: 'Ausbezahlt',
+  COMPLETED: 'Abgeschlossen',
   CANCELLED: 'Storniert',
 };
 
@@ -27,6 +28,7 @@ const RUN_STATUS_MAP: Record<string, string> = {
   DRAFT: 'Entwurf',
   PROCESSING: 'In Bearbeitung',
   COMPLETED: 'Abgeschlossen',
+  PAID: 'Ausbezahlt',
 };
 
 @Injectable()
@@ -45,10 +47,15 @@ export class PayrollService {
       const run = await this.prisma.payrollRun.findFirst({
         where: { id, companyId },
         include: {
+          company: { select: { name: true, street: true, city: true, zipCode: true } },
           payslips: {
             include: {
-              employee: true,
-              items: true,
+              employee: {
+                include: {
+                  department: { select: { name: true } },
+                },
+              },
+              items: { orderBy: { sortOrder: 'asc' } },
             },
           },
         },
@@ -66,13 +73,57 @@ export class PayrollService {
         ? `${MONTH_NAMES_DE[m]} ${y}`
         : run.period;
 
-      // Map payslips safely
+      const company = (run as any).company || {};
+
+      // Map payslips with full detail for PayrollDetail page
       const mappedPayslips = (run.payslips || []).map(ps => {
         try {
-          return this.mapPayslipToFrontend(ps as any);
+          const emp = (ps as any).employee || {};
+          const items = (ps as any).items || [];
+          const gross = Number(ps.grossSalary || 0);
+          const net = Number(ps.netSalary || 0);
+
+          const earnings = items
+            .filter((i: any) => i.category === 'EARNING')
+            .map((i: any) => ({ description: i.description, amount: Number(i.amount), type: i.type }));
+          const deductions = items
+            .filter((i: any) => i.category === 'DEDUCTION')
+            .map((i: any) => ({ description: i.description, amount: Number(i.amount), rate: i.rate ? Number(i.rate) : null, type: i.type }));
+
+          return {
+            id: ps.id,
+            employeeId: ps.employeeId,
+            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unbekannt',
+            firstName: emp.firstName || '',
+            lastName: emp.lastName || '',
+            position: emp.position || '',
+            department: emp.department?.name || '',
+            ahvNumber: emp.ahvNumber || '',
+            grossSalary: gross,
+            netSalary: net,
+            bruttoLohn: gross,
+            nettoLohn: net,
+            ahvIvEo: this.sumItemsByType(items, ['ahv', 'social', 'ahv_iv_eo']) || gross * RATES.AHV_IV_EO / 100,
+            alv: this.sumItemsByType(items, ['alv', 'unemployment']) || gross * RATES.ALV / 100,
+            bvg: this.sumItemsByType(items, ['bvg', 'pension']) || gross * RATES.BVG / 100,
+            nbuKtg: this.sumItemsByType(items, ['nbu', 'ktg', 'insurance', 'accident']) || gross * (RATES.NBU + RATES.KTG) / 100,
+            quellensteuer: this.sumItemsByType(items, ['quellensteuer', 'tax', 'withholding']) || 0,
+            status: PAYSLIP_STATUS_MAP[ps.status] || ps.status,
+            year: ps.year,
+            month: ps.month,
+            earnings,
+            deductions,
+            bankAccount: {
+              iban: emp.iban || '',
+              bank: '',
+            },
+            employer: {
+              name: company.name || '',
+              address: [company.street, `${company.zipCode || ''} ${company.city || ''}`].filter(Boolean).join(', '),
+            },
+          };
         } catch {
-          // Fallback for broken payslip data
-          const emp = (ps as any).employee;
+          const emp = (ps as any).employee || {};
           return {
             id: ps.id,
             employeeId: ps.employeeId,
@@ -80,12 +131,16 @@ export class PayrollService {
             firstName: emp?.firstName || '',
             lastName: emp?.lastName || '',
             position: emp?.position || '',
+            grossSalary: Number(ps.grossSalary || 0),
+            netSalary: Number(ps.netSalary || 0),
             bruttoLohn: Number(ps.grossSalary || 0),
             nettoLohn: Number(ps.netSalary || 0),
             ahvIvEo: 0, alv: 0, bvg: 0, nbuKtg: 0, quellensteuer: 0,
             status: PAYSLIP_STATUS_MAP[ps.status] || ps.status,
             year: ps.year,
             month: ps.month,
+            earnings: [],
+            deductions: [],
           };
         }
       });
@@ -107,6 +162,7 @@ export class PayrollService {
         netTotal: Number(run.netTotal || 0),
         createdAt: run.createdAt?.toISOString() || null,
         updatedAt: run.updatedAt?.toISOString() || null,
+        companyName: company.name || '',
         data: mappedPayslips,
         payrollRuns: [{
           id: run.id,
@@ -148,19 +204,22 @@ export class PayrollService {
       throw new BadRequestException('Ungültige Periode. Format: YYYY-MM');
     }
 
-    // Check for existing run — delete old one and recreate
+    // Check for existing run in same period
     const existing = await this.prisma.payrollRun.findFirst({
       where: { companyId, period: dto.period },
       include: { payslips: { select: { id: true } } },
     });
     if (existing) {
-      // Delete old payslip items, then payslips, then the run
-      const payslipIds = existing.payslips.map(ps => ps.id);
-      if (payslipIds.length > 0) {
-        await this.prisma.payslipItem.deleteMany({ where: { payslipId: { in: payslipIds } } });
-        await this.prisma.payslip.deleteMany({ where: { id: { in: payslipIds } } });
+      if (existing.status === 'DRAFT' || existing.status === 'PROCESSING') {
+        // Delete DRAFT/PROCESSING run and recreate
+        const payslipIds = existing.payslips.map(ps => ps.id);
+        if (payslipIds.length > 0) {
+          await this.prisma.payslipItem.deleteMany({ where: { payslipId: { in: payslipIds } } });
+          await this.prisma.payslip.deleteMany({ where: { id: { in: payslipIds } } });
+        }
+        await this.prisma.payrollRun.delete({ where: { id: existing.id } });
       }
-      await this.prisma.payrollRun.delete({ where: { id: existing.id } });
+      // COMPLETED/PAID runs are kept — a new run for the same period is still created
     }
 
     // Default period dates
@@ -500,77 +559,96 @@ export class PayrollService {
    * POST /payroll/:id/complete — Complete a payroll run
    */
   async completeRun(runId: string, companyId: string) {
-    // Try to find a real PayrollRun first
-    const dbRun = await this.prisma.payrollRun.findFirst({
-      where: { id: runId, companyId },
-    });
-
-    if (dbRun) {
-      // Update all linked payslips to PAID
-      await this.prisma.payslip.updateMany({
-        where: { payrollRunId: dbRun.id },
-        data: { status: 'PAID', paymentDate: new Date() },
+    try {
+      // Try to find a real PayrollRun first
+      const dbRun = await this.prisma.payrollRun.findFirst({
+        where: { id: runId, companyId },
       });
 
-      // Also update payslips for this period without payrollRunId
-      const [y, m] = dbRun.period.split('-').map(Number);
-      await this.prisma.payslip.updateMany({
-        where: {
-          employee: { companyId },
-          year: y,
-          month: m,
-          payrollRunId: null,
-        },
-        data: { status: 'PAID', paymentDate: new Date(), payrollRunId: dbRun.id },
-      });
+      if (dbRun) {
+        // Validate: only DRAFT runs can be completed
+        if (dbRun.status === 'COMPLETED') {
+          throw new BadRequestException('Lohnlauf ist bereits abgeschlossen');
+        }
 
-      // Recalculate totals
-      const payslips = await this.prisma.payslip.findMany({
-        where: { payrollRunId: dbRun.id },
-      });
-      const grossTotal = payslips.reduce((s, p) => s + Number(p.grossSalary), 0);
-      const netTotal = payslips.reduce((s, p) => s + Number(p.netSalary), 0);
-
-      const updated = await this.prisma.payrollRun.update({
-        where: { id: dbRun.id },
-        data: {
-          status: 'COMPLETED',
-          grossTotal,
-          netTotal,
-          employees: payslips.length,
-        },
-      });
-
-      return {
-        ...updated,
-        grossTotal: Number(updated.grossTotal),
-        netTotal: Number(updated.netTotal),
-        status: 'Abgeschlossen',
-        message: `Lohnlauf ${dbRun.period} erfolgreich abgeschlossen`,
-      };
-    }
-
-    // Fallback: virtual run ID like "2024-02"
-    const parts = runId.split('-');
-    if (parts.length >= 2) {
-      const year = parseInt(parts[0]);
-      const month = parseInt(parts[1]);
-      if (!isNaN(year) && !isNaN(month)) {
-        const result = await this.prisma.payslip.updateMany({
-          where: { employee: { companyId }, year, month },
+        // Update all linked payslips to COMPLETED
+        await this.prisma.payslip.updateMany({
+          where: { payrollRunId: dbRun.id },
           data: { status: 'PAID', paymentDate: new Date() },
         });
+
+        // Also update payslips for this period without payrollRunId
+        const [y, m] = (dbRun.period || '').split('-').map(Number);
+        if (y && m) {
+          await this.prisma.payslip.updateMany({
+            where: {
+              employee: { companyId },
+              year: y,
+              month: m,
+              payrollRunId: null,
+            },
+            data: { status: 'PAID', paymentDate: new Date(), payrollRunId: dbRun.id },
+          });
+        }
+
+        // Recalculate totals
+        const payslips = await this.prisma.payslip.findMany({
+          where: { payrollRunId: dbRun.id },
+        });
+        const grossTotal = payslips.reduce((s, p) => s + Number(p.grossSalary), 0);
+        const netTotal = payslips.reduce((s, p) => s + Number(p.netSalary), 0);
+
+        const updated = await this.prisma.payrollRun.update({
+          where: { id: dbRun.id },
+          data: {
+            status: 'COMPLETED',
+            grossTotal,
+            netTotal,
+            employees: payslips.length,
+          },
+        });
+
+        const periodParts = (updated.period || '').split('-');
+        const uy = parseInt(periodParts[0]) || 0;
+        const um = parseInt(periodParts[1]) || 0;
+
         return {
-          id: runId,
-          period: `${MONTH_NAMES_DE[month]} ${year}`,
+          id: updated.id,
+          period: um >= 1 && um <= 12 ? `${MONTH_NAMES_DE[um]} ${uy}` : updated.period,
+          grossTotal: Number(updated.grossTotal),
+          netTotal: Number(updated.netTotal),
+          employees: updated.employees,
           status: 'Abgeschlossen',
-          employees: result.count,
-          message: `Lohnlauf ${MONTH_NAMES_DE[month]} ${year} erfolgreich abgeschlossen`,
+          message: `Lohnlauf ${updated.period} erfolgreich abgeschlossen`,
         };
       }
-    }
 
-    throw new NotFoundException('Lohnlauf nicht gefunden');
+      // Fallback: virtual run ID like "2024-02"
+      const parts = runId.split('-');
+      if (parts.length >= 2) {
+        const year = parseInt(parts[0]);
+        const month = parseInt(parts[1]);
+        if (!isNaN(year) && !isNaN(month)) {
+          const result = await this.prisma.payslip.updateMany({
+            where: { employee: { companyId }, year, month },
+            data: { status: 'PAID', paymentDate: new Date() },
+          });
+          return {
+            id: runId,
+            period: `${MONTH_NAMES_DE[month]} ${year}`,
+            status: 'Abgeschlossen',
+            employees: result.count,
+            message: `Lohnlauf ${MONTH_NAMES_DE[month]} ${year} erfolgreich abgeschlossen`,
+          };
+        }
+      }
+
+      throw new NotFoundException('Lohnlauf nicht gefunden');
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) throw error;
+      console.error('completeRun failed:', error);
+      throw new BadRequestException(`Fehler beim Abschliessen: ${error.message || error}`);
+    }
   }
 
   // ==========================================
