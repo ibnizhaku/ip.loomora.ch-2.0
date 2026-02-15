@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Factory, Clock, Users, CheckCircle2, AlertCircle, Play, Pause, Package, MoreHorizontal, Timer, Pencil, Trash2, Printer, FileText, AlertTriangle, Ban, RotateCcw } from "lucide-react";
+import { ArrowLeft, Factory, Clock, Users, CheckCircle2, AlertCircle, Play, Pause, Package, MoreHorizontal, Timer, Pencil, Trash2, Printer, FileText, AlertTriangle, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,47 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-
-const initialProduktionData = {
-  id: "WA-2024-0156",
-  bezeichnung: "Stahlkonstruktion Hallendach",
-  stückliste: "STL-2024-0042",
-  projekt: "Industriehalle Müller AG",
-  projektNr: "PRJ-2024-0015",
-  status: "in-arbeit",
-  priorität: "hoch",
-  startDatum: "22.01.2024",
-  liefertermin: "15.02.2024",
-  fortschritt: 65,
-  geplanteStunden: 70,
-  istStunden: 48.5,
-};
-
-const initialArbeitsgänge = [
-  { id: 1, name: "Zuschnitt / Sägen", status: "erledigt", geplant: 8, ist: 7.5, mitarbeiter: "TM", maschine: "Bandsäge Bomar" },
-  { id: 2, name: "CNC-Bohren", status: "erledigt", geplant: 6, ist: 5.5, mitarbeiter: "AS", maschine: "Ficep Endeavour" },
-  { id: 3, name: "Schweissen HEA-Träger", status: "erledigt", geplant: 12, ist: 14, mitarbeiter: "MK", maschine: "MAG Fronius" },
-  { id: 4, name: "Schweissen Verbindungen", status: "in-arbeit", geplant: 12, ist: 8.5, mitarbeiter: "MK", maschine: "MAG Fronius" },
-  { id: 5, name: "Schlossern / Zusammenbau", status: "in-arbeit", geplant: 16, ist: 13, mitarbeiter: "LW", maschine: "-" },
-  { id: 6, name: "Sandstrahlen", status: "offen", geplant: 4, ist: 0, mitarbeiter: "-", maschine: "Strahlkabine" },
-  { id: 7, name: "Grundierung", status: "offen", geplant: 6, ist: 0, mitarbeiter: "-", maschine: "Spritzkabine" },
-  { id: 8, name: "Qualitätskontrolle", status: "offen", geplant: 4, ist: 0, mitarbeiter: "-", maschine: "-" },
-];
-
-const materialverbrauch = [
-  { artikel: "HEA 200 Träger S355", geplant: 96, verbraucht: 94, einheit: "lfm", status: "ok" },
-  { artikel: "IPE 180 Pfetten S235", geplant: 144, verbraucht: 144, einheit: "lfm", status: "ok" },
-  { artikel: "Rohr 100x100x5 S355", geplant: 48, verbraucht: 52, einheit: "lfm", status: "überschritten" },
-  { artikel: "HV-Schrauben M16x60", geplant: 480, verbraucht: 456, einheit: "Stk", status: "ok" },
-];
-
-const mitarbeiterListe = [
-  { id: "1", kürzel: "TM", name: "Thomas Meier" },
-  { id: "2", kürzel: "AS", name: "Anna Schmidt" },
-  { id: "3", kürzel: "MK", name: "Michael König" },
-  { id: "4", kürzel: "LW", name: "Lisa Weber" },
-  { id: "5", kürzel: "PB", name: "Peter Brunner" },
-];
+import { useProductionOrder, useUpdateProductionOrder, useDeleteProductionOrder, useBookProductionTime, useCompleteProductionOperation } from "@/hooks/use-production-orders";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   "offen": { label: "Offen", color: "bg-muted text-muted-foreground", icon: Clock },
@@ -65,6 +25,9 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   "pausiert": { label: "Pausiert", color: "bg-warning/10 text-warning", icon: Pause },
   "erledigt": { label: "Erledigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
   "problem": { label: "Problem", color: "bg-destructive/10 text-destructive", icon: AlertCircle },
+  "PENDING": { label: "Offen", color: "bg-muted text-muted-foreground", icon: Clock },
+  "IN_PROGRESS": { label: "In Arbeit", color: "bg-info/10 text-info", icon: Play },
+  "COMPLETED": { label: "Erledigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
 };
 
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
@@ -73,21 +36,83 @@ const orderStatusConfig: Record<string, { label: string; color: string }> = {
   "pausiert": { label: "Pausiert", color: "bg-warning/10 text-warning" },
   "abgeschlossen": { label: "Abgeschlossen", color: "bg-success/10 text-success" },
   "storniert": { label: "Storniert", color: "bg-destructive/10 text-destructive" },
+  "DRAFT": { label: "Entwurf", color: "bg-muted text-muted-foreground" },
+  "PLANNED": { label: "Geplant", color: "bg-muted text-muted-foreground" },
+  "RELEASED": { label: "Freigegeben", color: "bg-info/10 text-info" },
+  "IN_PROGRESS": { label: "In Arbeit", color: "bg-info/10 text-info" },
+  "COMPLETED": { label: "Abgeschlossen", color: "bg-success/10 text-success" },
+  "CANCELLED": { label: "Storniert", color: "bg-destructive/10 text-destructive" },
 };
 
 const prioritätColors: Record<string, string> = {
   hoch: "bg-destructive/10 text-destructive",
   mittel: "bg-warning/10 text-warning",
   niedrig: "bg-muted text-muted-foreground",
+  HIGH: "bg-destructive/10 text-destructive",
+  URGENT: "bg-destructive/10 text-destructive",
+  MEDIUM: "bg-warning/10 text-warning",
+  LOW: "bg-muted text-muted-foreground",
 };
 
 export default function ProductionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const [produktionData, setProduktionData] = useState(initialProduktionData);
-  const [arbeitsgänge, setArbeitsgänge] = useState(initialArbeitsgänge);
-  
+  const { data: apiData, isLoading } = useProductionOrder(id || "");
+  const updateMutation = useUpdateProductionOrder();
+  const deleteMutation = useDeleteProductionOrder();
+  const bookTimeMutation = useBookProductionTime();
+  const completeOpMutation = useCompleteProductionOperation();
+
+  // Map API data to display format
+  const order = apiData as any;
+  const initialData = useMemo(() => ({
+    id: order?.number || order?.id || id || "",
+    bezeichnung: order?.name || order?.description || "",
+    stückliste: order?.bom?.name || order?.bomId || "",
+    projekt: order?.project?.name || "",
+    projektNr: order?.projectId || "",
+    status: order?.status === "IN_PROGRESS" ? "in-arbeit" : order?.status === "COMPLETED" ? "abgeschlossen" : order?.status === "PLANNED" ? "geplant" : order?.status || "geplant",
+    priorität: order?.priority || "MEDIUM",
+    startDatum: order?.plannedStartDate ? new Date(order.plannedStartDate).toLocaleDateString("de-CH") : "",
+    liefertermin: order?.plannedEndDate ? new Date(order.plannedEndDate).toLocaleDateString("de-CH") : "",
+    fortschritt: order?.completedQuantity && order?.quantity ? Math.round((order.completedQuantity / order.quantity) * 100) : 0,
+    geplanteStunden: order?.estimatedHours || 0,
+    istStunden: order?.actualHours || 0,
+  }), [order, id]);
+
+  const initialOps = useMemo(() => 
+    (order?.operations || []).map((op: any, idx: number) => ({
+      id: idx + 1,
+      name: op.name,
+      status: op.status === "COMPLETED" ? "erledigt" : op.status === "IN_PROGRESS" ? "in-arbeit" : "offen",
+      geplant: op.estimatedHours || 0,
+      ist: op.actualHours || 0,
+      mitarbeiter: "-",
+      maschine: op.workstation || "-",
+    })),
+  [order]);
+
+  const [produktionData, setProduktionData] = useState(initialData);
+  const [arbeitsgänge, setArbeitsgänge] = useState(initialOps);
+
+  // Sync when API data arrives
+  useMemo(() => {
+    if (order) {
+      setProduktionData(initialData);
+      if (initialOps.length > 0) setArbeitsgänge(initialOps);
+    }
+  }, [order, initialData, initialOps]);
+
+  const mitarbeiterListe = [
+    { id: "1", kürzel: "TM", name: "Thomas Meier" },
+    { id: "2", kürzel: "AS", name: "Anna Schmidt" },
+    { id: "3", kürzel: "MK", name: "Michael König" },
+    { id: "4", kürzel: "LW", name: "Lisa Weber" },
+    { id: "5", kürzel: "PB", name: "Peter Brunner" },
+  ];
+
+  const materialverbrauch: any[] = [];
+
   // Dialog states
   const [timeTrackingOpen, setTimeTrackingOpen] = useState(false);
   const [statusChangeOpen, setStatusChangeOpen] = useState(false);
@@ -110,10 +135,19 @@ export default function ProductionDetail() {
   // Edit form states
   const [editName, setEditName] = useState(produktionData.bezeichnung);
   const [editPriority, setEditPriority] = useState(produktionData.priorität);
-  const [editDeadline, setEditDeadline] = useState("2024-02-15");
+  const [editDeadline, setEditDeadline] = useState("");
 
-  const erledigteGänge = arbeitsgänge.filter(a => a.status === "erledigt").length;
-  const StatusIcon = statusConfig[produktionData.status].icon;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const erledigteGänge = arbeitsgänge.filter((a: any) => a.status === "erledigt").length;
+  const currentStatus = produktionData.status;
+  const StatusIcon = (statusConfig[currentStatus] || statusConfig["offen"]).icon;
 
   // Zeit erfassen handler
   const handleTimeTracking = () => {
