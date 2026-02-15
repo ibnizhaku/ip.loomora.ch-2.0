@@ -123,7 +123,7 @@ export function CalendarWidget() {
           selected={selectedDate}
           onSelect={setSelectedDate}
           locale={de}
-          className="rounded-md border mx-auto pointer-events-auto"
+          className="rounded-md border w-full pointer-events-auto [&>div]:w-full [&_table]:w-full"
           modifiers={{
             hasEvent: eventDates,
           }}
