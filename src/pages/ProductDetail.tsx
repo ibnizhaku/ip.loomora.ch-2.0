@@ -139,7 +139,7 @@ export default function ProductDetail() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate(`/products/${id}/edit`)}>
             <Edit className="h-4 w-4" />
             Bearbeiten
           </Button>
