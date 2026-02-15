@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   ArrowLeft,
   Edit,
@@ -17,66 +28,73 @@ import {
   Pencil,
   Plus,
   Settings,
+  Loader2,
 } from "lucide-react";
+import { useRole, useDeleteRole } from "@/hooks/use-roles";
 
-const roleData = {
-  id: "ROLE-003",
-  name: "Projektleiter",
-  description: "Kann Projekte verwalten, Aufträge erstellen und Team-Mitglieder koordinieren. Eingeschränkter Zugriff auf Finanzdaten.",
-  type: "custom" as "system" | "custom", // system, custom
-  status: "active" as const,
-  createdAt: "2023-06-15",
-  createdBy: "Admin",
-  modifiedAt: "2024-01-10",
-  userCount: 5,
-  users: [
-    { id: "USR-001", name: "Thomas Meier", email: "t.meier@firma.ch", department: "Produktion" },
-    { id: "USR-002", name: "Sandra Keller", email: "s.keller@firma.ch", department: "Vertrieb" },
-    { id: "USR-003", name: "Marco Weber", email: "m.weber@firma.ch", department: "Technik" },
-  ],
-  permissions: {
-    projects: { view: true, create: true, edit: true, delete: false },
-    customers: { view: true, create: true, edit: true, delete: false },
-    orders: { view: true, create: true, edit: true, delete: false },
-    invoices: { view: true, create: false, edit: false, delete: false },
-    finance: { view: false, create: false, edit: false, delete: false },
-    hr: { view: false, create: false, edit: false, delete: false },
-    inventory: { view: true, create: false, edit: false, delete: false },
-    reports: { view: true, create: false, edit: false, delete: false },
-    settings: { view: false, create: false, edit: false, delete: false },
-    users: { view: false, create: false, edit: false, delete: false },
-  },
-};
+const permissionModules = [
+  { key: "customers", label: "Kunden" },
+  { key: "suppliers", label: "Lieferanten" },
+  { key: "products", label: "Produkte" },
+  { key: "quotes", label: "Angebote" },
+  { key: "orders", label: "Aufträge" },
+  { key: "invoices", label: "Rechnungen" },
+  { key: "payments", label: "Zahlungen" },
+  { key: "employees", label: "Mitarbeiter" },
+  { key: "projects", label: "Projekte" },
+  { key: "finance", label: "Finanzen" },
+  { key: "documents", label: "Dokumente" },
+  { key: "contracts", label: "Verträge" },
+  { key: "settings", label: "Einstellungen" },
+  { key: "users", label: "Benutzer" },
+];
 
-const getStatusConfig = (status: string) => {
-  switch (status) {
-    case "active":
-      return { label: "Aktiv", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" };
-    case "inactive":
-      return { label: "Inaktiv", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" };
-    default:
-      return { label: status, color: "bg-gray-100 text-gray-800" };
-  }
-};
-
-const permissionLabels: Record<string, string> = {
-  projects: "Projekte",
-  customers: "Kunden",
-  orders: "Aufträge",
-  invoices: "Rechnungen",
-  finance: "Finanzen",
-  hr: "Personal",
-  inventory: "Lager",
-  reports: "Berichte",
-  settings: "Einstellungen",
-  users: "Benutzer",
-};
+function getPermForModule(permissions: string[], modKey: string) {
+  const hasAdmin = permissions.includes(`${modKey}:admin`);
+  return {
+    view: hasAdmin || permissions.includes(`${modKey}:read`),
+    create: hasAdmin || permissions.includes(`${modKey}:write`),
+    edit: hasAdmin || permissions.includes(`${modKey}:write`),
+    delete: hasAdmin || permissions.includes(`${modKey}:delete`),
+  };
+}
 
 export default function RoleDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { data: role, isLoading } = useRole(id || "");
+  const deleteRole = useDeleteRole();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const statusConfig = getStatusConfig(roleData.status);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!role) {
+    return (
+      <div className="text-center py-20">
+        <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+        <p className="text-muted-foreground">Rolle nicht gefunden</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate("/roles")}>
+          Zurück zur Übersicht
+        </Button>
+      </div>
+    );
+  }
+
+  const isSystem = role.isSystem || role.type === "system";
+  const permissions = role.permissions || [];
+  const users = role.users || [];
+
+  const handleDelete = () => {
+    if (id) {
+      deleteRole.mutate(id, { onSuccess: () => navigate("/roles") });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -89,11 +107,8 @@ export default function RoleDetail() {
           <div>
             <div className="flex items-center gap-3">
               <Shield className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold tracking-tight">{roleData.name}</h1>
-              <Badge className={statusConfig.color} variant="secondary">
-                {statusConfig.label}
-              </Badge>
-              {roleData.type === "system" && (
+              <h1 className="text-3xl font-bold tracking-tight">{role.name}</h1>
+              {isSystem && (
                 <Badge variant="outline">
                   <Lock className="h-3 w-3 mr-1" />
                   System
@@ -101,22 +116,22 @@ export default function RoleDetail() {
               )}
             </div>
             <p className="text-muted-foreground">
-              {roleData.userCount} Benutzer mit dieser Rolle
+              {role.userCount || 0} Benutzer mit dieser Rolle
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate(`/roles/${id}/edit`)}>
+          <Button variant="outline" onClick={() => navigate(`/roles/new`)}>
             <Copy className="h-4 w-4 mr-2" />
             Duplizieren
           </Button>
-          {roleData.type !== "system" && (
+          {!isSystem && (
             <>
               <Button variant="outline" onClick={() => navigate(`/roles/${id}/edit`)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Bearbeiten
               </Button>
-              <Button variant="outline" className="text-red-600" onClick={() => { navigate("/roles"); }}>
+              <Button variant="outline" className="text-red-600" onClick={() => setShowDeleteDialog(true)}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Löschen
               </Button>
@@ -126,11 +141,13 @@ export default function RoleDetail() {
       </div>
 
       {/* Beschreibung */}
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-muted-foreground">{roleData.description}</p>
-        </CardContent>
-      </Card>
+      {role.description && (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">{role.description}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Berechtigungen */}
@@ -169,23 +186,26 @@ export default function RoleDetail() {
                 </div>
 
                 {/* Permission rows */}
-                {Object.entries(roleData.permissions).map(([module, perms]) => (
-                  <div key={module} className="grid grid-cols-5 gap-4 py-3 px-4 border-b last:border-0">
-                    <div className="font-medium">{permissionLabels[module]}</div>
-                    <div className="flex justify-center">
-                      <Checkbox checked={perms.view} disabled />
+                {permissionModules.map((mod) => {
+                  const perms = getPermForModule(permissions, mod.key);
+                  return (
+                    <div key={mod.key} className="grid grid-cols-5 gap-4 py-3 px-4 border-b last:border-0">
+                      <div className="font-medium">{mod.label}</div>
+                      <div className="flex justify-center">
+                        <Checkbox checked={perms.view} disabled />
+                      </div>
+                      <div className="flex justify-center">
+                        <Checkbox checked={perms.create} disabled />
+                      </div>
+                      <div className="flex justify-center">
+                        <Checkbox checked={perms.edit} disabled />
+                      </div>
+                      <div className="flex justify-center">
+                        <Checkbox checked={perms.delete} disabled />
+                      </div>
                     </div>
-                    <div className="flex justify-center">
-                      <Checkbox checked={perms.create} disabled />
-                    </div>
-                    <div className="flex justify-center">
-                      <Checkbox checked={perms.edit} disabled />
-                    </div>
-                    <div className="flex justify-center">
-                      <Checkbox checked={perms.delete} disabled />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -201,11 +221,11 @@ export default function RoleDetail() {
                   <Users className="h-4 w-4" />
                   Benutzer
                 </CardTitle>
-                <Badge variant="secondary">{roleData.userCount}</Badge>
+                <Badge variant="secondary">{role.userCount || users.length}</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {roleData.users.map((user) => (
+              {users.length > 0 ? users.map((user: any) => (
                 <div
                   key={user.id}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
@@ -213,15 +233,17 @@ export default function RoleDetail() {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      {user.name.split(" ").map(n => n[0]).join("")}
+                      {(user.name || "").split(" ").map((n: string) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{user.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.department}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.department || user.email}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-muted-foreground">Keine Benutzer zugewiesen</p>
+              )}
               <Separator />
               <Button variant="outline" className="w-full" onClick={() => navigate("/users")}>
                 <Users className="h-4 w-4 mr-2" />
@@ -241,41 +263,48 @@ export default function RoleDetail() {
             <CardContent className="space-y-3 text-sm">
               <div>
                 <p className="text-muted-foreground">Typ</p>
-                <p className="font-medium capitalize">{roleData.type === "system" ? "Systemrolle" : "Benutzerdefiniert"}</p>
+                <p className="font-medium capitalize">{isSystem ? "Systemrolle" : "Benutzerdefiniert"}</p>
               </div>
-              <div>
-                <p className="text-muted-foreground">Erstellt von</p>
-                <p className="font-medium">{roleData.createdBy}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Erstellt am</p>
-                <p className="font-medium">{new Date(roleData.createdAt).toLocaleDateString("de-CH")}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Letzte Änderung</p>
-                <p className="font-medium">{new Date(roleData.modifiedAt).toLocaleDateString("de-CH")}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Ähnliche Rollen */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Ähnliche Rollen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
-                <Shield className="h-4 w-4 mr-2" />
-                Mitarbeiter
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Shield className="h-4 w-4 mr-2" />
-                Teamleiter
-              </Button>
+              {role.createdBy && (
+                <div>
+                  <p className="text-muted-foreground">Erstellt von</p>
+                  <p className="font-medium">{role.createdBy}</p>
+                </div>
+              )}
+              {role.createdAt && (
+                <div>
+                  <p className="text-muted-foreground">Erstellt am</p>
+                  <p className="font-medium">{new Date(role.createdAt).toLocaleDateString("de-CH")}</p>
+                </div>
+              )}
+              {role.updatedAt && (
+                <div>
+                  <p className="text-muted-foreground">Letzte Änderung</p>
+                  <p className="font-medium">{new Date(role.updatedAt).toLocaleDateString("de-CH")}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rolle "{role.name}" löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle Benutzer mit dieser Rolle verlieren ihre Berechtigungen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

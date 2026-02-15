@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { useRoles, useDeleteRole } from "@/hooks/use-roles";
 import {
   Plus,
-  Search,
   Shield,
   Users,
-  Settings,
   Eye,
   Edit,
   Trash2,
@@ -15,11 +13,10 @@ import {
   XCircle,
   Lock,
   Key,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -27,24 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  userCount: number;
-  permissions: string[];
-  isSystem: boolean;
-  color: string;
-}
-
-interface Permission {
-  id: string;
-  name: string;
-  description: string;
-  module: string;
-}
 
 const modules = [
   { name: "Dashboard", key: "dashboard" },
@@ -65,13 +55,21 @@ const modules = [
 ];
 
 export default function Roles() {
-  const { data: apiData } = useQuery({ queryKey: ["/roles"], queryFn: () => api.get<any>("/users") });
-  const roles = apiData?.roles || apiData?.data || [];
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const { data: apiData, isLoading } = useRoles();
+  const deleteRole = useDeleteRole();
+  const roles = apiData?.data || [];
   const [activeTab, setActiveTab] = useState("roles");
-  const [selectedRole, setSelectedRole] = useState<string | null>("1");
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const totalUsers = roles.reduce((sum, r) => sum + r.userCount, 0);
+  const totalUsers = roles.reduce((sum: number, r: any) => sum + (r.userCount || 0), 0);
+
+  const handleDelete = () => {
+    if (deleteId) {
+      deleteRole.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -84,7 +82,7 @@ export default function Roles() {
             Zugriffsrechte und Benutzerrollen verwalten
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/roles/new")}>
           <Plus className="h-4 w-4" />
           Neue Rolle
         </Button>
@@ -133,181 +131,217 @@ export default function Roles() {
             <div>
               <p className="text-sm text-muted-foreground">System-Rollen</p>
               <p className="text-2xl font-bold">
-                {roles.filter((r) => r.isSystem).length}
+                {roles.filter((r: any) => r.isSystem || r.type === "system").length}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="roles">Rollen</TabsTrigger>
-          <TabsTrigger value="matrix">Berechtigungsmatrix</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="roles">Rollen</TabsTrigger>
+            <TabsTrigger value="matrix">Berechtigungsmatrix</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="roles" className="mt-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Role List */}
-            <div className="space-y-3">
-              {roles.map((role, index) => (
-                <div
-                  key={role.id}
-                  className={cn(
-                    "rounded-xl border bg-card p-5 cursor-pointer transition-all animate-fade-in",
-                    selectedRole === role.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/30"
-                  )}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={() => setSelectedRole(role.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-xl",
-                        role.color
-                      )}>
-                        <Shield className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{role.name}</h3>
-                          {role.isSystem && (
-                            <Badge variant="outline" className="text-xs">System</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {role.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {role.userCount} Benutzer
-                        </p>
-                      </div>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Details
-                        </DropdownMenuItem>
-                        {!role.isSystem && (
-                          <>
-                            <DropdownMenuItem>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Bearbeiten
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Löschen
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+          <TabsContent value="roles" className="mt-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Role List */}
+              <div className="space-y-3">
+                {roles.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Shield className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                    <p>Noch keine Rollen vorhanden</p>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Permission Details */}
-            {selectedRole && (
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="font-semibold mb-4">
-                  Berechtigungen: {roles.find((r) => r.id === selectedRole)?.name}
-                </h3>
-                <div className="space-y-3">
-                  {modules.map((module) => {
-                    const role = roles.find((r) => r.id === selectedRole);
-                    const hasFullAccess = role?.permissions.includes("*") || 
-                      role?.permissions.includes(`${module.key}.*`);
-                    const hasViewAccess = role?.permissions.includes(`${module.key}.view`);
-                    
-                    return (
-                      <div
-                        key={module.key}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                      >
-                        <span>{module.name}</span>
-                        <div className="flex items-center gap-4">
+                )}
+                {roles.map((role: any, index: number) => (
+                  <div
+                    key={role.id}
+                    className={cn(
+                      "rounded-xl border bg-card p-5 cursor-pointer transition-all animate-fade-in",
+                      selectedRole === role.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30"
+                    )}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => setSelectedRole(role.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-xl",
+                          role.color || "bg-primary/10"
+                        )}>
+                          <Shield className="h-5 w-5" />
+                        </div>
+                        <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Lesen</span>
-                            {hasFullAccess || hasViewAccess ? (
-                              <CheckCircle2 className="h-4 w-4 text-success" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-muted-foreground/30" />
+                            <h3 className="font-semibold">{role.name}</h3>
+                            {(role.isSystem || role.type === "system") && (
+                              <Badge variant="outline" className="text-xs">System</Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Schreiben</span>
-                            {hasFullAccess ? (
-                              <CheckCircle2 className="h-4 w-4 text-success" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-muted-foreground/30" />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Löschen</span>
-                            {hasFullAccess ? (
-                              <CheckCircle2 className="h-4 w-4 text-success" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-muted-foreground/30" />
-                            )}
-                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {role.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {role.userCount || 0} Benutzer
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </TabsContent>
 
-        <TabsContent value="matrix" className="mt-6">
-          <div className="rounded-xl border border-border overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Modul</th>
-                  {roles.map((role) => (
-                    <th key={role.id} className="px-4 py-3 text-center text-sm font-medium">
-                      {role.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {modules.map((module, i) => (
-                  <tr key={module.key} className={i % 2 === 0 ? "bg-muted/20" : ""}>
-                    <td className="px-4 py-3 text-sm">{module.name}</td>
-                    {roles.map((role) => {
-                      const hasAccess = role.permissions.includes("*") ||
-                        role.permissions.includes(`${module.key}.*`) ||
-                        role.permissions.some((p) => p.startsWith(`${module.key}.`));
-                      return (
-                        <td key={role.id} className="px-4 py-3 text-center">
-                          {hasAccess ? (
-                            <CheckCircle2 className="h-5 w-5 text-success mx-auto" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-muted-foreground/30 mx-auto" />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/roles/${role.id}`)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Details
+                          </DropdownMenuItem>
+                          {!(role.isSystem || role.type === "system") && (
+                            <>
+                              <DropdownMenuItem onClick={() => navigate(`/roles/${role.id}/edit`)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Bearbeiten
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(role.id); }}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Löschen
+                              </DropdownMenuItem>
+                            </>
                           )}
-                        </td>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Permission Details */}
+              {selectedRole && (
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <h3 className="font-semibold mb-4">
+                    Berechtigungen: {roles.find((r: any) => r.id === selectedRole)?.name}
+                  </h3>
+                  <div className="space-y-3">
+                    {modules.map((module) => {
+                      const role = roles.find((r: any) => r.id === selectedRole);
+                      const perms = role?.permissions || [];
+                      const hasFullAccess = perms.includes("*") ||
+                        perms.includes(`${module.key}.*`) ||
+                        perms.includes(`${module.key}:admin`);
+                      const hasViewAccess = perms.includes(`${module.key}:read`) || hasFullAccess;
+                      const hasWriteAccess = perms.includes(`${module.key}:write`) || hasFullAccess;
+                      const hasDeleteAccess = perms.includes(`${module.key}:delete`) || hasFullAccess;
+
+                      return (
+                        <div
+                          key={module.key}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          <span>{module.name}</span>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Lesen</span>
+                              {hasViewAccess ? (
+                                <CheckCircle2 className="h-4 w-4 text-success" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-muted-foreground/30" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Schreiben</span>
+                              {hasWriteAccess ? (
+                                <CheckCircle2 className="h-4 w-4 text-success" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-muted-foreground/30" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Löschen</span>
+                              {hasDeleteAccess ? (
+                                <CheckCircle2 className="h-4 w-4 text-success" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-muted-foreground/30" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="matrix" className="mt-6">
+            <div className="rounded-xl border border-border overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Modul</th>
+                    {roles.map((role: any) => (
+                      <th key={role.id} className="px-4 py-3 text-center text-sm font-medium">
+                        {role.name}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </TabsContent>
-      </Tabs>
+                </thead>
+                <tbody>
+                  {modules.map((module, i) => (
+                    <tr key={module.key} className={i % 2 === 0 ? "bg-muted/20" : ""}>
+                      <td className="px-4 py-3 text-sm">{module.name}</td>
+                      {roles.map((role: any) => {
+                        const perms = role.permissions || [];
+                        const hasAccess = perms.includes("*") ||
+                          perms.includes(`${module.key}.*`) ||
+                          perms.includes(`${module.key}:admin`) ||
+                          perms.some((p: string) => p.startsWith(`${module.key}:`));
+                        return (
+                          <td key={role.id} className="px-4 py-3 text-center">
+                            {hasAccess ? (
+                              <CheckCircle2 className="h-5 w-5 text-success mx-auto" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-muted-foreground/30 mx-auto" />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rolle löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle Benutzer mit dieser Rolle verlieren ihre Berechtigungen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

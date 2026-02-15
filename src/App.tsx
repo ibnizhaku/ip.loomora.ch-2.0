@@ -139,6 +139,8 @@ import DiscountDetail from "./pages/DiscountDetail";
 import DiscountCreate from "./pages/DiscountCreate";
 import Roles from "./pages/Roles";
 import RoleDetail from "./pages/RoleDetail";
+import RoleCreate from "./pages/RoleCreate";
+import RoleEdit from "./pages/RoleEdit";
 import Settings from "./pages/Settings";
 import Company from "./pages/Company";
 import CompanyEdit from "./pages/CompanyEdit";
@@ -448,7 +450,9 @@ const App = () => (
               <Route path="/company/edit" element={<ProtectedLayout><CompanyEdit /></ProtectedLayout>} />
               <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
               <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
+              <Route path="/roles/new" element={<ProtectedLayout><RoleCreate /></ProtectedLayout>} />
               <Route path="/roles/:id" element={<ProtectedLayout><RoleDetail /></ProtectedLayout>} />
+              <Route path="/roles/:id/edit" element={<ProtectedLayout><RoleEdit /></ProtectedLayout>} />
               <Route path="/audit-log" element={<ProtectedLayout><AuditLog /></ProtectedLayout>} />
               <Route path="/audit-log/:id" element={<ProtectedLayout><AuditLogDetail /></ProtectedLayout>} />
               <Route path="/notifications" element={<ProtectedLayout><Notifications /></ProtectedLayout>} />
