@@ -1,18 +1,15 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save } from "lucide-react";
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { useUser, useUpdateUser } from "@/hooks/use-users";
+import { useUser } from "@/hooks/use-users";
 import UserPermissionsWidget from "@/components/users/UserPermissionsWidget";
 
 
@@ -47,17 +44,8 @@ export default function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: userData, isLoading } = useUser(id || "");
-  const updateUser = useUpdateUser();
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    email: "",
-    telefon: "",
-    rolle: "",
-    abteilung: "",
-  });
 
   // Update local state when data loads
   const userName = userData?.name || "–";
@@ -89,41 +77,10 @@ export default function UserDetail() {
     );
   }
 
-  const handleOpenEdit = () => {
-    const nameParts = userName.split(" ");
-    setEditForm({
-      name: userName,
-      email: userEmail,
-      telefon: userPhone,
-      rolle: userRole,
-      abteilung: "",
-    });
-    setShowEditDialog(true);
-  };
-
   const handleResetPassword = () => {
     toast.success("Passwort-Reset E-Mail gesendet", {
       description: `Eine E-Mail wurde an ${userEmail} gesendet`
     });
-  };
-
-  const handleSaveEdit = () => {
-    if (!id) return;
-    const nameParts = editForm.name.split(" ");
-    updateUser.mutate(
-      {
-        id,
-        data: {
-          firstName: nameParts[0] || "",
-          lastName: nameParts.slice(1).join(" ") || "",
-          email: editForm.email,
-          phone: editForm.telefon,
-        },
-      },
-      {
-        onSuccess: () => setShowEditDialog(false),
-      }
-    );
   };
 
   const handleToggle2FA = (checked: boolean) => {
@@ -165,47 +122,15 @@ export default function UserDetail() {
             <Key className="mr-2 h-4 w-4" />
             Passwort zurücksetzen
           </Button>
-          <Button onClick={handleOpenEdit}>
-            <Settings className="mr-2 h-4 w-4" />
-            Bearbeiten
+          <Button asChild>
+            <Link to={`/users/${id}/edit`}>
+              <Settings className="mr-2 h-4 w-4" />
+              Bearbeiten
+            </Link>
           </Button>
         </div>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Benutzer bearbeiten</DialogTitle>
-            <DialogDescription>Aktualisieren Sie die Benutzerdaten</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="editName">Name</Label>
-              <Input id="editName" value={editForm.name} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editEmail">E-Mail</Label>
-              <Input id="editEmail" type="email" value={editForm.email} onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editTelefon">Telefon</Label>
-              <Input id="editTelefon" value={editForm.telefon} onChange={e => setEditForm(prev => ({ ...prev, telefon: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editAbteilung">Abteilung</Label>
-              <Input id="editAbteilung" value={editForm.abteilung} onChange={e => setEditForm(prev => ({ ...prev, abteilung: e.target.value }))} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Abbrechen</Button>
-            <Button onClick={handleSaveEdit}>
-              <Save className="mr-2 h-4 w-4" />
-              Speichern
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Benutzerdaten */}
