@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useOrder } from "@/hooks/use-sales";
 import { Loader2 } from "lucide-react";
 import { 
@@ -110,6 +110,7 @@ const positionStatusColors: Record<string, string> = {
 
 const OrderDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
 
@@ -229,7 +230,7 @@ const OrderDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/orders/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
               <DropdownMenuItem>Duplizieren</DropdownMenuItem>
               <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
             </DropdownMenuContent>

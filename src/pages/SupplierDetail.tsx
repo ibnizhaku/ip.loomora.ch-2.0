@@ -135,7 +135,7 @@ const SupplierDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/purchase-orders/new")}>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/purchase-orders/new?supplierId=${id}`)}>
             <ShoppingCart className="h-4 w-4 mr-2" />
             Bestellung erstellen
           </Button>
@@ -362,7 +362,7 @@ const SupplierDetail = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Bestellhistorie</CardTitle>
-              <Button size="sm" onClick={() => navigate("/purchase-orders/new")}>
+              <Button size="sm" onClick={() => navigate(`/purchase-orders/new?supplierId=${id}`)}>
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Neue Bestellung
               </Button>

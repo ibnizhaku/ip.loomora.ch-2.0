@@ -29,6 +29,7 @@ import InvoiceEdit from "./pages/InvoiceEdit";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
 import QuoteCreate from "./pages/QuoteCreate";
+import QuoteEdit from "./pages/QuoteEdit";
 import CreditNotes from "./pages/CreditNotes";
 import CreditNoteDetail from "./pages/CreditNoteDetail";
 import CreditNoteCreate from "./pages/CreditNoteCreate";
@@ -36,12 +37,15 @@ import CreditNoteEdit from "./pages/CreditNoteEdit";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import PurchaseOrderDetail from "./pages/PurchaseOrderDetail";
 import PurchaseOrderCreate from "./pages/PurchaseOrderCreate";
+import PurchaseOrderEdit from "./pages/PurchaseOrderEdit";
 import PurchaseInvoices from "./pages/PurchaseInvoices";
 import PurchaseInvoiceDetail from "./pages/PurchaseInvoiceDetail";
 import PurchaseInvoiceCreate from "./pages/PurchaseInvoiceCreate";
+import PurchaseInvoiceEdit from "./pages/PurchaseInvoiceEdit";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import OrderCreate from "./pages/OrderCreate";
+import OrderEdit from "./pages/OrderEdit";
 import DeliveryNotes from "./pages/DeliveryNotes";
 import DeliveryNoteDetail from "./pages/DeliveryNoteDetail";
 import DeliveryNoteCreate from "./pages/DeliveryNoteCreate";
@@ -53,6 +57,7 @@ import Reports from "./pages/Reports";
 import HR from "./pages/HR";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import EmployeeCreate from "./pages/EmployeeCreate";
+import EmployeeEdit from "./pages/EmployeeEdit";
 import Payroll from "./pages/Payroll";
 import PayrollCreate from "./pages/PayrollCreate";
 import Absences from "./pages/Absences";
@@ -70,6 +75,7 @@ import Orgchart from "./pages/Orgchart";
 import Tasks from "./pages/Tasks";
 import TaskDetail from "./pages/TaskDetail";
 import TaskCreate from "./pages/TaskCreate";
+import TaskEdit from "./pages/TaskEdit";
 import BillOfMaterials from "./pages/BillOfMaterials";
 import BOMDetail from "./pages/BOMDetail";
 import BOMCreate from "./pages/BOMCreate";
@@ -93,6 +99,7 @@ import QualityChecklistCreate from "./pages/QualityChecklistCreate";
 import QualityChecklistDetail from "./pages/QualityChecklistDetail";
 import ServiceCreate from "./pages/ServiceCreate";
 import ContractCreate from "./pages/ContractCreate";
+import ContractEdit from "./pages/ContractEdit";
 import DocumentUpload from "./pages/DocumentUpload";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
@@ -141,6 +148,7 @@ import FolderDetail from "./pages/FolderDetail";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
 import SupplierCreate from "./pages/SupplierCreate";
+import SupplierEdit from "./pages/SupplierEdit";
 import CustomerCreate from "./pages/CustomerCreate";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
@@ -160,6 +168,7 @@ import CostCenterDetail from "./pages/CostCenterDetail";
 import CostCenterCreate from "./pages/CostCenterCreate";
 import Products from "./pages/Products";
 import ProductCreate from "./pages/ProductCreate";
+import ProductEdit from "./pages/ProductEdit";
 import ProductDetail from "./pages/ProductDetail";
 import Leads from "./pages/Leads";
 import EmailMarketing from "./pages/EmailMarketing";
@@ -270,6 +279,7 @@ const App = () => (
               <Route path="/tasks" element={<ProtectedLayout><Tasks /></ProtectedLayout>} />
               <Route path="/tasks/new" element={<ProtectedLayout><TaskCreate /></ProtectedLayout>} />
               <Route path="/tasks/:id" element={<ProtectedLayout><TaskDetail /></ProtectedLayout>} />
+              <Route path="/tasks/:id/edit" element={<ProtectedLayout><TaskEdit /></ProtectedLayout>} />
               
               {/* CRM */}
               <Route path="/customers" element={<ProtectedLayout><Customers /></ProtectedLayout>} />
@@ -279,6 +289,7 @@ const App = () => (
               <Route path="/suppliers" element={<ProtectedLayout><Suppliers /></ProtectedLayout>} />
               <Route path="/suppliers/new" element={<ProtectedLayout><SupplierCreate /></ProtectedLayout>} />
               <Route path="/suppliers/:id" element={<ProtectedLayout><SupplierDetail /></ProtectedLayout>} />
+              <Route path="/suppliers/:id/edit" element={<ProtectedLayout><SupplierEdit /></ProtectedLayout>} />
               
               {/* Zeit */}
               <Route path="/time-tracking" element={<ProtectedLayout><TimeTracking /></ProtectedLayout>} />
@@ -288,9 +299,11 @@ const App = () => (
               <Route path="/quotes" element={<ProtectedLayout><Quotes /></ProtectedLayout>} />
               <Route path="/quotes/new" element={<ProtectedLayout><QuoteCreate /></ProtectedLayout>} />
               <Route path="/quotes/:id" element={<ProtectedLayout><QuoteDetail /></ProtectedLayout>} />
+              <Route path="/quotes/:id/edit" element={<ProtectedLayout><QuoteEdit /></ProtectedLayout>} />
               <Route path="/orders" element={<ProtectedLayout><Orders /></ProtectedLayout>} />
               <Route path="/orders/new" element={<ProtectedLayout><OrderCreate /></ProtectedLayout>} />
               <Route path="/orders/:id" element={<ProtectedLayout><OrderDetail /></ProtectedLayout>} />
+              <Route path="/orders/:id/edit" element={<ProtectedLayout><OrderEdit /></ProtectedLayout>} />
               <Route path="/invoices" element={<ProtectedLayout><Invoices /></ProtectedLayout>} />
               <Route path="/invoices/new" element={<ProtectedLayout><InvoiceCreate /></ProtectedLayout>} />
               <Route path="/invoices/:id" element={<ProtectedLayout><InvoiceDetail /></ProtectedLayout>} />
@@ -310,9 +323,11 @@ const App = () => (
               <Route path="/purchase-orders" element={<ProtectedLayout><PurchaseOrders /></ProtectedLayout>} />
               <Route path="/purchase-orders/new" element={<ProtectedLayout><PurchaseOrderCreate /></ProtectedLayout>} />
               <Route path="/purchase-orders/:id" element={<ProtectedLayout><PurchaseOrderDetail /></ProtectedLayout>} />
+              <Route path="/purchase-orders/:id/edit" element={<ProtectedLayout><PurchaseOrderEdit /></ProtectedLayout>} />
               <Route path="/purchase-invoices" element={<ProtectedLayout><PurchaseInvoices /></ProtectedLayout>} />
               <Route path="/purchase-invoices/new" element={<ProtectedLayout><PurchaseInvoiceCreate /></ProtectedLayout>} />
               <Route path="/purchase-invoices/:id" element={<ProtectedLayout><PurchaseInvoiceDetail /></ProtectedLayout>} />
+              <Route path="/purchase-invoices/:id/edit" element={<ProtectedLayout><PurchaseInvoiceEdit /></ProtectedLayout>} />
               <Route path="/inventory" element={<ProtectedLayout><Inventory /></ProtectedLayout>} />
               <Route path="/inventory/:id" element={<ProtectedLayout><InventoryItemDetail /></ProtectedLayout>} />
               <Route path="/goods-receipts" element={<ProtectedLayout><GoodsReceipts /></ProtectedLayout>} />
@@ -353,6 +368,7 @@ const App = () => (
               <Route path="/contracts" element={<ProtectedLayout><Contracts /></ProtectedLayout>} />
               <Route path="/contracts/new" element={<ProtectedLayout><ContractCreate /></ProtectedLayout>} />
               <Route path="/contracts/:id" element={<ProtectedLayout><ContractDetail /></ProtectedLayout>} />
+              <Route path="/contracts/:id/edit" element={<ProtectedLayout><ContractEdit /></ProtectedLayout>} />
               <Route path="/payments" element={<ProtectedLayout><Payments /></ProtectedLayout>} />
               <Route path="/payments/:id" element={<ProtectedLayout><PaymentDetail /></ProtectedLayout>} />
               
@@ -360,6 +376,7 @@ const App = () => (
               <Route path="/products" element={<ProtectedLayout><Products /></ProtectedLayout>} />
               <Route path="/products/new" element={<ProtectedLayout><ProductCreate /></ProtectedLayout>} />
               <Route path="/products/:id" element={<ProtectedLayout><ProductDetail /></ProtectedLayout>} />
+              <Route path="/products/:id/edit" element={<ProtectedLayout><ProductEdit /></ProtectedLayout>} />
               <Route path="/travel-expenses" element={<ProtectedLayout><TravelExpenses /></ProtectedLayout>} />
               <Route path="/travel-expenses/new" element={<ProtectedLayout><TravelExpenseCreate /></ProtectedLayout>} />
               <Route path="/travel-expenses/:id" element={<ProtectedLayout><TravelExpenseDetail /></ProtectedLayout>} />
@@ -396,6 +413,7 @@ const App = () => (
               <Route path="/hr" element={<ProtectedLayout><HR /></ProtectedLayout>} />
               <Route path="/hr/new" element={<ProtectedLayout><EmployeeCreate /></ProtectedLayout>} />
               <Route path="/hr/:id" element={<ProtectedLayout><EmployeeDetail /></ProtectedLayout>} />
+              <Route path="/hr/:id/edit" element={<ProtectedLayout><EmployeeEdit /></ProtectedLayout>} />
               <Route path="/employee-contracts" element={<ProtectedLayout><EmployeeContracts /></ProtectedLayout>} />
               <Route path="/employee-contracts/new" element={<ProtectedLayout><EmployeeContractCreate /></ProtectedLayout>} />
               <Route path="/employee-contracts/:id" element={<ProtectedLayout><EmployeeContractDetail /></ProtectedLayout>} />
