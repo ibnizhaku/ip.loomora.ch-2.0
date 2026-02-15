@@ -403,6 +403,7 @@ export class PayrollService {
         updatedAt: run.updatedAt?.toISOString() || null,
         companyName: company.name || '',
         data,
+        payslips: data,
         payrollRuns: [{
           id: run.id,
           period: periodLabel(run.period),
@@ -813,6 +814,32 @@ export class PayrollService {
     const payslip = await this.prisma.payslip.findFirst({ where: { id, employee: { companyId } } });
     if (!payslip) throw new NotFoundException('Lohnabrechnung nicht gefunden');
     return this.prisma.payslip.delete({ where: { id } });
+  }
+
+  /**
+   * DELETE /payroll/:id — Delete a PayrollRun with all payslips
+   */
+  async removeRun(id: string, companyId: string) {
+    const run = await this.prisma.payrollRun.findFirst({
+      where: { id, companyId },
+      include: { payslips: { select: { id: true } } },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Lohnlauf nicht gefunden');
+    }
+
+    // Atomic deletion: items → payslips → run
+    const payslipIds = run.payslips.map(ps => ps.id);
+    await this.prisma.$transaction(async (tx) => {
+      if (payslipIds.length > 0) {
+        await tx.payslipItem.deleteMany({ where: { payslipId: { in: payslipIds } } });
+        await tx.payslip.deleteMany({ where: { payrollRunId: id } });
+      }
+      await tx.payrollRun.delete({ where: { id } });
+    });
+
+    return { success: true, message: `Lohnlauf ${periodLabel(run.period)} gelöscht` };
   }
 
   // ==========================================

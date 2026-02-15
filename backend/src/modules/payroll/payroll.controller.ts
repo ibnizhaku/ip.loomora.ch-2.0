@@ -107,8 +107,8 @@ export class PayrollController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete payslip' })
-  remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.payrollService.remove(id, user.companyId);
+  @ApiOperation({ summary: 'Delete payroll run with all payslips' })
+  removeRun(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.removeRun(id, user.companyId);
   }
 }
