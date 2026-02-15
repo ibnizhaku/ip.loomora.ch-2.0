@@ -107,6 +107,7 @@ enum AbsenceStatus {
   PENDING
   APPROVED
   REJECTED
+  CANCELLED
 }
 
 enum EventType {
@@ -2100,6 +2101,7 @@ model Absence {
   days            Decimal  @db.Decimal(4, 1)  // Can be 0.5 for half days
   
   reason          String?
+  rejectionReason String?
   notes           String?
   
   approvedById    String?

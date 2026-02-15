@@ -25,6 +25,10 @@ export class EmployeesService {
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
 
+    const currentYear = new Date().getFullYear();
+    const yearStart = new Date(currentYear, 0, 1);
+    const yearEnd = new Date(currentYear + 1, 0, 1);
+
     const [data, total] = await Promise.all([
       this.prisma.employee.findMany({
         where,
@@ -34,6 +38,10 @@ export class EmployeesService {
         include: {
           department: { select: { id: true, name: true } },
           contracts: { orderBy: { startDate: 'desc' }, take: 1 },
+          absences: {
+            where: { type: 'VACATION', status: 'APPROVED', startDate: { gte: yearStart, lt: yearEnd } },
+            select: { days: true },
+          },
         },
       }),
       this.prisma.employee.count({ where }),
@@ -42,6 +50,7 @@ export class EmployeesService {
     // Transform to match frontend format using mapper
     const transformedData = data.map((e) => {
       const mapped = mapEmployeeResponse(e);
+      const vacationTaken = (e.absences || []).reduce((sum, a) => sum + Number(a.days), 0);
       return {
         ...mapped,
         name: `${e.firstName} ${e.lastName}`,
@@ -53,6 +62,7 @@ export class EmployeesService {
         hireDate: e.hireDate?.toISOString(),
         startDate: e.hireDate?.toLocaleDateString('de-CH') || '',
         avatar: e.avatarUrl,
+        vacationTaken,
       };
     });
 

@@ -42,8 +42,26 @@ export class AbsencesController {
 
   @Post()
   @ApiOperation({ summary: 'Create new absence' })
-  create(@Body() dto: CreateAbsenceDto) {
-    return this.absencesService.create(dto);
+  create(@Body() dto: CreateAbsenceDto, @CurrentUser() user: CurrentUserPayload) {
+    return this.absencesService.create(dto, user);
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Approve absence' })
+  approve(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.absencesService.approve(id, user);
+  }
+
+  @Post(':id/reject')
+  @ApiOperation({ summary: 'Reject absence' })
+  reject(@Param('id') id: string, @Body() body: { reason?: string }, @CurrentUser() user: CurrentUserPayload) {
+    return this.absencesService.reject(id, body.reason, user);
+  }
+
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel absence' })
+  cancel(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.absencesService.cancel(id, user);
   }
 
   @Put(':id')
