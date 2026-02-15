@@ -56,7 +56,7 @@ interface RegisterData {
 }
 
 interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<{ requiresCompanySelection: boolean; availableCompanies?: CompanySummary[] }>;
+  login: (credentials: LoginCredentials) => Promise<{ requiresCompanySelection: boolean; availableCompanies?: CompanySummary[]; requires2FA?: boolean; tempToken?: string }>;
   register: (data: RegisterData) => Promise<{ requiresPayment: boolean; checkoutUrl?: string }>;
   logout: () => Promise<void>;
   selectCompany: (companyId: string) => Promise<void>;
@@ -176,12 +176,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
 
-  const login = async (credentials: LoginCredentials): Promise<{ requiresCompanySelection: boolean; availableCompanies?: CompanySummary[] }> => {
+  const login = async (credentials: LoginCredentials): Promise<{ requiresCompanySelection: boolean; availableCompanies?: CompanySummary[]; requires2FA?: boolean; tempToken?: string }> => {
     const response = await api.post<{
       // Support both old server format (token) and new backend format (accessToken/refreshToken)
       token?: string;
       accessToken?: string;
       refreshToken?: string;
+      requires2FA?: boolean;
+      tempToken?: string;
       user: {
         id: string;
         email: string;
@@ -198,6 +200,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       availableCompanies?: CompanySummary[];
       activeCompany?: ActiveCompanyInfo;
     }>('/auth/login', credentials);
+
+    // Handle 2FA requirement
+    if (response.requires2FA && response.tempToken) {
+      return { requiresCompanySelection: false, requires2FA: true, tempToken: response.tempToken };
+    }
 
     // Handle old server format (single token + user with embedded company)
     const accessToken = response.accessToken || response.token;
