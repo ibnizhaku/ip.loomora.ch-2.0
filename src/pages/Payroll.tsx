@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useCompletePayrollRun } from "@/hooks/use-payroll";
+import { useCompletePayrollRun, useSendPayslip } from "@/hooks/use-payroll";
+import { generatePayslipPdf } from "@/lib/payslip-pdf";
 import { 
   Search, 
   Filter,
@@ -71,6 +72,7 @@ const formatCHF = (amount: number | undefined | null) => {
 const Payroll = () => {
   const navigate = useNavigate();
   const completeRunMutation = useCompletePayrollRun();
+  const sendPayslipMutation = useSendPayslip();
   const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/payroll") });
   const payrollRuns: any[] = apiData?.payrollRuns || [];
   const employeePayroll: any[] = apiData?.data || [];
@@ -277,10 +279,12 @@ const Payroll = () => {
                 <Button onClick={() => navigate(`/payroll/${currentRun.id}`)}>
                   Details
                 </Button>
-                <Button onClick={() => setShowAbschliessenDialog(true)} disabled={completeRunMutation.isPending}>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Abschliessen
-                </Button>
+                {(currentRun.status === "Entwurf" || currentRun.status === "DRAFT" || currentRun.status === "In Bearbeitung") && (
+                  <Button onClick={() => setShowAbschliessenDialog(true)} disabled={completeRunMutation.isPending}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Abschliessen
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -483,10 +487,36 @@ const Payroll = () => {
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/payslips/${emp.id}`); }}>
                                 Lohnabrechnung anzeigen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("PDF wird erstellt..."); }}>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                try {
+                                  generatePayslipPdf({
+                                    employeeName: emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+                                    position: emp.position || emp.role || '',
+                                    period: currentRun?.period || '',
+                                    periodStart: currentRun?.periodStart,
+                                    periodEnd: currentRun?.periodEnd,
+                                    grossSalary: Number(emp.bruttoLohn || 0),
+                                    netSalary: Number(emp.nettoLohn || 0),
+                                    deductions: [
+                                      { description: 'AHV/IV/EO', amount: Number(emp.ahvIvEo || 0) },
+                                      { description: 'ALV', amount: Number(emp.alv || 0) },
+                                      { description: 'BVG', amount: Number(emp.bvg || 0) },
+                                      { description: 'NBU/KTG', amount: Number(emp.nbuKtg || 0) },
+                                    ].filter(d => d.amount > 0),
+                                  });
+                                  toast.success('PDF wurde erstellt');
+                                } catch { toast.error('Fehler bei der PDF-Erstellung'); }
+                              }}>
                                 PDF herunterladen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success(`Lohnabrechnung an ${emp.name} gesendet`); }}>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                sendPayslipMutation.mutate(emp.id, {
+                                  onSuccess: () => toast.success(`Lohnabrechnung an ${emp.name} versendet`),
+                                  onError: () => toast.error(`Fehler beim Versand an ${emp.name}`),
+                                });
+                              }}>
                                 Per E-Mail senden
                               </DropdownMenuItem>
                             </DropdownMenuContent>

@@ -2,7 +2,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useCompletePayrollRun } from "@/hooks/use-payroll";
+import { useCompletePayrollRun, useSendPayslip } from "@/hooks/use-payroll";
 import { ArrowLeft, Loader2, Users, CheckCircle, FileText, Printer, Send, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export default function PayrollDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const completeRun = useCompletePayrollRun();
+  const sendPayslip = useSendPayslip();
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 
   const { data: payroll, isLoading, error } = useQuery({
@@ -141,7 +142,15 @@ export default function PayrollDetail() {
             <FileText className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info("Versand wird vorbereitet…")}>
+          <Button variant="outline" size="sm" disabled={sendPayslip.isPending} onClick={() => {
+            if (payslips.length === 0) { toast.info("Keine Lohnabrechnungen vorhanden"); return; }
+            payslips.forEach((ps: any) => {
+              sendPayslip.mutate(ps.id, {
+                onSuccess: () => toast.success(`Lohnabrechnung an ${ps.name || 'Mitarbeiter'} versendet`),
+                onError: () => toast.error(`Fehler beim Versand an ${ps.name || 'Mitarbeiter'}`),
+              });
+            });
+          }}>
             <Send className="h-4 w-4 mr-2" />
             Versenden
           </Button>
@@ -224,7 +233,7 @@ export default function PayrollDetail() {
                       <Badge variant="outline">{ps.status || "Entwurf"}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handlePayslipPdf(ps)} title="PDF herunterladen">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handlePayslipPdf(ps); }} title="PDF herunterladen">
                         <Download className="h-4 w-4" />
                       </Button>
                     </TableCell>
