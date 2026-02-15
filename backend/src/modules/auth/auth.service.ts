@@ -66,10 +66,26 @@ export class AuthService {
       throw new ForbiddenException('Bitte bestätige zuerst deine E-Mail-Adresse');
     }
 
-    // 4. Aktive Companies laden
+    // 4. Prüfen ob 2FA aktiv ist
+    if (user.twoFactorEnabled) {
+      const tempToken = await this.tokenService.generateTempToken({
+        sub: user.id,
+        email: user.email,
+        type: 'two_factor_pending',
+        activeCompanyId: null,
+      });
+
+      return {
+        requires2FA: true,
+        tempToken,
+        message: 'Bitte 2FA-Code eingeben',
+      } as any;
+    }
+
+    // 5. Aktive Companies laden
     const activeCompanies = await this.membershipService.getActiveCompaniesForUser(user.id);
 
-    // 5. Last login aktualisieren
+    // 6. Last login aktualisieren
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -454,6 +470,77 @@ export class AuthService {
   async getFreshPermissions(userId: string, companyId: string): Promise<{ permissions: string[] }> {
     const { permissions } = await this.membershipService.validateMembership(userId, companyId);
     return { permissions };
+  }
+
+  /**
+   * Verifiziert einen temporären 2FA-Token und gibt den Payload zurück
+   */
+  verifyTempToken(token: string) {
+    const payload = this.tokenService.verifyTempToken(token);
+    if (!payload || payload.type !== 'two_factor_pending') {
+      throw new UnauthorizedException('Ungültiger oder abgelaufener Token');
+    }
+    return payload;
+  }
+
+  /**
+   * Generiert vollständige Tokens nach erfolgreicher 2FA-Authentifizierung
+   */
+  async generateFullTokens(userId: string, deviceInfo?: string, ipAddress?: string, userAgent?: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User nicht gefunden');
+    }
+
+    // Last login aktualisieren
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const userInfo = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatarUrl: user.avatarUrl || undefined,
+      status: user.status,
+    };
+
+    // Aktive Companies laden
+    const activeCompanies = await this.membershipService.getActiveCompaniesForUser(user.id);
+
+    if (activeCompanies.length === 0) {
+      throw new ForbiddenException('Du bist keiner aktiven Firma zugeordnet');
+    }
+
+    // Genau eine oder primäre Company verwenden
+    if (activeCompanies.length === 1) {
+      return this.generateFullLoginResponse(user.id, activeCompanies[0].id, userInfo, deviceInfo, ipAddress, userAgent);
+    }
+
+    const primaryCompanyId = await this.membershipService.getPrimaryCompany(user.id);
+
+    if (primaryCompanyId) {
+      return this.generateFullLoginResponse(user.id, primaryCompanyId, userInfo, deviceInfo, ipAddress, userAgent);
+    }
+
+    // Mehrere Companies → Temp-Token für Company-Auswahl
+    const tempToken = await this.tokenService.generateTempToken({
+      sub: user.id,
+      email: user.email,
+      type: 'company_selection',
+    });
+
+    return {
+      user: userInfo,
+      requiresCompanySelection: true,
+      accessToken: tempToken,
+      availableCompanies: activeCompanies,
+    };
   }
 
   // ==========================================

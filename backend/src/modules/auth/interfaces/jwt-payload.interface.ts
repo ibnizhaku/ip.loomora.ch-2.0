@@ -38,7 +38,10 @@ export interface TempJwtPayload {
   email: string;
   
   /** Token type */
-  type: 'company_selection' | 'payment_pending';
+  type: 'company_selection' | 'payment_pending' | 'two_factor_pending';
+
+  /** Active Company ID (für 2FA nach Company-Auswahl) */
+  activeCompanyId?: string | null;
   
   /** Token issued at */
   iat?: number;

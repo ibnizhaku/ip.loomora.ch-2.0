@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus, Headers, Ip, G
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { TwoFactorService } from './services/two-factor.service';
 import { 
   LoginDto, 
   RegisterDto, 
@@ -18,7 +19,10 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private twoFactorService: TwoFactorService,
+  ) {}
 
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 attempts per 15 minutes
@@ -132,5 +136,74 @@ export class AuthController {
   async getMyCompanies(@CurrentUser() user: CurrentUserPayload) {
     // TODO: Implement via MembershipService
     return [];
+  }
+
+  // ─── 2FA Endpoints ─────────────────────────────────────
+
+  @Post('2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '2FA Setup starten – QR-Code generieren' })
+  async setup2FA(@CurrentUser() user: CurrentUserPayload) {
+    return this.twoFactorService.setup(user.userId);
+  }
+
+  @Post('2fa/verify')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '2FA erstmalig verifizieren und aktivieren' })
+  async verify2FA(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { code: string },
+  ) {
+    return this.twoFactorService.verify(user.userId, body.code);
+  }
+
+  @Post('2fa/authenticate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '2FA Code beim Login prüfen' })
+  async authenticate2FA(
+    @Body() body: { tempToken: string; code: string },
+    @Headers('user-agent') userAgent?: string,
+    @Ip() ip?: string,
+  ) {
+    const payload = this.authService.verifyTempToken(body.tempToken);
+    const result = await this.twoFactorService.authenticate(payload.sub, body.code);
+
+    if (result.success) {
+      const tokens = await this.authService.generateFullTokens(payload.sub, undefined, ip, userAgent);
+      return { ...tokens, ...result };
+    }
+  }
+
+  @Post('2fa/disable')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '2FA deaktivieren (mit Code-Bestätigung)' })
+  async disable2FA(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { code: string },
+  ) {
+    return this.twoFactorService.disable(user.userId, body.code);
+  }
+
+  @Post('2fa/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '2FA Status des aktuellen Users' })
+  async get2FAStatus(@CurrentUser() user: CurrentUserPayload) {
+    return this.twoFactorService.getStatus(user.userId);
+  }
+
+  @Post('2fa/admin-reset/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: 2FA für User zurücksetzen' })
+  async adminReset2FA(
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.twoFactorService.adminReset(targetUserId, user.userId, user.companyId);
   }
 }

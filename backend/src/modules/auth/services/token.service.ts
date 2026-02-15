@@ -186,7 +186,7 @@ export class TokenService {
   verifyTempToken(token: string): TempJwtPayload | null {
     try {
       const payload = this.jwtService.verify<TempJwtPayload>(token);
-      if (payload.type === 'company_selection' || payload.type === 'payment_pending') {
+      if (payload.type === 'company_selection' || payload.type === 'payment_pending' || payload.type === 'two_factor_pending') {
         return payload;
       }
       return null;

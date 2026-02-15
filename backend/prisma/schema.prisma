@@ -584,8 +584,10 @@ model User {
   role          UserRole   @default(EMPLOYEE)
   isActive      Boolean    @default(true)
   
-  twoFactorEnabled Boolean @default(false)
-  lastLoginAt   DateTime?
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String?
+  twoFactorRecovery String[] @default([])
+  lastLoginAt       DateTime?
   
   // Legacy: Direkte Company-Relation (wird durch Memberships ersetzt)
   companyId     String?
