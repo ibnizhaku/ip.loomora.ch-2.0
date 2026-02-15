@@ -105,6 +105,7 @@ const PayrollCreate = () => {
         periodEnd: `${selectedYear}-${String(monthIndex).padStart(2, '0')}-${new Date(Number(selectedYear), monthIndex, 0).getDate()}`,
         status: 'DRAFT',
         employees: selectedEmployees.length,
+        employeeIds: selectedEmployees,
       } as any,
       {
         onSuccess: (data: any) => {

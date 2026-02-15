@@ -46,6 +46,7 @@ export class PayrollService {
     periodEnd?: string;
     status?: string;
     employees?: number;
+    employeeIds?: string[];
   }) {
     // Parse period (e.g. "2026-02")
     const [yearStr, monthStr] = (dto.period || '').split('-');
@@ -72,14 +73,26 @@ export class PayrollService {
       ? new Date(dto.periodEnd)
       : new Date(year, month, 0); // Last day of month
 
-    // Count active employees if not provided
-    let employeeCount = dto.employees || 0;
-    if (!employeeCount) {
-      employeeCount = await this.prisma.employee.count({
-        where: { companyId, status: 'ACTIVE' },
-      });
+    // Get employees to include in this run
+    const employeeWhere: any = { companyId, status: 'ACTIVE' };
+    if (dto.employeeIds?.length) {
+      employeeWhere.id = { in: dto.employeeIds };
     }
 
+    const employees = await this.prisma.employee.findMany({
+      where: employeeWhere,
+      include: {
+        contracts: {
+          orderBy: { startDate: 'desc' as const },
+          take: 1,
+          select: { baseSalary: true, hourlyRate: true, salaryType: true, workHoursPerWeek: true },
+        },
+      },
+    });
+
+    const employeeCount = employees.length;
+
+    // Create the PayrollRun
     const run = await this.prisma.payrollRun.create({
       data: {
         companyId,
@@ -93,12 +106,97 @@ export class PayrollService {
       },
     });
 
+    // Auto-generate payslips for each employee
+    let totalGross = 0;
+    let totalNet = 0;
+
+    for (const emp of employees) {
+      // Check if payslip already exists for this employee+period
+      const existingPayslip = await this.prisma.payslip.findFirst({
+        where: { employeeId: emp.id, year, month },
+      });
+
+      if (existingPayslip) {
+        // Link existing payslip to this run
+        await this.prisma.payslip.update({
+          where: { id: existingPayslip.id },
+          data: { payrollRunId: run.id },
+        });
+        totalGross += Number(existingPayslip.grossSalary);
+        totalNet += Number(existingPayslip.netSalary);
+        continue;
+      }
+
+      // Calculate salary from contract
+      const contract = emp.contracts?.[0];
+      const baseSalary = contract?.baseSalary ? Number(contract.baseSalary) : 0;
+      const hourlyRate = contract?.hourlyRate ? Number(contract.hourlyRate) : 0;
+      const workHours = contract?.workHoursPerWeek ? Number(contract.workHoursPerWeek) : 42.5;
+
+      // Gross salary: monthly from contract, or calculated from hourly rate
+      let grossSalary = baseSalary;
+      if (!grossSalary && hourlyRate) {
+        grossSalary = Math.round(hourlyRate * workHours * 4.33 * 100) / 100; // ~monthly
+      }
+
+      // Calculate Swiss deductions
+      const ahvIvEo = Math.round(grossSalary * RATES.AHV_IV_EO) / 100;
+      const alv = Math.round(grossSalary * RATES.ALV) / 100;
+      const bvg = Math.round(grossSalary * RATES.BVG) / 100;
+      const nbu = Math.round(grossSalary * RATES.NBU) / 100;
+      const ktg = Math.round(grossSalary * RATES.KTG) / 100;
+      const totalDeductions = ahvIvEo + alv + bvg + nbu + ktg;
+      const netSalary = Math.round((grossSalary - totalDeductions) * 100) / 100;
+
+      // Create payslip with items
+      await this.prisma.payslip.create({
+        data: {
+          employeeId: emp.id,
+          payrollRunId: run.id,
+          year,
+          month,
+          grossSalary,
+          netSalary,
+          totalDeductions,
+          totalExpenses: 0,
+          totalEmployerCost: ahvIvEo + Math.round(grossSalary * 1.1) / 100 + bvg, // AG-Beiträge
+          targetHours: workHours * 4.33,
+          actualHours: workHours * 4.33,
+          status: 'DRAFT',
+          items: {
+            create: [
+              { category: 'EARNING' as any, type: 'base', description: 'Grundlohn', amount: grossSalary, sortOrder: 0 },
+              { category: 'DEDUCTION' as any, type: 'ahv_iv_eo', description: 'AHV/IV/EO (5.3%)', amount: ahvIvEo, rate: 5.3, sortOrder: 1 },
+              { category: 'DEDUCTION' as any, type: 'alv', description: 'ALV (1.1%)', amount: alv, rate: 1.1, sortOrder: 2 },
+              { category: 'DEDUCTION' as any, type: 'bvg', description: 'BVG Pensionskasse', amount: bvg, rate: 7.0, sortOrder: 3 },
+              { category: 'DEDUCTION' as any, type: 'nbu', description: 'NBU Nichtberufsunfall', amount: nbu, rate: 1.0, sortOrder: 4 },
+              { category: 'DEDUCTION' as any, type: 'ktg', description: 'KTG Krankentaggeld', amount: ktg, rate: 0.5, sortOrder: 5 },
+              { category: 'EMPLOYER_CONTRIBUTION' as any, type: 'ahv_ag', description: 'AHV/IV/EO AG (5.3%)', amount: ahvIvEo, sortOrder: 6 },
+              { category: 'EMPLOYER_CONTRIBUTION' as any, type: 'bvg_ag', description: 'BVG AG (mind. = AN)', amount: bvg, sortOrder: 7 },
+            ],
+          },
+        },
+      });
+
+      totalGross += grossSalary;
+      totalNet += netSalary;
+    }
+
+    // Update run totals
+    const updated = await this.prisma.payrollRun.update({
+      where: { id: run.id },
+      data: {
+        grossTotal: Math.round(totalGross * 100) / 100,
+        netTotal: Math.round(totalNet * 100) / 100,
+      },
+    });
+
     return {
-      ...run,
-      grossTotal: Number(run.grossTotal),
-      netTotal: Number(run.netTotal),
-      status: RUN_STATUS_MAP[run.status] || run.status,
-      runDate: run.createdAt.toLocaleDateString('de-CH'),
+      ...updated,
+      grossTotal: Number(updated.grossTotal),
+      netTotal: Number(updated.netTotal),
+      status: RUN_STATUS_MAP[updated.status] || updated.status,
+      runDate: updated.createdAt.toLocaleDateString('de-CH'),
     };
   }
 
