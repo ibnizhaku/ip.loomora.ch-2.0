@@ -60,11 +60,13 @@ import EmployeeCreate from "./pages/EmployeeCreate";
 import EmployeeEdit from "./pages/EmployeeEdit";
 import Payroll from "./pages/Payroll";
 import PayrollCreate from "./pages/PayrollCreate";
+import PayrollDetail from "./pages/PayrollDetail";
 import Absences from "./pages/Absences";
 import AbsenceDetail from "./pages/AbsenceDetail";
 import AbsenceCreate from "./pages/AbsenceCreate";
 import Departments from "./pages/Departments";
 import DepartmentCreate from "./pages/DepartmentCreate";
+import DepartmentDetail from "./pages/DepartmentDetail";
 import Recruiting from "./pages/Recruiting";
 import CandidateDetail from "./pages/CandidateDetail";
 import JobPostingCreate from "./pages/JobPostingCreate";
@@ -161,6 +163,7 @@ import OpenItems from "./pages/OpenItems";
 import BalanceSheet from "./pages/BalanceSheet";
 import CashBook from "./pages/CashBook";
 import CashBookCreate from "./pages/CashBookCreate";
+import CashBookDetail from "./pages/CashBookDetail";
 import SepaPayments from "./pages/SepaPayments";
 import SepaPaymentDetail from "./pages/SepaPaymentDetail";
 import CostCenters from "./pages/CostCenters";
@@ -354,6 +357,7 @@ const App = () => (
               <Route path="/fixed-assets/:id" element={<ProtectedLayout><FixedAssetDetail /></ProtectedLayout>} />
               <Route path="/cash-book" element={<ProtectedLayout><CashBook /></ProtectedLayout>} />
               <Route path="/cash-book/new" element={<ProtectedLayout><CashBookCreate /></ProtectedLayout>} />
+              <Route path="/cash-book/:id" element={<ProtectedLayout><CashBookDetail /></ProtectedLayout>} />
               <Route path="/bank-accounts" element={<ProtectedLayout><BankAccounts /></ProtectedLayout>} />
               <Route path="/bank-accounts/new" element={<ProtectedLayout><BankAccountCreate /></ProtectedLayout>} />
               <Route path="/bank-accounts/:id" element={<ProtectedLayout><BankAccountDetail /></ProtectedLayout>} />
@@ -419,12 +423,14 @@ const App = () => (
               <Route path="/employee-contracts/:id" element={<ProtectedLayout><EmployeeContractDetail /></ProtectedLayout>} />
               <Route path="/payroll" element={<ProtectedLayout><Payroll /></ProtectedLayout>} />
               <Route path="/payroll/new" element={<ProtectedLayout><PayrollCreate /></ProtectedLayout>} />
+              <Route path="/payroll/:id" element={<ProtectedLayout><PayrollDetail /></ProtectedLayout>} />
               <Route path="/payslips/:id" element={<ProtectedLayout><PayslipDetail /></ProtectedLayout>} />
               <Route path="/absences" element={<ProtectedLayout><Absences /></ProtectedLayout>} />
               <Route path="/absences/new" element={<ProtectedLayout><AbsenceCreate /></ProtectedLayout>} />
               <Route path="/absences/:id" element={<ProtectedLayout><AbsenceDetail /></ProtectedLayout>} />
               <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
               <Route path="/departments/new" element={<ProtectedLayout><DepartmentCreate /></ProtectedLayout>} />
+              <Route path="/departments/:id" element={<ProtectedLayout><DepartmentDetail /></ProtectedLayout>} />
               <Route path="/recruiting" element={<ProtectedLayout><Recruiting /></ProtectedLayout>} />
               <Route path="/recruiting/new" element={<ProtectedLayout><JobPostingCreate /></ProtectedLayout>} />
               <Route path="/recruiting/:id" element={<ProtectedLayout><CandidateDetail /></ProtectedLayout>} />

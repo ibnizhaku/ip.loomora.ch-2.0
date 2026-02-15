@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Upload, Building2, Receipt, FolderKanban, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,10 @@ import { useProjects } from "@/hooks/use-projects";
 
 export default function PurchaseInvoiceCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultSupplierId = searchParams.get("supplierId") || "";
   const [formData, setFormData] = useState({
-    supplier: "",
+    supplier: defaultSupplierId,
     supplierNumber: "",
     amount: "",
     invoiceDate: "",

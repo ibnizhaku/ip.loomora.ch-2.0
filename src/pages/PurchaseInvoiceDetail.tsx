@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   FileText, 
@@ -77,6 +77,7 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 
 const PurchaseInvoiceDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const status = statusConfig[purchaseInvoiceData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
   const outstanding = purchaseInvoiceData.total - purchaseInvoiceData.paid;
@@ -125,7 +126,7 @@ const PurchaseInvoiceDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Bearbeiten</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/purchase-invoices/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
               <DropdownMenuItem>Bestellung anzeigen</DropdownMenuItem>
               <DropdownMenuItem className="text-destructive">Stornieren</DropdownMenuItem>
             </DropdownMenuContent>

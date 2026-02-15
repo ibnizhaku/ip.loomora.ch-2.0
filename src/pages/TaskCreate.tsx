@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -52,11 +52,13 @@ const priorityToBackend: Record<string, string> = {
 
 export default function TaskCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultProjectId = searchParams.get("projectId") || "";
 
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>(defaultProjectId);
   const [assigneeId, setAssigneeId] = useState<string>("");
   const [taskStatus, setTaskStatus] = useState("todo");
   const [taskPriority, setTaskPriority] = useState("medium");
