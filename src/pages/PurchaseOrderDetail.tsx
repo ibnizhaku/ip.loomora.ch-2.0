@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -18,8 +18,7 @@ import {
   Copy,
   Edit,
   XCircle,
-  AlertCircle,
-  Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,13 +57,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,75 +64,27 @@ import { toast } from "sonner";
 import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { usePurchaseOrder, useUpdatePurchaseOrder, useSendPurchaseOrder } from "@/hooks/use-purchase-orders";
 
 type OrderStatus = 'Entwurf' | 'Bestellt' | 'Auftragsbestätigt' | 'Teilweise geliefert' | 'Vollständig geliefert' | 'Storniert';
 
-interface Position {
-  id: number;
-  sku: string;
-  description: string;
-  quantity: number;
-  delivered: number;
-  unit: string;
-  price: number;
-  total: number;
-}
+// Map API status to display status
+const apiStatusToDisplay: Record<string, OrderStatus> = {
+  DRAFT: "Entwurf",
+  SENT: "Bestellt",
+  CONFIRMED: "Auftragsbestätigt",
+  PARTIAL: "Teilweise geliefert",
+  RECEIVED: "Vollständig geliefert",
+  CANCELLED: "Storniert",
+};
 
-interface HistoryEntry {
-  date: string;
-  action: string;
-  user: string;
-}
-
-interface Delivery {
-  id: string;
-  date: string;
-  status: string;
-  items: { positionId: number; quantity: number }[];
-}
-
-const initialPurchaseOrderData = {
-  id: "BEST-2024-0034",
-  status: "Teilweise geliefert" as OrderStatus,
-  supplier: {
-    id: "1",
-    name: "IT Components AG",
-    number: "LF-001",
-    contact: "Peter Huber",
-    email: "p.huber@itcomponents.ch",
-    phone: "+41 44 123 45 67",
-    address: "Industriestrasse 88",
-    city: "8005 Zürich",
-  },
-  project: {
-    id: "proj-1",
-    name: "Server Migration",
-    number: "PRJ-2024-015",
-  },
-  createdAt: "2024-01-10",
-  expectedDelivery: "2024-01-25",
-  positions: [
-    { id: 1, sku: "SRV-R750", description: "Server Hardware (Dell R750)", quantity: 3, delivered: 2, unit: "Stück", price: 4500, total: 13500 },
-    { id: 2, sku: "SSD-2TB-E", description: "SSD 2TB Enterprise", quantity: 10, delivered: 10, unit: "Stück", price: 350, total: 3500 },
-    { id: 3, sku: "RAM-64GB", description: "RAM 64GB DDR4 ECC", quantity: 12, delivered: 8, unit: "Stück", price: 280, total: 3360 },
-    { id: 4, sku: "SW-48P", description: "Netzwerk-Switch 48 Port", quantity: 2, delivered: 0, unit: "Stück", price: 1200, total: 2400 },
-  ] as Position[],
-  subtotal: 22760,
-  vatRate: 8.1,
-  tax: 1843.56,
-  total: 24603.56,
-  notes: "Bitte Lieferung an Lager Halle 3. Kontakt: Max Mustermann, Tel. 044 111 22 33",
-  deliveries: [
-    { id: "WE-2024-0012", date: "2024-01-18", status: "Geprüft", items: [{ positionId: 1, quantity: 2 }, { positionId: 2, quantity: 10 }] },
-    { id: "WE-2024-0015", date: "2024-01-22", status: "Geprüft", items: [{ positionId: 3, quantity: 8 }] },
-  ] as Delivery[],
-  history: [
-    { date: "2024-01-10T09:15:00", action: "Bestellung erstellt", user: "Max Müller" },
-    { date: "2024-01-10T09:30:00", action: "Bestellung per E-Mail versendet", user: "Max Müller" },
-    { date: "2024-01-11T14:20:00", action: "Auftragsbestätigung erhalten", user: "System" },
-    { date: "2024-01-18T10:00:00", action: "Teillieferung eingegangen (WE-2024-0012)", user: "Lager" },
-    { date: "2024-01-22T11:30:00", action: "Teillieferung eingegangen (WE-2024-0015)", user: "Lager" },
-  ] as HistoryEntry[],
+const displayStatusToApi: Record<OrderStatus, string> = {
+  "Entwurf": "DRAFT",
+  "Bestellt": "SENT",
+  "Auftragsbestätigt": "CONFIRMED",
+  "Teilweise geliefert": "PARTIAL",
+  "Vollständig geliefert": "RECEIVED",
+  "Storniert": "CANCELLED",
 };
 
 const statusConfig: Record<OrderStatus, { color: string; icon: React.ElementType }> = {
@@ -162,15 +106,22 @@ const statusFlow: Record<OrderStatus, OrderStatus[]> = {
 };
 
 function formatCHF(amount: number): string {
-  return amount.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (amount || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function safeDate(d?: string | null): Date | null {
+  if (!d) return null;
+  try { const date = new Date(d); return isNaN(date.getTime()) ? null : date; } catch { return null; }
 }
 
 const PurchaseOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // State for order data
-  const [orderData, setOrderData] = useState(initialPurchaseOrderData);
+  // API hooks
+  const { data: apiData, isLoading, error } = usePurchaseOrder(id || "");
+  const updateOrder = useUpdatePurchaseOrder();
+  const sendOrder = useSendPurchaseOrder();
   
   // Dialog states
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -179,26 +130,90 @@ const PurchaseOrderDetail = () => {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [goodsReceiptDialogOpen, setGoodsReceiptDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   
   // Email form state
   const [emailForm, setEmailForm] = useState({
-    recipient: orderData.supplier.email,
-    subject: `Einkaufsbestellung ${orderData.id}`,
-    message: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie unsere Bestellung ${orderData.id}.\n\nBitte bestätigen Sie den Erhalt und das voraussichtliche Lieferdatum.\n\nFreundliche Grüsse\nLoomora AG`,
+    recipient: "",
+    subject: "",
+    message: "",
   });
-  
-  // Goods receipt form state
-  const [receiptItems, setReceiptItems] = useState(
-    orderData.positions.map(pos => ({
+
+  // Map API data
+  const orderData = useMemo(() => {
+    if (!apiData) return null;
+    const displayStatus = apiStatusToDisplay[apiData.status] || "Entwurf";
+    const items = (apiData.items || []).map((item: any, idx: number) => ({
+      id: idx + 1,
+      sku: item.productId || `POS-${idx + 1}`,
+      description: item.description || "—",
+      quantity: item.quantity || 0,
+      delivered: item.delivered ?? 0,
+      unit: item.unit || "Stück",
+      price: item.unitPrice || 0,
+      total: item.total ?? (item.quantity || 0) * (item.unitPrice || 0),
+    }));
+    return {
+      id: apiData.number || apiData.id || id,
+      status: displayStatus,
+      supplier: {
+        id: apiData.supplier?.id || apiData.supplierId || "",
+        name: apiData.supplier?.name || apiData.supplier?.companyName || "—",
+        number: (apiData.supplier as any)?.number || "—",
+        contact: (apiData.supplier as any)?.contact || "—",
+        email: (apiData.supplier as any)?.email || "",
+        phone: (apiData.supplier as any)?.phone || "",
+        address: (apiData.supplier as any)?.address || "",
+        city: (apiData.supplier as any)?.city || "",
+      },
+      project: apiData.project ? {
+        id: apiData.project.id,
+        name: apiData.project.name,
+        number: (apiData.project as any)?.number || "",
+      } : null,
+      createdAt: apiData.orderDate || apiData.createdAt,
+      expectedDelivery: apiData.expectedDate || apiData.createdAt,
+      positions: items,
+      subtotal: apiData.subtotal || 0,
+      vatRate: apiData.vatAmount && apiData.subtotal ? Math.round((apiData.vatAmount / apiData.subtotal) * 1000) / 10 : 8.1,
+      tax: apiData.vatAmount || 0,
+      total: apiData.total || 0,
+      notes: apiData.notes || "",
+      deliveries: (apiData as any)?.deliveries || [],
+      history: (apiData as any)?.history || [],
+    };
+  }, [apiData, id]);
+
+  // Goods receipt items derived from orderData
+  const receiptItems = useMemo(() => {
+    if (!orderData) return [];
+    return orderData.positions.map(pos => ({
       positionId: pos.id,
       description: pos.description,
       ordered: pos.quantity,
       alreadyDelivered: pos.delivered,
       receiving: 0,
-    }))
-  );
+    }));
+  }, [orderData]);
+
+  const [receiptState, setReceiptState] = useState<{ positionId: number; receiving: number }[]>([]);
+
+  // Loading / Error
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !orderData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Bestellung nicht gefunden</p>
+        <Link to="/purchase-orders" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
 
   const status = statusConfig[orderData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
@@ -208,19 +223,6 @@ const PurchaseOrderDetail = () => {
   const deliveryProgress = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
 
   const availableStatusChanges = statusFlow[orderData.status] || [];
-
-  // Add history entry
-  const addHistoryEntry = (action: string) => {
-    const newEntry: HistoryEntry = {
-      date: new Date().toISOString(),
-      action,
-      user: "Aktueller Benutzer",
-    };
-    setOrderData(prev => ({
-      ...prev,
-      history: [newEntry, ...prev.history],
-    }));
-  };
 
   // Status change handler
   const handleStatusChange = (targetStatus: OrderStatus) => {
@@ -234,170 +236,82 @@ const PurchaseOrderDetail = () => {
 
   const confirmStatusChange = () => {
     if (!newStatus) return;
-    
-    setOrderData(prev => ({
-      ...prev,
-      status: newStatus,
-    }));
-    addHistoryEntry(`Status geändert zu "${newStatus}"`);
-    toast.success("Status aktualisiert", {
-      description: `Bestellung ist jetzt: ${newStatus}`,
+    const apiStatus = displayStatusToApi[newStatus];
+    updateOrder.mutate({ id: id || "", data: { status: apiStatus } }, {
+      onSuccess: () => {
+        toast.success("Status aktualisiert", { description: `Bestellung ist jetzt: ${newStatus}` });
+        setStatusDialogOpen(false);
+        setNewStatus(null);
+      },
+      onError: () => toast.error("Fehler beim Status-Update"),
     });
-    setStatusDialogOpen(false);
-    setNewStatus(null);
   };
 
   const confirmCancel = () => {
-    setOrderData(prev => ({
-      ...prev,
-      status: "Storniert",
-    }));
-    addHistoryEntry("Bestellung storniert");
-    toast.success("Bestellung storniert");
-    setCancelDialogOpen(false);
-    setNewStatus(null);
+    updateOrder.mutate({ id: id || "", data: { status: "CANCELLED" } }, {
+      onSuccess: () => {
+        toast.success("Bestellung storniert");
+        setCancelDialogOpen(false);
+        setNewStatus(null);
+      },
+      onError: () => toast.error("Fehler beim Stornieren"),
+    });
   };
 
   // PDF handlers
   const handleDownloadPDF = () => {
     const pdfData = {
       orderNumber: orderData.id,
-      supplier: {
-        name: orderData.supplier.name,
-        number: orderData.supplier.number,
-        city: `${orderData.supplier.address}\n${orderData.supplier.city}`,
-      },
-      items: orderData.positions.map(pos => ({
-        sku: pos.sku,
-        name: pos.description,
-        quantity: pos.quantity,
-        unit: pos.unit,
-        unitPrice: pos.price,
-        total: pos.total,
-      })),
-      subtotal: orderData.subtotal,
-      vat: orderData.tax,
-      total: orderData.total,
-      expectedDelivery: orderData.expectedDelivery,
-      project: orderData.project,
-      notes: orderData.notes,
+      supplier: { name: orderData.supplier.name, number: orderData.supplier.number, city: `${orderData.supplier.address}\n${orderData.supplier.city}` },
+      items: orderData.positions.map(pos => ({ sku: pos.sku, name: pos.description, quantity: pos.quantity, unit: pos.unit, unitPrice: pos.price, total: pos.total })),
+      subtotal: orderData.subtotal, vat: orderData.tax, total: orderData.total,
+      expectedDelivery: orderData.expectedDelivery, project: orderData.project, notes: orderData.notes,
     };
-    
     generatePurchaseOrderPDF(pdfData);
     toast.success("PDF heruntergeladen");
   };
 
-  const handlePrint = () => {
-    // Generate PDF and open print dialog
-    window.print();
-    toast.info("Druckdialog geöffnet");
-  };
+  const handlePrint = () => { window.print(); toast.info("Druckdialog geöffnet"); };
 
   // Email handler
   const handleSendEmail = () => {
-    // Simulate email sending
-    addHistoryEntry(`Bestellung per E-Mail an ${emailForm.recipient} gesendet`);
-    
-    if (orderData.status === "Entwurf") {
-      setOrderData(prev => ({
-        ...prev,
-        status: "Bestellt",
-      }));
-    }
-    
-    toast.success("E-Mail gesendet", {
-      description: `Bestellung wurde an ${emailForm.recipient} gesendet`,
+    sendOrder.mutate({ id: id || "", method: "EMAIL", recipientEmail: emailForm.recipient, message: emailForm.message }, {
+      onSuccess: () => {
+        toast.success("E-Mail gesendet", { description: `Bestellung wurde an ${emailForm.recipient} gesendet` });
+        setEmailDialogOpen(false);
+      },
+      onError: () => toast.error("Fehler beim Senden"),
     });
-    setEmailDialogOpen(false);
   };
 
   // Goods receipt handler
   const handleGoodsReceipt = () => {
-    const receivingItems = receiptItems.filter(item => item.receiving > 0);
-    
-    if (receivingItems.length === 0) {
-      toast.error("Keine Positionen zum Einbuchen");
-      return;
-    }
-
-    // Update delivered quantities
-    const updatedPositions = orderData.positions.map(pos => {
-      const receiptItem = receiptItems.find(r => r.positionId === pos.id);
-      if (receiptItem && receiptItem.receiving > 0) {
-        return {
-          ...pos,
-          delivered: Math.min(pos.quantity, pos.delivered + receiptItem.receiving),
-        };
-      }
-      return pos;
-    });
-
-    // Create new delivery record
-    const newDelivery: Delivery = {
-      id: `WE-2024-${String(orderData.deliveries.length + 20).padStart(4, '0')}`,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      status: "Geprüft",
-      items: receivingItems.map(item => ({
-        positionId: item.positionId,
-        quantity: item.receiving,
-      })),
-    };
-
-    // Check if fully delivered
-    const newTotalDelivered = updatedPositions.reduce((sum, pos) => sum + pos.delivered, 0);
-    const isFullyDelivered = newTotalDelivered >= totalOrdered;
-
-    setOrderData(prev => ({
-      ...prev,
-      positions: updatedPositions,
-      deliveries: [...prev.deliveries, newDelivery],
-      status: isFullyDelivered ? "Vollständig geliefert" : "Teilweise geliefert",
-    }));
-
-    addHistoryEntry(`Wareneingang ${newDelivery.id} erfasst`);
-    
-    toast.success("Wareneingang erfasst", {
-      description: `${newDelivery.id} wurde erstellt`,
-    });
-    
+    toast.success("Wareneingang wird erfasst...");
     setGoodsReceiptDialogOpen(false);
-    
-    // Reset receipt form
-    setReceiptItems(updatedPositions.map(pos => ({
-      positionId: pos.id,
-      description: pos.description,
-      ordered: pos.quantity,
-      alreadyDelivered: pos.delivered,
-      receiving: 0,
-    })));
+    navigate(`/goods-receipts/new?purchaseOrderId=${id}`);
   };
 
   // Duplicate handler
   const handleDuplicate = () => {
-    toast.success("Bestellung dupliziert", {
-      description: "Eine neue Bestellung wurde als Entwurf erstellt",
-    });
+    toast.success("Bestellung dupliziert", { description: "Eine neue Bestellung wurde als Entwurf erstellt" });
     navigate("/purchase-orders/create");
   };
 
   // Edit handler
   const handleEdit = () => {
-    if (orderData.status !== "Entwurf") {
-      toast.error("Nur Entwürfe können bearbeitet werden");
-      return;
-    }
+    if (orderData.status !== "Entwurf") { toast.error("Nur Entwürfe können bearbeitet werden"); return; }
     navigate(`/purchase-orders/${id}/edit`);
   };
 
   // Invoice assignment handler
   const handleAssignInvoice = () => {
-    toast.success("Rechnung zugeordnet", {
-      description: "Weiterleitung zu Einkaufsrechnungen",
-    });
-    addHistoryEntry("Rechnung zugeordnet");
+    toast.success("Rechnung zugeordnet", { description: "Weiterleitung zu Einkaufsrechnungen" });
     setInvoiceDialogOpen(false);
     navigate("/purchase-invoices/create");
   };
+
+  const createdDate = safeDate(orderData.createdAt);
+  const expectedDate = safeDate(orderData.expectedDelivery);
 
   return (
     <div className="space-y-6">
@@ -423,21 +337,13 @@ const PurchaseOrderDetail = () => {
 
         <div className="flex items-center gap-2">
           {orderData.status !== "Storniert" && orderData.status !== "Vollständig geliefert" && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setGoodsReceiptDialogOpen(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setGoodsReceiptDialogOpen(true)}>
               <Truck className="h-4 w-4 mr-2" />
               Wareneingang
             </Button>
           )}
           {(orderData.status === "Teilweise geliefert" || orderData.status === "Vollständig geliefert") && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setInvoiceDialogOpen(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setInvoiceDialogOpen(true)}>
               <FileText className="h-4 w-4 mr-2" />
               Rechnung zuordnen
             </Button>
@@ -468,7 +374,14 @@ const PurchaseOrderDetail = () => {
                 Duplizieren
               </DropdownMenuItem>
               {orderData.status !== "Storniert" && (
-                <DropdownMenuItem onClick={() => setEmailDialogOpen(true)}>
+                <DropdownMenuItem onClick={() => {
+                  setEmailForm({
+                    recipient: orderData.supplier.email,
+                    subject: `Einkaufsbestellung ${orderData.id}`,
+                    message: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie unsere Bestellung ${orderData.id}.\n\nBitte bestätigen Sie den Erhalt und das voraussichtliche Lieferdatum.\n\nFreundliche Grüsse\nLoomora AG`,
+                  });
+                  setEmailDialogOpen(true);
+                }}>
                   <Mail className="h-4 w-4 mr-2" />
                   Per E-Mail senden
                 </DropdownMenuItem>
@@ -482,11 +395,7 @@ const PurchaseOrderDetail = () => {
                       onClick={() => handleStatusChange(targetStatus)}
                       className={targetStatus === "Storniert" ? "text-destructive" : ""}
                     >
-                      {targetStatus === "Storniert" ? (
-                        <XCircle className="h-4 w-4 mr-2" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                      )}
+                      {targetStatus === "Storniert" ? <XCircle className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                       {targetStatus === "Storniert" ? "Stornieren" : `Status: ${targetStatus}`}
                     </DropdownMenuItem>
                   ))}
@@ -510,7 +419,7 @@ const PurchaseOrderDetail = () => {
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Erwartete Lieferung</p>
               <p className="font-semibold">
-                {format(new Date(orderData.expectedDelivery), 'd. MMMM yyyy', { locale: de })}
+                {expectedDate ? format(expectedDate, 'd. MMMM yyyy', { locale: de }) : "—"}
               </p>
             </div>
           </div>
@@ -591,23 +500,26 @@ const PurchaseOrderDetail = () => {
             <CardContent>
               {orderData.deliveries.length > 0 ? (
                 <div className="space-y-3">
-                  {orderData.deliveries.map((delivery) => (
-                    <div key={delivery.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <Package className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{delivery.id}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(delivery.date), 'd. MMMM yyyy', { locale: de })}
-                          </p>
+                  {orderData.deliveries.map((delivery: any) => {
+                    const deliveryDate = safeDate(delivery.date);
+                    return (
+                      <div key={delivery.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{delivery.id}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {deliveryDate ? format(deliveryDate, 'd. MMMM yyyy', { locale: de }) : "—"}
+                            </p>
+                          </div>
                         </div>
+                        <Badge className="bg-success/10 text-success border-success/20">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          {delivery.status}
+                        </Badge>
                       </div>
-                      <Badge className="bg-success/10 text-success border-success/20">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        {delivery.status}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -624,23 +536,33 @@ const PurchaseOrderDetail = () => {
               <CardTitle>Verlauf</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {orderData.history.map((entry, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{entry.action}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{format(new Date(entry.date), "d. MMM yyyy, HH:mm", { locale: de })} Uhr</span>
-                        <span>•</span>
-                        <span>{typeof entry.user === 'object' ? (entry.user as any)?.name || (entry.user as any)?.email : entry.user}</span>
+              {orderData.history.length > 0 ? (
+                <div className="space-y-4">
+                  {orderData.history.map((entry: any, index: number) => {
+                    const entryDate = safeDate(entry.date);
+                    return (
+                      <div key={index} className="flex items-start gap-4">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{entry.action}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{entryDate ? format(entryDate, "d. MMM yyyy, HH:mm", { locale: de }) + " Uhr" : "—"}</span>
+                            <span>•</span>
+                            <span>{typeof entry.user === 'object' ? (entry.user as any)?.name || (entry.user as any)?.email : entry.user}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Noch keine Verlaufseinträge.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -668,24 +590,24 @@ const PurchaseOrderDetail = () => {
               <Separator />
 
               <div className="space-y-2 text-sm">
-                <a 
-                  href={`mailto:${orderData.supplier.email}`}
-                  className="flex items-center gap-2 hover:text-primary"
-                >
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{orderData.supplier.email}</span>
-                </a>
-                <a 
-                  href={`tel:${orderData.supplier.phone}`}
-                  className="flex items-center gap-2 hover:text-primary"
-                >
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{orderData.supplier.phone}</span>
-                </a>
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span>{orderData.supplier.address}<br/>{orderData.supplier.city}</span>
-                </div>
+                {orderData.supplier.email && (
+                  <a href={`mailto:${orderData.supplier.email}`} className="flex items-center gap-2 hover:text-primary">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{orderData.supplier.email}</span>
+                  </a>
+                )}
+                {orderData.supplier.phone && (
+                  <a href={`tel:${orderData.supplier.phone}`} className="flex items-center gap-2 hover:text-primary">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{orderData.supplier.phone}</span>
+                  </a>
+                )}
+                {orderData.supplier.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <span>{orderData.supplier.address}<br/>{orderData.supplier.city}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -697,10 +619,7 @@ const PurchaseOrderDetail = () => {
                 <CardTitle className="text-base">Projekt</CardTitle>
               </CardHeader>
               <CardContent>
-                <Link 
-                  to={`/projects/${orderData.project.id}`}
-                  className="flex items-center gap-3 hover:text-primary"
-                >
+                <Link to={`/projects/${orderData.project.id}`} className="flex items-center gap-3 hover:text-primary">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
                     <FileText className="h-5 w-5 text-info" />
                   </div>
@@ -722,13 +641,13 @@ const PurchaseOrderDetail = () => {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Bestelldatum</span>
                 <span className="font-medium">
-                  {format(new Date(orderData.createdAt), 'd. MMM yyyy', { locale: de })}
+                  {createdDate ? format(createdDate, 'd. MMM yyyy', { locale: de }) : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Liefertermin</span>
                 <span className="font-medium">
-                  {format(new Date(orderData.expectedDelivery), 'd. MMM yyyy', { locale: de })}
+                  {expectedDate ? format(expectedDate, 'd. MMM yyyy', { locale: de }) : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -750,9 +669,7 @@ const PurchaseOrderDetail = () => {
                 <CardTitle className="text-base">Bemerkungen</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {orderData.notes}
-                </p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{orderData.notes}</p>
               </CardContent>
             </Card>
           )}
@@ -769,11 +686,9 @@ const PurchaseOrderDetail = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={confirmStatusChange}>
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={confirmStatusChange} disabled={updateOrder.isPending}>
+              {updateOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
               Bestätigen
             </Button>
           </DialogFooter>
@@ -804,33 +719,20 @@ const PurchaseOrderDetail = () => {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Bestellung per E-Mail senden</DialogTitle>
-            <DialogDescription>
-              Senden Sie die Bestellung an den Lieferanten
-            </DialogDescription>
+            <DialogDescription>Senden Sie die Bestellung an den Lieferanten</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Empfänger</Label>
-              <Input 
-                type="email"
-                value={emailForm.recipient}
-                onChange={(e) => setEmailForm({...emailForm, recipient: e.target.value})}
-              />
+              <Input type="email" value={emailForm.recipient} onChange={(e) => setEmailForm({...emailForm, recipient: e.target.value})} />
             </div>
             <div className="space-y-2">
               <Label>Betreff</Label>
-              <Input 
-                value={emailForm.subject}
-                onChange={(e) => setEmailForm({...emailForm, subject: e.target.value})}
-              />
+              <Input value={emailForm.subject} onChange={(e) => setEmailForm({...emailForm, subject: e.target.value})} />
             </div>
             <div className="space-y-2">
               <Label>Nachricht</Label>
-              <Textarea 
-                rows={6}
-                value={emailForm.message}
-                onChange={(e) => setEmailForm({...emailForm, message: e.target.value})}
-              />
+              <Textarea rows={6} value={emailForm.message} onChange={(e) => setEmailForm({...emailForm, message: e.target.value})} />
             </div>
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
               <FileText className="h-5 w-5 text-muted-foreground" />
@@ -841,11 +743,9 @@ const PurchaseOrderDetail = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleSendEmail}>
-              <Send className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleSendEmail} disabled={sendOrder.isPending}>
+              {sendOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
               Senden
             </Button>
           </DialogFooter>
@@ -857,9 +757,7 @@ const PurchaseOrderDetail = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Wareneingang erfassen</DialogTitle>
-            <DialogDescription>
-              Geben Sie die erhaltenen Mengen ein
-            </DialogDescription>
+            <DialogDescription>Geben Sie die erhaltenen Mengen ein</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Table>
@@ -869,11 +767,10 @@ const PurchaseOrderDetail = () => {
                   <TableHead className="text-right">Bestellt</TableHead>
                   <TableHead className="text-right">Bereits geliefert</TableHead>
                   <TableHead className="text-right">Offen</TableHead>
-                  <TableHead className="w-[120px]">Erhalten</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {receiptItems.map((item, index) => {
+                {receiptItems.map((item) => {
                   const open = item.ordered - item.alreadyDelivered;
                   return (
                     <TableRow key={item.positionId}>
@@ -881,24 +778,7 @@ const PurchaseOrderDetail = () => {
                       <TableCell className="text-right">{item.ordered}</TableCell>
                       <TableCell className="text-right">{item.alreadyDelivered}</TableCell>
                       <TableCell className="text-right">
-                        <span className={open === 0 ? "text-success" : "text-warning"}>
-                          {open}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Input 
-                          type="number"
-                          min={0}
-                          max={open}
-                          value={item.receiving}
-                          onChange={(e) => {
-                            const newItems = [...receiptItems];
-                            newItems[index].receiving = Math.min(parseInt(e.target.value) || 0, open);
-                            setReceiptItems(newItems);
-                          }}
-                          className="h-8 w-20"
-                          disabled={open === 0}
-                        />
+                        <span className={open === 0 ? "text-success" : "text-warning"}>{open}</span>
                       </TableCell>
                     </TableRow>
                   );
@@ -907,12 +787,10 @@ const PurchaseOrderDetail = () => {
             </Table>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGoodsReceiptDialogOpen(false)}>
-              Abbrechen
-            </Button>
+            <Button variant="outline" onClick={() => setGoodsReceiptDialogOpen(false)}>Abbrechen</Button>
             <Button onClick={handleGoodsReceipt}>
               <Truck className="h-4 w-4 mr-2" />
-              Wareneingang buchen
+              Wareneingang erstellen
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -923,14 +801,12 @@ const PurchaseOrderDetail = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rechnung zuordnen</DialogTitle>
-            <DialogDescription>
-              Weisen Sie eine Einkaufsrechnung dieser Bestellung zu
-            </DialogDescription>
+            <DialogDescription>Weisen Sie eine Einkaufsrechnung dieser Bestellung zu</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Bestellung</Label>
-              <Input value={orderData.id} disabled />
+              <Input value={orderData.id || ""} disabled />
             </div>
             <div className="space-y-2">
               <Label>Lieferant</Label>
@@ -942,9 +818,7 @@ const PurchaseOrderDetail = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setInvoiceDialogOpen(false)}>
-              Abbrechen
-            </Button>
+            <Button variant="outline" onClick={() => setInvoiceDialogOpen(false)}>Abbrechen</Button>
             <Button onClick={handleAssignInvoice}>
               <FileText className="h-4 w-4 mr-2" />
               Neue Rechnung erstellen

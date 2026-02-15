@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -20,6 +20,7 @@ import {
   X,
   Plus,
   Minus,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,56 +73,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-const initialItemData = {
-  id: "ART-00145",
-  name: "Server-Rack 42HE Premium",
-  category: "Hardware",
-  subcategory: "Server-Infrastruktur",
-  status: "Verfügbar",
-  sku: "SR-42HE-PREM",
-  ean: "4012345678901",
-  description: "Professionelles Server-Rack mit 42 Höheneinheiten. Inklusive Kabelmanagement, Lüftereinheit und abschließbaren Türen.",
-  unit: "Stk",
-  stock: {
-    current: 8,
-    reserved: 2,
-    available: 6,
-    minimum: 3,
-    maximum: 20,
-    reorderPoint: 5
-  },
-  pricing: {
-    purchasePrice: 650,
-    sellingPrice: 899,
-    margin: 27.7,
-    lastPurchase: "15.01.2024"
-  },
-  supplier: {
-    id: "SUP-001",
-    name: "TechParts International",
-    articleNo: "TP-SR42P",
-    deliveryTime: "3-5 Tage"
-  },
-  location: {
-    warehouse: "Hauptlager",
-    rack: "A",
-    shelf: "12",
-    bin: "A12-04"
-  },
-  movements: [
-    { date: "28.01.2024", type: "Ausgang", quantity: -2, reference: "LS-2024-0089", balance: 8 },
-    { date: "22.01.2024", type: "Eingang", quantity: 5, reference: "EK-2024-0045", balance: 10 },
-    { date: "15.01.2024", type: "Ausgang", quantity: -3, reference: "LS-2024-0078", balance: 5 },
-    { date: "10.01.2024", type: "Eingang", quantity: 8, reference: "EK-2024-0038", balance: 8 },
-  ],
-  sales: {
-    last30Days: 5,
-    last90Days: 18,
-    lastYear: 67,
-    avgPerMonth: 5.6
-  }
-};
+import { useInventoryItem, useUpdateInventoryItem, useAdjustInventory, useTransferInventory, useDeleteInventoryItem } from "@/hooks/use-inventory";
 
 const warehouses = [
   { id: "1", name: "Hauptlager" },
@@ -130,15 +82,65 @@ const warehouses = [
 ];
 
 const formatCHF = (value: number) => {
-  return value.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (value || 0).toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const InventoryItemDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // API hooks
+  const { data: apiData, isLoading, error } = useInventoryItem(id || "");
+  const updateItem = useUpdateInventoryItem();
+  const adjustInventory = useAdjustInventory();
+  const transferInventory = useTransferInventory();
+  const deleteItem = useDeleteInventoryItem();
+
+  // Map API data to component shape
+  const itemData = useMemo(() => {
+    if (!apiData) return null;
+    return {
+      id: apiData.id || id || "",
+      name: apiData.name || "Unbenannt",
+      category: apiData.category || "—",
+      subcategory: apiData.subcategory || "—",
+      status: apiData.status || "Verfügbar",
+      sku: apiData.sku || "—",
+      ean: apiData.ean || "—",
+      description: apiData.description || "",
+      unit: apiData.unit || "Stk",
+      stock: {
+        current: apiData.stock?.current ?? 0,
+        reserved: apiData.stock?.reserved ?? 0,
+        available: apiData.stock?.available ?? 0,
+        minimum: apiData.stock?.minimum ?? 0,
+        maximum: apiData.stock?.maximum ?? 100,
+        reorderPoint: apiData.stock?.reorderPoint ?? 5,
+      },
+      pricing: {
+        purchasePrice: apiData.pricing?.purchasePrice ?? 0,
+        sellingPrice: apiData.pricing?.sellingPrice ?? 0,
+        margin: apiData.pricing?.margin ?? 0,
+        lastPurchase: apiData.pricing?.lastPurchase || "—",
+      },
+      supplier: {
+        id: apiData.supplier?.id || "",
+        name: apiData.supplier?.name || "—",
+        articleNo: apiData.supplier?.articleNo || "—",
+        deliveryTime: apiData.supplier?.deliveryTime || "—",
+      },
+      location: {
+        warehouse: apiData.location?.warehouse || "Hauptlager",
+        rack: apiData.location?.rack || "—",
+        shelf: apiData.location?.shelf || "—",
+        bin: apiData.location?.bin || "—",
+      },
+      movements: apiData.movements || [],
+      sales: apiData.sales || { last30Days: 0, last90Days: 0, lastYear: 0, avgPerMonth: 0 },
+    };
+  }, [apiData, id]);
   
   // State
-  const [itemData, setItemData] = useState(initialItemData);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [reorderDialogOpen, setReorderDialogOpen] = useState(false);
   const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
@@ -147,47 +149,45 @@ const InventoryItemDetail = () => {
   
   // Edit form state
   const [editForm, setEditForm] = useState({
-    name: itemData.name,
-    description: itemData.description,
-    sku: itemData.sku,
-    ean: itemData.ean,
-    category: itemData.category,
-    subcategory: itemData.subcategory,
-    unit: itemData.unit,
-    purchasePrice: String(itemData.pricing.purchasePrice),
-    sellingPrice: String(itemData.pricing.sellingPrice),
-    minimum: String(itemData.stock.minimum),
-    maximum: String(itemData.stock.maximum),
-    reorderPoint: String(itemData.stock.reorderPoint),
-    warehouse: itemData.location.warehouse,
-    rack: itemData.location.rack,
-    shelf: itemData.location.shelf,
-    bin: itemData.location.bin,
+    name: "", description: "", sku: "", ean: "", category: "", subcategory: "", unit: "",
+    purchasePrice: "0", sellingPrice: "0", minimum: "0", maximum: "100", reorderPoint: "5",
+    warehouse: "", rack: "", shelf: "", bin: "",
   });
   
   // Reorder form state
   const [reorderForm, setReorderForm] = useState({
-    quantity: "10",
-    supplier: itemData.supplier.id,
-    notes: "",
-    expectedDate: "",
+    quantity: "10", supplier: "", notes: "", expectedDate: "",
   });
   
   // Inventory adjustment state
   const [inventoryForm, setInventoryForm] = useState({
-    actualStock: String(itemData.stock.current),
-    reason: "inventory",
-    notes: "",
+    actualStock: "0", reason: "inventory", notes: "",
   });
   
   // Transfer state
   const [transferForm, setTransferForm] = useState({
-    targetWarehouse: "",
-    quantity: "1",
-    notes: "",
+    targetWarehouse: "", quantity: "1", notes: "",
   });
 
-  const stockPercentage = (itemData.stock.current / itemData.stock.maximum) * 100;
+  // Loading / Error states
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !itemData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Artikel nicht gefunden</p>
+        <Link to="/inventory" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const stockPercentage = itemData.stock.maximum > 0 ? (itemData.stock.current / itemData.stock.maximum) * 100 : 0;
   const isLowStock = itemData.stock.available <= itemData.stock.reorderPoint;
 
   // Calculate margin dynamically
@@ -200,50 +200,37 @@ const InventoryItemDetail = () => {
   const handleSaveEdit = () => {
     const purchasePrice = parseFloat(editForm.purchasePrice) || 0;
     const sellingPrice = parseFloat(editForm.sellingPrice) || 0;
-    const margin = calculateMargin(purchasePrice, sellingPrice);
     
-    setItemData(prev => ({
-      ...prev,
-      name: editForm.name,
-      description: editForm.description,
-      sku: editForm.sku,
-      ean: editForm.ean,
-      category: editForm.category,
-      subcategory: editForm.subcategory,
-      unit: editForm.unit,
-      pricing: {
-        ...prev.pricing,
-        purchasePrice,
-        sellingPrice,
-        margin: Math.round(margin * 10) / 10,
-      },
-      stock: {
-        ...prev.stock,
-        minimum: parseInt(editForm.minimum) || 0,
-        maximum: parseInt(editForm.maximum) || 100,
-        reorderPoint: parseInt(editForm.reorderPoint) || 5,
-      },
-      location: {
-        warehouse: editForm.warehouse,
-        rack: editForm.rack,
-        shelf: editForm.shelf,
-        bin: editForm.bin,
-      },
-    }));
-    
-    setEditDialogOpen(false);
-    toast.success("Artikel wurde aktualisiert");
+    updateItem.mutate({
+      id: id || "",
+      data: {
+        name: editForm.name,
+        description: editForm.description,
+        sku: editForm.sku,
+        ean: editForm.ean,
+        category: editForm.category,
+        subcategory: editForm.subcategory,
+        unit: editForm.unit,
+        pricing: { purchasePrice, sellingPrice, margin: Math.round(calculateMargin(purchasePrice, sellingPrice) * 10) / 10 },
+        stock: {
+          ...itemData.stock,
+          minimum: parseInt(editForm.minimum) || 0,
+          maximum: parseInt(editForm.maximum) || 100,
+          reorderPoint: parseInt(editForm.reorderPoint) || 5,
+        },
+        location: { warehouse: editForm.warehouse, rack: editForm.rack, shelf: editForm.shelf, bin: editForm.bin },
+      } as any,
+    }, {
+      onSuccess: () => { setEditDialogOpen(false); toast.success("Artikel wurde aktualisiert"); },
+      onError: () => toast.error("Fehler beim Speichern"),
+    });
   };
 
   // Handle reorder
   const handleReorder = () => {
     const quantity = parseInt(reorderForm.quantity) || 0;
-    if (quantity <= 0) {
-      toast.error("Bitte gültige Menge eingeben");
-      return;
-    }
-    
-    toast.success(`Bestellung über ${quantity} ${itemData.unit} wurde erstellt`);
+    if (quantity <= 0) { toast.error("Bitte gültige Menge eingeben"); return; }
+    toast.success(`Bestellung über ${quantity} ${itemData.unit} wird erstellt`);
     setReorderDialogOpen(false);
     navigate("/purchase-orders/new");
   };
@@ -251,72 +238,69 @@ const InventoryItemDetail = () => {
   // Handle inventory adjustment
   const handleInventoryAdjustment = () => {
     const actualStock = parseInt(inventoryForm.actualStock) || 0;
-    const difference = actualStock - itemData.stock.current;
-    
-    // Add to movements
-    const newMovement = {
-      date: new Date().toLocaleDateString("de-CH"),
-      type: "Inventur",
-      quantity: difference,
-      reference: `INV-${Date.now().toString().slice(-6)}`,
-      balance: actualStock,
-    };
-    
-    setItemData(prev => ({
-      ...prev,
-      stock: {
-        ...prev.stock,
-        current: actualStock,
-        available: actualStock - prev.stock.reserved,
+    adjustInventory.mutate({
+      id: id || "",
+      data: { actualStock, reason: inventoryForm.reason, notes: inventoryForm.notes },
+    }, {
+      onSuccess: () => {
+        setInventoryDialogOpen(false);
+        const difference = actualStock - itemData.stock.current;
+        toast.success(`Bestand auf ${actualStock} ${itemData.unit} korrigiert (${difference >= 0 ? "+" : ""}${difference})`);
       },
-      movements: [newMovement, ...prev.movements],
-    }));
-    
-    setInventoryDialogOpen(false);
-    toast.success(`Bestand auf ${actualStock} ${itemData.unit} korrigiert (${difference >= 0 ? "+" : ""}${difference})`);
+      onError: () => toast.error("Fehler bei der Inventurbuchung"),
+    });
   };
 
   // Handle transfer
   const handleTransfer = () => {
     const quantity = parseInt(transferForm.quantity) || 0;
-    if (quantity <= 0 || quantity > itemData.stock.available) {
-      toast.error("Ungültige Menge für Umlagerung");
-      return;
-    }
-    
-    // Add to movements
-    const newMovement = {
-      date: new Date().toLocaleDateString("de-CH"),
-      type: "Umlagerung",
-      quantity: -quantity,
-      reference: `UML-${Date.now().toString().slice(-6)}`,
-      balance: itemData.stock.current - quantity,
-    };
-    
-    setItemData(prev => ({
-      ...prev,
-      stock: {
-        ...prev.stock,
-        current: prev.stock.current - quantity,
-        available: prev.stock.available - quantity,
+    if (quantity <= 0 || quantity > itemData.stock.available) { toast.error("Ungültige Menge für Umlagerung"); return; }
+    transferInventory.mutate({
+      id: id || "",
+      data: { targetWarehouse: transferForm.targetWarehouse, quantity, notes: transferForm.notes },
+    }, {
+      onSuccess: () => {
+        setTransferDialogOpen(false);
+        toast.success(`${quantity} ${itemData.unit} wurden nach "${transferForm.targetWarehouse}" umgelagert`);
       },
-      movements: [newMovement, ...prev.movements],
-    }));
-    
-    setTransferDialogOpen(false);
-    toast.success(`${quantity} ${itemData.unit} wurden nach "${transferForm.targetWarehouse}" umgelagert`);
+      onError: () => toast.error("Fehler bei der Umlagerung"),
+    });
   };
 
   // Handle deactivate
   const handleDeactivate = () => {
-    setDeactivateDialogOpen(false);
-    toast.success("Artikel wurde deaktiviert");
-    navigate("/inventory");
+    deleteItem.mutate(id || "", {
+      onSuccess: () => { setDeactivateDialogOpen(false); toast.success("Artikel wurde deaktiviert"); navigate("/inventory"); },
+      onError: () => toast.error("Fehler beim Deaktivieren"),
+    });
   };
 
   // Handle print label
   const handlePrintLabel = () => {
     toast.success("Etikett wird gedruckt...");
+  };
+
+  // Open edit dialog with current data
+  const openEditDialog = () => {
+    setEditForm({
+      name: itemData.name,
+      description: itemData.description,
+      sku: itemData.sku,
+      ean: itemData.ean,
+      category: itemData.category,
+      subcategory: itemData.subcategory,
+      unit: itemData.unit,
+      purchasePrice: String(itemData.pricing.purchasePrice),
+      sellingPrice: String(itemData.pricing.sellingPrice),
+      minimum: String(itemData.stock.minimum),
+      maximum: String(itemData.stock.maximum),
+      reorderPoint: String(itemData.stock.reorderPoint),
+      warehouse: itemData.location.warehouse,
+      rack: itemData.location.rack,
+      shelf: itemData.location.shelf,
+      bin: itemData.location.bin,
+    });
+    setEditDialogOpen(true);
   };
 
   return (
@@ -354,27 +338,7 @@ const InventoryItemDetail = () => {
             <ShoppingCart className="h-4 w-4 mr-2" />
             Nachbestellen
           </Button>
-          <Button variant="outline" size="sm" onClick={() => {
-            setEditForm({
-              name: itemData.name,
-              description: itemData.description,
-              sku: itemData.sku,
-              ean: itemData.ean,
-              category: itemData.category,
-              subcategory: itemData.subcategory,
-              unit: itemData.unit,
-              purchasePrice: String(itemData.pricing.purchasePrice),
-              sellingPrice: String(itemData.pricing.sellingPrice),
-              minimum: String(itemData.stock.minimum),
-              maximum: String(itemData.stock.maximum),
-              reorderPoint: String(itemData.stock.reorderPoint),
-              warehouse: itemData.location.warehouse,
-              rack: itemData.location.rack,
-              shelf: itemData.location.shelf,
-              bin: itemData.location.bin,
-            });
-            setEditDialogOpen(true);
-          }}>
+          <Button variant="outline" size="sm" onClick={openEditDialog}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
@@ -385,7 +349,7 @@ const InventoryItemDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setInventoryDialogOpen(true)}>
+              <DropdownMenuItem onClick={() => { setInventoryForm({ actualStock: String(itemData.stock.current), reason: "inventory", notes: "" }); setInventoryDialogOpen(true); }}>
                 <ClipboardCheck className="h-4 w-4 mr-2" />
                 Inventur buchen
               </DropdownMenuItem>
@@ -581,9 +545,13 @@ const InventoryItemDetail = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Link to="/suppliers/1" className="font-medium hover:text-primary">
-                    {itemData.supplier.name}
-                  </Link>
+                  {itemData.supplier.id ? (
+                    <Link to={`/suppliers/${itemData.supplier.id}`} className="font-medium hover:text-primary">
+                      {itemData.supplier.name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{itemData.supplier.name}</span>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Art.-Nr. Lieferant</span>
                     <span className="font-mono">{itemData.supplier.articleNo}</span>
@@ -627,46 +595,53 @@ const InventoryItemDetail = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Art</TableHead>
-                    <TableHead>Referenz</TableHead>
-                    <TableHead className="text-right">Menge</TableHead>
-                    <TableHead className="text-right">Bestand</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itemData.movements.map((movement, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{movement.date}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {movement.quantity > 0 ? (
-                            <TrendingUp className="h-4 w-4 text-success" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-destructive" />
-                          )}
-                          {movement.type}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono hover:text-primary cursor-pointer">
-                          {movement.reference}
-                        </span>
-                      </TableCell>
-                      <TableCell className={cn(
-                        "text-right font-medium",
-                        movement.quantity > 0 ? "text-success" : "text-destructive"
-                      )}>
-                        {movement.quantity > 0 ? "+" : ""}{movement.quantity}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">{movement.balance}</TableCell>
+              {itemData.movements.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Datum</TableHead>
+                      <TableHead>Art</TableHead>
+                      <TableHead>Referenz</TableHead>
+                      <TableHead className="text-right">Menge</TableHead>
+                      <TableHead className="text-right">Bestand</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {itemData.movements.map((movement, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{movement.date}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {movement.quantity > 0 ? (
+                              <TrendingUp className="h-4 w-4 text-success" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4 text-destructive" />
+                            )}
+                            {movement.type}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono hover:text-primary cursor-pointer">
+                            {movement.reference}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(
+                          "text-right font-medium",
+                          movement.quantity > 0 ? "text-success" : "text-destructive"
+                        )}>
+                          {movement.quantity > 0 ? "+" : ""}{movement.quantity}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{movement.balance}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Noch keine Lagerbewegungen vorhanden.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -733,50 +708,29 @@ const InventoryItemDetail = () => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Artikelname</Label>
-                  <Input
-                    value={editForm.name}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  />
+                  <Input value={editForm.name} onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>SKU</Label>
-                  <Input
-                    value={editForm.sku}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, sku: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input value={editForm.sku} onChange={(e) => setEditForm(prev => ({ ...prev, sku: e.target.value }))} className="font-mono" />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Beschreibung</Label>
-                <Textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                />
+                <Textarea value={editForm.description} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3} />
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label>EAN</Label>
-                  <Input
-                    value={editForm.ean}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, ean: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input value={editForm.ean} onChange={(e) => setEditForm(prev => ({ ...prev, ean: e.target.value }))} className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <Label>Kategorie</Label>
-                  <Input
-                    value={editForm.category}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
-                  />
+                  <Input value={editForm.category} onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Unterkategorie</Label>
-                  <Input
-                    value={editForm.subcategory}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, subcategory: e.target.value }))}
-                  />
+                  <Input value={editForm.subcategory} onChange={(e) => setEditForm(prev => ({ ...prev, subcategory: e.target.value }))} />
                 </div>
               </div>
             </div>
@@ -789,38 +743,20 @@ const InventoryItemDetail = () => {
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Einkaufspreis (CHF)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editForm.purchasePrice}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, purchasePrice: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input type="number" step="0.01" value={editForm.purchasePrice} onChange={(e) => setEditForm(prev => ({ ...prev, purchasePrice: e.target.value }))} className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <Label>Verkaufspreis (CHF)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editForm.sellingPrice}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, sellingPrice: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input type="number" step="0.01" value={editForm.sellingPrice} onChange={(e) => setEditForm(prev => ({ ...prev, sellingPrice: e.target.value }))} className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <Label>Berechnete Marge</Label>
                   <div className="h-10 flex items-center px-3 rounded-md border bg-muted/50">
                     <span className={cn(
                       "font-mono font-medium",
-                      calculateMargin(
-                        parseFloat(editForm.purchasePrice) || 0,
-                        parseFloat(editForm.sellingPrice) || 0
-                      ) >= 30 ? "text-success" : "text-warning"
+                      calculateMargin(parseFloat(editForm.purchasePrice) || 0, parseFloat(editForm.sellingPrice) || 0) >= 30 ? "text-success" : "text-warning"
                     )}>
-                      {calculateMargin(
-                        parseFloat(editForm.purchasePrice) || 0,
-                        parseFloat(editForm.sellingPrice) || 0
-                      ).toFixed(1)}%
+                      {calculateMargin(parseFloat(editForm.purchasePrice) || 0, parseFloat(editForm.sellingPrice) || 0).toFixed(1)}%
                     </span>
                   </div>
                 </div>
@@ -835,30 +771,15 @@ const InventoryItemDetail = () => {
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Mindestbestand</Label>
-                  <Input
-                    type="number"
-                    value={editForm.minimum}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, minimum: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input type="number" value={editForm.minimum} onChange={(e) => setEditForm(prev => ({ ...prev, minimum: e.target.value }))} className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <Label>Meldebestand</Label>
-                  <Input
-                    type="number"
-                    value={editForm.reorderPoint}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, reorderPoint: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input type="number" value={editForm.reorderPoint} onChange={(e) => setEditForm(prev => ({ ...prev, reorderPoint: e.target.value }))} className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <Label>Maximalbestand</Label>
-                  <Input
-                    type="number"
-                    value={editForm.maximum}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, maximum: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input type="number" value={editForm.maximum} onChange={(e) => setEditForm(prev => ({ ...prev, maximum: e.target.value }))} className="font-mono" />
                 </div>
               </div>
             </div>
@@ -871,13 +792,8 @@ const InventoryItemDetail = () => {
               <div className="grid gap-4 sm:grid-cols-4">
                 <div className="space-y-2">
                   <Label>Lager</Label>
-                  <Select
-                    value={editForm.warehouse}
-                    onValueChange={(value) => setEditForm(prev => ({ ...prev, warehouse: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Select value={editForm.warehouse} onValueChange={(value) => setEditForm(prev => ({ ...prev, warehouse: value }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {warehouses.map((wh) => (
                         <SelectItem key={wh.id} value={wh.name}>{wh.name}</SelectItem>
@@ -887,36 +803,24 @@ const InventoryItemDetail = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Regal</Label>
-                  <Input
-                    value={editForm.rack}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, rack: e.target.value }))}
-                  />
+                  <Input value={editForm.rack} onChange={(e) => setEditForm(prev => ({ ...prev, rack: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Fach</Label>
-                  <Input
-                    value={editForm.shelf}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, shelf: e.target.value }))}
-                  />
+                  <Input value={editForm.shelf} onChange={(e) => setEditForm(prev => ({ ...prev, shelf: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Lagerplatz</Label>
-                  <Input
-                    value={editForm.bin}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, bin: e.target.value }))}
-                    className="font-mono"
-                  />
+                  <Input value={editForm.bin} onChange={(e) => setEditForm(prev => ({ ...prev, bin: e.target.value }))} className="font-mono" />
                 </div>
               </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleSaveEdit}>
-              <Save className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleSaveEdit} disabled={updateItem.isPending}>
+              {updateItem.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Speichern
             </Button>
           </DialogFooter>
@@ -928,9 +832,7 @@ const InventoryItemDetail = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nachbestellung erstellen</DialogTitle>
-            <DialogDescription>
-              Bestellung beim Lieferanten aufgeben
-            </DialogDescription>
+            <DialogDescription>Bestellung beim Lieferanten aufgeben</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -939,41 +841,18 @@ const InventoryItemDetail = () => {
                 <span className="font-medium">{itemData.name}</span>
                 <Badge variant="outline">{itemData.sku}</Badge>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Lieferant: {itemData.supplier.name}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Aktueller Bestand: {itemData.stock.current} {itemData.unit}
-              </div>
+              <div className="text-sm text-muted-foreground">Lieferant: {itemData.supplier.name}</div>
+              <div className="text-sm text-muted-foreground">Aktueller Bestand: {itemData.stock.current} {itemData.unit}</div>
             </div>
 
             <div className="space-y-2">
               <Label>Bestellmenge</Label>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setReorderForm(prev => ({
-                    ...prev,
-                    quantity: String(Math.max(1, parseInt(prev.quantity) - 1))
-                  }))}
-                >
+                <Button variant="outline" size="icon" onClick={() => setReorderForm(prev => ({ ...prev, quantity: String(Math.max(1, parseInt(prev.quantity) - 1)) }))}>
                   <Minus className="h-4 w-4" />
                 </Button>
-                <Input
-                  type="number"
-                  value={reorderForm.quantity}
-                  onChange={(e) => setReorderForm(prev => ({ ...prev, quantity: e.target.value }))}
-                  className="font-mono text-center"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setReorderForm(prev => ({
-                    ...prev,
-                    quantity: String(parseInt(prev.quantity) + 1)
-                  }))}
-                >
+                <Input type="number" value={reorderForm.quantity} onChange={(e) => setReorderForm(prev => ({ ...prev, quantity: e.target.value }))} className="font-mono text-center" />
+                <Button variant="outline" size="icon" onClick={() => setReorderForm(prev => ({ ...prev, quantity: String(parseInt(prev.quantity) + 1) }))}>
                   <Plus className="h-4 w-4" />
                 </Button>
                 <span className="text-muted-foreground">{itemData.unit}</span>
@@ -982,29 +861,18 @@ const InventoryItemDetail = () => {
 
             <div className="space-y-2">
               <Label>Erwartetes Lieferdatum</Label>
-              <Input
-                type="date"
-                value={reorderForm.expectedDate}
-                onChange={(e) => setReorderForm(prev => ({ ...prev, expectedDate: e.target.value }))}
-              />
+              <Input type="date" value={reorderForm.expectedDate} onChange={(e) => setReorderForm(prev => ({ ...prev, expectedDate: e.target.value }))} />
             </div>
 
             <div className="space-y-2">
               <Label>Bemerkungen</Label>
-              <Textarea
-                placeholder="Optionale Bemerkungen zur Bestellung..."
-                value={reorderForm.notes}
-                onChange={(e) => setReorderForm(prev => ({ ...prev, notes: e.target.value }))}
-                rows={2}
-              />
+              <Textarea placeholder="Optionale Bemerkungen zur Bestellung..." value={reorderForm.notes} onChange={(e) => setReorderForm(prev => ({ ...prev, notes: e.target.value }))} rows={2} />
             </div>
 
             <div className="p-4 rounded-lg border bg-card">
               <div className="flex justify-between text-sm mb-1">
                 <span>Geschätzter Bestellwert</span>
-                <span className="font-mono font-medium">
-                  CHF {formatCHF((parseInt(reorderForm.quantity) || 0) * itemData.pricing.purchasePrice)}
-                </span>
+                <span className="font-mono font-medium">CHF {formatCHF((parseInt(reorderForm.quantity) || 0) * itemData.pricing.purchasePrice)}</span>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Lieferzeit</span>
@@ -1014,9 +882,7 @@ const InventoryItemDetail = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReorderDialogOpen(false)}>
-              Abbrechen
-            </Button>
+            <Button variant="outline" onClick={() => setReorderDialogOpen(false)}>Abbrechen</Button>
             <Button onClick={handleReorder}>
               <ShoppingCart className="h-4 w-4 mr-2" />
               Bestellung erstellen
@@ -1030,9 +896,7 @@ const InventoryItemDetail = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Inventur buchen</DialogTitle>
-            <DialogDescription>
-              Bestand aufgrund einer Inventurzählung korrigieren
-            </DialogDescription>
+            <DialogDescription>Bestand aufgrund einer Inventurzählung korrigieren</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -1045,23 +909,13 @@ const InventoryItemDetail = () => {
 
             <div className="space-y-2">
               <Label>Gezählter Bestand</Label>
-              <Input
-                type="number"
-                value={inventoryForm.actualStock}
-                onChange={(e) => setInventoryForm(prev => ({ ...prev, actualStock: e.target.value }))}
-                className="font-mono text-lg"
-              />
+              <Input type="number" value={inventoryForm.actualStock} onChange={(e) => setInventoryForm(prev => ({ ...prev, actualStock: e.target.value }))} className="font-mono text-lg" />
             </div>
 
             <div className="space-y-2">
               <Label>Grund</Label>
-              <Select
-                value={inventoryForm.reason}
-                onValueChange={(value) => setInventoryForm(prev => ({ ...prev, reason: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={inventoryForm.reason} onValueChange={(value) => setInventoryForm(prev => ({ ...prev, reason: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="inventory">Jahresinventur</SelectItem>
                   <SelectItem value="spot-check">Stichprobe</SelectItem>
@@ -1074,28 +928,19 @@ const InventoryItemDetail = () => {
 
             <div className="space-y-2">
               <Label>Bemerkungen</Label>
-              <Textarea
-                placeholder="Optionale Bemerkungen..."
-                value={inventoryForm.notes}
-                onChange={(e) => setInventoryForm(prev => ({ ...prev, notes: e.target.value }))}
-                rows={2}
-              />
+              <Textarea placeholder="Optionale Bemerkungen..." value={inventoryForm.notes} onChange={(e) => setInventoryForm(prev => ({ ...prev, notes: e.target.value }))} rows={2} />
             </div>
 
             {parseInt(inventoryForm.actualStock) !== itemData.stock.current && (
               <div className={cn(
                 "p-4 rounded-lg border",
-                parseInt(inventoryForm.actualStock) > itemData.stock.current
-                  ? "bg-success/5 border-success/20"
-                  : "bg-destructive/5 border-destructive/20"
+                parseInt(inventoryForm.actualStock) > itemData.stock.current ? "bg-success/5 border-success/20" : "bg-destructive/5 border-destructive/20"
               )}>
                 <div className="flex justify-between">
                   <span>Differenz</span>
                   <span className={cn(
                     "font-mono font-bold",
-                    parseInt(inventoryForm.actualStock) > itemData.stock.current
-                      ? "text-success"
-                      : "text-destructive"
+                    parseInt(inventoryForm.actualStock) > itemData.stock.current ? "text-success" : "text-destructive"
                   )}>
                     {parseInt(inventoryForm.actualStock) > itemData.stock.current ? "+" : ""}
                     {parseInt(inventoryForm.actualStock) - itemData.stock.current} {itemData.unit}
@@ -1106,11 +951,9 @@ const InventoryItemDetail = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setInventoryDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleInventoryAdjustment}>
-              <ClipboardCheck className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setInventoryDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleInventoryAdjustment} disabled={adjustInventory.isPending}>
+              {adjustInventory.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ClipboardCheck className="h-4 w-4 mr-2" />}
               Inventur buchen
             </Button>
           </DialogFooter>
@@ -1122,9 +965,7 @@ const InventoryItemDetail = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Umlagerung</DialogTitle>
-            <DialogDescription>
-              Artikel in ein anderes Lager umlagern
-            </DialogDescription>
+            <DialogDescription>Artikel in ein anderes Lager umlagern</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -1141,54 +982,31 @@ const InventoryItemDetail = () => {
 
             <div className="space-y-2">
               <Label>Ziellager</Label>
-              <Select
-                value={transferForm.targetWarehouse}
-                onValueChange={(value) => setTransferForm(prev => ({ ...prev, targetWarehouse: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Lager auswählen" />
-                </SelectTrigger>
+              <Select value={transferForm.targetWarehouse} onValueChange={(value) => setTransferForm(prev => ({ ...prev, targetWarehouse: value }))}>
+                <SelectTrigger><SelectValue placeholder="Lager auswählen" /></SelectTrigger>
                 <SelectContent>
-                  {warehouses
-                    .filter(wh => wh.name !== itemData.location.warehouse)
-                    .map((wh) => (
-                      <SelectItem key={wh.id} value={wh.name}>{wh.name}</SelectItem>
-                    ))}
+                  {warehouses.filter(wh => wh.name !== itemData.location.warehouse).map((wh) => (
+                    <SelectItem key={wh.id} value={wh.name}>{wh.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label>Menge</Label>
-              <Input
-                type="number"
-                value={transferForm.quantity}
-                onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: e.target.value }))}
-                className="font-mono"
-                max={itemData.stock.available}
-              />
+              <Input type="number" value={transferForm.quantity} onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: e.target.value }))} className="font-mono" max={itemData.stock.available} />
             </div>
 
             <div className="space-y-2">
               <Label>Bemerkungen</Label>
-              <Textarea
-                placeholder="Optionale Bemerkungen..."
-                value={transferForm.notes}
-                onChange={(e) => setTransferForm(prev => ({ ...prev, notes: e.target.value }))}
-                rows={2}
-              />
+              <Textarea placeholder="Optionale Bemerkungen..." value={transferForm.notes} onChange={(e) => setTransferForm(prev => ({ ...prev, notes: e.target.value }))} rows={2} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button 
-              onClick={handleTransfer}
-              disabled={!transferForm.targetWarehouse}
-            >
-              <ArrowRightLeft className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleTransfer} disabled={!transferForm.targetWarehouse || transferInventory.isPending}>
+              {transferInventory.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}
               Umlagern
             </Button>
           </DialogFooter>
