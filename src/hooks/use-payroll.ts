@@ -100,6 +100,14 @@ export function useCreatePayrollRun() {
   });
 }
 
+export function useDeletePayrollRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/payroll/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [PAYROLL_KEY] }),
+  });
+}
+
 export function useCompletePayrollRun() {
   const queryClient = useQueryClient();
   return useMutation({

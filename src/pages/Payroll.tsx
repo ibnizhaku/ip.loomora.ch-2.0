@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useCompletePayrollRun, useSendPayslip } from "@/hooks/use-payroll";
+import { useCompletePayrollRun, useDeletePayrollRun, useSendPayslip } from "@/hooks/use-payroll";
 import { generatePayslipPdf } from "@/lib/payslip-pdf";
 import { 
   Search, 
@@ -12,6 +12,7 @@ import {
   Download,
   FileText,
   Users,
+  Trash2,
   TrendingUp,
   AlertCircle,
   Play,
@@ -72,6 +73,7 @@ const formatCHF = (amount: number | undefined | null) => {
 const Payroll = () => {
   const navigate = useNavigate();
   const completeRunMutation = useCompletePayrollRun();
+  const deleteRunMutation = useDeletePayrollRun();
   const sendPayslipMutation = useSendPayslip();
   const { data: apiData } = useQuery({ queryKey: ["payroll"], queryFn: () => api.get<any>("/payroll") });
   const payrollRuns: any[] = apiData?.payrollRuns || [];
@@ -80,6 +82,7 @@ const Payroll = () => {
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterPosition, setFilterPosition] = useState<string[]>([]);
   const [showAbschliessenDialog, setShowAbschliessenDialog] = useState(false);
+  const [deleteRunId, setDeleteRunId] = useState<string | null>(null);
   // Show the most relevant run: current month first, then latest draft, then latest overall
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const currentRun = payrollRuns.find(r => r.periodKey === currentMonthKey && (r.status === "Entwurf" || r.status === "In Bearbeitung"))
@@ -147,6 +150,19 @@ const Payroll = () => {
       },
       onError: (err: any) => {
         toast.error(err?.message || "Fehler beim Abschliessen");
+      },
+    });
+  };
+
+  const handleDeleteRun = () => {
+    if (!deleteRunId) return;
+    deleteRunMutation.mutate(deleteRunId, {
+      onSuccess: () => {
+        setDeleteRunId(null);
+        toast.success("Lohnlauf gelöscht");
+      },
+      onError: (err: any) => {
+        toast.error(err?.message || "Fehler beim Löschen");
       },
     });
   };
@@ -351,6 +367,26 @@ const Payroll = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Lohnlauf Löschen Dialog */}
+      <Dialog open={!!deleteRunId} onOpenChange={(open) => !open && setDeleteRunId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lohnlauf löschen</DialogTitle>
+            <DialogDescription>
+              Möchten Sie diesen Lohnlauf wirklich unwiderruflich löschen?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRunId(null)} disabled={deleteRunMutation.isPending}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteRun} disabled={deleteRunMutation.isPending}>
+              {deleteRunMutation.isPending ? "Wird gelöscht..." : "Löschen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="history" className="space-y-6">
         <TabsList>
           <TabsTrigger value="history">Lohnlauf-Historie</TabsTrigger>
@@ -464,7 +500,8 @@ const Payroll = () => {
                     <TableHead className="text-right">Brutto</TableHead>
                     <TableHead className="text-right">Netto</TableHead>
                     <TableHead>Durchgeführt</TableHead>
-                    <TableHead>Status</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -488,6 +525,19 @@ const Payroll = () => {
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {run.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteRunId(run.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
