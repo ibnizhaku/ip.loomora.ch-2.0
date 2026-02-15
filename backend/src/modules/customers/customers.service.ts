@@ -124,9 +124,10 @@ export class CustomersService {
     });
 
     // Flatten tasks from all projects for convenience
-    const tasks = customer.projects.flatMap((p) =>
-      (p as any).tasks?.map((t: any) => ({ ...t, projectId: p.id, projectName: p.name })) || []
-    );
+    const customerAny = customer as any;
+    const tasks = customerAny.projects?.flatMap((p: any) =>
+      p.tasks?.map((t: any) => ({ ...t, projectId: p.id, projectName: p.name })) || []
+    ) || [];
 
     return {
       ...customer,
@@ -134,7 +135,7 @@ export class CustomersService {
       totalRevenue: invoiceStats._sum.totalAmount || 0,
       totalPaid: invoiceStats._sum.paidAmount || 0,
       openInvoices,
-      projectCount: customer._count.projects,
+      projectCount: customerAny._count?.projects ?? 0,
     };
   }
 
