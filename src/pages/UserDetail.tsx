@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save, Eye, Edit2, Trash2 } from "lucide-react";
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,24 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUser, useUpdateUser } from "@/hooks/use-users";
+import UserPermissionsWidget from "@/components/users/UserPermissionsWidget";
 
-const initialBerechtigungen = [
-  { modul: "Dashboard", lesen: true, schreiben: true, löschen: false },
-  { modul: "Projekte", lesen: true, schreiben: true, löschen: false },
-  { modul: "Aufgaben", lesen: true, schreiben: true, löschen: true },
-  { modul: "Zeiterfassung", lesen: true, schreiben: true, löschen: false },
-  { modul: "Produktion", lesen: true, schreiben: true, löschen: false },
-  { modul: "Stücklisten", lesen: true, schreiben: false, löschen: false },
-  { modul: "Kunden", lesen: true, schreiben: false, löschen: false },
-  { modul: "Rechnungen", lesen: false, schreiben: false, löschen: false },
-  { modul: "Buchhaltung", lesen: false, schreiben: false, löschen: false },
-  { modul: "Personal", lesen: false, schreiben: false, löschen: false },
-  { modul: "Einstellungen", lesen: false, schreiben: false, löschen: false },
-];
 
 const loginHistorie = [
   { datum: "29.01.2024 08:15", ip: "85.195.xxx.xxx", gerät: "Chrome / Windows", ort: "Zürich, CH", status: "erfolgreich" },
@@ -63,8 +49,6 @@ export default function UserDetail() {
   const { data: userData, isLoading } = useUser(id || "");
   const updateUser = useUpdateUser();
 
-  const [berechtigungen, setBerechtigungen] = useState(initialBerechtigungen);
-  const [hasChanges, setHasChanges] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -117,35 +101,6 @@ export default function UserDetail() {
     setShowEditDialog(true);
   };
 
-  const handlePermissionChange = (modul: string, type: "lesen" | "schreiben" | "löschen", value: boolean) => {
-    setBerechtigungen(prev => prev.map(b => {
-      if (b.modul !== modul) return b;
-      
-      if (type === "lesen" && !value) {
-        return { ...b, lesen: false, schreiben: false, löschen: false };
-      }
-      if (type === "schreiben" && value) {
-        return { ...b, lesen: true, schreiben: true };
-      }
-      if (type === "löschen" && value) {
-        return { ...b, lesen: true, schreiben: true, löschen: true };
-      }
-      if (type === "schreiben" && !value) {
-        return { ...b, schreiben: false, löschen: false };
-      }
-      
-      return { ...b, [type]: value };
-    }));
-    setHasChanges(true);
-  };
-
-  const handleSavePermissions = () => {
-    toast.success("Berechtigungen gespeichert", {
-      description: `Die Zugriffsrechte für ${userName} wurden aktualisiert`
-    });
-    setHasChanges(false);
-  };
-
   const handleResetPassword = () => {
     toast.success("Passwort-Reset E-Mail gesendet", {
       description: `Eine E-Mail wurde an ${userEmail} gesendet`
@@ -186,12 +141,6 @@ export default function UserDetail() {
     });
   };
 
-  const getPermissionSummary = (b: typeof berechtigungen[0]) => {
-    if (b.löschen) return { label: "Vollzugriff", color: "bg-success/10 text-success" };
-    if (b.schreiben) return { label: "Lesen & Schreiben", color: "bg-info/10 text-info" };
-    if (b.lesen) return { label: "Nur Lesen", color: "bg-warning/10 text-warning" };
-    return { label: "Kein Zugriff", color: "bg-muted text-muted-foreground" };
-  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -363,99 +312,8 @@ export default function UserDetail() {
       </div>
 
       {/* Berechtigungen */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <CardTitle>Berechtigungen</CardTitle>
-                <CardDescription>Zugriffsrechte für {userName} verwalten</CardDescription>
-              </div>
-            </div>
-            {hasChanges && (
-              <Button onClick={handleSavePermissions}>
-                <Save className="mr-2 h-4 w-4" />
-                Änderungen speichern
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <TooltipProvider>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Modul</TableHead>
-                  <TableHead className="text-center">
-                    <Tooltip>
-                      <TooltipTrigger className="flex items-center gap-1 mx-auto">
-                        <Eye className="h-4 w-4" />
-                        Lesen
-                      </TooltipTrigger>
-                      <TooltipContent>Daten ansehen und lesen</TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <Tooltip>
-                      <TooltipTrigger className="flex items-center gap-1 mx-auto">
-                        <Edit2 className="h-4 w-4" />
-                        Schreiben
-                      </TooltipTrigger>
-                      <TooltipContent>Daten erstellen und bearbeiten</TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <Tooltip>
-                      <TooltipTrigger className="flex items-center gap-1 mx-auto">
-                        <Trash2 className="h-4 w-4" />
-                        Löschen
-                      </TooltipTrigger>
-                      <TooltipContent>Daten unwiderruflich löschen</TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-                  <TableHead className="text-right">Zusammenfassung</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {berechtigungen.map((b) => {
-                  const summary = getPermissionSummary(b);
-                  return (
-                    <TableRow key={b.modul}>
-                      <TableCell className="font-medium">{b.modul}</TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={b.lesen}
-                          onCheckedChange={(checked) => handlePermissionChange(b.modul, "lesen", checked)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={b.schreiben}
-                          onCheckedChange={(checked) => handlePermissionChange(b.modul, "schreiben", checked)}
-                          disabled={!b.lesen}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={b.löschen}
-                          onCheckedChange={(checked) => handlePermissionChange(b.modul, "löschen", checked)}
-                          disabled={!b.schreiben}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge className={summary.color}>
-                          {summary.label}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TooltipProvider>
-        </CardContent>
-      </Card>
+      <UserPermissionsWidget userId={id || ""} userName={userName} />
+
 
       {/* Login-Historie */}
       <Card>
