@@ -417,9 +417,9 @@ const Absences = () => {
                 <TableBody>
                   {filteredRequests.map((request) => {
                     const type = typeConfig[request.type] || typeConfig["Sonderurlaub"];
-                    const status = statusConfig[request.status];
-                    const TypeIcon = type.icon;
-                    const StatusIcon = status.icon;
+                    const status = statusConfig[request.status] || statusConfig["Ausstehend"];
+                    const TypeIcon = type?.icon || Calendar;
+                    const StatusIcon = status?.icon || Clock;
                     return (
                       <TableRow 
                         key={request.id}
