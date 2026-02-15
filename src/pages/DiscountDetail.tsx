@@ -108,15 +108,15 @@ export default function DiscountDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate(`/discounts/${id}/edit`)}>
             <Copy className="h-4 w-4 mr-2" />
             Duplizieren
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate(`/discounts/${id}/edit`)}>
             <Edit className="h-4 w-4 mr-2" />
             Bearbeiten
           </Button>
-          <Button variant="outline" className="text-red-600">
+          <Button variant="outline" className="text-red-600" onClick={() => { navigate("/discounts"); }}>
             <Trash2 className="h-4 w-4 mr-2" />
             Löschen
           </Button>

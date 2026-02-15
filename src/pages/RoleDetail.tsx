@@ -106,17 +106,17 @@ export default function RoleDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate(`/roles/${id}/edit`)}>
             <Copy className="h-4 w-4 mr-2" />
             Duplizieren
           </Button>
           {roleData.type !== "system" && (
             <>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => navigate(`/roles/${id}/edit`)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Bearbeiten
               </Button>
-              <Button variant="outline" className="text-red-600">
+              <Button variant="outline" className="text-red-600" onClick={() => { navigate("/roles"); }}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Löschen
               </Button>
