@@ -298,7 +298,13 @@ export default function Projects() {
             const projectPriority = project.priority?.toLowerCase() || 'medium';
             const statusInfo = statusConfig[projectStatus] || statusConfig.planning;
             const priorityInfo = priorityConfig[projectPriority] || priorityConfig.medium;
-            const progress = project.progress || 0;
+            const progress = (() => {
+              if (project.tasks?.length) {
+                const done = project.tasks.filter((t) => t.status === 'DONE' || t.status === 'done').length;
+                return Math.round((done / project.tasks.length) * 100);
+              }
+              return project.progress || 0;
+            })();
             const team = project.team || [];
 
             return (
