@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import loomoraLogo from "@/assets/loomora-logo.png";
 import loginBg from "@/assets/login-bg.jpg";
+import TwoFactorLoginStep from "@/components/auth/TwoFactorLoginStep";
 
 const features = [
   { icon: BarChart3, label: "ERP & Finanzen", desc: "Buchhaltung, Rechnungen, MWST" },
@@ -31,6 +32,7 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [twoFactorPending, setTwoFactorPending] = useState<string | null>(null); // tempToken
 
   // Register state
   const [regData, setRegData] = useState({
@@ -55,6 +57,11 @@ export default function AuthPage() {
     setIsLoginLoading(true);
     try {
       const result = await login({ email: loginEmail, password: loginPassword });
+      // Check if backend signals 2FA is required
+      if (result.requires2FA && result.tempToken) {
+        setTwoFactorPending(result.tempToken);
+        return;
+      }
       if (result.requiresCompanySelection) {
         navigate("/select-company", { state: { from: location.state?.from } });
       } else {
@@ -62,10 +69,32 @@ export default function AuthPage() {
         navigate(from, { replace: true });
       }
     } catch (error: any) {
+      // Also check if the error response contains 2FA data
+      if (error?.requires2FA && error?.tempToken) {
+        setTwoFactorPending(error.tempToken);
+        return;
+      }
       toast.error(error.message || "Anmeldung fehlgeschlagen");
     } finally {
       setIsLoginLoading(false);
     }
+  };
+
+  const handle2FASuccess = (data: any) => {
+    // Store tokens and navigate
+    if (data.accessToken) {
+      localStorage.setItem('auth_token', data.accessToken);
+      localStorage.setItem('refresh_token', data.refreshToken);
+      if (data.user) {
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+      }
+      if (data.activeCompany) {
+        localStorage.setItem('auth_company', JSON.stringify(data.activeCompany));
+      }
+    }
+    toast.success("Erfolgreich angemeldet");
+    // Reload to pick up new auth state
+    window.location.href = from;
   };
 
   // Register handler
@@ -193,7 +222,19 @@ export default function AuthPage() {
   );
 
   // ── Login form ──
-  const loginForm = (
+  const loginForm = twoFactorPending ? (
+    <div className="w-full max-w-[420px] px-2" style={{ fontFamily: "'Sora', sans-serif" }}>
+      <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
+        <img src={loomoraLogo} alt="Loomora" className="h-12" />
+        <p className="text-xs text-muted-foreground tracking-widest uppercase">All-in-One Business Software</p>
+      </div>
+      <TwoFactorLoginStep
+        tempToken={twoFactorPending}
+        onSuccess={handle2FASuccess}
+        onBack={() => setTwoFactorPending(null)}
+      />
+    </div>
+  ) : (
     <div className="w-full max-w-[420px] px-2" style={{ fontFamily: "'Sora', sans-serif" }}>
       <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
         <img src={loomoraLogo} alt="Loomora" className="h-12" />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings } from "lucide-react";
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-users";
+import { use2FAAdminReset } from "@/hooks/use-2fa";
 import UserPermissionsWidget from "@/components/users/UserPermissionsWidget";
+import TwoFactorSetupDialog from "@/components/auth/TwoFactorSetupDialog";
 
 
 const loginHistorie = [
@@ -45,7 +47,9 @@ export default function UserDetail() {
   const navigate = useNavigate();
   const { data: userData, isLoading } = useUser(id || "");
 
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(userData?.twoFactor ?? false);
+  const [show2FADialog, setShow2FADialog] = useState(false);
+  const adminResetMutation = use2FAAdminReset();
 
   // Update local state when data loads
   const userName = userData?.name || "–";
@@ -84,12 +88,17 @@ export default function UserDetail() {
   };
 
   const handleToggle2FA = (checked: boolean) => {
-    setTwoFactorEnabled(checked);
-    toast.success(checked ? "2FA aktiviert" : "2FA deaktiviert", {
-      description: checked 
-        ? "Zwei-Faktor-Authentifizierung wurde eingerichtet"
-        : "Zwei-Faktor-Authentifizierung wurde deaktiviert"
-    });
+    if (checked) {
+      setShow2FADialog(true);
+    } else {
+      setShow2FADialog(true); // Opens in disable mode
+    }
+  };
+
+  const handleAdminReset2FA = async () => {
+    if (!id) return;
+    await adminResetMutation.mutateAsync(id);
+    setTwoFactorEnabled(false);
   };
 
   const handleEndSessions = () => {
@@ -228,6 +237,12 @@ export default function UserDetail() {
                 <Key className="mr-2 h-4 w-4" />
                 Passwort ändern
               </Button>
+              {twoFactorEnabled && (
+                <Button variant="outline" className="flex-1 text-warning" onClick={handleAdminReset2FA} disabled={adminResetMutation.isPending}>
+                  <ShieldOff className="mr-2 h-4 w-4" />
+                  2FA zurücksetzen
+                </Button>
+              )}
               <Button variant="outline" className="flex-1 text-destructive" onClick={handleEndSessions}>
                 Sitzungen beenden
               </Button>
@@ -235,6 +250,12 @@ export default function UserDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <TwoFactorSetupDialog
+        open={show2FADialog}
+        onOpenChange={setShow2FADialog}
+        isEnabled={twoFactorEnabled}
+      />
 
       {/* Berechtigungen */}
       <UserPermissionsWidget userId={id || ""} userName={userName} />
