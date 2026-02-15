@@ -12,7 +12,8 @@ import {
   Printer,
   MoreHorizontal,
   Download,
-  Undo2
+  Undo2,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,37 +34,69 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { useCreditNote } from "@/hooks/use-credit-notes";
 
-const creditNoteData = {
-  id: "GS-2024-0012",
-  status: "Gebucht",
-  originalInvoice: "RE-2024-0089",
-  customer: {
-    name: "Fashion Store GmbH",
-    contact: "Lisa Schmidt",
-    email: "l.schmidt@fashion.de",
-    phone: "+49 30 87654321",
-    address: "Modestraße 25, 10117 Berlin"
-  },
-  createdAt: "25.01.2024",
-  reason: "Teilrückgabe - Defekte Lieferung",
-  positions: [
-    { id: 1, description: "Software-Lizenz (nicht benötigt)", quantity: 2, unit: "Stück", price: 299, total: 598 },
-    { id: 2, description: "Schulung (nicht durchgeführt)", quantity: 0.5, unit: "Tage", price: 1200, total: 600 },
-  ],
-  subtotal: 1198,
-  tax: 227.62,
-  total: 1425.62,
-  history: [
-    { date: "25.01.2024 10:30", action: "Gutschrift erstellt", user: "Anna Meier" },
-    { date: "25.01.2024 10:35", action: "Gutschrift gebucht", user: "System" },
-    { date: "25.01.2024 11:00", action: "Per E-Mail versendet", user: "Anna Meier" },
-  ]
+const statusMap: Record<string, string> = {
+  DRAFT: "Entwurf",
+  ISSUED: "Gebucht",
+  APPLIED: "Verrechnet",
+  CANCELLED: "Storniert",
 };
+
+function formatDate(d?: string | null) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleDateString("de-CH"); } catch { return d; }
+}
 
 const CreditNoteDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: raw, isLoading, error } = useCreditNote(id || "");
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !raw) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Gutschrift nicht gefunden</p>
+        <Link to="/credit-notes" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const cn = raw as any;
+  const creditNoteData = {
+    id: cn.number || cn.id,
+    status: statusMap[cn.status] || cn.status || "Entwurf",
+    originalInvoice: cn.invoice?.number || cn.invoiceId || "—",
+    originalInvoiceId: cn.invoice?.id || cn.invoiceId || "",
+    customer: {
+      id: cn.customer?.id || cn.customerId,
+      name: cn.customer?.name || "Unbekannt",
+      contact: cn.customer?.contactPerson || "",
+      email: cn.customer?.email || "",
+      phone: cn.customer?.phone || "",
+    },
+    createdAt: formatDate(cn.issueDate || cn.createdAt),
+    reason: cn.reason || "—",
+    positions: (cn.items || []).map((item: any, idx: number) => ({
+      id: idx + 1,
+      description: item.description || "",
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || "Stück",
+      price: Number(item.unitPrice) || 0,
+      total: Number(item.quantity || 0) * Number(item.unitPrice || 0),
+    })),
+    subtotal: Number(cn.subtotal) || 0,
+    tax: Number(cn.vatAmount) || 0,
+    total: Number(cn.total) || 0,
+  };
 
   return (
     <div className="space-y-6">
@@ -119,15 +152,17 @@ const CreditNoteDetail = () => {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Reason */}
-          <Card className="border-warning/30 bg-warning/5">
-            <CardContent className="flex items-center gap-4 py-4">
-              <Undo2 className="h-6 w-6 text-warning" />
-              <div>
-                <p className="font-semibold">Gutschriftsgrund</p>
-                <p className="text-sm text-muted-foreground">{creditNoteData.reason}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {creditNoteData.reason !== "—" && (
+            <Card className="border-warning/30 bg-warning/5">
+              <CardContent className="flex items-center gap-4 py-4">
+                <Undo2 className="h-6 w-6 text-warning" />
+                <div>
+                  <p className="font-semibold">Gutschriftsgrund</p>
+                  <p className="text-sm text-muted-foreground">{creditNoteData.reason}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Positions */}
           <Card>
@@ -146,7 +181,7 @@ const CreditNoteDetail = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {creditNoteData.positions.map((pos) => (
+                  {creditNoteData.positions.map((pos: any) => (
                     <TableRow key={pos.id}>
                       <TableCell className="font-medium">{pos.description}</TableCell>
                       <TableCell className="text-right">{pos.quantity}</TableCell>
@@ -177,32 +212,6 @@ const CreditNoteDetail = () => {
               </div>
             </CardContent>
           </Card>
-
-          {/* History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Verlauf</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {creditNoteData.history.map((entry, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{entry.action}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{entry.date}</span>
-                        <span>•</span>
-                        <span>{entry.user}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
@@ -218,7 +227,7 @@ const CreditNoteDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/customers/1" className="font-medium hover:text-primary">
+                  <Link to={`/customers/${creditNoteData.customer.id}`} className="font-medium hover:text-primary">
                     {creditNoteData.customer.name}
                   </Link>
                   <p className="text-sm text-muted-foreground">{creditNoteData.customer.contact}</p>
@@ -228,14 +237,18 @@ const CreditNoteDetail = () => {
               <Separator />
 
               <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{creditNoteData.customer.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{creditNoteData.customer.phone}</span>
-                </div>
+                {creditNoteData.customer.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{creditNoteData.customer.email}</span>
+                  </div>
+                )}
+                {creditNoteData.customer.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{creditNoteData.customer.phone}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -248,7 +261,7 @@ const CreditNoteDetail = () => {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Bezug auf Rechnung</span>
-                <Link to={`/invoices/${creditNoteData.originalInvoice}`} className="font-medium hover:text-primary">
+                <Link to={`/invoices/${creditNoteData.originalInvoiceId}`} className="font-medium hover:text-primary">
                   {creditNoteData.originalInvoice}
                 </Link>
               </div>

@@ -14,75 +14,61 @@ import {
   AlertTriangle,
   CreditCard,
   Ban,
-  MapPin
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { usePurchaseInvoice } from "@/hooks/use-purchase-invoices";
 
-const purchaseInvoiceData = {
-  id: "ER-2024-0028",
-  status: "Offen",
-  supplier: {
-    name: "IT Components AG",
-    contact: "Peter Huber",
-    email: "p.huber@itcomponents.de",
-    phone: "+49 89 12345678",
-    address: "Industriestraße 88, 80339 München",
-    taxId: "DE987654321"
-  },
-  purchaseOrder: "BEST-2024-0034",
-  invoiceNumber: "2024-IT-1234",
-  createdAt: "28.01.2024",
-  receivedAt: "27.01.2024",
-  dueDate: "27.02.2024",
-  positions: [
-    { id: 1, description: "Server Hardware (Dell R750)", quantity: 2, unit: "Stück", price: 4500, total: 9000 },
-    { id: 2, description: "SSD 2TB Enterprise", quantity: 10, unit: "Stück", price: 350, total: 3500 },
-    { id: 3, description: "RAM 64GB DDR4 ECC", quantity: 8, unit: "Stück", price: 280, total: 2240 },
-  ],
-  subtotal: 14740,
-  tax: 2800.60,
-  total: 17540.60,
-  payments: [],
-  paid: 0,
-  history: [
-    { date: "27.01.2024 14:00", action: "Rechnung eingegangen", user: "Buchhaltung" },
-    { date: "28.01.2024 09:30", action: "Rechnung erfasst und geprüft", user: "Anna Schmidt" },
-    { date: "28.01.2024 10:00", action: "Zur Zahlung freigegeben", user: "Max Müller" },
-  ]
+const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
+  DRAFT: { color: "bg-muted text-muted-foreground", icon: FileText, label: "Entwurf" },
+  PENDING: { color: "bg-warning/10 text-warning", icon: Clock, label: "Offen" },
+  APPROVED: { color: "bg-info/10 text-info", icon: CheckCircle2, label: "Freigegeben" },
+  PAID: { color: "bg-success/10 text-success", icon: CheckCircle2, label: "Bezahlt" },
+  CANCELLED: { color: "bg-muted text-muted-foreground", icon: Ban, label: "Storniert" },
 };
 
-const statusConfig: Record<string, { color: string; icon: any }> = {
-  "Entwurf": { color: "bg-muted text-muted-foreground", icon: FileText },
-  "Offen": { color: "bg-warning/10 text-warning", icon: Clock },
-  "Bezahlt": { color: "bg-success/10 text-success", icon: CheckCircle2 },
-  "Überfällig": { color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-  "Storniert": { color: "bg-muted text-muted-foreground", icon: Ban },
-};
+function formatDate(d?: string | null) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleDateString("de-CH"); } catch { return d; }
+}
 
 const PurchaseInvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const status = statusConfig[purchaseInvoiceData.status] || statusConfig["Entwurf"];
+  const { data: raw, isLoading, error } = usePurchaseInvoice(id || "");
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !raw) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Einkaufsrechnung nicht gefunden</p>
+        <Link to="/purchase-invoices" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const pi = raw as any;
+  const status = statusConfig[pi.status] || statusConfig.DRAFT;
   const StatusIcon = status.icon;
-  const outstanding = purchaseInvoiceData.total - purchaseInvoiceData.paid;
+  const outstanding = Number(pi.openAmount ?? (pi.total - (pi.paidAmount || 0))) || 0;
 
   return (
     <div className="space-y-6">
@@ -96,14 +82,14 @@ const PurchaseInvoiceDetail = () => {
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="font-display text-2xl font-bold">{purchaseInvoiceData.id}</h1>
+              <h1 className="font-display text-2xl font-bold">{pi.number || pi.id}</h1>
               <Badge className={status.color}>
                 <StatusIcon className="h-3 w-3 mr-1" />
-                {purchaseInvoiceData.status}
+                {status.label}
               </Badge>
             </div>
             <p className="text-muted-foreground">
-              Lieferantenrechnung {purchaseInvoiceData.invoiceNumber}
+              Lieferantenrechnung {pi.externalNumber || ""}
             </p>
           </div>
         </div>
@@ -113,7 +99,7 @@ const PurchaseInvoiceDetail = () => {
             <CreditCard className="h-4 w-4 mr-2" />
             Zahlung erfassen
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { downloadPdf('invoices', id || '', `Einkaufsrechnung-${purchaseInvoiceData.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
+          <Button variant="outline" size="sm" onClick={() => { downloadPdf('invoices', id || '', `Einkaufsrechnung-${pi.number || pi.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
@@ -129,7 +115,9 @@ const PurchaseInvoiceDetail = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => navigate(`/purchase-invoices/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${purchaseInvoiceData.purchaseOrder}`)}>Bestellung anzeigen</DropdownMenuItem>
+              {pi.purchaseOrderId && (
+                <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${pi.purchaseOrder?.id || pi.purchaseOrderId}`)}>Bestellung anzeigen</DropdownMenuItem>
+              )}
               <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Rechnung wird storniert...")}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -156,13 +144,13 @@ const PurchaseInvoiceDetail = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {purchaseInvoiceData.positions.map((pos) => (
-                    <TableRow key={pos.id}>
-                      <TableCell className="font-medium">{pos.description}</TableCell>
-                      <TableCell className="text-right">{pos.quantity}</TableCell>
-                      <TableCell>{pos.unit}</TableCell>
-                      <TableCell className="text-right">CHF {pos.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">CHF {pos.total.toFixed(2)}</TableCell>
+                  {(pi.items || []).map((item: any, idx: number) => (
+                    <TableRow key={item.id || idx}>
+                      <TableCell className="font-medium">{item.description}</TableCell>
+                      <TableCell className="text-right">{item.quantity}</TableCell>
+                      <TableCell>{item.unit || "Stück"}</TableCell>
+                      <TableCell className="text-right">CHF {Number(item.unitPrice || 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">CHF {Number(item.total || item.quantity * item.unitPrice || 0).toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -173,22 +161,22 @@ const PurchaseInvoiceDetail = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Zwischensumme (netto)</span>
-                  <span>CHF {purchaseInvoiceData.subtotal.toFixed(2)}</span>
+                  <span>CHF {Number(pi.subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">MwSt. (8.1%)</span>
-                  <span>CHF {purchaseInvoiceData.tax.toFixed(2)}</span>
+                  <span>CHF {Number(pi.vatAmount || 0).toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Gesamtbetrag</span>
-                  <span>CHF {purchaseInvoiceData.total.toFixed(2)}</span>
+                  <span>CHF {Number(pi.total || 0).toFixed(2)}</span>
                 </div>
-                {purchaseInvoiceData.paid > 0 && (
+                {(pi.paidAmount || 0) > 0 && (
                   <>
                     <div className="flex justify-between text-sm text-success">
                       <span>Bezahlt</span>
-                      <span>-CHF {purchaseInvoiceData.paid.toFixed(2)}</span>
+                      <span>-CHF {Number(pi.paidAmount).toFixed(2)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg text-warning">
@@ -201,51 +189,19 @@ const PurchaseInvoiceDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Payments */}
+          {/* Payments placeholder */}
           <Card>
             <CardHeader>
               <CardTitle>Zahlungsverlauf</CardTitle>
             </CardHeader>
             <CardContent>
-              {purchaseInvoiceData.payments.length > 0 ? (
-                <div className="space-y-3">
-                  {/* Payments would be listed here */}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>Noch keine Zahlungen erfasst</p>
-                  <Button variant="outline" size="sm" className="mt-3">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Zahlung erfassen
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Verlauf</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {purchaseInvoiceData.history.map((entry, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{entry.action}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{entry.date}</span>
-                        <span>•</span>
-                        <span>{typeof entry.user === 'object' ? (entry.user as any)?.name || (entry.user as any)?.email : entry.user}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-6 text-muted-foreground">
+                <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p>Noch keine Zahlungen erfasst</p>
+                <Button variant="outline" size="sm" className="mt-3">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Zahlung erfassen
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -264,31 +220,10 @@ const PurchaseInvoiceDetail = () => {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <Link to="/suppliers/1" className="font-medium hover:text-primary">
-                    {purchaseInvoiceData.supplier.name}
+                  <Link to={`/suppliers/${pi.supplier?.id || pi.supplierId}`} className="font-medium hover:text-primary">
+                    {pi.supplier?.name || pi.supplier?.companyName || "Unbekannt"}
                   </Link>
-                  <p className="text-sm text-muted-foreground">{purchaseInvoiceData.supplier.contact}</p>
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{purchaseInvoiceData.supplier.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{purchaseInvoiceData.supplier.phone}</span>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="text-sm">
-                <span className="text-muted-foreground">USt-IdNr.: </span>
-                <span>{purchaseInvoiceData.supplier.taxId}</span>
               </div>
             </CardContent>
           </Card>
@@ -299,23 +234,25 @@ const PurchaseInvoiceDetail = () => {
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Bestellung</span>
-                <Link to={`/purchase-orders/${purchaseInvoiceData.purchaseOrder}`} className="font-medium hover:text-primary">
-                  {purchaseInvoiceData.purchaseOrder}
-                </Link>
-              </div>
+              {pi.purchaseOrderId && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Bestellung</span>
+                  <Link to={`/purchase-orders/${pi.purchaseOrder?.id || pi.purchaseOrderId}`} className="font-medium hover:text-primary">
+                    {pi.purchaseOrder?.number || pi.purchaseOrderId}
+                  </Link>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Rechnungsnummer</span>
-                <span className="font-medium">{purchaseInvoiceData.invoiceNumber}</span>
+                <span className="font-medium">{pi.externalNumber || "—"}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Eingangsdatum</span>
-                <span className="font-medium">{purchaseInvoiceData.receivedAt}</span>
+                <span className="text-muted-foreground">Rechnungsdatum</span>
+                <span className="font-medium">{formatDate(pi.invoiceDate)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Fällig am</span>
-                <span className="font-medium">{purchaseInvoiceData.dueDate}</span>
+                <span className="font-medium">{formatDate(pi.dueDate)}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between">

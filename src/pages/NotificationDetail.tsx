@@ -1,55 +1,44 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, CheckCircle, Clock, AlertTriangle, Info, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle, Clock, AlertTriangle, Info, ExternalLink, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useMarkNotificationAsRead, useDeleteNotification } from "@/hooks/use-notifications";
 
-const notificationData = {
-  id: "1",
-  title: "Neue Rechnung eingegangen",
-  message: "Eine neue Eingangsrechnung von Software AG über CHF 2'500.00 wurde hochgeladen und wartet auf Ihre Freigabe. Die Rechnung bezieht sich auf den Wartungsvertrag für das ERP-System.",
-  type: "info" as const,
-  category: "Finanzen",
-  createdAt: "02.02.2024 14:30",
-  read: false,
-  priority: "normal" as const,
-  actionUrl: "/purchase-invoices/ER-2024-044",
-  actionLabel: "Rechnung ansehen",
-  sender: "System",
-  relatedEntity: {
-    type: "Eingangsrechnung",
-    reference: "ER-2024-044",
-  },
-};
-
-const typeStyles = {
+const typeStyles: Record<string, { bg: string; text: string; icon: any }> = {
   info: { bg: "bg-info/10", text: "text-info", icon: Info },
   warning: { bg: "bg-warning/10", text: "text-warning", icon: AlertTriangle },
   success: { bg: "bg-success/10", text: "text-success", icon: CheckCircle },
   error: { bg: "bg-destructive/10", text: "text-destructive", icon: AlertTriangle },
 };
 
-const priorityStyles = {
-  low: "bg-muted text-muted-foreground",
-  normal: "bg-info/10 text-info",
-  high: "bg-warning/10 text-warning",
-  urgent: "bg-destructive/10 text-destructive",
-};
-
-const priorityLabels = {
-  low: "Niedrig",
-  normal: "Normal",
-  high: "Hoch",
-  urgent: "Dringend",
-};
+function formatDate(d?: string | null) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleString("de-CH"); } catch { return d; }
+}
 
 export default function NotificationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: raw, isLoading, error } = useQuery({
+    queryKey: ['notifications', id],
+    queryFn: () => api.get(`/notifications/${id}`),
+    enabled: !!id,
+  });
+  const markRead = useMarkNotificationAsRead();
+  const deleteNotification = useDeleteNotification();
 
-  const TypeIcon = typeStyles[notificationData.type].icon;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  if (error || !raw) return <div className="flex flex-col items-center justify-center h-64 text-muted-foreground"><p>Benachrichtigung nicht gefunden</p><Button variant="link" onClick={() => navigate(-1)}>Zurück</Button></div>;
+
+  const n = raw as any;
+  const typeStyle = typeStyles[n.type] || typeStyles.info;
+  const TypeIcon = typeStyle.icon;
 
   return (
     <div className="space-y-6">
@@ -59,23 +48,23 @@ export default function NotificationDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", typeStyles[notificationData.type].bg)}>
-              <TypeIcon className={cn("h-5 w-5", typeStyles[notificationData.type].text)} />
+            <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", typeStyle.bg)}>
+              <TypeIcon className={cn("h-5 w-5", typeStyle.text)} />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold">{notificationData.title}</h1>
-              <p className="text-muted-foreground">{notificationData.createdAt}</p>
+              <h1 className="font-display text-2xl font-bold">{n.title}</h1>
+              <p className="text-muted-foreground">{formatDate(n.time || n.createdAt)}</p>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          {!notificationData.read && (
-            <Button variant="outline" className="gap-2">
+          {!n.read && (
+            <Button variant="outline" className="gap-2" onClick={() => { markRead.mutate(id || ''); toast.success("Als gelesen markiert"); }}>
               <CheckCircle className="h-4 w-4" />
               Als gelesen markieren
             </Button>
           )}
-          <Button variant="destructive" size="icon">
+          <Button variant="destructive" size="icon" onClick={() => { deleteNotification.mutate(id || ''); toast.success("Gelöscht"); navigate(-1); }}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -85,99 +74,45 @@ export default function NotificationDetail() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Nachricht
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />Nachricht</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg leading-relaxed">{notificationData.message}</p>
-              
-              {notificationData.actionUrl && (
+              <p className="text-lg leading-relaxed">{n.message}</p>
+              {n.actionUrl && (
                 <div className="mt-6">
-                  <Button className="gap-2" onClick={() => navigate(notificationData.actionUrl)}>
+                  <Button className="gap-2" onClick={() => navigate(n.actionUrl)}>
                     <ExternalLink className="h-4 w-4" />
-                    {notificationData.actionLabel}
+                    Öffnen
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {notificationData.relatedEntity && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Verknüpftes Element</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{notificationData.relatedEntity.type}</p>
-                    <p className="font-medium">{notificationData.relatedEntity.reference}</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <ExternalLink className="h-4 w-4" />
-                    Öffnen
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Details</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <Badge className={notificationData.read ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}>
-                  {notificationData.read ? "Gelesen" : "Ungelesen"}
-                </Badge>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Priorität</span>
-                <Badge className={priorityStyles[notificationData.priority]}>
-                  {priorityLabels[notificationData.priority]}
+                <Badge className={n.read ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}>
+                  {n.read ? "Gelesen" : "Ungelesen"}
                 </Badge>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Kategorie</span>
-                <span className="font-medium">{notificationData.category}</span>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Absender</span>
-                <span className="font-medium">{notificationData.sender}</span>
+                <span className="font-medium">{n.category || "—"}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Empfangen</span>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>{notificationData.createdAt}</span>
+                  <span>{formatDate(n.time || n.createdAt)}</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Aktionen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Bell className="h-4 w-4" />
-                Stumm schalten
-              </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 text-destructive">
-                <Trash2 className="h-4 w-4" />
-                Löschen
-              </Button>
             </CardContent>
           </Card>
         </div>
