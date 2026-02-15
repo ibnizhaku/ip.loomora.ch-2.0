@@ -69,7 +69,7 @@ const formatCHF = (amount: number | undefined | null) => {
 
 const Payroll = () => {
   const navigate = useNavigate();
-  const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/employees") });
+  const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/payroll") });
   const payrollRuns = apiData?.payrollRuns || [];
   const employeePayroll: any[] = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Receipt, Car, Train, Hotel, Utensils, FileText, CheckCircle2, Clock, AlertCircle, Upload, X, File, Image, Download, XCircle, Banknote } from "lucide-react";
+import { ArrowLeft, Receipt, Car, Train, Hotel, Utensils, FileText, CheckCircle2, Clock, AlertCircle, Upload, X, File, Image, Download, XCircle, Banknote, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,46 +10,32 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-const initialSpesenData = {
-  id: "SP-2024-0067",
-  mitarbeiter: "Peter Schneider",
-  personalNr: "MA-0012",
-  abteilung: "Verkauf",
-  projekt: "Kundentermine Bern/Basel",
-  projektNr: "PRJ-2024-0018",
-  status: "eingereicht",
-  zeitraum: "22.01.2024 - 24.01.2024",
-  eingereichtAm: "25.01.2024",
-  gesamtbetrag: 542.60,
-};
-
-const positionen = [
-  { id: 1, datum: "22.01.2024", kategorie: "Fahrt", beschreibung: "Zürich - Bern (Geschäftsfahrzeug)", einheit: "km", menge: 125, satz: 0.70, betrag: 87.50, beleg: true },
-  { id: 2, datum: "22.01.2024", kategorie: "Verpflegung", beschreibung: "Mittagessen Kunde Bern", einheit: "Pauschale", menge: 1, satz: 32.00, betrag: 32.00, beleg: true },
-  { id: 3, datum: "22.01.2024", kategorie: "Übernachtung", beschreibung: "Hotel Schweizerhof Bern", einheit: "Nacht", menge: 1, satz: 145.00, betrag: 145.00, beleg: true },
-  { id: 4, datum: "23.01.2024", kategorie: "Fahrt", beschreibung: "Bern - Basel (Zug 1. Klasse)", einheit: "Ticket", menge: 1, satz: 68.00, betrag: 68.00, beleg: true },
-  { id: 5, datum: "23.01.2024", kategorie: "Verpflegung", beschreibung: "Mittagessen Kunde Basel", einheit: "Pauschale", menge: 1, satz: 32.00, betrag: 32.00, beleg: true },
-  { id: 6, datum: "23.01.2024", kategorie: "Übernachtung", beschreibung: "Hotel Euler Basel", einheit: "Nacht", menge: 1, satz: 138.00, betrag: 138.00, beleg: true },
-  { id: 7, datum: "24.01.2024", kategorie: "Fahrt", beschreibung: "Basel - Zürich (Zug 1. Klasse)", einheit: "Ticket", menge: 1, satz: 40.10, betrag: 40.10, beleg: true },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, downloadPdf } from "@/lib/api";
 
 const kategorieIcons: Record<string, any> = {
   Fahrt: Car,
+  transport: Car,
   Verpflegung: Utensils,
+  meals: Utensils,
   Übernachtung: Hotel,
+  accommodation: Hotel,
   Zug: Train,
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
+  draft: { label: "Entwurf", color: "bg-muted text-muted-foreground", icon: Clock },
   entwurf: { label: "Entwurf", color: "bg-muted text-muted-foreground", icon: Clock },
+  submitted: { label: "Eingereicht", color: "bg-info/10 text-info", icon: Clock },
   eingereicht: { label: "Eingereicht", color: "bg-info/10 text-info", icon: Clock },
+  approved: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
   genehmigt: { label: "Genehmigt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  paid: { label: "Ausbezahlt", color: "bg-success/10 text-success", icon: CheckCircle2 },
   ausbezahlt: { label: "Ausbezahlt", color: "bg-success/10 text-success", icon: CheckCircle2 },
+  rejected: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: AlertCircle },
   abgelehnt: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive", icon: AlertCircle },
 };
 
-// GAV Metallbau Spesenansätze
 const gavSätze = {
   kmPauschale: 0.70,
   mittagessen: 32.00,
@@ -67,25 +53,110 @@ export default function TravelExpenseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   
-  const [spesenData, setSpesenData] = useState(initialSpesenData);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([
-    { id: "1", name: "Hotel_Rechnung_Bern.pdf", size: 245000, type: "application/pdf" },
-    { id: "2", name: "Zugticket_Bern_Basel.pdf", size: 128000, type: "application/pdf" },
-  ]);
+  const { data: apiData, isLoading } = useQuery({
+    queryKey: ["/travel-expenses", id],
+    queryFn: () => api.get<any>(`/travel-expenses/${id}`),
+    enabled: !!id,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (note?: string) => api.post(`/travel-expenses/${id}/approve`, { note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses", id] });
+      toast.success("Spesenabrechnung genehmigt");
+    },
+    onError: () => toast.error("Fehler beim Genehmigen"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (reason: string) => api.post(`/travel-expenses/${id}/reject`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses", id] });
+      toast.error("Spesenabrechnung abgelehnt");
+    },
+    onError: () => toast.error("Fehler beim Ablehnen"),
+  });
+
+  const payMutation = useMutation({
+    mutationFn: () => api.post(`/travel-expenses/${id}/pay`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/travel-expenses", id] });
+      toast.success("Als ausbezahlt markiert");
+    },
+    onError: () => toast.error("Fehler"),
+  });
+
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
-  const [approvalHistory, setApprovalHistory] = useState<{action: string; date: string; user: string; note?: string}[]>([
-    { action: "Eingereicht", date: "25.01.2024 14:32", user: "Peter Schneider" }
-  ]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!apiData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Spesenabrechnung nicht gefunden</p>
+        <Link to="/travel-expenses" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  // Map API data
+  const spesenData = {
+    id: apiData.number || apiData.id || id,
+    mitarbeiter: apiData.employee?.name || `${apiData.employee?.firstName || ""} ${apiData.employee?.lastName || ""}`.trim() || "–",
+    personalNr: apiData.employee?.id || apiData.employeeId || "",
+    abteilung: apiData.employee?.department || "",
+    projekt: apiData.purpose || apiData.project || "",
+    projektNr: apiData.projectId || "",
+    status: apiData.status || "draft",
+    zeitraum: apiData.startDate && apiData.endDate
+      ? `${new Date(apiData.startDate).toLocaleDateString("de-CH")} - ${new Date(apiData.endDate).toLocaleDateString("de-CH")}`
+      : "–",
+    eingereichtAm: apiData.submittedAt ? new Date(apiData.submittedAt).toLocaleDateString("de-CH") : apiData.createdAt ? new Date(apiData.createdAt).toLocaleDateString("de-CH") : "–",
+    gesamtbetrag: Number(apiData.totalAmount || 0),
+  };
+
+  const positionen = (apiData.items || []).map((item: any, idx: number) => ({
+    id: idx + 1,
+    datum: item.date ? new Date(item.date).toLocaleDateString("de-CH") : "–",
+    kategorie: item.category || item.type || "Sonstiges",
+    beschreibung: item.description || "",
+    einheit: item.unit || "Stk",
+    menge: Number(item.quantity || 1),
+    satz: Number(item.unitPrice || item.rate || 0),
+    betrag: Number(item.amount || item.total || 0),
+    beleg: item.hasReceipt ?? true,
+  }));
+
+  const approvalHistory = (apiData.approvalHistory || []).map((entry: any) => ({
+    action: entry.action || entry.status || "",
+    date: entry.date || (entry.createdAt ? new Date(entry.createdAt).toLocaleDateString("de-CH") : ""),
+    user: entry.user || entry.approvedBy || "",
+    note: entry.note || entry.reason || undefined,
+  }));
+
+  const currentStatus = statusConfig[spesenData.status] || statusConfig.draft;
+  const StatusIcon = currentStatus.icon;
+  const totalBetrag = positionen.reduce((sum: number, p: any) => sum + p.betrag, 0) || spesenData.gesamtbetrag;
+
+  const kategorienSummen = positionen.reduce((acc: Record<string, number>, p: any) => {
+    acc[p.kategorie] = (acc[p.kategorie] || 0) + p.betrag;
+    return acc;
+  }, {} as Record<string, number>);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("de-CH", {
-      style: "currency",
-      currency: "CHF",
-    }).format(value);
+    return new Intl.NumberFormat("de-CH", { style: "currency", currency: "CHF" }).format(value);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -97,14 +168,12 @@ export default function TravelExpenseDetail() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    
     const newFiles: UploadedFile[] = Array.from(files).map(file => ({
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: file.size,
       type: file.type,
     }));
-    
     setUploadedFiles(prev => [...prev, ...newFiles]);
     toast.success(`${newFiles.length} Datei(en) hochgeladen`);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -121,44 +190,13 @@ export default function TravelExpenseDetail() {
   };
 
   const handleExportPDF = () => {
-    toast.loading("PDF wird generiert...", { id: "pdf-export" });
-    
-    // Simulate PDF generation
-    setTimeout(() => {
-      toast.dismiss("pdf-export");
-      toast.success("PDF erfolgreich erstellt", {
-        description: `${spesenData.id}_Spesenabrechnung.pdf`,
-        action: {
-          label: "Download",
-          onClick: () => {
-            // Simulate download
-            const link = document.createElement("a");
-            link.href = "#";
-            link.download = `${spesenData.id}_Spesenabrechnung.pdf`;
-            toast.info("Download gestartet");
-          }
-        }
-      });
-    }, 1500);
+    downloadPdf('invoices' as any, id!, `${spesenData.id}_Spesenabrechnung.pdf`);
   };
 
   const handleApprove = () => {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString("de-CH") + " " + now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
-    
-    setSpesenData(prev => ({ ...prev, status: "genehmigt" }));
-    setApprovalHistory(prev => [...prev, {
-      action: "Genehmigt",
-      date: dateStr,
-      user: "Max Müller (Vorgesetzter)",
-      note: approvalNote || undefined
-    }]);
+    approveMutation.mutate(approvalNote || undefined);
     setShowApproveDialog(false);
     setApprovalNote("");
-    
-    toast.success("Spesenabrechnung genehmigt", {
-      description: `${formatCurrency(totalBetrag)} wird zur Auszahlung freigegeben`
-    });
   };
 
   const handleReject = () => {
@@ -166,48 +204,17 @@ export default function TravelExpenseDetail() {
       toast.error("Bitte geben Sie einen Ablehnungsgrund an");
       return;
     }
-    
-    const now = new Date();
-    const dateStr = now.toLocaleDateString("de-CH") + " " + now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
-    
-    setSpesenData(prev => ({ ...prev, status: "abgelehnt" }));
-    setApprovalHistory(prev => [...prev, {
-      action: "Abgelehnt",
-      date: dateStr,
-      user: "Max Müller (Vorgesetzter)",
-      note: rejectReason
-    }]);
+    rejectMutation.mutate(rejectReason);
     setShowRejectDialog(false);
     setRejectReason("");
-    
-    toast.error("Spesenabrechnung abgelehnt", {
-      description: "Mitarbeiter wird benachrichtigt"
-    });
   };
 
   const handleMarkAsPaid = () => {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString("de-CH") + " " + now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
-    
-    setSpesenData(prev => ({ ...prev, status: "ausbezahlt" }));
-    setApprovalHistory(prev => [...prev, {
-      action: "Ausbezahlt",
-      date: dateStr,
-      user: "Buchhaltung"
-    }]);
-    
-    toast.success("Als ausbezahlt markiert", {
-      description: `${formatCurrency(totalBetrag)} wurde überwiesen`
-    });
+    payMutation.mutate();
   };
 
-  const StatusIcon = statusConfig[spesenData.status].icon;
-  const totalBetrag = positionen.reduce((sum, p) => sum + p.betrag, 0);
-
-  const kategorienSummen = positionen.reduce((acc, p) => {
-    acc[p.kategorie] = (acc[p.kategorie] || 0) + p.betrag;
-    return acc;
-  }, {} as Record<string, number>);
+  const isSubmitted = spesenData.status === "submitted" || spesenData.status === "eingereicht";
+  const isApproved = spesenData.status === "approved" || spesenData.status === "genehmigt";
 
   return (
     <div className="space-y-6">
@@ -221,9 +228,9 @@ export default function TravelExpenseDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">{spesenData.id}</h1>
-            <Badge className={statusConfig[spesenData.status].color}>
+            <Badge className={currentStatus.color}>
               <StatusIcon className="mr-1 h-3 w-3" />
-              {statusConfig[spesenData.status].label}
+              {currentStatus.label}
             </Badge>
           </div>
           <p className="text-muted-foreground">{spesenData.projekt}</p>
@@ -233,7 +240,7 @@ export default function TravelExpenseDetail() {
             <Download className="mr-2 h-4 w-4" />
             PDF Export
           </Button>
-          {spesenData.status === "eingereicht" && (
+          {isSubmitted && (
             <>
               <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowRejectDialog(true)}>
                 <XCircle className="mr-2 h-4 w-4" />
@@ -245,8 +252,8 @@ export default function TravelExpenseDetail() {
               </Button>
             </>
           )}
-          {spesenData.status === "genehmigt" && (
-            <Button onClick={handleMarkAsPaid}>
+          {isApproved && (
+            <Button onClick={handleMarkAsPaid} disabled={payMutation.isPending}>
               <Banknote className="mr-2 h-4 w-4" />
               Als ausbezahlt markieren
             </Button>
@@ -275,7 +282,7 @@ export default function TravelExpenseDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xl font-bold">{formatCurrency(sum)}</p>
+                <p className="text-xl font-bold">{formatCurrency(sum as number)}</p>
               </CardContent>
             </Card>
           );
@@ -291,7 +298,7 @@ export default function TravelExpenseDetail() {
           <CardContent>
             <div className="flex items-center gap-4">
               <Avatar className="h-12 w-12">
-                <AvatarFallback>PS</AvatarFallback>
+                <AvatarFallback>{spesenData.mitarbeiter.split(" ").map(n => n[0]).join("").slice(0, 2)}</AvatarFallback>
               </Avatar>
               <div>
                 <Link to={`/hr/${spesenData.personalNr}`} className="font-medium text-primary hover:underline">
@@ -314,9 +321,9 @@ export default function TravelExpenseDetail() {
               </div>
               <div>
                 <p className="text-muted-foreground">Projekt</p>
-                <Link to={`/projects/${spesenData.projektNr}`} className="text-primary hover:underline">
-                  {spesenData.projektNr}
-                </Link>
+                {spesenData.projektNr ? (
+                  <Link to={`/projects/${spesenData.projektNr}`} className="text-primary hover:underline">{spesenData.projektNr}</Link>
+                ) : <p className="font-medium">–</p>}
               </div>
               <div>
                 <p className="text-muted-foreground">Eingereicht am</p>
@@ -336,55 +343,59 @@ export default function TravelExpenseDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Datum</TableHead>
-                <TableHead>Kategorie</TableHead>
-                <TableHead>Beschreibung</TableHead>
-                <TableHead className="text-center">Menge</TableHead>
-                <TableHead className="text-right">Satz CHF</TableHead>
-                <TableHead className="text-right">Betrag CHF</TableHead>
-                <TableHead className="text-center">Beleg</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {positionen.map((p) => {
-                const Icon = kategorieIcons[p.kategorie] || Receipt;
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.datum}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span>{p.kategorie}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{p.beschreibung}</TableCell>
-                    <TableCell className="text-center">
-                      {p.menge} {p.einheit !== "Pauschale" && p.einheit !== "Ticket" && p.einheit !== "Nacht" ? p.einheit : ""}
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.satz)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(p.betrag)}</TableCell>
-                    <TableCell className="text-center">
-                      {p.beleg ? (
-                        <Badge className="bg-success/10 text-success">
-                          <CheckCircle2 className="h-3 w-3" />
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Fehlt</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              <TableRow className="bg-muted/50">
-                <TableCell colSpan={5} className="font-bold">Total</TableCell>
-                <TableCell className="text-right font-bold">{formatCurrency(totalBetrag)}</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {positionen.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">Keine Positionen vorhanden</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Kategorie</TableHead>
+                  <TableHead>Beschreibung</TableHead>
+                  <TableHead className="text-center">Menge</TableHead>
+                  <TableHead className="text-right">Satz CHF</TableHead>
+                  <TableHead className="text-right">Betrag CHF</TableHead>
+                  <TableHead className="text-center">Beleg</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {positionen.map((p: any) => {
+                  const Icon = kategorieIcons[p.kategorie] || Receipt;
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.datum}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                          <span>{p.kategorie}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{p.beschreibung}</TableCell>
+                      <TableCell className="text-center">
+                        {p.menge} {p.einheit !== "Pauschale" && p.einheit !== "Ticket" && p.einheit !== "Nacht" ? p.einheit : ""}
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(p.satz)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(p.betrag)}</TableCell>
+                      <TableCell className="text-center">
+                        {p.beleg ? (
+                          <Badge className="bg-success/10 text-success">
+                            <CheckCircle2 className="h-3 w-3" />
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Fehlt</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                <TableRow className="bg-muted/50">
+                  <TableCell colSpan={5} className="font-bold">Total</TableCell>
+                  <TableCell className="text-right font-bold">{formatCurrency(totalBetrag)}</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -422,10 +433,7 @@ export default function TravelExpenseDetail() {
               {uploadedFiles.map(file => {
                 const FileIcon = getFileIcon(file.type);
                 return (
-                  <div
-                    key={file.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 group"
-                  >
+                  <div key={file.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 group">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
                       <FileIcon className="h-5 w-5 text-primary" />
                     </div>
@@ -433,12 +441,7 @@ export default function TravelExpenseDetail() {
                       <p className="font-medium text-sm truncate">{file.name}</p>
                       <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive"
-                      onClick={() => removeFile(file.id)}
-                    >
+                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive" onClick={() => removeFile(file.id)}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -460,18 +463,18 @@ export default function TravelExpenseDetail() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {approvalHistory.map((entry, idx) => (
+              {approvalHistory.map((entry: any, idx: number) => (
                 <div key={idx} className="flex gap-4 items-start">
                   <div className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
-                    entry.action === "Genehmigt" ? "bg-success/10 text-success" :
-                    entry.action === "Abgelehnt" ? "bg-destructive/10 text-destructive" :
-                    entry.action === "Ausbezahlt" ? "bg-success/10 text-success" :
+                    entry.action === "Genehmigt" || entry.action === "approved" ? "bg-success/10 text-success" :
+                    entry.action === "Abgelehnt" || entry.action === "rejected" ? "bg-destructive/10 text-destructive" :
+                    entry.action === "Ausbezahlt" || entry.action === "paid" ? "bg-success/10 text-success" :
                     "bg-info/10 text-info"
                   }`}>
-                    {entry.action === "Genehmigt" && <CheckCircle2 className="h-4 w-4" />}
-                    {entry.action === "Abgelehnt" && <XCircle className="h-4 w-4" />}
-                    {entry.action === "Ausbezahlt" && <Banknote className="h-4 w-4" />}
-                    {entry.action === "Eingereicht" && <Clock className="h-4 w-4" />}
+                    {(entry.action === "Genehmigt" || entry.action === "approved") && <CheckCircle2 className="h-4 w-4" />}
+                    {(entry.action === "Abgelehnt" || entry.action === "rejected") && <XCircle className="h-4 w-4" />}
+                    {(entry.action === "Ausbezahlt" || entry.action === "paid") && <Banknote className="h-4 w-4" />}
+                    {(entry.action === "Eingereicht" || entry.action === "submitted") && <Clock className="h-4 w-4" />}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -554,7 +557,7 @@ export default function TravelExpenseDetail() {
             <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleApprove}>
+            <Button onClick={handleApprove} disabled={approveMutation.isPending}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
               Genehmigen
             </Button>
@@ -587,7 +590,7 @@ export default function TravelExpenseDetail() {
             <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
               Abbrechen
             </Button>
-            <Button variant="destructive" onClick={handleReject}>
+            <Button variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending}>
               <XCircle className="mr-2 h-4 w-4" />
               Ablehnen
             </Button>

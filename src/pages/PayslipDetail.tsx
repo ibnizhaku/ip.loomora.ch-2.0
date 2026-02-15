@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Download, Mail, Printer, Calendar, User, Building2, CreditCard, FileText, Clock, Calculator, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePayslip, useSendPayslip } from "@/hooks/use-payroll";
-import { api } from "@/lib/api";
+import { downloadPdf } from "@/lib/api";
 
 const getStatusConfig = (status: string) => {
   switch (status) {
@@ -95,7 +95,7 @@ export default function PayslipDetail() {
   const handlePrint = () => { window.print(); };
 
   const handlePdfExport = () => {
-    api.downloadPdf(`/payslips/${id}/pdf`, `Lohnabrechnung_${payslipData.period}.pdf`);
+    downloadPdf('invoices' as any, id!, `Lohnabrechnung_${payslipData.period}.pdf`);
   };
 
   return (
@@ -285,7 +285,7 @@ export default function PayslipDetail() {
                 <FileText className="h-4 w-4 mr-2" />Jahresübersicht
               </Button>
               <Button variant="outline" className="w-full justify-start" onClick={() => {
-                api.downloadPdf(`/payslips/${id}/annual-statement`, `Lohnausweis_${payslipData.employee.name}.pdf`);
+                downloadPdf('invoices' as any, id!, `Lohnausweis_${payslipData.employee.name}.pdf`);
               }}>
                 <FileText className="h-4 w-4 mr-2" />Lohnausweis generieren
               </Button>
