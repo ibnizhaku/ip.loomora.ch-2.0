@@ -70,15 +70,17 @@ const formatCHF = (amount: number | undefined | null) => {
 const Payroll = () => {
   const navigate = useNavigate();
   const { data: apiData } = useQuery({ queryKey: ["/payroll"], queryFn: () => api.get<any>("/payroll") });
-  const payrollRuns = apiData?.payrollRuns || [];
+  const payrollRuns: any[] = apiData?.payrollRuns || [];
   const employeePayroll: any[] = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterPosition, setFilterPosition] = useState<string[]>([]);
   const [showAbschliessenDialog, setShowAbschliessenDialog] = useState(false);
-  const currentRun = payrollRuns.find(r => r.status === "In Bearbeitung");
-
+  // Show first active/in-progress run, fallback to latest run
+  const currentRun = payrollRuns.find(r => r.status === "In Bearbeitung") 
+    || payrollRuns.find(r => r.status === "Entwurf")
+    || payrollRuns[0];
   const totalBrutto = employeePayroll.reduce((sum, e) => sum + (e.bruttoLohn || 0), 0);
   const totalNetto = employeePayroll.reduce((sum, e) => sum + (e.nettoLohn || 0), 0);
   const totalAHV = employeePayroll.reduce((sum, e) => sum + (e.ahvIvEo || 0), 0);
@@ -323,7 +325,7 @@ const Payroll = () => {
 
       <Tabs defaultValue="employees" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="employees">Mitarbeitende ({currentRun?.period})</TabsTrigger>
+          <TabsTrigger value="employees">Mitarbeitende ({currentRun?.period || "–"})</TabsTrigger>
           <TabsTrigger value="gav">GAV Metallbau</TabsTrigger>
           <TabsTrigger value="contributions">Sozialversicherungen</TabsTrigger>
           <TabsTrigger value="history">Lohnlauf-Historie</TabsTrigger>
@@ -599,9 +601,13 @@ const Payroll = () => {
                     const status = statusConfig[run.status] || defaultPayrollStatus;
                     const StatusIcon = status.icon;
                     return (
-                      <TableRow key={run.id}>
-                        <TableCell className="font-medium">{run.id}</TableCell>
-                        <TableCell>{run.period}</TableCell>
+                      <TableRow 
+                        key={run.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/payroll/${run.id}`)}
+                      >
+                        <TableCell className="font-medium">{run.period}</TableCell>
+                        <TableCell>{run.periodKey}</TableCell>
                         <TableCell className="text-right">{Array.isArray(run.employees) ? run.employees.length : (run.employees || 0)}</TableCell>
                         <TableCell className="text-right">CHF {formatCHF(run.grossTotal || 0)}</TableCell>
                         <TableCell className="text-right font-medium">CHF {formatCHF(run.netTotal)}</TableCell>
