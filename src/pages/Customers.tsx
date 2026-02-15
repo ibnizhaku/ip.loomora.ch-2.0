@@ -66,9 +66,8 @@ export default function Customers() {
     }
   };
 
-  const getCustomerStatus = (customer: any): "active" | "inactive" | "prospect" => {
+  const getCustomerStatus = (customer: any): "active" | "inactive" => {
     if (!customer.isActive) return "inactive";
-    if (!customer.totalRevenue || customer.totalRevenue === 0) return "prospect";
     return "active";
   };
 
