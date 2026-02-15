@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   LayoutDashboard,
   Users,
@@ -80,6 +81,7 @@ interface NavItem {
   url: string;
   icon: any;
   keywords?: string[]; // Additional search terms
+  permission?: string; // Required permission module key (e.g. "invoices") — checked for :read
   subItems?: { title: string; url: string; icon?: any }[];
 }
 
@@ -89,18 +91,21 @@ const mainNavItems: NavItem[] = [
     url: "/",
     icon: LayoutDashboard,
     keywords: ["übersicht", "home", "start"],
+    permission: "dashboard",
   },
   {
     title: "Projekte",
     url: "/projects",
     icon: FolderKanban,
     keywords: ["project", "vorhaben"],
+    permission: "projects",
   },
   {
     title: "Aufgaben",
     url: "/tasks",
     icon: CheckSquare,
     keywords: ["task", "todo", "pendenz"],
+    permission: "tasks",
   },
   {
     title: "Kalender",
@@ -116,12 +121,14 @@ const crmItems: NavItem[] = [
     url: "/customers",
     icon: Users,
     keywords: ["customer", "client", "debitor"],
+    permission: "customers",
   },
   {
     title: "Lieferanten",
     url: "/suppliers",
     icon: Handshake,
     keywords: ["supplier", "kreditor", "zulieferer"],
+    permission: "customers",
   },
 ];
 
@@ -131,48 +138,54 @@ const salesItems: NavItem[] = [
     url: "/quotes",
     icon: FileText,
     keywords: ["offerte", "quote", "kostenvoranschlag"],
+    permission: "invoices",
   },
   {
     title: "Aufträge",
     url: "/orders",
     icon: ShoppingCart,
     keywords: ["order", "bestellung"],
+    permission: "invoices",
   },
   {
     title: "Lieferscheine",
     url: "/delivery-notes",
     icon: Truck,
     keywords: ["delivery", "versand"],
+    permission: "invoices",
   },
   {
     title: "Rechnungen",
     url: "/invoices",
     icon: Receipt,
     keywords: ["invoice", "faktura", "rechnung"],
+    permission: "invoices",
   },
   {
     title: "Gutschriften",
     url: "/credit-notes",
     icon: FileBox,
     keywords: ["credit", "storno"],
+    permission: "invoices",
   },
   {
     title: "Mahnwesen",
     url: "/reminders",
     icon: FileText,
     keywords: ["mahnung", "reminder", "inkasso"],
+    permission: "invoices",
   },
 ];
 
 const managementItems: NavItem[] = [
-  { title: "Zeiterfassung", url: "/time-tracking", icon: Clock, keywords: ["time", "stunden"] },
+  { title: "Zeiterfassung", url: "/time-tracking", icon: Clock, keywords: ["time", "stunden"], permission: "time-entries" },
   { title: "Einkauf", url: "/purchase-orders", icon: ShoppingCart },
   { title: "Einkaufsrechnungen", url: "/purchase-invoices", icon: Receipt, keywords: ["kreditor", "lieferant"] },
   { title: "Lager", url: "/inventory", icon: Package, keywords: ["inventory", "bestand"] },
   { title: "Produkte", url: "/products", icon: Box, keywords: ["artikel", "material"] },
-  { title: "Stücklisten", url: "/bom", icon: Layers, keywords: ["bom", "material"] },
+  { title: "Stücklisten", url: "/bom", icon: Layers, keywords: ["bom", "material"], permission: "bom" },
   { title: "Kalkulation", url: "/calculation", icon: Calculator, keywords: ["kalk", "preis"] },
-  { title: "Produktion", url: "/production", icon: Factory, keywords: ["werkstatt", "fertigung"] },
+  { title: "Produktion", url: "/production", icon: Factory, keywords: ["werkstatt", "fertigung"], permission: "production" },
   { title: "QS-Prüfung", url: "/quality", icon: ClipboardCheck, keywords: ["qualität", "prüfung"] },
   { title: "Service", url: "/service", icon: Wrench, keywords: ["wartung", "reparatur"] },
   { title: "Verträge", url: "/contracts", icon: FileSignature },
@@ -186,6 +199,7 @@ const accountingItems: NavItem[] = [
     url: "/finance",
     icon: CreditCard,
     keywords: ["finanzen", "übersicht", "dashboard"],
+    permission: "finance",
     subItems: [
       { title: "Kassenbuch", url: "/cash-book", icon: Wallet },
       { title: "Kostenstellen", url: "/cost-centers", icon: Target },
@@ -197,24 +211,28 @@ const accountingItems: NavItem[] = [
     url: "/debtors",
     icon: UserPlus2,
     keywords: ["forderungen", "kunden", "offene posten"],
+    permission: "finance",
   },
   {
     title: "Kreditoren",
     url: "/creditors",
     icon: UserMinus,
     keywords: ["verbindlichkeiten", "lieferanten", "offene posten"],
+    permission: "finance",
   },
   {
     title: "Zahlungsverkehr",
     url: "/bank-accounts",
     icon: Landmark,
     keywords: ["bank", "konto", "sepa", "camt", "iso20022"],
+    permission: "finance",
   },
   {
     title: "Finanzbuchhaltung",
     url: "/chart-of-accounts",
     icon: BookOpen,
     keywords: ["fibu", "buchhaltung"],
+    permission: "finance",
     subItems: [
       { title: "Kontenplan", url: "/chart-of-accounts", icon: BookOpen },
       { title: "Buchungsjournal", url: "/journal-entries", icon: FileText },
@@ -226,6 +244,7 @@ const accountingItems: NavItem[] = [
     url: "/balance-sheet",
     icon: Scale,
     keywords: ["bilanz", "guv", "jahresabschluss"],
+    permission: "finance",
     subItems: [
       { title: "Bilanz & GuV", url: "/balance-sheet", icon: Scale },
       { title: "MWST-Abrechnung", url: "/vat-returns", icon: Calculator },
@@ -239,47 +258,56 @@ const hrItems: NavItem[] = [
     title: "Mitarbeiter",
     url: "/hr",
     icon: UsersRound,
+    permission: "employees",
   },
   {
     title: "Arbeitsverträge",
     url: "/employee-contracts",
     icon: FileSignature,
+    permission: "employees",
   },
   {
     title: "Lohnabrechnung CHF",
     url: "/payroll",
     icon: Euro,
+    permission: "employees",
   },
   {
     title: "Abwesenheiten",
     url: "/absences",
     icon: Palmtree,
+    permission: "employees",
   },
   {
     title: "Reisekosten",
     url: "/travel-expenses",
     icon: Plane,
+    permission: "employees",
   },
   {
     title: "Recruiting",
     url: "/recruiting",
     icon: UserPlus,
+    permission: "employees",
   },
   {
     title: "Schulungen",
     url: "/training",
     icon: GraduationCap,
+    permission: "employees",
   },
   {
     title: "Abteilungen",
     url: "/departments",
     icon: Building2,
     keywords: ["department", "abteilung", "team"],
+    permission: "employees",
   },
   {
     title: "Organigramm",
     url: "/orgchart",
     icon: Network,
+    permission: "employees",
   },
 ];
 
@@ -324,11 +352,13 @@ const adminItems: NavItem[] = [
     title: "Benutzer",
     url: "/users",
     icon: UserCog,
+    permission: "settings",
   },
   {
     title: "Unternehmen",
     url: "/company",
     icon: Building2,
+    permission: "settings",
   },
 ];
 
@@ -339,12 +369,19 @@ interface NavGroupProps {
   defaultOpen?: boolean;
   searchQuery?: string;
   useSubmenus?: boolean;
+  canAccessModule: (module: string) => boolean;
 }
 
-function filterItems(items: NavItem[], query: string): NavItem[] {
-  if (!query.trim()) return items;
+function filterItems(items: NavItem[], query: string, canAccessModule: (module: string) => boolean): NavItem[] {
+  // First filter by permissions
+  const permittedItems = items.filter((item) => {
+    if (!item.permission) return true; // No permission required
+    return canAccessModule(item.permission);
+  });
+  
+  if (!query.trim()) return permittedItems;
   const lowerQuery = query.toLowerCase();
-  return items.filter((item) => {
+  return permittedItems.filter((item) => {
     const titleMatch = item.title.toLowerCase().includes(lowerQuery);
     const keywordMatch = item.keywords?.some((k) => k.toLowerCase().includes(lowerQuery));
     const subItemMatch = item.subItems?.some((sub) => sub.title.toLowerCase().includes(lowerQuery));
@@ -352,10 +389,10 @@ function filterItems(items: NavItem[], query: string): NavItem[] {
   });
 }
 
-function NavGroup({ label, items, location, defaultOpen = true, searchQuery = "", useSubmenus = false }: NavGroupProps) {
+function NavGroup({ label, items, location, defaultOpen = true, searchQuery = "", useSubmenus = false, canAccessModule }: NavGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
-  const filteredItems = filterItems(items, searchQuery);
+  const filteredItems = filterItems(items, searchQuery, canAccessModule);
   
   // Force open when searching and has results
   const shouldBeOpen = searchQuery ? filteredItems.length > 0 : isOpen;
@@ -498,6 +535,7 @@ function NavGroup({ label, items, location, defaultOpen = true, searchQuery = ""
 export function AppSidebar() {
   const location = useLocation();
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const { canAccessModule } = usePermissions();
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar-background">
@@ -525,20 +563,20 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-3 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
-        <NavGroup label="Hauptmenü" items={mainNavItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="CRM" items={crmItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Verkauf" items={salesItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Verwaltung" items={managementItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} searchQuery={sidebarSearch} useSubmenus={true} />
-        <NavGroup label="Marketing" items={marketingItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="E-Commerce" items={ecommerceItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Personal (HR)" items={hrItems} location={location} searchQuery={sidebarSearch} />
-        <NavGroup label="Administration" items={adminItems} location={location} searchQuery={sidebarSearch} />
+        <NavGroup label="Hauptmenü" items={mainNavItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="CRM" items={crmItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="Verkauf" items={salesItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="Verwaltung" items={managementItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="Buchhaltung" items={accountingItems} location={location} defaultOpen={false} searchQuery={sidebarSearch} useSubmenus={true} canAccessModule={canAccessModule} />
+        <NavGroup label="Marketing" items={marketingItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="E-Commerce" items={ecommerceItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="Personal (HR)" items={hrItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
+        <NavGroup label="Administration" items={adminItems} location={location} searchQuery={sidebarSearch} canAccessModule={canAccessModule} />
         
         {sidebarSearch && (
           <div className="px-3 py-6 text-center">
             <p className="text-xs text-muted-foreground/60">
-              {filterItems([...mainNavItems, ...crmItems, ...salesItems, ...managementItems, ...accountingItems, ...marketingItems, ...ecommerceItems, ...hrItems, ...adminItems], sidebarSearch).length} Ergebnisse für "{sidebarSearch}"
+              {filterItems([...mainNavItems, ...crmItems, ...salesItems, ...managementItems, ...accountingItems, ...marketingItems, ...ecommerceItems, ...hrItems, ...adminItems], sidebarSearch, canAccessModule).length} Ergebnisse für "{sidebarSearch}"
             </p>
           </div>
         )}
