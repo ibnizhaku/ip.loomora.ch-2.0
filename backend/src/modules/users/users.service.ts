@@ -65,7 +65,8 @@ export class UsersService {
           memberships: {
             where: { companyId },
             select: {
-              role: { select: { name: true } },
+              roleId: true,
+              role: { select: { id: true, name: true } },
               isOwner: true,
             },
           },
@@ -122,7 +123,8 @@ export class UsersService {
         memberships: {
           where: { companyId },
           select: {
-            role: { select: { name: true } },
+            roleId: true,
+            role: { select: { id: true, name: true } },
             isOwner: true,
           },
         },
@@ -140,7 +142,8 @@ export class UsersService {
       lastName: user.lastName,
       email: user.email,
       phone: user.phone,
-      role: (user.memberships[0]?.role?.name || user.role || 'user').toLowerCase(),
+      role: user.memberships[0]?.role?.id || '',
+      roleName: (user.memberships[0]?.role?.name || user.role || 'user'),
       status: user.status === 'PENDING' ? 'pending' : user.isActive ? 'active' : 'inactive',
       lastLogin: user.lastLoginAt
         ? new Date(user.lastLoginAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -268,7 +271,8 @@ export class UsersService {
       }
     }
 
-    return this.prisma.user.update({
+    // Update user fields
+    const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
         firstName: dto.firstName,
@@ -278,6 +282,23 @@ export class UsersService {
         isActive: dto.isActive,
       },
     });
+
+    // Update role in membership if provided
+    if (dto.role) {
+      // Verify the role exists and belongs to this company
+      const role = await this.prisma.role.findFirst({
+        where: { id: dto.role, companyId },
+      });
+      if (role) {
+        await this.prisma.userCompanyMembership.update({
+          where: { userId_companyId: { userId: id, companyId } },
+          data: { roleId: dto.role },
+        });
+      }
+    }
+
+    // Return full user detail
+    return this.findById(id, companyId);
   }
 
   async delete(id: string, companyId: string) {
