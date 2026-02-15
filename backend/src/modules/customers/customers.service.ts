@@ -96,7 +96,7 @@ export class CustomersService {
           orderBy: { createdAt: 'desc' },
         },
         orders: {
-          select: { id: true, number: true, status: true, date: true, totalAmount: true },
+          select: { id: true, number: true, status: true, date: true, total: true },
           orderBy: { createdAt: 'desc' },
         },
         contacts: true,
