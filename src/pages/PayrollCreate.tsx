@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft,
@@ -7,7 +7,8 @@ import {
   Calendar,
   CheckCircle2,
   AlertCircle,
-  Play
+  Play,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useEmployees } from "@/hooks/use-employees";
 
 const months = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -25,15 +27,6 @@ const months = [
 const currentYear = new Date().getFullYear();
 const years = [currentYear - 1, currentYear, currentYear + 1];
 
-const employees = [
-  { id: "1", name: "Thomas Müller", position: "Metallbauer EFZ", bruttoLohn: 5800, status: "aktiv" },
-  { id: "2", name: "Lisa Weber", position: "Metallbaukonstrukteurin EFZ", bruttoLohn: 6200, status: "aktiv" },
-  { id: "3", name: "Michael Schneider", position: "Vorarbeiter", bruttoLohn: 6800, status: "aktiv" },
-  { id: "4", name: "Sandra Fischer", position: "Kaufm. Angestellte", bruttoLohn: 5200, status: "aktiv" },
-  { id: "5", name: "Pedro Santos", position: "Metallbauer EFZ", bruttoLohn: 5500, status: "aktiv" },
-  { id: "6", name: "Hans Keller", position: "Werkstattleiter", bruttoLohn: 8000, status: "aktiv" },
-];
-
 const formatCHF = (amount: number) => {
   return amount.toLocaleString("de-CH", { minimumFractionDigits: 2 });
 };
@@ -41,10 +34,30 @@ const formatCHF = (amount: number) => {
 const PayrollCreate = () => {
   const navigate = useNavigate();
   const currentMonth = new Date().getMonth();
+  const { data: employeeData, isLoading } = useEmployees({ pageSize: 200, status: 'ACTIVE' });
   
+  const employees = useMemo(() => {
+    const list = employeeData?.data || [];
+    return list.map(e => ({
+      id: e.id,
+      name: `${e.firstName || ''} ${e.lastName || ''}`.trim(),
+      position: e.position || '',
+      bruttoLohn: e.salary || 0,
+      status: (e.status || 'ACTIVE').toLowerCase() === 'active' ? 'aktiv' : e.status?.toLowerCase() || '',
+    }));
+  }, [employeeData]);
+
   const [selectedMonth, setSelectedMonth] = useState(months[currentMonth]);
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>(employees.map(e => e.id));
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [initialized, setInitialized] = useState(false);
+
+  // Auto-select all employees once loaded
+  if (!initialized && employees.length > 0) {
+    setSelectedEmployees(employees.map(e => e.id));
+    setInitialized(true);
+  }
+
   const [isProcessing, setIsProcessing] = useState(false);
 
   const toggleEmployee = (employeeId: string) => {
