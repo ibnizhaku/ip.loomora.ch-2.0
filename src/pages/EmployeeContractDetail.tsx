@@ -68,13 +68,19 @@ export default function EmployeeContractDetail() {
   // Map API data to component format
   const initialData = useMemo(() => {
     if (!apiData) return null;
+    const extractName = (val: any): string => {
+      if (!val) return "–";
+      if (typeof val === "string") return val;
+      if (typeof val === "object" && val.name) return val.name;
+      return "–";
+    };
     return {
       id: apiData.id || id || "",
       mitarbeiter: apiData.employeeName || (apiData.employee ? `${apiData.employee.firstName} ${apiData.employee.lastName}` : "–"),
       personalNr: apiData.employeeId || apiData.employee?.id || "",
-      position: apiData.position || apiData.employee?.position || "–",
-      abteilung: apiData.department || apiData.employee?.department || "–",
-      vorgesetzter: apiData.supervisor || "–",
+      position: extractName(apiData.position) || extractName(apiData.employee?.position) || "–",
+      abteilung: extractName(apiData.department) || extractName(apiData.employee?.department) || "–",
+      vorgesetzter: extractName(apiData.supervisor),
       vertragsart: apiData.contractType || "Unbefristet",
       status: apiData.status || "aktiv",
       eintrittsdatum: apiData.startDate || "",
