@@ -120,6 +120,7 @@ import TravelExpenseCreate from "./pages/TravelExpenseCreate";
 import Users from "./pages/Users";
 import UserDetail from "./pages/UserDetail";
 import UserCreate from "./pages/UserCreate";
+import UserEdit from "./pages/UserEdit";
 import Reviews from "./pages/Reviews";
 import ReviewDetail from "./pages/ReviewDetail";
 import PayslipDetail from "./pages/PayslipDetail";
@@ -446,6 +447,7 @@ const App = () => (
               <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
               <Route path="/users/new" element={<ProtectedLayout><UserCreate /></ProtectedLayout>} />
               <Route path="/users/:id" element={<ProtectedLayout><UserDetail /></ProtectedLayout>} />
+              <Route path="/users/:id/edit" element={<ProtectedLayout><UserEdit /></ProtectedLayout>} />
               <Route path="/company" element={<ProtectedLayout><Company /></ProtectedLayout>} />
               <Route path="/company/edit" element={<ProtectedLayout><CompanyEdit /></ProtectedLayout>} />
               <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
