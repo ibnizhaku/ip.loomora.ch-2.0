@@ -357,7 +357,6 @@ const Payroll = () => {
           <TabsTrigger value="employees">Mitarbeitende ({currentRun?.period || "–"})</TabsTrigger>
           <TabsTrigger value="gav">GAV Metallbau</TabsTrigger>
           <TabsTrigger value="contributions">Sozialversicherungen</TabsTrigger>
-          <TabsTrigger value="history">Lohnlauf-Historie</TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees" className="space-y-4">
