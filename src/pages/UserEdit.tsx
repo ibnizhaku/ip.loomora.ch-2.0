@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Save, Loader2, Key, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Key, Eye, EyeOff, Users, ExternalLink, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,7 +12,9 @@ import { Switch } from "@/components/ui/switch";
 import { useUser, useUpdateUser } from "@/hooks/use-users";
 import { useChangeUserPassword } from "@/hooks/use-users";
 import { useRoles } from "@/hooks/use-roles";
+import { useEmployees } from "@/hooks/use-employees";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Vorname ist erforderlich"),
@@ -213,6 +215,9 @@ export default function UserEdit() {
             </CardContent>
           </Card>
 
+          {/* Mitarbeiter-Verknüpfung */}
+          <EmployeeLinkCard user={user} />
+
           <div className="flex justify-end gap-3">
             <Button variant="outline" type="button" asChild>
               <Link to={`/users/${id}`}>Abbrechen</Link>
@@ -232,20 +237,84 @@ export default function UserEdit() {
   );
 }
 
-const passwordSchema = z.object({
-  newPassword: z.string().min(8, "Mindestens 8 Zeichen"),
-  confirmPassword: z.string().min(1, "Passwort bestätigen"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwörter stimmen nicht überein",
-  path: ["confirmPassword"],
-});
+interface UserData {
+  employeeId?: string;
+  employeeNumber?: string;
+}
 
-type PasswordValues = z.infer<typeof passwordSchema>;
+function EmployeeLinkCard({ user }: { user: UserData }) {
+  const { data: employeesData } = useEmployees({ pageSize: 200 });
+  const employees = employeesData?.data || [];
+
+  // Filter: nur Mitarbeiter die noch keinem User zugeordnet sind (oder der aktuelle)
+  const hasLink = !!user.employeeId;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <CardTitle>Mitarbeiter-Verknüpfung</CardTitle>
+            <CardDescription>Verknüpfter HR-Mitarbeiterdatensatz</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {hasLink ? (
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="font-mono">{user.employeeNumber || "–"}</Badge>
+              <span className="text-sm text-muted-foreground">Mitarbeiter verknüpft</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/hr/employees/${user.employeeId}`}>
+                  <ExternalLink className="mr-1 h-3 w-3" />
+                  HR-Profil öffnen
+                </Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+            <div className="flex items-center gap-3">
+              <Unlink className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Kein Mitarbeiter verknüpft</span>
+            </div>
+            <Select>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="Mitarbeiter zuweisen..." />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName} ({emp.employeeNumber})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function PasswordChangeCard({ userId }: { userId: string }) {
   const changePassword = useChangeUserPassword();
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const passwordSchema = z.object({
+    newPassword: z.string().min(8, "Mindestens 8 Zeichen"),
+    confirmPassword: z.string().min(1, "Passwort bestätigen"),
+  }).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwörter stimmen nicht überein",
+    path: ["confirmPassword"],
+  });
+
+  type PasswordValues = z.infer<typeof passwordSchema>;
 
   const form = useForm<PasswordValues>({
     resolver: zodResolver(passwordSchema),
