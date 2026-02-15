@@ -24,7 +24,10 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl bg-card p-6 border border-border hover-lift",
+        "group relative overflow-hidden rounded-2xl p-6 hover-lift",
+        "bg-white/12 dark:bg-white/8 backdrop-blur-2xl border border-white/25 dark:border-white/12",
+        "shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.15),inset_0_1px_0_0_rgba(255,255,255,0.2),inset_0_-1px_0_0_rgba(255,255,255,0.05)]",
+        "ring-1 ring-white/10",
         className
       )}
     >
