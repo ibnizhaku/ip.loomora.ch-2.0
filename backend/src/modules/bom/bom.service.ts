@@ -6,6 +6,39 @@ import { CreateBomDto, UpdateBomDto, BomItemType, BOM_TEMPLATES } from './dto/bo
 export class BomService {
   constructor(private prisma: PrismaService) {}
 
+  async getStats(companyId: string) {
+    const [total, templates, withProject] = await Promise.all([
+      this.prisma.billOfMaterial.count({ where: { companyId } }),
+      this.prisma.billOfMaterial.count({ where: { companyId, isTemplate: true } }),
+      this.prisma.billOfMaterial.count({ where: { companyId, projectId: { not: null } } }),
+    ]);
+
+    // Calculate total value from all BOM items
+    const allBoms = await this.prisma.billOfMaterial.findMany({
+      where: { companyId },
+      include: { items: { select: { quantity: true, unitPrice: true, hours: true, hourlyRate: true } } },
+    });
+
+    let totalValue = 0;
+    for (const bom of allBoms) {
+      for (const item of bom.items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unitPrice) || 0;
+        const hours = Number(item.hours) || 0;
+        const rate = Number(item.hourlyRate) || 0;
+        totalValue += (qty * price) + (hours * rate);
+      }
+    }
+
+    return {
+      total,
+      templates,
+      active: withProject,
+      draft: total - withProject,
+      totalValue: Math.round(totalValue * 100) / 100,
+    };
+  }
+
   async findAll(companyId: string, params: {
     page?: number;
     pageSize?: number;

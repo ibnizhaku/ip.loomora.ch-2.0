@@ -33,6 +33,12 @@ export class PurchaseOrdersController {
     });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get purchase order stats' })
+  getStats(@CurrentUser() user: any) {
+    return this.purchaseOrdersService.getStatistics(user.companyId);
+  }
+
   @Get('statistics')
   @ApiOperation({ summary: 'Get purchase order statistics' })
   getStatistics(@CurrentUser() user: any) {

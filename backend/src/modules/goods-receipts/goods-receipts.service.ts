@@ -97,6 +97,38 @@ export class GoodsReceiptsService {
     return goodsReceipt;
   }
 
+  async confirm(id: string, companyId: string) {
+    const receipt = await this.prisma.goodsReceipt.findFirst({
+      where: { id, companyId },
+      include: { items: { include: { product: true } } },
+    });
+    if (!receipt) throw new NotFoundException('Wareneingang nicht gefunden');
+
+    if ((receipt as any).status === 'COMPLETE') {
+      throw new BadRequestException('Wareneingang bereits bestätigt');
+    }
+
+    // Update receipt status to COMPLETE
+    await this.prisma.goodsReceipt.update({
+      where: { id },
+      data: { status: GoodsReceiptStatus.COMPLETE },
+    });
+
+    // Update inventory for each received item
+    for (const item of receipt.items) {
+      if (item.productId) {
+        await this.prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: { increment: Number(item.receivedQuantity) || 0 },
+          },
+        });
+      }
+    }
+
+    return this.findOne(id, companyId);
+  }
+
   async create(companyId: string, dto: CreateGoodsReceiptDto) {
     // Validate purchase order
     const purchaseOrder = await this.prisma.purchaseOrder.findFirst({

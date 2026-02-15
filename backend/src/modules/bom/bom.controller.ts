@@ -33,6 +33,12 @@ export class BomController {
     });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get BOM statistics' })
+  getStats(@CurrentUser() user: any) {
+    return this.bomService.getStats(user.companyId);
+  }
+
   @Get('templates')
   @ApiOperation({ summary: 'Get predefined BOM templates for Metallbau' })
   getTemplates() {

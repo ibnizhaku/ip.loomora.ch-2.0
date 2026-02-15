@@ -256,6 +256,31 @@ export class ProductionOrdersService {
     return this.findOne(id, companyId);
   }
 
+  // Complete entire production order
+  async completeOrder(id: string, companyId: string) {
+    const order = await this.prisma.productionOrder.findFirst({
+      where: { id, companyId },
+    });
+    if (!order) throw new NotFoundException('Produktionsauftrag nicht gefunden');
+
+    // Mark all operations as completed
+    await this.prisma.productionOperation.updateMany({
+      where: { productionOrderId: id },
+      data: { status: 'completed' },
+    });
+
+    // Update order status
+    await this.prisma.productionOrder.update({
+      where: { id },
+      data: {
+        status: ProductionOrderStatus.COMPLETED,
+        actualEndDate: new Date(),
+      },
+    });
+
+    return this.findOne(id, companyId);
+  }
+
   // Complete an operation
   async completeOperation(id: string, companyId: string, operationId: string) {
     const order = await this.findOne(id, companyId);

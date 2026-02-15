@@ -33,6 +33,12 @@ export class ProductionOrdersController {
     });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get production stats' })
+  getStats(@CurrentUser() user: any) {
+    return this.productionOrdersService.getStatistics(user.companyId);
+  }
+
   @Get('statistics')
   @ApiOperation({ summary: 'Get production statistics' })
   getStatistics(@CurrentUser() user: any) {
@@ -79,6 +85,15 @@ export class ProductionOrdersController {
     @CurrentUser() user: any,
   ) {
     return this.productionOrdersService.bookTime(id, user.companyId, dto);
+  }
+
+  @Post(':id/complete')
+  @ApiOperation({ summary: 'Mark entire production order as completed' })
+  complete(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.productionOrdersService.completeOrder(id, user.companyId);
   }
 
   @Post(':id/operations/:operationId/complete')

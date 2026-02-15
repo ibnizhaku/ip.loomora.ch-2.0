@@ -69,6 +69,12 @@ export class GoodsReceiptsController {
     return this.goodsReceiptsService.update(id, user.companyId, dto);
   }
 
+  @Post(':id/confirm')
+  @ApiOperation({ summary: 'Confirm goods receipt and update inventory' })
+  confirm(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.goodsReceiptsService.confirm(id, user.companyId);
+  }
+
   @Post(':id/quality-check')
   @ApiOperation({ summary: 'Perform quality check on receipt item' })
   qualityCheck(

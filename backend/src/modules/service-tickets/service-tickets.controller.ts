@@ -42,6 +42,12 @@ export class ServiceTicketsController {
     });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get service ticket stats' })
+  getStats(@CurrentUser() user: any) {
+    return this.serviceTicketsService.getStatistics(user.companyId);
+  }
+
   @Get('statistics')
   @ApiOperation({ summary: 'Get service ticket statistics' })
   getStatistics(@CurrentUser() user: any) {

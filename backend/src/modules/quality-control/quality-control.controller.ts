@@ -95,6 +95,12 @@ export class QualityControlController {
     });
   }
 
+  @Get('checks/stats')
+  @ApiOperation({ summary: 'Get quality check stats' })
+  getStats(@CurrentUser() user: any) {
+    return this.qualityService.getStatistics(user.companyId);
+  }
+
   @Get('checks/statistics')
   @ApiOperation({ summary: 'Get quality check statistics' })
   getStatistics(@CurrentUser() user: any) {
