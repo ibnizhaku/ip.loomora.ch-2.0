@@ -24,12 +24,13 @@ const MONTH_NAMES_DE = [
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
 ];
 
+// Payslip status: always lowercase English (Frontend translates)
 const PAYSLIP_STATUS_MAP: Record<string, string> = {
-  DRAFT: 'Entwurf',
-  PENDING: 'In Bearbeitung',
-  COMPLETED: 'Abgeschlossen',
-  PAID: 'Ausbezahlt',
-  CANCELLED: 'Storniert',
+  DRAFT: 'draft',
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+  PAID: 'paid',
+  CANCELLED: 'cancelled',
 };
 
 const RUN_STATUS_MAP: Record<string, string> = {
