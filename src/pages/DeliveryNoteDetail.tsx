@@ -195,11 +195,11 @@ const DeliveryNoteDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/new?from=delivery-note&deliveryNoteId=${id}`)}>
             <FileText className="h-4 w-4 mr-2" />
             Rechnung erstellen
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>

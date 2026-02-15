@@ -1,4 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { downloadPdf, sendEmail } from "@/lib/api";
 import { 
   ArrowLeft, 
   FileText, 
@@ -62,6 +63,7 @@ const creditNoteData = {
 
 const CreditNoteDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-6">
@@ -87,15 +89,15 @@ const CreditNoteDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => { downloadPdf('credit-notes', id || '', `Gutschrift-${creditNoteData.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={async () => { try { await sendEmail('invoices', id || ''); toast.success("E-Mail wurde versendet"); } catch { toast.error("Fehler beim Senden"); } }}>
             <Mail className="h-4 w-4 mr-2" />
             Per E-Mail senden
           </Button>

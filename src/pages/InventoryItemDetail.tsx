@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -74,8 +75,9 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useInventoryItem, useUpdateInventoryItem, useAdjustInventory, useTransferInventory, useDeleteInventoryItem } from "@/hooks/use-inventory";
+import { api } from "@/lib/api";
 
-const warehouses = [
+const defaultWarehouses = [
   { id: "1", name: "Hauptlager" },
   { id: "2", name: "Aussenlager Ost" },
   { id: "3", name: "Nebenlager" },
@@ -91,6 +93,11 @@ const InventoryItemDetail = () => {
 
   // API hooks
   const { data: apiData, isLoading, error } = useInventoryItem(id || "");
+  const { data: warehousesApi } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => api.get<{ id: string; name: string }[]>('/warehouses'),
+  });
+  const warehouses = (warehousesApi as any)?.data || warehousesApi || defaultWarehouses;
   const updateItem = useUpdateInventoryItem();
   const adjustInventory = useAdjustInventory();
   const transferInventory = useTransferInventory();

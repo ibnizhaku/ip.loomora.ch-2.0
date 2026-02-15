@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useProductionOrder, useUpdateProductionOrder, useDeleteProductionOrder, useBookProductionTime, useCompleteProductionOperation } from "@/hooks/use-production-orders";
+import { useEmployees } from "@/hooks/use-employees";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   "offen": { label: "Offen", color: "bg-muted text-muted-foreground", icon: Clock },
@@ -58,6 +59,7 @@ export default function ProductionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: apiData, isLoading } = useProductionOrder(id || "");
+  const { data: employeesData } = useEmployees({ pageSize: 200 });
   const updateMutation = useUpdateProductionOrder();
   const deleteMutation = useDeleteProductionOrder();
   const bookTimeMutation = useBookProductionTime();
@@ -103,13 +105,11 @@ export default function ProductionDetail() {
     }
   }, [order, initialData, initialOps]);
 
-  const mitarbeiterListe = [
-    { id: "1", kürzel: "TM", name: "Thomas Meier" },
-    { id: "2", kürzel: "AS", name: "Anna Schmidt" },
-    { id: "3", kürzel: "MK", name: "Michael König" },
-    { id: "4", kürzel: "LW", name: "Lisa Weber" },
-    { id: "5", kürzel: "PB", name: "Peter Brunner" },
-  ];
+  const mitarbeiterListe = ((employeesData as any)?.data || []).map((e: any) => ({
+    id: e.id,
+    kürzel: `${(e.firstName || "")[0] || ""}${(e.lastName || "")[0] || ""}`,
+    name: `${e.firstName} ${e.lastName}`,
+  }));
 
   const materialverbrauch: any[] = [];
 
