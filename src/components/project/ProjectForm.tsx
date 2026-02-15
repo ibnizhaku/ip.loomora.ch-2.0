@@ -47,6 +47,7 @@ interface ProjectFormData {
 
 interface ProjectFormProps {
   mode: 'create' | 'edit';
+  defaultCustomerId?: string;
   initialData?: {
     id: string;
     name: string;
@@ -65,7 +66,7 @@ interface ProjectFormProps {
   };
 }
 
-export function ProjectForm({ mode, initialData }: ProjectFormProps) {
+export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFormProps) {
   const navigate = useNavigate();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -79,7 +80,7 @@ export function ProjectForm({ mode, initialData }: ProjectFormProps) {
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
     description: '',
-    customerId: '',
+    customerId: defaultCustomerId || '',
     status: 'PLANNING',
     priority: 'MEDIUM',
     startDate: '',
