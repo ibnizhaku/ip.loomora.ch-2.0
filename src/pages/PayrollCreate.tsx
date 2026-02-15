@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCreatePayrollRun } from "@/hooks/use-payroll";
 import { 
   ArrowLeft,
   Calculator,
@@ -80,11 +81,16 @@ const PayrollCreate = () => {
     .filter(e => selectedEmployees.includes(e.id))
     .reduce((sum, e) => sum + e.bruttoLohn, 0);
 
+  const createPayrollRun = useCreatePayrollRun();
+
   const handleStartPayroll = () => {
     if (selectedEmployees.length === 0) {
       toast.error("Bitte wählen Sie mindestens einen Mitarbeiter aus");
       return;
     }
+
+    const monthIndex = months.indexOf(selectedMonth) + 1;
+    const period = `${selectedYear}-${String(monthIndex).padStart(2, '0')}`;
 
     setIsProcessing(true);
     
@@ -92,13 +98,30 @@ const PayrollCreate = () => {
       description: `${selectedMonth} ${selectedYear} für ${selectedEmployees.length} Mitarbeitende`
     });
 
-    setTimeout(() => {
-      toast.success("Lohnlauf erfolgreich gestartet!", {
-        description: "Die Lohnberechnungen werden durchgeführt"
-      });
-      setIsProcessing(false);
-      navigate("/payroll");
-    }, 2000);
+    createPayrollRun.mutate(
+      {
+        period,
+        periodStart: `${selectedYear}-${String(monthIndex).padStart(2, '0')}-01`,
+        periodEnd: `${selectedYear}-${String(monthIndex).padStart(2, '0')}-${new Date(Number(selectedYear), monthIndex, 0).getDate()}`,
+        status: 'DRAFT',
+        employees: selectedEmployees.length,
+      } as any,
+      {
+        onSuccess: (data: any) => {
+          toast.success("Lohnlauf erfolgreich gestartet!", {
+            description: "Die Lohnberechnungen werden durchgeführt"
+          });
+          setIsProcessing(false);
+          navigate(data?.id ? `/payroll/${data.id}` : "/payroll");
+        },
+        onError: (error: any) => {
+          toast.error("Fehler beim Starten des Lohnlaufs", {
+            description: error?.message || "Bitte versuchen Sie es erneut"
+          });
+          setIsProcessing(false);
+        },
+      }
+    );
   };
 
   return (
