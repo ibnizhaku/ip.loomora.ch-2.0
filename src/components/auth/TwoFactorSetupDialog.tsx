@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shield, Copy, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,25 +24,26 @@ export default function TwoFactorSetupDialog({ open, onOpenChange, isEnabled }: 
   const verifyMutation = use2FAVerify();
   const disableMutation = use2FADisable();
 
-  const handleOpen = async (isOpen: boolean) => {
-    if (isOpen && !isEnabled) {
-      try {
-        const data = await setupMutation.mutateAsync();
+  // Trigger setup API call when dialog opens for activation
+  useEffect(() => {
+    if (open && !isEnabled && !qrData && !setupMutation.isPending) {
+      setupMutation.mutateAsync().then((data) => {
         setQrData({ qrCode: data.qrCode, secret: data.manualEntry });
         setStep("qr");
-      } catch { /* handled by hook */ }
+      }).catch(() => { /* handled by hook */ });
     }
-    if (isOpen && isEnabled) {
+    if (open && isEnabled) {
       setStep("disable");
       setCode("");
     }
-    if (!isOpen) {
-      setCode("");
-      setQrData(null);
-      setRecoveryCodes(null);
-      setCopied(false);
-    }
-    onOpenChange(isOpen);
+  }, [open, isEnabled]);
+
+  const handleClose = () => {
+    setCode("");
+    setQrData(null);
+    setRecoveryCodes(null);
+    setCopied(false);
+    onOpenChange(false);
   };
 
   const handleVerify = async () => {
@@ -86,7 +87,7 @@ export default function TwoFactorSetupDialog({ open, onOpenChange, isEnabled }: 
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
