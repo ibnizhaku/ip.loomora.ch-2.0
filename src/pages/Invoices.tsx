@@ -288,11 +288,11 @@ export default function Invoices() {
                           <Eye className="h-4 w-4" />
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2" onClick={(e) => { e.stopPropagation(); import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`)); }}>
                           <Download className="h-4 w-4" />
                           Herunterladen
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2" onClick={async (e) => { e.stopPropagation(); try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
                           <Send className="h-4 w-4" />
                           Per E-Mail senden
                         </DropdownMenuItem>

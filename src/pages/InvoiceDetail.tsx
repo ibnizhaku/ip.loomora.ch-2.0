@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -37,10 +39,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
-import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { SalesDocumentData } from "@/lib/pdf/sales-document";
 import { useInvoice } from "@/hooks/use-invoices";
+import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
+import { useCompany } from "@/hooks/use-company";
+import { downloadPdf, sendEmail } from "@/lib/api";
 
 // Status mapping from backend enum to German display labels
 const invoiceStatusMap: Record<string, string> = {
@@ -68,6 +81,7 @@ function mapInvoiceToView(invoice: any) {
 
   return {
     id: invoice.number || invoice.id,
+    rawId: invoice.id,
     status: invoiceStatusMap[invoice.status] || invoice.status || "Entwurf",
     customer: {
       id: invoice.customer?.id,
@@ -103,11 +117,6 @@ function mapInvoiceToView(invoice: any) {
       date: formatDate(r.sentAt || r.createdAt),
       type: r.type || "Mahnung",
     })),
-    bankDetails: {
-      bank: "PostFinance AG",
-      iban: "CH93 0076 2011 6238 5295 7",
-      bic: "POFICHBEXXX",
-    },
   };
 }
 
@@ -124,7 +133,16 @@ const InvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: rawInvoice, isLoading, error } = useInvoice(id);
+  const { data: companyData } = useCompany();
+  const recordPayment = useRecordPayment();
+  const sendInvoiceAction = useSendInvoice();
+  const cancelInvoice = useCancelInvoice();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [paymentReference, setPaymentReference] = useState("");
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
 
   if (isLoading) {
     return (
@@ -149,6 +167,25 @@ const InvoiceDetail = () => {
   const StatusIcon = status.icon;
   const outstanding = invoiceData.total - invoiceData.paid;
 
+  // Company info for PDF
+  const companyInfo = {
+    name: companyData?.name || "—",
+    street: companyData?.street || "",
+    postalCode: companyData?.zipCode || "",
+    city: companyData?.city || "",
+    phone: companyData?.phone || "",
+    email: companyData?.email || "",
+    vatNumber: companyData?.vatNumber || "",
+    iban: companyData?.iban || "",
+    bic: companyData?.bic || "",
+  };
+
+  const bankDetails = {
+    bank: companyData?.bankName || "—",
+    iban: companyData?.iban || "—",
+    bic: companyData?.bic || "—",
+  };
+
   // Prepare PDF data
   const pdfData: SalesDocumentData = {
     type: 'invoice',
@@ -156,17 +193,7 @@ const InvoiceDetail = () => {
     date: invoiceData.createdAt,
     dueDate: invoiceData.dueDate,
     orderNumber: invoiceData.order,
-    company: {
-      name: "Loomora Metallbau AG",
-      street: "Industriestrasse 15",
-      postalCode: "8005",
-      city: "Zürich",
-      phone: "+41 44 123 45 67",
-      email: "info@loomora.ch",
-      vatNumber: "CHE-123.456.789",
-      iban: invoiceData.bankDetails.iban,
-      bic: invoiceData.bankDetails.bic,
-    },
+    company: companyInfo,
     customer: {
       name: invoiceData.customer.name,
       contact: invoiceData.customer.contact,
@@ -193,14 +220,70 @@ const InvoiceDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    downloadSalesDocumentPDF(pdfData);
-    toast.success("PDF heruntergeladen");
+    downloadPdf('invoices', id || '', `Rechnung-${invoiceData.id}.pdf`);
+    toast.success("PDF wird heruntergeladen");
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      await sendEmail('invoices', id || '');
+      toast.success("Rechnung per E-Mail versendet");
+    } catch {
+      toast.error("Fehler beim Versenden");
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    try {
+      await sendInvoiceAction.mutateAsync(id || "");
+      toast.success("Rechnung als versendet markiert");
+    } catch {
+      toast.error("Fehler beim Versenden");
+    }
+  };
+
+  const handleCancelInvoice = async () => {
+    try {
+      await cancelInvoice.mutateAsync(id || "");
+      toast.success("Rechnung storniert");
+    } catch {
+      toast.error("Fehler beim Stornieren");
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    const amount = parseFloat(paymentAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Bitte geben Sie einen gültigen Betrag ein");
+      return;
+    }
+    setIsRecordingPayment(true);
+    try {
+      await recordPayment.mutateAsync({
+        invoiceId: id || "",
+        amount,
+        paymentDate: paymentDate || undefined,
+        reference: paymentReference || undefined,
+      });
+      toast.success("Zahlung erfasst");
+      setPaymentDialogOpen(false);
+      setPaymentAmount("");
+      setPaymentReference("");
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Erfassen der Zahlung");
+    } finally {
+      setIsRecordingPayment(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
           <Link to="/invoices">
             <Button variant="ghost" size="icon">
@@ -220,11 +303,11 @@ const InvoiceDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setPaymentDialogOpen(true)}>
             <CreditCard className="h-4 w-4 mr-2" />
             Zahlung erfassen
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/reminders/new?invoiceId=${id}`)}>
             <AlertTriangle className="h-4 w-4 mr-2" />
             Mahnung erstellen
           </Button>
@@ -236,7 +319,7 @@ const InvoiceDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
@@ -247,13 +330,20 @@ const InvoiceDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => toast.info("Rechnung wird per E-Mail gesendet...")}>
+              <DropdownMenuItem onClick={handleSendEmail}>
                 <Mail className="h-4 w-4 mr-2" />
                 Per E-Mail senden
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSendInvoice}>
+                <Send className="h-4 w-4 mr-2" />
+                Als versendet markieren
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/invoices/${id}/edit`)}>
+                Bearbeiten
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/credit-notes/new?invoiceId=${id}`)}>Gutschrift erstellen</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info("Rechnung wird dupliziert...")}>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Rechnung wird storniert...")}>Stornieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/invoices/new?customerId=${invoiceData.customer.id || ''}`)}>Duplizieren</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={handleCancelInvoice}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -270,7 +360,7 @@ const InvoiceDetail = () => {
                 Die Rechnung war am {invoiceData.dueDate} fällig. Offener Betrag: CHF {outstanding.toFixed(2)}
               </p>
             </div>
-            <Button size="sm" className="ml-auto bg-destructive hover:bg-destructive/90">
+            <Button size="sm" className="ml-auto bg-destructive hover:bg-destructive/90" onClick={() => navigate(`/reminders/new?invoiceId=${id}`)}>
               Mahnung senden
             </Button>
           </CardContent>
@@ -477,15 +567,15 @@ const InvoiceDetail = () => {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Bank</span>
-                <span className="font-medium">{invoiceData.bankDetails.bank}</span>
+                <span className="font-medium">{bankDetails.bank}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">IBAN</span>
-                <span className="font-medium font-mono text-xs">{invoiceData.bankDetails.iban}</span>
+                <span className="font-medium font-mono text-xs">{bankDetails.iban}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">BIC</span>
-                <span className="font-medium">{invoiceData.bankDetails.bic}</span>
+                <span className="font-medium">{bankDetails.bic}</span>
               </div>
             </CardContent>
           </Card>
@@ -499,6 +589,53 @@ const InvoiceDetail = () => {
         documentData={pdfData}
         title={`Rechnung ${invoiceData.id}`}
       />
+
+      {/* Payment Recording Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Zahlung erfassen</DialogTitle>
+            <DialogDescription>
+              Offener Betrag: CHF {outstanding.toFixed(2)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Betrag (CHF)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder={outstanding.toFixed(2)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Zahlungsdatum</Label>
+              <Input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Referenz (optional)</Label>
+              <Input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="z.B. Bankreferenz"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleRecordPayment} disabled={isRecordingPayment}>
+              {isRecordingPayment ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
+              Zahlung erfassen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

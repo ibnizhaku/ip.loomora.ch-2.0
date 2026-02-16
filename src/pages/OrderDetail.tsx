@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useOrder } from "@/hooks/use-sales";
+import { useCompany } from "@/hooks/use-company";
 import { Loader2 } from "lucide-react";
 import { 
   ArrowLeft, 
@@ -113,6 +114,7 @@ const OrderDetail = () => {
   const navigate = useNavigate();
   const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const { data: companyData } = useCompany();
 
   if (isLoading) {
     return (
@@ -144,13 +146,13 @@ const OrderDetail = () => {
     deliveryDate: orderData.deliveryDate,
     reference: orderData.quote,
     company: {
-      name: "Loomora Metallbau AG",
-      street: "Industriestrasse 15",
-      postalCode: "8005",
-      city: "Zürich",
-      phone: "+41 44 123 45 67",
-      email: "info@loomora.ch",
-      vatNumber: "CHE-123.456.789",
+      name: companyData?.name || "—",
+      street: companyData?.street || "",
+      postalCode: companyData?.zipCode || "",
+      city: companyData?.city || "",
+      phone: companyData?.phone || "",
+      email: companyData?.email || "",
+      vatNumber: companyData?.vatNumber || "",
     },
     customer: {
       name: orderData.customer.name,

@@ -128,7 +128,7 @@ export default function DeliveryNotes() {
             Verwalten Sie Ihre Lieferungen und Sendungen
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => navigate("/delivery-notes/new")}>
           <Plus className="h-4 w-4" />
           Neuer Lieferschein
         </Button>
@@ -275,16 +275,16 @@ export default function DeliveryNotes() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/delivery-notes/${note.id}`); }}>Anzeigen</DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/delivery-notes/${note.id}/edit`); }}>Bearbeiten</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={(e) => { e.stopPropagation(); window.print(); }}>
                           <Printer className="h-4 w-4" />
                           Drucken
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2" onClick={(e) => { e.stopPropagation(); import("@/lib/api").then(m => m.downloadPdf("delivery-notes", note.id, `Lieferschein-${note.number}.pdf`)); }}>
                           <Download className="h-4 w-4" />
                           Als PDF
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Sendung verfolgen</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

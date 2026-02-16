@@ -274,11 +274,11 @@ export default function Quotes() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => toast.info("Angebot wird dupliziert...")}>
+                        <DropdownMenuItem className="gap-2" onClick={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
                           <Copy className="h-4 w-4" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => toast.info("Angebot wird versendet...")}>
+                        <DropdownMenuItem className="gap-2" onClick={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
                           <Send className="h-4 w-4" />
                           Versenden
                         </DropdownMenuItem>

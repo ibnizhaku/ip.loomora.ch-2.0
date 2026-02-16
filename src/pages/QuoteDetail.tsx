@@ -25,7 +25,9 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
-import { useQuote } from "@/hooks/use-sales";
+import { useQuote, useConvertQuoteToOrder, useSendQuote, useDeleteQuote, useUpdateQuote } from "@/hooks/use-sales";
+import { useCompany } from "@/hooks/use-company";
+import { sendEmail, downloadPdf } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +87,13 @@ const quoteStatusMap: Record<string, string> = {
   CANCELLED: "Abgelehnt",
 };
 
+const reverseStatusMap: Record<string, string> = {
+  "Entwurf": "DRAFT",
+  "Gesendet": "SENT",
+  "Angenommen": "CONFIRMED",
+  "Abgelehnt": "CANCELLED",
+};
+
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return "—";
   try {
@@ -96,6 +105,7 @@ function mapQuoteToView(quote: any) {
   const items = quote.items || [];
   return {
     id: quote.number || quote.id,
+    rawId: quote.id,
     status: quoteStatusMap[quote.status] || quote.status || "Entwurf",
     customer: {
       id: quote.customer?.id,
@@ -135,10 +145,13 @@ const QuoteDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: rawQuote, isLoading, error } = useQuote(id || "");
+  const { data: companyData } = useCompany();
+  const convertToOrder = useConvertQuoteToOrder();
+  const sendQuote = useSendQuote();
+  const deleteQuote = useDeleteQuote();
+  const updateQuote = useUpdateQuote();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<{ date: string; action: string; user: string }[]>([]);
-
-  // ALL useState hooks MUST be before any conditional returns (React rules of hooks)
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertStep, setConvertStep] = useState(1);
   const [statusChangeOpen, setStatusChangeOpen] = useState(false);
@@ -148,6 +161,7 @@ const QuoteDetail = () => {
   const [createDeliveryNote, setCreateDeliveryNote] = useState(false);
   const [createInvoice, setCreateInvoice] = useState(false);
   const [newStatus, setNewStatus] = useState("");
+  const [isConverting, setIsConverting] = useState(false);
 
   if (isLoading) {
     return (
@@ -171,6 +185,17 @@ const QuoteDetail = () => {
   const status = statusConfig[quoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
 
+  // Company data for PDF
+  const companyInfo = {
+    name: companyData?.name || "—",
+    street: companyData?.street || "",
+    postalCode: companyData?.zipCode || "",
+    city: companyData?.city || "",
+    phone: companyData?.phone || "",
+    email: companyData?.email || "",
+    vatNumber: companyData?.vatNumber || "",
+  };
+
   // Prepare PDF data
   const pdfData: SalesDocumentData = {
     type: 'quote',
@@ -178,15 +203,7 @@ const QuoteDetail = () => {
     date: quoteData.createdAt,
     validUntil: quoteData.validUntil,
     projectNumber: quoteData.project,
-    company: {
-      name: "Loomora Metallbau AG",
-      street: "Industriestrasse 15",
-      postalCode: "8005",
-      city: "Zürich",
-      phone: "+41 44 123 45 67",
-      email: "info@loomora.ch",
-      vatNumber: "CHE-123.456.789",
-    },
+    company: companyInfo,
     customer: {
       name: quoteData.customer.name,
       contact: quoteData.customer.contact,
@@ -221,8 +238,18 @@ const QuoteDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    downloadSalesDocumentPDF(pdfData);
-    toast.success("PDF heruntergeladen");
+    downloadPdf('quotes', id || '', `Angebot-${quoteData.id}.pdf`);
+    toast.success("PDF wird heruntergeladen");
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      await sendEmail('quotes', id || '');
+      toast.success("Angebot per E-Mail versendet");
+      addHistoryEntry("Per E-Mail versendet");
+    } catch {
+      toast.error("Fehler beim Versenden");
+    }
   };
 
   // Konvertierung starten
@@ -235,30 +262,65 @@ const QuoteDetail = () => {
     setConvertDialogOpen(true);
   };
 
-  // Konvertierung durchführen
-  const handleConvert = () => {
-    addHistoryEntry("In Auftrag umgewandelt");
-    toast.success("Auftrag wurde erstellt");
-    setConvertDialogOpen(false);
+  // Konvertierung durchführen via API
+  const handleConvert = async () => {
+    setIsConverting(true);
+    try {
+      const result = await convertToOrder.mutateAsync(id || "");
+      addHistoryEntry("In Auftrag umgewandelt");
+      toast.success("Auftrag wurde erstellt");
+      setConvertDialogOpen(false);
+      // Navigate to new order
+      if (result?.id) {
+        navigate(`/orders/${result.id}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler bei der Konvertierung");
+    } finally {
+      setIsConverting(false);
+    }
   };
 
-  // Status ändern
-  const handleStatusChange = () => {
-    addHistoryEntry(`Status geändert zu "${newStatus}"`);
-    toast.success("Status aktualisiert");
-    setStatusChangeOpen(false);
+  // Status ändern via API
+  const handleStatusChange = async () => {
+    const backendStatus = reverseStatusMap[newStatus];
+    if (!backendStatus) return;
+    try {
+      await updateQuote.mutateAsync({ id: id || "", data: { status: backendStatus } as any });
+      addHistoryEntry(`Status geändert zu "${newStatus}"`);
+      toast.success("Status aktualisiert");
+      setStatusChangeOpen(false);
+    } catch {
+      toast.error("Fehler beim Ändern des Status");
+    }
+  };
+
+  // Versenden via API
+  const handleSendQuote = async () => {
+    try {
+      await sendQuote.mutateAsync(id || "");
+      addHistoryEntry("Angebot versendet");
+      toast.success("Angebot wurde als versendet markiert");
+    } catch {
+      toast.error("Fehler beim Versenden");
+    }
   };
 
   // Duplizieren
   const handleDuplicate = () => {
-    addHistoryEntry("Angebot dupliziert");
-    toast.success("Angebot wurde dupliziert");
+    navigate(`/quotes/new?customerId=${quoteData.customer.id || ''}`);
+    toast.info("Angebot wird dupliziert – bitte Daten anpassen");
   };
 
-  // Löschen
-  const handleDelete = () => {
-    toast.success("Angebot gelöscht");
-    navigate("/quotes");
+  // Löschen via API
+  const handleDelete = async () => {
+    try {
+      await deleteQuote.mutateAsync(id || "");
+      toast.success("Angebot gelöscht");
+      navigate("/quotes");
+    } catch {
+      toast.error("Fehler beim Löschen");
+    }
   };
 
   return (
@@ -316,9 +378,13 @@ const QuoteDetail = () => {
                 Status ändern
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => toast.info("E-Mail wird vorbereitet...")}>
+              <DropdownMenuItem onClick={handleSendEmail}>
                 <Mail className="h-4 w-4 mr-2" />
                 Per E-Mail senden
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSendQuote}>
+                <Send className="h-4 w-4 mr-2" />
+                Als versendet markieren
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDuplicate}>
                 <Copy className="h-4 w-4 mr-2" />
@@ -352,10 +418,6 @@ const QuoteDetail = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Positionen</CardTitle>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Position hinzufügen
-              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -510,7 +572,7 @@ const QuoteDetail = () => {
                   <ShoppingCart className="h-4 w-4 mr-2" />
                   In Auftrag umwandeln
                 </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => toast.info("E-Mail wird vorbereitet...")}>
+                <Button variant="outline" className="w-full justify-start" onClick={handleSendEmail}>
                   <Mail className="h-4 w-4 mr-2" />
                   Nachfassen per E-Mail
                 </Button>
@@ -554,7 +616,6 @@ const QuoteDetail = () => {
           </div>
           
           <div className="space-y-4">
-            {/* Step 1: Order Details */}
             {convertStep === 1 && (
               <>
                 <div className="p-3 rounded-lg border bg-muted/50">
@@ -572,87 +633,53 @@ const QuoteDetail = () => {
                 
                 <div className="space-y-2">
                   <Label>Gewünschtes Lieferdatum</Label>
-                  <Input
-                    type="date"
-                    value={orderDeliveryDate}
-                    onChange={(e) => setOrderDeliveryDate(e.target.value)}
-                  />
+                  <Input type="date" value={orderDeliveryDate} onChange={(e) => setOrderDeliveryDate(e.target.value)} />
                 </div>
                 
                 <div className="space-y-2">
                   <Label>Auftragsnotizen</Label>
-                  <Textarea
-                    placeholder="Besondere Anforderungen oder Hinweise..."
-                    value={orderNotes}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                    rows={3}
-                  />
+                  <Textarea placeholder="Besondere Anforderungen oder Hinweise..." value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={3} />
                 </div>
               </>
             )}
 
-            {/* Step 2: Additional Documents */}
             {convertStep === 2 && (
               <>
                 <p className="text-sm text-muted-foreground">
                   Wählen Sie aus, welche zusätzlichen Belege automatisch erstellt werden sollen:
                 </p>
-                
                 <div className="space-y-3">
                   <div 
-                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
-                      createDeliveryNote ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                    }`}
+                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${createDeliveryNote ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
                     onClick={() => setCreateDeliveryNote(!createDeliveryNote)}
                   >
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                      createDeliveryNote ? "bg-primary text-primary-foreground" : "bg-muted"
-                    }`}>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${createDeliveryNote ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                       <Package className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">Lieferschein erstellen</p>
-                      <p className="text-sm text-muted-foreground">
-                        Lieferschein direkt aus dem Auftrag generieren
-                      </p>
+                      <p className="text-sm text-muted-foreground">Lieferschein direkt aus dem Auftrag generieren</p>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={createDeliveryNote}
-                      onChange={() => {}}
-                      className="h-5 w-5 rounded"
-                    />
+                    <input type="checkbox" checked={createDeliveryNote} onChange={() => {}} className="h-5 w-5 rounded" />
                   </div>
                   
                   <div 
-                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
-                      createInvoice ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                    }`}
+                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${createInvoice ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
                     onClick={() => setCreateInvoice(!createInvoice)}
                   >
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                      createInvoice ? "bg-primary text-primary-foreground" : "bg-muted"
-                    }`}>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${createInvoice ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                       <Receipt className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">Rechnung erstellen</p>
-                      <p className="text-sm text-muted-foreground">
-                        Rechnung direkt aus dem Auftrag generieren
-                      </p>
+                      <p className="text-sm text-muted-foreground">Rechnung direkt aus dem Auftrag generieren</p>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={createInvoice}
-                      onChange={() => {}}
-                      className="h-5 w-5 rounded"
-                    />
+                    <input type="checkbox" checked={createInvoice} onChange={() => {}} className="h-5 w-5 rounded" />
                   </div>
                 </div>
               </>
             )}
 
-            {/* Step 3: Summary */}
             {convertStep === 3 && (
               <>
                 <div className="space-y-3">
@@ -661,9 +688,7 @@ const QuoteDetail = () => {
                       <CheckCircle2 className="h-4 w-4" />
                       <span className="font-medium">Auftrag wird erstellt</span>
                     </div>
-                    <p className="text-sm">
-                      Basierend auf Angebot {quoteData.id} mit {quoteData.positions.length} Positionen
-                    </p>
+                    <p className="text-sm">Basierend auf Angebot {quoteData.id} mit {quoteData.positions.length} Positionen</p>
                   </div>
                   
                   {createDeliveryNote && (
@@ -692,13 +717,9 @@ const QuoteDetail = () => {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
-              Abbrechen
-            </Button>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>Abbrechen</Button>
             {convertStep > 1 && (
-              <Button variant="outline" onClick={() => setConvertStep(convertStep - 1)}>
-                Zurück
-              </Button>
+              <Button variant="outline" onClick={() => setConvertStep(convertStep - 1)}>Zurück</Button>
             )}
             {convertStep < 3 ? (
               <Button onClick={() => setConvertStep(convertStep + 1)}>
@@ -706,8 +727,8 @@ const QuoteDetail = () => {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
-              <Button onClick={handleConvert}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
+              <Button onClick={handleConvert} disabled={isConverting}>
+                {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                 Auftrag erstellen
               </Button>
             )}
@@ -720,11 +741,8 @@ const QuoteDetail = () => {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Status ändern</DialogTitle>
-            <DialogDescription>
-              Neuen Status für das Angebot festlegen
-            </DialogDescription>
+            <DialogDescription>Neuen Status für das Angebot festlegen</DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-2">
             <Label>Neuer Status</Label>
             <Select value={newStatus} onValueChange={setNewStatus}>
@@ -739,14 +757,9 @@ const QuoteDetail = () => {
               </SelectContent>
             </Select>
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusChangeOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleStatusChange}>
-              Status ändern
-            </Button>
+            <Button variant="outline" onClick={() => setStatusChangeOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleStatusChange}>Status ändern</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -757,26 +770,18 @@ const QuoteDetail = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Angebot löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Möchten Sie das Angebot "{quoteData.id}" wirklich löschen?
-              Diese Aktion kann nicht rückgängig gemacht werden.
+              Möchten Sie das Angebot "{quoteData.id}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Löschen
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* PDF Preview Dialog */}
-      <PDFPreviewDialog
-        open={showPDFPreview}
-        onOpenChange={setShowPDFPreview}
-        documentData={pdfData}
-        title={`Angebot ${quoteData.id}`}
-      />
+      <PDFPreviewDialog open={showPDFPreview} onOpenChange={setShowPDFPreview} documentData={pdfData} title={`Angebot ${quoteData.id}`} />
     </div>
   );
 };

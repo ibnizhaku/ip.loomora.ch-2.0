@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Plus,
@@ -53,7 +53,11 @@ import {
 } from "@/components/ui/tooltip";
 import { useCustomers } from "@/hooks/use-customers";
 import { useProducts } from "@/hooks/use-products";
+import { useProjects } from "@/hooks/use-projects";
+import { useCompany } from "@/hooks/use-company";
 import { toast } from "sonner";
+import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
+import { SalesDocumentData } from "@/lib/pdf/sales-document";
 
 interface Position {
   id: number;
@@ -104,19 +108,9 @@ const vatRates = [
   { value: "0", label: "0% (Steuerbefreit)", rate: 0 },
 ];
 
-// Swiss bank account (example)
-const companyBankAccount = {
-  name: "Beispiel AG",
-  iban: "CH93 0076 2011 6238 5295 7",
-  qrIban: "CH44 3199 9123 0008 8901 2",
-  bic: "POFICHBEXXX",
-  bank: "PostFinance AG",
-  address: "Musterstrasse 1, 8000 Zürich",
-  uid: "CHE-123.456.789 MWST",
-};
-
 export function DocumentForm({ type, editMode = false, initialData, onSave, defaultCustomerId }: DocumentFormProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [customerSearch, setCustomerSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
@@ -130,18 +124,40 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const [useQrInvoice, setUseQrInvoice] = useState(true);
   const [qrReference, setQrReference] = useState("");
   const [esrParticipant, setEsrParticipant] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
 
-  // Fetch customers and products from API
+  // Read query params for context-sensitive creation
+  const urlCustomerId = defaultCustomerId || searchParams.get("customerId") || undefined;
+  const urlOrderId = searchParams.get("orderId") || undefined;
+  const urlQuoteId = searchParams.get("quoteId") || undefined;
+  const urlInvoiceId = searchParams.get("invoiceId") || undefined;
+
+  // Fetch customers, products, projects and company from API
   const { data: customersData, isLoading: customersLoading } = useCustomers({ search: customerSearch, pageSize: 50 });
   const { data: productsData, isLoading: productsLoading } = useProducts({ search: productSearch, pageSize: 50 });
+  const { data: projectsData } = useProjects({ pageSize: 100 });
+  const { data: companyData } = useCompany();
 
   const customers = useMemo(() => customersData?.data || [], [customersData]);
   const products = useMemo(() => productsData?.data || [], [productsData]);
+  const projects = useMemo(() => projectsData?.data || [], [projectsData]);
+
+  // Company bank details (dynamic from API)
+  const companyBankAccount = useMemo(() => ({
+    name: companyData?.name || "—",
+    iban: companyData?.iban || "—",
+    qrIban: companyData?.qrIban || "—",
+    bic: companyData?.bic || "—",
+    bank: companyData?.bankName || "—",
+    address: [companyData?.street, [companyData?.zipCode, companyData?.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "—",
+    uid: companyData?.vatNumber || "—",
+  }), [companyData]);
 
   // Pre-select customer from URL param
   const defaultCustomerApplied = useState(false);
-  if (defaultCustomerId && !defaultCustomerApplied[0] && customers.length > 0 && !selectedCustomer) {
-    const found = customers.find((c: any) => c.id === defaultCustomerId);
+  if (urlCustomerId && !defaultCustomerApplied[0] && customers.length > 0 && !selectedCustomer) {
+    const found = customers.find((c: any) => c.id === urlCustomerId);
     if (found) {
       setSelectedCustomer(found as any);
       defaultCustomerApplied[1](true);
@@ -160,7 +176,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   };
   const { title, backPath, sendLabel } = typeConfig[type] || typeConfig.invoice;
 
-  // Filter customers based on search (API already filters, but we can do additional client-side filtering)
+  // Filter customers based on search
   const filteredCustomers = customers.filter(
     (c: any) =>
       c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -234,13 +250,6 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const totalVat = Object.values(vatByRate).reduce((sum, vat) => sum + vat, 0);
   const total = subtotal + totalVat;
 
-  // Generate QR Reference (simplified - in production would use modulo 10 recursive)
-  const generateQrReference = () => {
-    const timestamp = Date.now().toString().slice(-10);
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `00 00000 00000 ${timestamp.slice(0,5)} ${timestamp.slice(5)} ${random}0`;
-  };
-
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async (asDraft: boolean) => {
@@ -253,6 +262,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
 
     const payload: any = {
       customerId: selectedCustomer.id,
+      status: asDraft ? "DRAFT" : "SENT",
       items: positions.map((pos, idx) => ({
         position: idx + 1,
         description: pos.description,
@@ -262,6 +272,12 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       })),
       notes: notes || undefined,
     };
+
+    // Pass through context IDs
+    if (selectedProjectId) payload.projectId = selectedProjectId;
+    if (urlOrderId) payload.orderId = urlOrderId;
+    if (urlQuoteId) payload.quoteId = urlQuoteId;
+    if (urlInvoiceId) payload.invoiceId = urlInvoiceId;
 
     // Type-specific fields
     if (type === "quote") {
@@ -282,6 +298,8 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       payload.orderDate = documentDate;
     } else if (type === "delivery-note") {
       payload.deliveryDate = documentDate;
+    } else if (type === "credit-note") {
+      payload.issueDate = documentDate;
     }
 
     if (onSave) {
@@ -305,6 +323,46 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       navigate(backPath);
     }
   };
+
+  // Prepare PDF preview data
+  const pdfPreviewData: SalesDocumentData = useMemo(() => ({
+    type: type === "credit-note" ? "invoice" : type === "delivery-note" ? "order" : type as any,
+    number: "VORSCHAU",
+    date: new Date().toLocaleDateString("de-CH"),
+    company: {
+      name: companyData?.name || "—",
+      street: companyData?.street || "",
+      postalCode: companyData?.zipCode || "",
+      city: companyData?.city || "",
+      phone: companyData?.phone || "",
+      email: companyData?.email || "",
+      vatNumber: companyData?.vatNumber || "",
+      iban: companyData?.iban || "",
+      bic: companyData?.bic || "",
+    },
+    customer: {
+      name: selectedCustomer?.name || "—",
+      contact: "",
+      street: selectedCustomer?.street || "",
+      postalCode: selectedCustomer?.zipCode || "",
+      city: selectedCustomer?.city || "",
+      email: selectedCustomer?.email || "",
+      phone: selectedCustomer?.phone || "",
+    },
+    positions: positions.map((pos, idx) => ({
+      position: idx + 1,
+      description: pos.description,
+      quantity: pos.quantity,
+      unit: pos.unit,
+      unitPrice: pos.price,
+      total: pos.total,
+    })),
+    subtotal,
+    vatRate: 8.1,
+    vatAmount: totalVat,
+    total,
+    notes,
+  }), [type, selectedCustomer, positions, subtotal, totalVat, total, notes, companyData]);
 
   return (
     <div className="space-y-6">
@@ -335,13 +393,13 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
             {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Als Entwurf speichern
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setShowPDFPreview(true)}>
             <Eye className="h-4 w-4 mr-2" />
             Vorschau
           </Button>
           <Button onClick={() => handleSave(false)} disabled={isSaving}>
             {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            {isQuote ? "Angebot senden" : "Rechnung senden"}
+            {sendLabel}
           </Button>
         </div>
       </div>
@@ -829,7 +887,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                           <TooltipContent>
                             <p className="max-w-xs text-xs">
                               26-stellige QR-Referenz (QRR) oder 25-stellige Creditor Reference (SCOR).
-                              Wird automatisch generiert wenn leer.
+                              Wird automatisch vom Backend generiert.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -837,7 +895,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                       <Input 
                         value={qrReference}
                         onChange={(e) => setQrReference(e.target.value)}
-                        placeholder="Automatisch generieren"
+                        placeholder="Wird automatisch generiert"
                         className="font-mono text-sm"
                       />
                     </div>
@@ -863,14 +921,16 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
 
               <div className="space-y-2">
                 <Label>Projekt (optional)</Label>
-                <Select>
+                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Projekt auswählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="p1">E-Commerce Plattform</SelectItem>
-                    <SelectItem value="p2">Metallbau Projekt X</SelectItem>
-                    <SelectItem value="p3">CRM Integration</SelectItem>
+                    {projects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -948,6 +1008,14 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
           </Card>
         </div>
       </div>
+
+      {/* PDF Preview Dialog */}
+      <PDFPreviewDialog
+        open={showPDFPreview}
+        onOpenChange={setShowPDFPreview}
+        documentData={pdfPreviewData}
+        title={`${title} – Vorschau`}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { downloadPdf, sendEmail } from "@/lib/api";
 import { 
@@ -13,7 +14,8 @@ import {
   MoreHorizontal,
   Download,
   Undo2,
-  Loader2
+  Loader2,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useCreditNote } from "@/hooks/use-credit-notes";
+import { useCompany } from "@/hooks/use-company";
+import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
+import { SalesDocumentData } from "@/lib/pdf/sales-document";
 
 const statusMap: Record<string, string> = {
   DRAFT: "Entwurf",
@@ -52,6 +57,8 @@ const CreditNoteDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: raw, isLoading, error } = useCreditNote(id || "");
+  const { data: companyData } = useCompany();
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
 
   if (isLoading) {
     return (
@@ -98,6 +105,42 @@ const CreditNoteDetail = () => {
     total: Number(cn.total) || 0,
   };
 
+  // PDF data for preview
+  const pdfData: SalesDocumentData = {
+    type: 'invoice',
+    number: creditNoteData.id,
+    date: creditNoteData.createdAt,
+    company: {
+      name: companyData?.name || "—",
+      street: companyData?.street || "",
+      postalCode: companyData?.zipCode || "",
+      city: companyData?.city || "",
+      phone: companyData?.phone || "",
+      email: companyData?.email || "",
+      vatNumber: companyData?.vatNumber || "",
+    },
+    customer: {
+      name: creditNoteData.customer.name,
+      contact: creditNoteData.customer.contact,
+      street: "",
+      postalCode: "",
+      city: "",
+    },
+    positions: creditNoteData.positions.map((pos: any, idx: number) => ({
+      position: idx + 1,
+      description: pos.description,
+      quantity: pos.quantity,
+      unit: pos.unit,
+      unitPrice: pos.price,
+      total: pos.total,
+    })),
+    subtotal: creditNoteData.subtotal,
+    vatRate: 8.1,
+    vatAmount: creditNoteData.tax,
+    total: creditNoteData.total,
+    notes: `Gutschrift zu ${creditNoteData.originalInvoice}`,
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -122,6 +165,10 @@ const CreditNoteDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowPDFPreview(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            Vorschau
+          </Button>
           <Button variant="outline" size="sm" onClick={() => { downloadPdf('credit-notes', id || '', `Gutschrift-${creditNoteData.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
@@ -130,7 +177,7 @@ const CreditNoteDetail = () => {
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
-          <Button variant="outline" size="sm" onClick={async () => { try { await sendEmail('invoices', id || ''); toast.success("E-Mail wurde versendet"); } catch { toast.error("Fehler beim Senden"); } }}>
+          <Button variant="outline" size="sm" onClick={async () => { try { await sendEmail('credit-notes' as any, id || ''); toast.success("E-Mail wurde versendet"); } catch { toast.error("Fehler beim Senden"); } }}>
             <Mail className="h-4 w-4 mr-2" />
             Per E-Mail senden
           </Button>
@@ -141,6 +188,7 @@ const CreditNoteDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/credit-notes/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onClick={() => toast.info("Gutschrift wird dupliziert...")}>Duplizieren</DropdownMenuItem>
               <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Gutschrift wird storniert...")}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
@@ -278,6 +326,14 @@ const CreditNoteDetail = () => {
           </Card>
         </div>
       </div>
+
+      {/* PDF Preview */}
+      <PDFPreviewDialog
+        open={showPDFPreview}
+        onOpenChange={setShowPDFPreview}
+        documentData={pdfData}
+        title={`Gutschrift ${creditNoteData.id}`}
+      />
     </div>
   );
 };
