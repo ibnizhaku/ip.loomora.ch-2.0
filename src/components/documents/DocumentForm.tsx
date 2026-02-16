@@ -55,6 +55,7 @@ import { useCustomers } from "@/hooks/use-customers";
 import { useProducts } from "@/hooks/use-products";
 import { useProjects } from "@/hooks/use-projects";
 import { useCompany } from "@/hooks/use-company";
+import { useOrder, useQuote } from "@/hooks/use-sales";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData } from "@/lib/pdf/sales-document";
@@ -139,6 +140,10 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const { data: projectsData } = useProjects({ pageSize: 100 });
   const { data: companyData } = useCompany();
 
+  // Fetch source document for pre-filling (order or quote)
+  const { data: sourceOrder } = useOrder(urlOrderId || "");
+  const { data: sourceQuote } = useQuote(urlQuoteId || "");
+
   const customers = useMemo(() => customersData?.data || [], [customersData]);
   const products = useMemo(() => productsData?.data || [], [productsData]);
   const projects = useMemo(() => projectsData?.data || [], [projectsData]);
@@ -163,6 +168,55 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       defaultCustomerApplied[1](true);
     }
   }
+
+  // Pre-fill from source order or quote
+  const [sourceApplied, setSourceApplied] = useState(false);
+  useEffect(() => {
+    if (sourceApplied || editMode) return;
+    const source = sourceOrder || sourceQuote;
+    if (!source) return;
+    
+    const raw = source as any;
+    const items = raw.items || raw.positions || [];
+    if (items.length > 0 && positions.length === 0) {
+      const mapped: Position[] = items.map((item: any, idx: number) => {
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.unitPrice || item.price || item.salePrice) || 0;
+        return {
+          id: Date.now() + idx,
+          description: item.description || item.name || "",
+          quantity: qty,
+          unit: item.unit || "Stück",
+          price,
+          total: qty * price,
+          vatRate: Number(item.vatRate) || 8.1,
+        };
+      });
+      setPositions(mapped);
+    }
+
+    // Pre-fill customer from source if not already set
+    if (!selectedCustomer && raw.customer) {
+      setSelectedCustomer({
+        id: raw.customer.id,
+        name: raw.customer.companyName || raw.customer.name || "",
+        companyName: raw.customer.companyName,
+        street: raw.customer.street,
+        zipCode: raw.customer.zipCode,
+        city: raw.customer.city,
+        email: raw.customer.email,
+        phone: raw.customer.phone,
+        vatNumber: raw.customer.vatNumber,
+      });
+    }
+
+    // Pre-fill notes
+    if (raw.notes && !notes) {
+      setNotes(raw.notes);
+    }
+
+    setSourceApplied(true);
+  }, [sourceOrder, sourceQuote, sourceApplied, editMode, positions.length, selectedCustomer, notes]);
 
   const isQuote = type === "quote";
   const isInvoice = type === "invoice";
