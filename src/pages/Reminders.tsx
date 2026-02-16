@@ -67,6 +67,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders } from "@/hooks/use-reminders";
 
 // Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
 const levelConfig: Record<number, { label: string; color: string; fee: number; days: number }> = {
@@ -90,10 +91,7 @@ interface Reminder {
 }
 
 
-const overdueInvoices = [
-  { id: "RE-2024-0160", customer: "Tech Industries", customerEmail: "ap@tech-industries.ch", dueDate: "25.01.2024", amount: 5680.00, daysOverdue: 6, remindersSent: 0 },
-  { id: "RE-2024-0158", customer: "Media Solutions", customerEmail: "finance@media-solutions.ch", dueDate: "23.01.2024", amount: 1890.00, daysOverdue: 8, remindersSent: 0 },
-];
+// Overdue invoices now fetched from API below
 
 const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
 
