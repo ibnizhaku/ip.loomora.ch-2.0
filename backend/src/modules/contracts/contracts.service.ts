@@ -102,11 +102,30 @@ export class ContractsService {
       endDate = start.toISOString();
     }
 
+    // Map title → name (Frontend sends "title", Prisma expects "name")
+    const { title, ...restDto } = dto as any;
+    const contractName = dto.name || title || 'Unbenannter Vertrag';
+
     return this.prisma.contract.create({
       data: {
-        ...dto,
+        name: contractName,
+        description: dto.description,
+        type: dto.type,
+        status: dto.status || 'DRAFT',
+        customerId: dto.customerId,
+        projectId: dto.projectId,
+        startDate: new Date(dto.startDate),
+        endDate: endDate ? new Date(endDate) : undefined,
+        durationMonths: dto.durationMonths,
+        autoRenew: dto.autoRenew || false,
+        renewalPeriodMonths: dto.renewalPeriodMonths,
+        noticePeriodDays: dto.noticePeriodDays,
+        value: dto.value || 0,
+        billingCycle: dto.billingCycle,
+        paymentTerms: dto.paymentTerms,
+        terms: dto.terms,
+        notes: dto.notes,
         contractNumber,
-        endDate,
         companyId,
       },
       include: {

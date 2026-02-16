@@ -15,6 +15,7 @@ export enum ContractType {
   SUPPORT = 'SUPPORT',
   LICENSE = 'LICENSE',
   FRAMEWORK = 'FRAMEWORK',
+  PROJECT = 'PROJECT',
   OTHER = 'OTHER',
 }
 
@@ -27,9 +28,15 @@ export enum BillingCycle {
 }
 
 export class CreateContractDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  title?: string;
 
   @ApiPropertyOptional()
   @IsString()
