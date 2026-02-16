@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDeliveryNoteDto, UpdateDeliveryNoteDto, DeliveryNoteStatus } from './dto/delivery-note.dto';
 import { mapDeliveryNoteResponse } from '../../common/mappers/response.mapper';
@@ -148,6 +148,35 @@ export class DeliveryNotesService {
         items: { include: { product: true } },
       },
     });
+    return mapDeliveryNoteResponse(updated);
+  }
+
+  async ship(id: string, companyId: string, dto?: { carrier?: string; trackingNumber?: string }) {
+    const deliveryNote = await this.prisma.deliveryNote.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!deliveryNote) throw new NotFoundException('Lieferschein nicht gefunden');
+
+    if (deliveryNote.status !== 'DRAFT') {
+      throw new BadRequestException('Nur Entwürfe können versendet werden');
+    }
+
+    const updated = await this.prisma.deliveryNote.update({
+      where: { id },
+      data: {
+        status: 'SHIPPED',
+        shippedAt: new Date(),
+        carrier: dto?.carrier || deliveryNote.carrier,
+        trackingNumber: dto?.trackingNumber || deliveryNote.trackingNumber,
+      },
+      include: {
+        customer: true,
+        order: { select: { id: true, number: true } },
+        items: { include: { product: true } },
+      },
+    });
+
     return mapDeliveryNoteResponse(updated);
   }
 

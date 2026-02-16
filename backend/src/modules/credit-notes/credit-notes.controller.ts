@@ -53,6 +53,12 @@ export class CreditNotesController {
     return this.creditNotesService.createFromInvoice(invoiceId, user.companyId, reason, user.userId);
   }
 
+  @Post(':id/send')
+  @ApiOperation({ summary: 'Send credit note (set status to ISSUED)' })
+  send(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.creditNotesService.send(id, user.companyId);
+  }
+
   @Put(':id')
   @ApiOperation({ summary: 'Update credit note' })
   update(

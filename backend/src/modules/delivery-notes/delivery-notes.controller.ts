@@ -55,6 +55,16 @@ export class DeliveryNotesController {
     return this.deliveryNotesService.createFromOrder(orderId, user.companyId);
   }
 
+  @Post(':id/ship')
+  @ApiOperation({ summary: 'Ship delivery note' })
+  ship(
+    @Param('id') id: string,
+    @Body() body: { carrier?: string; trackingNumber?: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.deliveryNotesService.ship(id, user.companyId, body);
+  }
+
   @Put(':id')
   @ApiOperation({ summary: 'Update delivery note' })
   update(

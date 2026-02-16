@@ -15,7 +15,12 @@ export class CompanyService {
       throw new NotFoundException('Company not found');
     }
 
-    return company;
+    // Map bankName → bank for frontend compatibility
+    return {
+      ...company,
+      bank: (company as any).bankName || null,
+      logo: (company as any).logoUrl || null,
+    };
   }
 
   async update(id: string, dto: UpdateCompanyDto) {

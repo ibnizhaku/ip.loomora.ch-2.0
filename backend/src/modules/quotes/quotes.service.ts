@@ -332,6 +332,142 @@ export class QuotesService {
     });
   }
 
+  async convertToInvoice(id: string, companyId: string, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findFirst({
+        where: { id, companyId },
+        include: { items: true, customer: true },
+      });
+
+      if (!quote) throw new NotFoundException('Quote not found');
+
+      if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.CONFIRMED) {
+        throw new BadRequestException('Quote must be sent or confirmed to convert to invoice');
+      }
+
+      // Generate invoice number
+      const year = new Date().getFullYear();
+      const lastInvoice = await tx.invoice.findFirst({
+        where: { companyId, number: { startsWith: `RE-${year}` } },
+        orderBy: { number: 'desc' },
+      });
+      const lastNum = lastInvoice?.number
+        ? parseInt(lastInvoice.number.split('-')[2] || '0')
+        : 0;
+      const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+      const invoice = await tx.invoice.create({
+        data: {
+          number: invoiceNumber,
+          customerId: quote.customerId,
+          status: DocumentStatus.DRAFT,
+          date: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          subtotal: quote.subtotal,
+          vatAmount: quote.vatAmount,
+          totalAmount: quote.total,
+          notes: quote.notes,
+          companyId,
+          createdById: userId,
+          items: {
+            create: quote.items.map((item, index) => {
+              const totalNum = Number(item.total) || 0;
+              const itemVatAmount = totalNum * 0.081;
+              return {
+                position: item.position || index + 1,
+                productId: item.productId || undefined,
+                description: item.description,
+                quantity: item.quantity,
+                unit: item.unit,
+                unitPrice: item.unitPrice,
+                discount: item.discount || undefined,
+                vatRate: 'STANDARD',
+                vatAmount: itemVatAmount,
+                total: item.total,
+              };
+            }),
+          },
+        },
+        include: { customer: true, items: true },
+      });
+
+      await tx.quote.update({
+        where: { id },
+        data: { status: DocumentStatus.CONFIRMED },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          module: 'INVOICES',
+          entityType: 'INVOICE',
+          entityId: invoice.id,
+          action: 'CREATE',
+          description: `Invoice ${invoice.number} created from Quote ${quote.number}`,
+          oldValues: { sourceType: 'QUOTE', quoteId: quote.id, quoteNumber: quote.number },
+          newValues: { invoiceId: invoice.id, invoiceNumber: invoice.number },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+
+      return invoice;
+    });
+  }
+
+  async duplicate(id: string, companyId: string, userId: string) {
+    const quote = await this.prisma.quote.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+
+    if (!quote) throw new NotFoundException('Quote not found');
+
+    // Generate new quote number
+    const year = new Date().getFullYear();
+    const lastQuote = await this.prisma.quote.findFirst({
+      where: { companyId, number: { startsWith: `OFF-${year}` } },
+      orderBy: { number: 'desc' },
+    });
+    const lastNum = lastQuote?.number
+      ? parseInt(lastQuote.number.split('-')[2] || '0')
+      : 0;
+    const newNumber = `OFF-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+    const duplicated = await this.prisma.quote.create({
+      data: {
+        number: newNumber,
+        customerId: quote.customerId,
+        status: DocumentStatus.DRAFT,
+        date: new Date(),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        subtotal: quote.subtotal,
+        vatAmount: quote.vatAmount,
+        total: quote.total,
+        notes: quote.notes,
+        internalNotes: quote.internalNotes,
+        companyId,
+        createdById: userId,
+        items: {
+          create: quote.items.map((item, index) => ({
+            position: item.position || index + 1,
+            productId: item.productId,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            vatRate: item.vatRate,
+            total: item.total,
+          })),
+        },
+      },
+      include: { customer: true, items: true },
+    });
+
+    return mapQuoteResponse(duplicated);
+  }
+
   async sendQuote(id: string, companyId: string) {
     const quote = await this.prisma.quote.findFirst({
       where: { id, companyId },

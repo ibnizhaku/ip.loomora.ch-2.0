@@ -67,6 +67,18 @@ export class QuotesController {
     return this.quotesService.convertToOrder(id, user.companyId, user.userId);
   }
 
+  @Post(':id/convert-to-invoice')
+  @ApiOperation({ summary: 'Convert quote to invoice' })
+  convertToInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.quotesService.convertToInvoice(id, user.companyId, user.userId);
+  }
+
+  @Post(':id/duplicate')
+  @ApiOperation({ summary: 'Duplicate quote' })
+  duplicate(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.quotesService.duplicate(id, user.companyId, user.userId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete quote' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {

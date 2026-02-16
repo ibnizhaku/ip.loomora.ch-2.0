@@ -204,6 +204,31 @@ export class CreditNotesService {
     return mapCreditNoteResponse(updated);
   }
 
+  async send(id: string, companyId: string) {
+    const creditNote = await this.prisma.creditNote.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!creditNote) throw new NotFoundException('Gutschrift nicht gefunden');
+
+    if (creditNote.status !== CreditNoteStatus.DRAFT) {
+      throw new BadRequestException('Nur Entwürfe können versendet werden');
+    }
+
+    const updated = await this.prisma.creditNote.update({
+      where: { id },
+      data: {
+        status: CreditNoteStatus.ISSUED,
+      },
+      include: {
+        customer: true,
+        items: { include: { product: true } },
+      },
+    });
+
+    return mapCreditNoteResponse(updated);
+  }
+
   async delete(id: string, companyId: string) {
     const creditNote = await this.findOne(id, companyId);
 
