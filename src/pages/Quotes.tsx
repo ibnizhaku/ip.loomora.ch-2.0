@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -34,6 +34,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -92,6 +98,7 @@ export default function Quotes() {
   const quotes: Quote[] = (apiData?.data || []).map(mapQuote);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/quotes/${id}`),
@@ -104,11 +111,14 @@ export default function Quotes() {
     },
   });
 
-  const filteredQuotes = quotes.filter(
-    (q) =>
-      q.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.client.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredQuotes = useMemo(() => quotes.filter(
+    (q) => {
+      const matchesSearch = q.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.client.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(q.status);
+      return matchesSearch && matchesStatus;
+    }
+  ), [quotes, searchQuery, statusFilters]);
 
   const nonDraftCount = quotes.filter((q) => q.status !== "draft").length;
   const acceptedCount = quotes.filter((q) => q.status === "accepted" || q.status === "confirmed").length;
@@ -205,9 +215,38 @@ export default function Quotes() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className={statusFilters.length > 0 ? "border-primary text-primary" : ""}>
+              <Filter className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 bg-popover border border-border shadow-lg z-50" align="end">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Status filtern</p>
+                {statusFilters.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setStatusFilters([])}>
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              {Object.entries(statusConfig).map(([key, cfg]) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={statusFilters.includes(key)}
+                    onCheckedChange={(checked) => {
+                      setStatusFilters(prev =>
+                        checked ? [...prev, key] : prev.filter(s => s !== key)
+                      );
+                    }}
+                  />
+                  <span className="text-sm">{cfg.label}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}

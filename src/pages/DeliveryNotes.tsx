@@ -30,6 +30,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -101,6 +107,7 @@ const defaultDNStatus = { label: "Unbekannt", color: "bg-muted text-muted-foregr
 export default function DeliveryNotes() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
   // Fetch data from API
   const { data: apiData, isLoading } = useQuery({
@@ -110,10 +117,13 @@ export default function DeliveryNotes() {
   const deliveryNotes: DeliveryNote[] = (apiData?.data || []).map(mapDeliveryNote);
 
   const filteredNotes = deliveryNotes.filter(
-    (n) =>
-      n.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())
+    (n) => {
+      const matchesSearch = n.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        n.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        n.orderNumber.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(n.status);
+      return matchesSearch && matchesStatus;
+    }
   );
 
   return (
@@ -199,9 +209,38 @@ export default function DeliveryNotes() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className={statusFilters.length > 0 ? "border-primary text-primary" : ""}>
+              <Filter className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 bg-popover border border-border shadow-lg z-50" align="end">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Status filtern</p>
+                {statusFilters.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setStatusFilters([])}>
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              {Object.entries(statusConfig).map(([key, cfg]) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={statusFilters.includes(key)}
+                    onCheckedChange={(checked) => {
+                      setStatusFilters(prev =>
+                        checked ? [...prev, key] : prev.filter(s => s !== key)
+                      );
+                    }}
+                  />
+                  <span className="text-sm">{cfg.label}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
