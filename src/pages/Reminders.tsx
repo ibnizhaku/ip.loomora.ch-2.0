@@ -108,6 +108,10 @@ const Reminders = () => {
   });
   const initialReminders = apiData?.data || [];
 
+  // Fetch overdue invoices from API
+  const { data: overdueInvoicesData } = useOverdueInvoices();
+  const overdueInvoices: any[] = Array.isArray(overdueInvoicesData) ? overdueInvoicesData : [];
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/reminders/${id}`),
