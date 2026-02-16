@@ -96,8 +96,20 @@ export class SuppliersService {
 
     return {
       ...supplier,
+      products: (supplier.products || []).map((p: any) => ({
+        ...p,
+        purchasePrice: p.purchasePrice ? Number(p.purchasePrice) : 0,
+        salePrice: p.salePrice ? Number(p.salePrice) : 0,
+        minStock: p.minStock ? Number(p.minStock) : 0,
+      })),
+      purchaseOrders: (supplier.purchaseOrders || []).map((po: any) => ({
+        ...po,
+        total: po.total ? Number(po.total) : 0,
+        subtotal: po.subtotal ? Number(po.subtotal) : 0,
+        vatAmount: po.vatAmount ? Number(po.vatAmount) : 0,
+      })),
       totalOrders: supplier._count.purchaseOrders,
-      totalValue: orderStats._sum.total || 0,
+      totalValue: Number(orderStats._sum.total || 0),
     };
   }
 
