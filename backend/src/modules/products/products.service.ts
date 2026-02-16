@@ -83,7 +83,7 @@ export class ProductsService {
       salePrice: Number(product.salePrice || 0),
       purchasePrice: Number(product.purchasePrice || 0),
       stockQuantity: Number(product.stockQuantity || 0),
-      minStockQuantity: Number(product.minStockQuantity || 0),
+      minStock: Number(product.minStock || 0),
       reservedStock: Number((product as any).reservedStock || 0),
       weight: product.weight ? Number(product.weight) : 0,
       margin: Number(product.purchasePrice) > 0
