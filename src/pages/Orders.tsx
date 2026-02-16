@@ -65,6 +65,7 @@ interface Order {
   id: string;
   number: string;
   client: string;
+  clientId?: string;
   quoteNumber?: string;
   amount: number;
   status: string;
@@ -87,6 +88,7 @@ function mapOrder(raw: OrderRaw): Order {
     id: raw.id,
     number: raw.number || "",
     client: raw.customer?.companyName || raw.customer?.name || "–",
+    clientId: raw.customer?.id,
     quoteNumber: raw.quote?.number,
     amount: Number(raw.total || raw.subtotal || 0),
     status,
@@ -173,7 +175,7 @@ export default function Orders() {
   const handleCreateDeliveryNote = (order: Order, e: React.MouseEvent) => {
     e.stopPropagation();
     toast.success(`Lieferschein für ${order.number} wird erstellt...`);
-    navigate(`/delivery-notes/create?orderId=${order.id}`);
+    navigate(`/delivery-notes/new?orderId=${order.id}&customerId=${order.clientId || ''}`);
   };
 
   const handleCreateInvoice = (order: Order, e: React.MouseEvent) => {
