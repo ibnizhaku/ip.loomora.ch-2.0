@@ -119,30 +119,7 @@ export default function AuthPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateReg()) return;
-    setIsRegLoading(true);
-    try {
-      const result = await register({
-        email: regData.email, password: regData.password,
-        firstName: regData.firstName, lastName: regData.lastName,
-        companyName: regData.companyName,
-      });
-      if (result.requiresPayment && result.checkoutUrl) {
-        toast.info("Weiterleitung zur Zahlung...");
-        window.location.href = result.checkoutUrl;
-      } else if (result.requiresPayment) {
-        toast.success("Registrierung erfolgreich!");
-        navigate("/payment-pending");
-      } else {
-        toast.success("Registrierung erfolgreich!");
-        setIsRegister(false);
-        navigate("/login", { replace: true });
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Registrierung fehlgeschlagen");
-    } finally {
-      setIsRegLoading(false);
-    }
+    toast.info("Registrierung ist derzeit nicht verfügbar. Bitte kontaktieren Sie uns für einen Zugang.");
   };
 
   // ── Branding panel ──
