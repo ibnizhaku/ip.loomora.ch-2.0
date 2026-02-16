@@ -236,3 +236,42 @@
     background: hsl(var(--muted-foreground) / 0.3);
   }
 }
+
+/* Print styles - hide sidebar/header, show only content */
+@media print {
+  body {
+    background: white !important;
+  }
+
+  /* Hide sidebar, header, navigation */
+  [data-sidebar],
+  nav,
+  header,
+  .sidebar,
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show main content full-width */
+  main,
+  [role="main"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Ensure printable content is visible */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Remove shadows, borders for clean print */
+  .card, [class*="Card"] {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+}

@@ -36,6 +36,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useInvoices, type Invoice } from "@/hooks/use-invoices";
 
@@ -93,6 +99,7 @@ export default function Invoices() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
   
   // Fetch invoices from API
   const { data: invoicesData, isLoading } = useInvoices({ 
@@ -122,6 +129,12 @@ export default function Invoices() {
     invoices.filter((i) => i.status === "SENT").reduce((acc, i) => acc + (i.total || 0), 0), [invoices]);
   const totalOverdue = useMemo(() => 
     invoices.filter((i) => i.status === "OVERDUE").reduce((acc, i) => acc + (i.total || 0), 0), [invoices]);
+
+  const filteredInvoices = useMemo(() => invoices.filter((i) => {
+    if (statusFilters.length === 0) return true;
+    const uiStatus = mapStatus(i.status);
+    return statusFilters.includes(uiStatus);
+  }), [invoices, statusFilters]);
 
   return (
     <div className="space-y-6">
@@ -208,9 +221,38 @@ export default function Invoices() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className={statusFilters.length > 0 ? "border-primary text-primary" : ""}>
+              <Filter className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 bg-popover border border-border shadow-lg z-50" align="end">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Status filtern</p>
+                {statusFilters.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setStatusFilters([])}>
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              {Object.entries(statusConfig).map(([key, cfg]) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={statusFilters.includes(key)}
+                    onCheckedChange={(checked) => {
+                      setStatusFilters(prev =>
+                        checked ? [...prev, key] : prev.filter(s => s !== key)
+                      );
+                    }}
+                  />
+                  <span className="text-sm">{cfg.label}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Table */}
@@ -235,14 +277,14 @@ export default function Invoices() {
                   <p className="text-muted-foreground">Rechnungen werden geladen...</p>
                 </TableCell>
               </TableRow>
-            ) : invoices.length === 0 ? (
+            ) : filteredInvoices.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-muted-foreground">Keine Rechnungen gefunden</p>
                 </TableCell>
               </TableRow>
-            ) : invoices.map((invoice, index) => {
+            ) : filteredInvoices.map((invoice, index) => {
               const uiStatus = mapStatus(invoice.status);
               const StatusIcon = statusConfig[uiStatus].icon;
               return (
