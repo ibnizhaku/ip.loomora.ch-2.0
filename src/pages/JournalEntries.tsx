@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useJournalEntries, useDeleteJournalEntry } from "@/hooks/use-journal-entries";
 import {
   Plus,
   Search,
@@ -43,102 +42,55 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-interface JournalEntry {
-  id: string;
-  number: string;
-  date: string;
-  description: string;
-  debitAccount: string;
-  debitAccountName: string;
-  creditAccount: string;
-  creditAccountName: string;
-  amount: number;
-  type: "standard" | "opening" | "closing" | "adjustment";
-  reference?: string;
-  status: "draft" | "posted" | "reversed";
-}
-
-
-const typeStyles = {
-  standard: "bg-primary/10 text-primary",
-  opening: "bg-blue-500/10 text-blue-600",
-  closing: "bg-purple-500/10 text-purple-600",
-  adjustment: "bg-warning/10 text-warning",
+const statusStyles: Record<string, string> = {
+  DRAFT: "bg-muted text-muted-foreground",
+  POSTED: "bg-success/10 text-success",
+  REVERSED: "bg-destructive/10 text-destructive",
 };
 
-const typeLabels = {
-  standard: "Standard",
-  opening: "Eröffnung",
-  closing: "Abschluss",
-  adjustment: "Korrektur",
-};
-
-const statusStyles = {
-  draft: "bg-muted text-muted-foreground",
-  posted: "bg-success/10 text-success",
-  reversed: "bg-destructive/10 text-destructive",
-};
-
-const statusLabels = {
-  draft: "Entwurf",
-  posted: "Gebucht",
-  reversed: "Storniert",
+const statusLabels: Record<string, string> = {
+  DRAFT: "Entwurf",
+  POSTED: "Gebucht",
+  REVERSED: "Storniert",
 };
 
 const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
 
 export default function JournalEntries() {
   const navigate = useNavigate();
-  const { data: apiData } = useQuery({ queryKey: ["/journal-entries"], queryFn: () => api.get<any>("/journal-entries") });
-  const entries = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
-  const [entryList, setEntryList] = useState(entries);
   const [filterOpen, setFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
 
-  const filteredEntries = entryList.filter(entry => {
-    const matchesSearch = 
-      entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.debitAccount.includes(searchQuery) ||
-      entry.creditAccount.includes(searchQuery);
-    const matchesStatus = statusFilter.length === 0 || statusFilter.includes(entry.status);
-    const matchesType = typeFilter.length === 0 || typeFilter.includes(entry.type);
-    return matchesSearch && matchesStatus && matchesType;
+  const { data: apiData, isLoading } = useJournalEntries({
+    page,
+    pageSize: 50,
+    status: statusFilter.length === 1 ? statusFilter[0] : undefined,
+    search: searchQuery || undefined,
   });
 
-  const totalDebit = filteredEntries.filter(e => e.status === "posted").reduce((acc, e) => acc + e.amount, 0);
-  const totalCredit = totalDebit;
-  const activeFilters = statusFilter.length + typeFilter.length;
+  const entries = apiData?.data || [];
+  const total = apiData?.total || 0;
+  const deleteEntry = useDeleteJournalEntry();
+
+  const totalDebit = entries.filter((e: any) => e.status === "POSTED").reduce((acc: number, e: any) => acc + (e.totalDebit || 0), 0);
+  const totalCredit = entries.filter((e: any) => e.status === "POSTED").reduce((acc: number, e: any) => acc + (e.totalCredit || 0), 0);
+  const draftCount = entries.filter((e: any) => e.status === "DRAFT").length;
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setEntryList(entryList.map(entry => 
-      entry.id === id ? { ...entry, status: "reversed" as const } : entry
-    ));
-    toast.success("Buchung storniert");
-  };
-
-  const handleDuplicate = (e: React.MouseEvent, entry: typeof entries[0]) => {
-    e.stopPropagation();
-    const newEntry = {
-      ...entry,
-      id: Date.now().toString(),
-      number: `BU-2024-${String(entryList.length + 157).padStart(4, '0')}`,
-      status: "draft" as const,
-    };
-    setEntryList([newEntry, ...entryList]);
-    toast.success("Buchung dupliziert");
+    deleteEntry.mutate(id, {
+      onSuccess: () => toast.success("Buchung gelöscht"),
+      onError: (err: any) => toast.error(err.message || "Fehler beim Löschen"),
+    });
   };
 
   const handleDatevExport = () => {
-    // DATEV CSV format
     const header = "Umsatz;Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto;BU-Schlüssel;Belegdatum;Belegfeld 1;Buchungstext";
-    const rows = filteredEntries.filter(e => e.status === "posted").map(entry => {
-      const dateParts = entry.date.split(".");
-      const datevDate = `${dateParts[0]}${dateParts[1]}`;
-      return `${entry.amount.toFixed(2).replace(".", ",")};S;CHF;;;;;;${entry.debitAccount};${entry.creditAccount};;${datevDate};${entry.number};${entry.description}`;
+    const rows = entries.filter((e: any) => e.status === "POSTED").map((entry: any) => {
+      const line = entry.lines?.[0];
+      return `${(entry.totalDebit || 0).toFixed(2).replace(".", ",")};S;CHF;;;;;;${line?.accountCode || ""};${entry.lines?.[1]?.accountCode || ""};;${entry.entryDate?.split("T")[0] || ""};${entry.number};${entry.description}`;
     });
     
     const csvContent = header + "\n" + rows.join("\n");
@@ -156,8 +108,9 @@ export default function JournalEntries() {
 
   const resetFilters = () => {
     setStatusFilter([]);
-    setTypeFilter([]);
   };
+
+  const activeFilters = statusFilter.length;
 
   return (
     <div className="space-y-6">
@@ -190,7 +143,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Buchungen gesamt</p>
-              <p className="text-2xl font-bold">{filteredEntries.length}</p>
+              <p className="text-2xl font-bold">{total}</p>
             </div>
           </div>
         </div>
@@ -223,7 +176,7 @@ export default function JournalEntries() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offene Entwürfe</p>
-              <p className="text-2xl font-bold">{entryList.filter(e => e.status === "draft").length}</p>
+              <p className="text-2xl font-bold">{draftCount}</p>
             </div>
           </div>
         </div>
@@ -281,27 +234,6 @@ export default function JournalEntries() {
                   ))}
                 </div>
               </div>
-              <div>
-                <p className="text-sm font-medium mb-2">Buchungstyp</p>
-                <div className="space-y-2">
-                  {Object.entries(typeLabels).map(([key, label]) => (
-                    <div key={key} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`type-${key}`}
-                        checked={typeFilter.includes(key)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTypeFilter([...typeFilter, key]);
-                          } else {
-                            setTypeFilter(typeFilter.filter(t => t !== key));
-                          }
-                        }}
-                      />
-                      <label htmlFor={`type-${key}`} className="text-sm">{label}</label>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -314,16 +246,26 @@ export default function JournalEntries() {
               <TableHead>Buchungsnr.</TableHead>
               <TableHead>Datum</TableHead>
               <TableHead>Beschreibung</TableHead>
-              <TableHead>Soll</TableHead>
-              <TableHead>Haben</TableHead>
-              <TableHead className="text-right">Betrag</TableHead>
-              <TableHead>Typ</TableHead>
+              <TableHead className="text-right">Soll</TableHead>
+              <TableHead className="text-right">Haben</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEntries.map((entry, index) => (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  Laden...
+                </TableCell>
+              </TableRow>
+            ) : entries.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  Keine Buchungen vorhanden
+                </TableCell>
+              </TableRow>
+            ) : entries.map((entry: any, index: number) => (
               <TableRow
                 key={entry.id}
                 className="animate-fade-in cursor-pointer hover:bg-muted/50"
@@ -333,7 +275,7 @@ export default function JournalEntries() {
                 <TableCell>
                   <span className="font-mono font-medium">{entry.number}</span>
                 </TableCell>
-                <TableCell>{entry.date}</TableCell>
+                <TableCell>{entry.entryDate ? new Date(entry.entryDate).toLocaleDateString("de-CH") : "-"}</TableCell>
                 <TableCell>
                   <div>
                     <p className="font-medium">{entry.description}</p>
@@ -344,29 +286,15 @@ export default function JournalEntries() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    <span className="font-mono">{entry.debitAccount}</span>
-                    <p className="text-muted-foreground text-xs">{entry.debitAccountName}</p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    <span className="font-mono">{entry.creditAccount}</span>
-                    <p className="text-muted-foreground text-xs">{entry.creditAccountName}</p>
-                  </div>
+                <TableCell className="text-right font-mono font-medium">
+                  {formatCHF(entry.totalDebit || 0)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-medium">
-                  {formatCHF(entry.amount)}
+                  {formatCHF(entry.totalCredit || 0)}
                 </TableCell>
                 <TableCell>
-                  <Badge className={typeStyles[entry.type]}>
-                    {typeLabels[entry.type]}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusStyles[entry.status]}>
-                    {statusLabels[entry.status]}
+                  <Badge className={statusStyles[entry.status] || "bg-muted text-muted-foreground"}>
+                    {statusLabels[entry.status] || entry.status}
                   </Badge>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -381,18 +309,18 @@ export default function JournalEntries() {
                         <Eye className="h-4 w-4 mr-2" />
                         Anzeigen
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate(`/journal-entries/${entry.id}`)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleDuplicate(e, entry)}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Duplizieren
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, entry.id)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Stornieren
-                      </DropdownMenuItem>
+                      {entry.status === "DRAFT" && (
+                        <DropdownMenuItem onClick={() => navigate(`/journal-entries/${entry.id}`)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                      )}
+                      {entry.status === "DRAFT" && (
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, entry.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

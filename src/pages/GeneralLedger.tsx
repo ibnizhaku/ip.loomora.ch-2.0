@@ -8,7 +8,6 @@ import {
   BookOpen,
   ChevronRight,
   X,
-  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,24 +28,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useAccounts } from "@/hooks/use-finance";
 
-interface LedgerAccount {
-  id: string;
-  number: string;
-  name: string;
-  type: "asset" | "liability" | "equity" | "revenue" | "expense";
-  openingBalance: number;
-  debitTotal: number;
-  creditTotal: number;
-  closingBalance: number;
-  lastActivity: string;
-  transactionCount: number;
-}
-
-
-const typeColors = {
+const typeColors: Record<string, string> = {
   asset: "bg-blue-500/10 text-blue-600",
   liability: "bg-orange-500/10 text-orange-600",
   equity: "bg-purple-500/10 text-purple-600",
@@ -54,7 +38,7 @@ const typeColors = {
   expense: "bg-destructive/10 text-destructive",
 };
 
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   asset: "Aktiv",
   liability: "Passiv",
   equity: "Eigenkapital",
@@ -67,35 +51,38 @@ const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { mi
 export default function GeneralLedger() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Fetch data from API
-  const { data: apiData } = useQuery({
-    queryKey: ["/journal-entries"],
-    queryFn: () => api.get<any>("/journal-entries"),
-  });
-  const ledgerAccounts = apiData?.data || [];
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [hasActivityFilter, setHasActivityFilter] = useState(false);
   const [minTransactions, setMinTransactions] = useState(0);
 
-  const filteredAccounts = ledgerAccounts.filter((account) => {
-    const matchesSearch =
-      account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.number.includes(searchQuery);
-    const matchesType = typeFilter === "all" || account.type === typeFilter;
-    const matchesActivity = !hasActivityFilter || account.transactionCount >= minTransactions;
-    return matchesSearch && matchesType && matchesActivity;
+  const { data: apiData, isLoading } = useAccounts({
+    type: typeFilter !== "all" ? typeFilter.toUpperCase() : undefined,
+    search: searchQuery || undefined,
   });
 
-  const totalDebit = filteredAccounts.reduce((acc, a) => acc + a.debitTotal, 0);
-  const totalCredit = filteredAccounts.reduce((acc, a) => acc + a.creditTotal, 0);
+  const ledgerAccounts = (apiData?.data || []).map((acc: any) => ({
+    id: acc.id,
+    number: acc.number,
+    name: acc.name,
+    type: (acc.type?.toLowerCase() || "asset") as string,
+    openingBalance: 0,
+    debitTotal: Number(acc.balance || 0) > 0 ? Number(acc.balance) : 0,
+    creditTotal: Number(acc.balance || 0) < 0 ? Math.abs(Number(acc.balance)) : 0,
+    closingBalance: Number(acc.balance || 0),
+    lastActivity: "-",
+    transactionCount: 0,
+  }));
+
+  const filteredAccounts = ledgerAccounts;
+  const totalDebit = filteredAccounts.reduce((acc: number, a: any) => acc + a.debitTotal, 0);
+  const totalCredit = filteredAccounts.reduce((acc: number, a: any) => acc + a.creditTotal, 0);
   const activeFilters = (typeFilter !== "all" ? 1 : 0) + (hasActivityFilter ? 1 : 0);
 
   const handleExport = () => {
-    const csvContent = "Kontonummer;Kontoname;Typ;Anfangsbestand CHF;Soll CHF;Haben CHF;Saldo CHF;Letzte Aktivität;Buchungen\n" +
-      filteredAccounts.map(acc => 
-        `${acc.number};${acc.name};${typeLabels[acc.type]};${acc.openingBalance};${acc.debitTotal};${acc.creditTotal};${acc.closingBalance};${acc.lastActivity};${acc.transactionCount}`
+    const csvContent = "Kontonummer;Kontoname;Typ;Soll CHF;Haben CHF;Saldo CHF\n" +
+      filteredAccounts.map((acc: any) => 
+        `${acc.number};${acc.name};${typeLabels[acc.type] || acc.type};${acc.debitTotal};${acc.creditTotal};${acc.closingBalance}`
       ).join("\n");
     
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
@@ -268,7 +255,14 @@ export default function GeneralLedger() {
       </div>
 
       <div className="space-y-3">
-        {filteredAccounts.map((account, index) => (
+        {isLoading ? (
+          <div className="text-center py-12 text-muted-foreground">Laden...</div>
+        ) : filteredAccounts.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <p>Keine Konten gefunden</p>
+          </div>
+        ) : filteredAccounts.map((account: any, index: number) => (
           <div
             key={account.id}
             className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all cursor-pointer animate-fade-in"
@@ -283,21 +277,14 @@ export default function GeneralLedger() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">{account.name}</h3>
-                    <Badge className={typeColors[account.type]}>
-                      {typeLabels[account.type]}
+                    <Badge className={typeColors[account.type] || "bg-muted text-muted-foreground"}>
+                      {typeLabels[account.type] || account.type}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {account.transactionCount} Buchungen • Letzte: {account.lastActivity}
-                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-8">
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Anfangsbestand</p>
-                  <p className="font-mono font-medium">{formatCHF(account.openingBalance)}</p>
-                </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Soll</p>
                   <p className="font-mono font-medium text-success">{formatCHF(account.debitTotal)}</p>
