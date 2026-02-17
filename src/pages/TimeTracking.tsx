@@ -60,6 +60,9 @@ import { TimeEntriesTable, type TimeEntryRow, type ApprovalStatus } from "@/comp
 import { TimeEntriesPDFPreview } from "@/components/time-tracking/TimeEntriesPDFPreview";
 import { TimeEntriesPDFData, downloadTimeEntriesPDF } from "@/lib/pdf/time-entries";
 import { useQuery } from "@tanstack/react-query";
+import { useProjects } from "@/hooks/use-projects";
+import { useTasks } from "@/hooks/use-tasks";
+import { useEmployees } from "@/hooks/use-employees";
 import { api } from "@/lib/api";
 
 interface TimeEntry {
@@ -74,20 +77,7 @@ interface TimeEntry {
   employeeId?: string;
 }
 
-const projects = [
-  { id: "ecommerce", name: "E-Commerce Platform" },
-  { id: "banking", name: "Mobile Banking App" },
-  { id: "dashboard", name: "Dashboard Redesign" },
-  { id: "crm", name: "CRM Integration" },
-  { id: "internal", name: "Interne Aufgaben" },
-];
-
-const employees = [
-  { id: "1", name: "Max Mustermann" },
-  { id: "2", name: "Anna Schmidt" },
-  { id: "3", name: "Thomas Meier" },
-  { id: "4", name: "Julia Weber" },
-];
+// Mock data removed – real data fetched via hooks inside component
 
 
 function formatDuration(minutes: number): string {
@@ -104,16 +94,25 @@ function formatTime(seconds: number): string {
 }
 
 export default function TimeTracking() {
-  // Fetch data from API
+  // Fetch real data from API
   const { data: apiData } = useQuery({
     queryKey: ["/time-entries"],
     queryFn: () => api.get<any>("/time-entries"),
   });
+  const { data: projectsData } = useProjects({ pageSize: 100 });
+  const { data: employeesData } = useEmployees({ pageSize: 100, status: 'ACTIVE' });
+
+  const projects = (projectsData?.data || []).map((p: any) => ({ id: p.id, name: p.name }));
+  const employees = (employeesData?.data || []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
+
   const initialEntries = apiData?.data || [];
   const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
   const [isTracking, setIsTracking] = useState(false);
   const [currentTask, setCurrentTask] = useState("");
   const [currentProject, setCurrentProject] = useState("");
+
+  // Fetch tasks filtered by selected project
+  const { data: timerTasksData } = useTasks({ projectId: currentProject || undefined, pageSize: 100 });
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [weekOffset, setWeekOffset] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -129,6 +128,10 @@ export default function TimeTracking() {
     minutes: "",
     date: format(new Date(), "yyyy-MM-dd"),
   });
+
+  const { data: manualTasksData } = useTasks({ projectId: manualEntry.project || undefined, pageSize: 100 });
+  const timerTasks = (timerTasksData?.data || []).map((t: any) => ({ id: t.id, title: t.title }));
+  const manualTasks = (manualTasksData?.data || []).map((t: any) => ({ id: t.id, title: t.title }));
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -189,7 +192,7 @@ export default function TimeTracking() {
         const newEntry: TimeEntry = {
           id: Date.now().toString(),
           project: projectName,
-          task: currentTask,
+          task: timerTasks.find((t: any) => t.id === currentTask)?.title || currentTask,
           duration: Math.floor(elapsedSeconds / 60),
           date: format(new Date(), "yyyy-MM-dd"),
           status: "completed",
@@ -199,7 +202,7 @@ export default function TimeTracking() {
         };
         setEntries((prev) => [newEntry, ...prev]);
         toast.success("Zeiteintrag gespeichert", {
-          description: `${currentTask} - ${formatDuration(Math.floor(elapsedSeconds / 60))} (Genehmigung ausstehend)`,
+          description: `${timerTasks.find((t: any) => t.id === currentTask)?.title || currentTask} - ${formatDuration(Math.floor(elapsedSeconds / 60))} (Genehmigung ausstehend)`,
         });
         setCurrentTask("");
         setCurrentProject("");
@@ -239,7 +242,7 @@ export default function TimeTracking() {
     const newEntry: TimeEntry = {
       id: Date.now().toString(),
       project: projectName,
-      task: manualEntry.task,
+      task: manualTasks.find((t: any) => t.id === manualEntry.task)?.title || manualEntry.task,
       duration: totalMinutes,
       date: manualEntry.date,
       status: "completed",
@@ -253,7 +256,7 @@ export default function TimeTracking() {
     ));
 
     toast.success("Eintrag hinzugefügt", {
-      description: `${manualEntry.task} - ${formatDuration(totalMinutes)} (Genehmigung ausstehend)`,
+      description: `${manualTasks.find((t: any) => t.id === manualEntry.task)?.title || manualEntry.task} - ${formatDuration(totalMinutes)} (Genehmigung ausstehend)`,
     });
 
     setManualEntry({
@@ -528,26 +531,37 @@ export default function TimeTracking() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Aufgabe</Label>
-                  <Input
-                    placeholder="Was hast du gearbeitet?"
-                    value={manualEntry.task}
-                    onChange={(e) => setManualEntry({ ...manualEntry, task: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label>Projekt</Label>
                   <Select
                     value={manualEntry.project}
-                    onValueChange={(value) => setManualEntry({ ...manualEntry, project: value })}
+                    onValueChange={(value) => setManualEntry({ ...manualEntry, project: value, task: "" })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Projekt wählen" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects.map((project) => (
+                      {projects.map((project: any) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Aufgabe</Label>
+                  <Select
+                    value={manualEntry.task}
+                    onValueChange={(value) => setManualEntry({ ...manualEntry, task: value })}
+                    disabled={!manualEntry.project}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={manualEntry.project ? "Aufgabe wählen" : "Zuerst Projekt wählen"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {manualTasks.map((task: any) => (
+                        <SelectItem key={task.id} value={task.id}>
+                          {task.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -605,21 +619,26 @@ export default function TimeTracking() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex-1 space-y-4">
             <div className="flex gap-4">
-              <Input
-                placeholder="Was arbeitest du gerade?"
-                value={currentTask}
-                onChange={(e) => setCurrentTask(e.target.value)}
-                className="flex-1"
-                disabled={isTracking}
-              />
-              <Select value={currentProject} onValueChange={setCurrentProject} disabled={isTracking}>
+              <Select value={currentProject} onValueChange={(value) => { setCurrentProject(value); setCurrentTask(""); }} disabled={isTracking}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Projekt wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {projects.map((project: any) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={currentTask} onValueChange={setCurrentTask} disabled={isTracking || !currentProject}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder={currentProject ? "Aufgabe wählen" : "Zuerst Projekt wählen"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {timerTasks.map((task: any) => (
+                    <SelectItem key={task.id} value={task.id}>
+                      {task.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -628,7 +647,7 @@ export default function TimeTracking() {
             {isTracking && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground animate-fade-in">
                 <span className="flex h-2 w-2 rounded-full bg-success animate-pulse" />
-                Aufnahme läuft für "{currentTask}"
+                Aufnahme läuft für "{timerTasks.find((t: any) => t.id === currentTask)?.title || currentTask}"
               </div>
             )}
           </div>
