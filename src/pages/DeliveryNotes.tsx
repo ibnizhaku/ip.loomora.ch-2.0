@@ -415,7 +415,7 @@ export default function DeliveryNotes() {
                     <TableCell className="text-muted-foreground">
                       {note.deliveryDate}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
