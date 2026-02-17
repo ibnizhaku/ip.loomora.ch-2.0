@@ -140,18 +140,15 @@ const CreditNotes = () => {
     return matchesSearch && matchesStatus && matchesReason;
   });
 
-  const handleDownloadPdf = (note: typeof creditNotes[0], e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownloadPdf = (note: typeof creditNotes[0]) => {
     toast.success(`PDF für ${note.id} wird heruntergeladen...`);
   };
 
-  const handleSendEmail = (note: typeof creditNotes[0], e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleSendEmail = (note: typeof creditNotes[0]) => {
     toast.success(`${note.id} wird per E-Mail an ${note.customer} gesendet...`);
   };
 
-  const handleCancel = (note: typeof creditNotes[0], e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCancel = (note: typeof creditNotes[0]) => {
     toast.success(`${note.id} wurde storniert`);
   };
 
@@ -308,20 +305,20 @@ const CreditNotes = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover">
-                        <DropdownMenuItem onClick={() => navigate(`/credit-notes/${note.id}`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/credit-notes/${note.id}`)}>
                           <Eye className="h-4 w-4 mr-2" />
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleDownloadPdf(note, e)}>
+                        <DropdownMenuItem onSelect={() => handleDownloadPdf(note)}>
                           <Download className="h-4 w-4 mr-2" />
                           PDF herunterladen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleSendEmail(note, e)}>
+                        <DropdownMenuItem onSelect={() => handleSendEmail(note)}>
                           <Mail className="h-4 w-4 mr-2" />
                           Per E-Mail senden
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleCancel(note, e)}>
+                        <DropdownMenuItem className="text-destructive" onSelect={() => handleCancel(note)}>
                           <XCircle className="h-4 w-4 mr-2" />
                           Stornieren
                         </DropdownMenuItem>
@@ -425,22 +422,22 @@ const CreditNotes = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover">
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/credit-notes/${note.id}`); }}>
+                            <DropdownMenuItem onSelect={() => navigate(`/credit-notes/${note.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Anzeigen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleDownloadPdf(note, e)}>
+                            <DropdownMenuItem onSelect={() => handleDownloadPdf(note)}>
                               <Download className="h-4 w-4 mr-2" />
                               PDF herunterladen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleSendEmail(note, e)}>
+                            <DropdownMenuItem onSelect={() => handleSendEmail(note)}>
                               <Mail className="h-4 w-4 mr-2" />
                               Per E-Mail senden
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="text-destructive" 
-                              onClick={(e) => handleCancel(note, e)}
+                              onSelect={() => handleCancel(note)}
                             >
                               <XCircle className="h-4 w-4 mr-2" />
                               Stornieren

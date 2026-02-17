@@ -294,13 +294,13 @@ export default function DeliveryNotes() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/delivery-notes/${note.id}`)}>Anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/delivery-notes/${note.id}/edit`)}>Bearbeiten</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => window.print()}>
+                        <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}`)}>Anzeigen</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onSelect={() => window.print()}>
                           <Printer className="h-4 w-4" />
                           Drucken
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => import("@/lib/api").then(m => m.downloadPdf("delivery-notes", note.id, `Lieferschein-${note.number}.pdf`))}>
+                        <DropdownMenuItem className="gap-2" onSelect={() => import("@/lib/api").then(m => m.downloadPdf("delivery-notes", note.id, `Lieferschein-${note.number}.pdf`))}>
                           <Download className="h-4 w-4" />
                           Als PDF
                         </DropdownMenuItem>
@@ -423,13 +423,13 @@ export default function DeliveryNotes() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/delivery-notes/${note.id}`); }}>Anzeigen</DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/delivery-notes/${note.id}/edit`); }}>Bearbeiten</DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={(e) => { e.stopPropagation(); window.print(); }}>
+                          <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}`)}>Anzeigen</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onSelect={() => window.print()}>
                             <Printer className="h-4 w-4" />
                             Drucken
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={(e) => { e.stopPropagation(); import("@/lib/api").then(m => m.downloadPdf("delivery-notes", note.id, `Lieferschein-${note.number}.pdf`)); }}>
+                          <DropdownMenuItem className="gap-2" onSelect={() => import("@/lib/api").then(m => m.downloadPdf("delivery-notes", note.id, `Lieferschein-${note.number}.pdf`))}>
                             <Download className="h-4 w-4" />
                             Als PDF
                           </DropdownMenuItem>

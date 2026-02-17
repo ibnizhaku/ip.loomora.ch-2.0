@@ -468,22 +468,22 @@ const Reminders = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover">
-                            <DropdownMenuItem onClick={() => navigate(`/reminders/${reminder.id}`)}>
+                            <DropdownMenuItem onSelect={() => navigate(`/reminders/${reminder.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Anzeigen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast.success("PDF wird heruntergeladen...")}>
+                            <DropdownMenuItem onSelect={() => toast.success("PDF wird heruntergeladen...")}>
                               <Download className="h-4 w-4 mr-2" />
                               PDF herunterladen
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {reminder.level < 5 && (
-                              <DropdownMenuItem onClick={() => handleSendNextReminder(reminder)}>
+                              <DropdownMenuItem onSelect={() => handleSendNextReminder(reminder)}>
                                 <Send className="h-4 w-4 mr-2" />
                                 {(levelConfig[Math.min(reminder.level + 1, 5)] || levelConfig[1]).label} senden
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onClick={() => handleRecordPayment(reminder)}>
+                            <DropdownMenuItem onSelect={() => handleRecordPayment(reminder)}>
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Zahlung erfassen
                             </DropdownMenuItem>
@@ -601,30 +601,30 @@ const Reminders = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-popover">
-                              <DropdownMenuItem onClick={() => navigate(`/reminders/${reminder.id}`)}>
+                              <DropdownMenuItem onSelect={() => navigate(`/reminders/${reminder.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 Anzeigen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast.success("PDF wird heruntergeladen...")}>
+                              <DropdownMenuItem onSelect={() => toast.success("PDF wird heruntergeladen...")}>
                                 <Download className="h-4 w-4 mr-2" />
                                 PDF herunterladen
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {reminder.level < 5 && (
-                                <DropdownMenuItem onClick={() => handleSendNextReminder(reminder)}>
+                                <DropdownMenuItem onSelect={() => handleSendNextReminder(reminder)}>
                                   <Send className="h-4 w-4 mr-2" />
                                   {(levelConfig[Math.min(reminder.level + 1, 5)] || levelConfig[1]).label} senden
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => toast.success("Kunde wird angerufen...")}>
+                              <DropdownMenuItem onSelect={() => toast.success("Kunde wird angerufen...")}>
                                 <Phone className="h-4 w-4 mr-2" />
                                 Anrufen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleExtendDeadline(reminder)}>
+                              <DropdownMenuItem onSelect={() => handleExtendDeadline(reminder)}>
                                 <Calendar className="h-4 w-4 mr-2" />
                                 Zahlungsfrist verlängern
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleRecordPayment(reminder)}>
+                              <DropdownMenuItem onSelect={() => handleRecordPayment(reminder)}>
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 Zahlung erfassen
                               </DropdownMenuItem>
@@ -632,7 +632,7 @@ const Reminders = () => {
                               {reminder.level < 5 && (
                                 <DropdownMenuItem 
                                   className="text-destructive"
-                                  onClick={() => handleTransferToCollection(reminder)}
+                                  onSelect={() => handleTransferToCollection(reminder)}
                                 >
                                   <Gavel className="h-4 w-4 mr-2" />
                                   An Inkasso übergeben

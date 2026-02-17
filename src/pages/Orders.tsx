@@ -177,14 +177,12 @@ export default function Orders() {
   const totalValue = orders.filter((o) => o.status !== "cancelled").reduce((acc, o) => acc + o.amount, 0);
   const activeOrders = orders.filter((o) => ["new", "confirmed", "in-progress"].includes(o.status)).length;
 
-  const handleCreateDeliveryNote = (order: Order, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCreateDeliveryNote = (order: Order) => {
     toast.success(`Lieferschein für ${order.number} wird erstellt...`);
     navigate(`/delivery-notes/new?orderId=${order.id}&customerId=${order.clientId || ''}`);
   };
 
-  const handleCreateInvoice = (order: Order, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCreateInvoice = (order: Order) => {
     toast.success(`Rechnung für ${order.number} wird erstellt...`);
     navigate(`/invoices/create?orderId=${order.id}`);
   };
@@ -374,27 +372,27 @@ export default function Orders() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover">
-                        <DropdownMenuItem onClick={() => navigate(`/orders/${order.id}`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/orders/${order.id}`)}>
                           <Eye className="h-4 w-4 mr-2" />
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/orders/${order.id}/edit`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/orders/${order.id}/edit`)}>
                           <Pencil className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => handleCreateDeliveryNote(order, e)}>
+                        <DropdownMenuItem onSelect={() => handleCreateDeliveryNote(order)}>
                           <Truck className="h-4 w-4 mr-2" />
                           Lieferschein erstellen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleCreateInvoice(order, e)}>
+                        <DropdownMenuItem onSelect={() => handleCreateInvoice(order)}>
                           <FileText className="h-4 w-4 mr-2" />
                           Rechnung erstellen
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => {
+                          onSelect={() => {
                             if (confirm("Auftrag wirklich löschen?")) {
                               deleteMutation.mutate(order.id);
                             }
@@ -523,28 +521,27 @@ export default function Orders() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-popover">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}>
+                          <DropdownMenuItem onSelect={() => navigate(`/orders/${order.id}`)}>
                             <Eye className="h-4 w-4 mr-2" />
                             Anzeigen
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/edit`); }}>
+                          <DropdownMenuItem onSelect={() => navigate(`/orders/${order.id}/edit`)}>
                             <Pencil className="h-4 w-4 mr-2" />
                             Bearbeiten
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={(e) => handleCreateDeliveryNote(order, e)}>
+                          <DropdownMenuItem onSelect={() => handleCreateDeliveryNote(order)}>
                             <Truck className="h-4 w-4 mr-2" />
                             Lieferschein erstellen
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => handleCreateInvoice(order, e)}>
+                          <DropdownMenuItem onSelect={() => handleCreateInvoice(order)}>
                             <FileText className="h-4 w-4 mr-2" />
                             Rechnung erstellen
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onSelect={() => {
                               if (confirm("Auftrag wirklich löschen?")) {
                                 deleteMutation.mutate(order.id);
                               }

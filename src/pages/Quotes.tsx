@@ -300,16 +300,16 @@ export default function Quotes() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
                           <Copy className="h-4 w-4" />
                           Duplizieren
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => {
+                          onSelect={() => {
                             if (confirm("Offerte wirklich löschen?")) {
                               deleteMutation.mutate(quote.id);
                             }
@@ -419,25 +419,24 @@ export default function Quotes() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
+                          <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
                             <Copy className="h-4 w-4" />
                             Duplizieren
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
+                          <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
                             <Send className="h-4 w-4" />
                             Versenden
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
+                          <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
                             <ArrowRight className="h-4 w-4" />
                             In Rechnung umwandeln
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onSelect={() => {
                               if (confirm("Offerte wirklich löschen?")) {
                                 deleteMutation.mutate(quote.id);
                               }

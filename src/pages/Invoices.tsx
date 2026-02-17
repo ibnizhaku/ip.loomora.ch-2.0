@@ -308,22 +308,22 @@ export default function Invoices() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/${invoice.id}`)}>
+                        <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/${invoice.id}`)}>
                           <Eye className="h-4 w-4" />
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`))}>
+                        <DropdownMenuItem className="gap-2" onSelect={() => import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`))}>
                           <Download className="h-4 w-4" />
                           Herunterladen
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
+                        <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
                           <Send className="h-4 w-4" />
                           Per E-Mail senden
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => {
+                          onSelect={() => {
                             if (confirm("Rechnung wirklich löschen?")) {
                               deleteMutation.mutate(invoice.id);
                             }
@@ -442,23 +442,22 @@ export default function Invoices() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/${invoice.id}`)}>
+                          <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/${invoice.id}`)}>
                             <Eye className="h-4 w-4" />
                             Anzeigen
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={(e) => { e.stopPropagation(); import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`)); }}>
+                          <DropdownMenuItem className="gap-2" onSelect={() => import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`))}>
                             <Download className="h-4 w-4" />
                             Herunterladen
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={async (e) => { e.stopPropagation(); try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
+                          <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
                             <Send className="h-4 w-4" />
                             Per E-Mail senden
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onSelect={() => {
                               if (confirm("Rechnung wirklich löschen?")) {
                                 deleteMutation.mutate(invoice.id);
                               }
