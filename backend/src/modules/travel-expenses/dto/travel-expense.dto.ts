@@ -15,6 +15,36 @@ export class CreateTravelExpenseDto {
   description: string;
 
   @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  purpose?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  destination?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  status?: string;
+
+  @ApiPropertyOptional()
   @IsNumber()
   @IsOptional()
   kilometers?: number;
@@ -49,9 +79,4 @@ export class CreateTravelExpenseDto {
   receiptUrl?: string;
 }
 
-export class UpdateTravelExpenseDto extends PartialType(CreateTravelExpenseDto) {
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  status?: string;
-}
+export class UpdateTravelExpenseDto extends PartialType(CreateTravelExpenseDto) {}

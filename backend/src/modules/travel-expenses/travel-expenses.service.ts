@@ -45,7 +45,7 @@ export class TravelExpensesService {
     ]);
 
     return {
-      data,
+      data: data.map(e => this.mapEmployeeName(e)),
       pagination: {
         page,
         pageSize,
@@ -77,7 +77,7 @@ export class TravelExpensesService {
       throw new NotFoundException('Reisekostenabrechnung nicht gefunden');
     }
 
-    return expense;
+    return this.mapEmployeeName(expense);
   }
 
   async create(companyId: string, dto: CreateTravelExpenseDto) {
@@ -86,11 +86,17 @@ export class TravelExpensesService {
     });
     if (!employee) throw new NotFoundException('Mitarbeiter nicht gefunden');
 
-    return this.prisma.travelExpense.create({
+    const created = await this.prisma.travelExpense.create({
       data: {
         employeeId: dto.employeeId,
         date: new Date(dto.date),
         description: dto.description,
+        purpose: dto.purpose,
+        destination: dto.destination,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        notes: dto.notes,
+        status: dto.status || 'pending',
         kilometers: dto.kilometers,
         kmRate: dto.kmRate || 0.70,
         mealAllowance: dto.mealAllowance,
@@ -105,6 +111,8 @@ export class TravelExpensesService {
         },
       },
     });
+
+    return this.mapEmployeeName(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateTravelExpenseDto) {
@@ -116,6 +124,11 @@ export class TravelExpensesService {
     const data: any = {};
     if (dto.date !== undefined) data.date = new Date(dto.date);
     if (dto.description !== undefined) data.description = dto.description;
+    if (dto.purpose !== undefined) data.purpose = dto.purpose;
+    if (dto.destination !== undefined) data.destination = dto.destination;
+    if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
+    if (dto.endDate !== undefined) data.endDate = new Date(dto.endDate);
+    if (dto.notes !== undefined) data.notes = dto.notes;
     if (dto.kilometers !== undefined) data.kilometers = dto.kilometers;
     if (dto.kmRate !== undefined) data.kmRate = dto.kmRate;
     if (dto.mealAllowance !== undefined) data.mealAllowance = dto.mealAllowance;
@@ -125,7 +138,7 @@ export class TravelExpensesService {
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.receiptUrl !== undefined) data.receiptUrl = dto.receiptUrl;
 
-    return this.prisma.travelExpense.update({
+    const updated = await this.prisma.travelExpense.update({
       where: { id },
       data,
       include: {
@@ -134,6 +147,8 @@ export class TravelExpensesService {
         },
       },
     });
+
+    return this.mapEmployeeName(updated);
   }
 
   async approve(id: string, companyId: string, approvedById: string) {
@@ -145,7 +160,7 @@ export class TravelExpensesService {
       throw new BadRequestException('Nur ausstehende Abrechnungen können genehmigt werden');
     }
 
-    return this.prisma.travelExpense.update({
+    const approved = await this.prisma.travelExpense.update({
       where: { id },
       data: {
         status: 'approved',
@@ -158,6 +173,8 @@ export class TravelExpensesService {
         },
       },
     });
+
+    return this.mapEmployeeName(approved);
   }
 
   async reject(id: string, companyId: string, reason?: string) {
@@ -169,7 +186,7 @@ export class TravelExpensesService {
       throw new BadRequestException('Nur ausstehende Abrechnungen können abgelehnt werden');
     }
 
-    return this.prisma.travelExpense.update({
+    const rejected = await this.prisma.travelExpense.update({
       where: { id },
       data: {
         status: 'rejected',
@@ -181,6 +198,19 @@ export class TravelExpensesService {
         },
       },
     });
+
+    return this.mapEmployeeName(rejected);
+  }
+
+  private mapEmployeeName(expense: any) {
+    if (!expense?.employee) return expense;
+    return {
+      ...expense,
+      employee: {
+        ...expense.employee,
+        name: `${expense.employee.firstName} ${expense.employee.lastName}`,
+      },
+    };
   }
 
   async delete(id: string, companyId: string) {

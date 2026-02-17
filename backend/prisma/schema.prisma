@@ -2345,6 +2345,11 @@ model TravelExpense {
   
   date            DateTime
   description     String
+  purpose         String?
+  destination     String?
+  startDate       DateTime?
+  endDate         DateTime?
+  notes           String?
   
   // Swiss rates
   kilometers      Decimal? @db.Decimal(8, 2)
