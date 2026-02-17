@@ -94,24 +94,27 @@ const categoryLabels = {
   other: "Sonstiges",
 };
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
+  pending: "bg-warning/10 text-warning",
   submitted: "bg-warning/10 text-warning",
   approved: "bg-success/10 text-success",
   rejected: "bg-destructive/10 text-destructive",
   paid: "bg-primary/10 text-primary",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   draft: "Entwurf",
+  pending: "Eingereicht",
   submitted: "Eingereicht",
   approved: "Genehmigt",
   rejected: "Abgelehnt",
   paid: "Erstattet",
 };
 
-const statusIcons = {
+const statusIcons: Record<string, any> = {
   draft: Clock,
+  pending: Clock,
   submitted: Clock,
   approved: CheckCircle,
   rejected: XCircle,
@@ -158,7 +161,7 @@ export default function TravelExpenses() {
 
   // Validate expenses against GAV rules
   const getExpenseValidation = (expense: TravelExpense) => {
-    if (!expenseRules) return { isCompliant: true, warnings: [], totalExcess: 0 };
+    if (!expenseRules || !expense.items?.length) return { isCompliant: true, warnings: [], totalExcess: 0 };
     return validateExpenseReport(expense.items, expenseRules);
   };
 
@@ -169,7 +172,7 @@ export default function TravelExpenses() {
   });
 
   const totalExpenses = expenses.reduce((acc, e) => acc + e.totalAmount, 0);
-  const pendingExpenses = expenses.filter((e) => e.status === "submitted");
+  const pendingExpenses = expenses.filter((e) => e.status === "submitted" || e.status === "pending");
   const approvedExpenses = expenses.filter((e) => e.status === "approved" || e.status === "paid");
   const uniqueDestinations = [...new Set(expenses.map(e => e.destination))];
   const activeFilters = filterStatus.length + filterDestination.length;
@@ -239,7 +242,7 @@ export default function TravelExpenses() {
       (exp.number || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = !statusFilter || 
-      (statusFilter === "submitted" && exp.status === "submitted") ||
+      (statusFilter === "submitted" && (exp.status === "submitted" || exp.status === "pending")) ||
       (statusFilter === "approved" && (exp.status === "approved" || exp.status === "paid"));
 
     const matchesFilterStatus = filterStatus.length === 0 || filterStatus.includes(exp.status);
@@ -482,7 +485,7 @@ export default function TravelExpenses() {
           </TableHeader>
           <TableBody>
             {filteredExpenses.map((expense, index) => {
-              const StatusIcon = statusIcons[expense.status];
+              const StatusIcon = statusIcons[expense.status] || Clock;
               const validation = getExpenseValidation(expense);
               const hasWarning = !validation.isCompliant && expenseRules?.validation.warnOnExceed;
               
@@ -526,13 +529,13 @@ export default function TravelExpenses() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      {expense.items.map((item, i) => {
-                        const Icon = categoryIcons[item.category];
+                      {(expense.items || []).map((item, i) => {
+                        const Icon = categoryIcons[item.category as keyof typeof categoryIcons] || Receipt;
                         return (
                           <div
                             key={i}
                             className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded"
-                            title={`${categoryLabels[item.category]}: CHF ${formatCHF(item.amount)}`}
+                            title={`${categoryLabels[item.category as keyof typeof categoryLabels] || item.category}: CHF ${formatCHF(item.amount)}`}
                           >
                             <Icon className="h-3 w-3" />
                             <span>CHF {formatCHF(item.amount)}</span>
