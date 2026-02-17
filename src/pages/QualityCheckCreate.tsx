@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save, ClipboardCheck, Plus, X, ClipboardList } from "lucide-react";
+import { ArrowLeft, Save, ClipboardCheck, Plus, X, ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,39 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-
-const availableChecklists = [
-  {
-    id: "TPL-001",
-    name: "Schweissnaht-Prüfung EN 1090",
-    category: "Schweissen",
-    points: 8,
-  },
-  {
-    id: "TPL-002",
-    name: "Massgenauigkeit Stahlbau",
-    category: "Massgenauigkeit",
-    points: 6,
-  },
-  {
-    id: "TPL-003",
-    name: "Oberflächenbehandlung C3",
-    category: "Oberfläche",
-    points: 5,
-  },
-  {
-    id: "TPL-004",
-    name: "Schraubverbindungen",
-    category: "Verbindungen",
-    points: 4,
-  },
-  {
-    id: "TPL-005",
-    name: "Eingangsprüfung Material",
-    category: "Wareneingang",
-    points: 7,
-  },
-];
+import { useQualityChecklists, useCreateQualityCheck } from "@/hooks/use-quality-control";
+import { useProductionOrders } from "@/hooks/use-production-orders";
+import { useEmployees } from "@/hooks/use-employees";
 
 const categoryColors: Record<string, string> = {
   "Schweissen": "bg-orange-500/10 text-orange-600",
@@ -50,42 +20,48 @@ const categoryColors: Record<string, string> = {
   "Oberfläche": "bg-green-500/10 text-green-600",
   "Verbindungen": "bg-purple-500/10 text-purple-600",
   "Wareneingang": "bg-amber-500/10 text-amber-600",
+  "Eingang": "bg-amber-500/10 text-amber-600",
+  "Masse": "bg-blue-500/10 text-blue-600",
 };
 
 export default function QualityCheckCreate() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
   const [productionOrder, setProductionOrder] = useState("");
   const [checkType, setCheckType] = useState("");
   const [inspector, setInspector] = useState("");
-  const [plannedDate, setPlannedDate] = useState("");
-  const [criteria, setCriteria] = useState("");
   const [notes, setNotes] = useState("");
-  const [selectedChecklists, setSelectedChecklists] = useState<string[]>([]);
+  const [selectedChecklist, setSelectedChecklist] = useState("");
 
-  const handleSave = () => {
-    if (!name || !productionOrder || !checkType) {
-      toast.error("Bitte füllen Sie die Pflichtfelder aus");
+  const { data: checklistsData } = useQualityChecklists({ pageSize: 100 });
+  const { data: productionOrdersData } = useProductionOrders({ pageSize: 100 });
+  const { data: employeesData } = useEmployees({ pageSize: 100 });
+  const createMutation = useCreateQualityCheck();
+
+  const checklists = (checklistsData as any)?.data || [];
+  const productionOrders = (productionOrdersData as any)?.data || [];
+  const employees = (employeesData as any)?.data || [];
+
+  const selectedChecklistData = checklists.find((c: any) => c.id === selectedChecklist);
+
+  const handleSave = async () => {
+    if (!selectedChecklist || !checkType) {
+      toast.error("Bitte wählen Sie eine Checkliste und Prüfungsart");
       return;
     }
-    toast.success("QS-Prüfung erstellt");
-    navigate("/quality");
+    try {
+      await createMutation.mutateAsync({
+        checklistId: selectedChecklist,
+        type: checkType,
+        productionOrderId: productionOrder || undefined,
+        inspectorId: inspector || undefined,
+        notes: notes || undefined,
+      } as any);
+      toast.success("QS-Prüfung erstellt");
+      navigate("/quality");
+    } catch {
+      toast.error("Fehler beim Erstellen der Prüfung");
+    }
   };
-
-  const toggleChecklist = (id: string) => {
-    setSelectedChecklists((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
-  };
-
-  const removeChecklist = (id: string) => {
-    setSelectedChecklists((prev) => prev.filter((c) => c !== id));
-  };
-
-  const selectedChecklistData = availableChecklists.filter((c) =>
-    selectedChecklists.includes(c.id)
-  );
-  const totalPoints = selectedChecklistData.reduce((sum, c) => sum + c.points, 0);
 
   return (
     <div className="space-y-6">
@@ -109,24 +85,20 @@ export default function QualityCheckCreate() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Prüfungsname *</Label>
-              <Input 
-                placeholder="z.B. Endkontrolle Baugruppe A" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Produktionsauftrag *</Label>
+              <Label>Produktionsauftrag</Label>
               <Select value={productionOrder} onValueChange={setProductionOrder}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Auftrag wählen" />
+                  <SelectValue placeholder="Auftrag wählen (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PA-2024-001">PA-2024-001 - Gehäuse Typ A</SelectItem>
-                  <SelectItem value="PA-2024-002">PA-2024-002 - Motorblock V8</SelectItem>
-                  <SelectItem value="PA-2024-003">PA-2024-003 - Steuereinheit</SelectItem>
-                  <SelectItem value="PA-2024-004">PA-2024-004 - Antriebswelle</SelectItem>
+                  {productionOrders.map((po: any) => (
+                    <SelectItem key={po.id} value={po.id}>
+                      {po.number} - {po.name || po.description || ""}
+                    </SelectItem>
+                  ))}
+                  {productionOrders.length === 0 && (
+                    <SelectItem value="__none" disabled>Keine Aufträge vorhanden</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -137,27 +109,18 @@ export default function QualityCheckCreate() {
                   <SelectValue placeholder="Art wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="incoming">Wareneingangsprüfung</SelectItem>
-                  <SelectItem value="process">Fertigungsbegleitend</SelectItem>
-                  <SelectItem value="final">Endkontrolle</SelectItem>
-                  <SelectItem value="random">Stichprobe</SelectItem>
+                  <SelectItem value="INCOMING">Wareneingangsprüfung</SelectItem>
+                  <SelectItem value="IN_PROCESS">Fertigungsbegleitend</SelectItem>
+                  <SelectItem value="FINAL">Endkontrolle</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Geplantes Datum</Label>
-              <Input 
-                type="date" 
-                value={plannedDate}
-                onChange={(e) => setPlannedDate(e.target.value)}
-              />
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Prüfer & Kriterien</CardTitle>
+            <CardTitle>Prüfer & Bemerkungen</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -167,27 +130,22 @@ export default function QualityCheckCreate() {
                   <SelectValue placeholder="Prüfer wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mueller">Thomas Müller</SelectItem>
-                  <SelectItem value="schmidt">Anna Schmidt</SelectItem>
-                  <SelectItem value="weber">Michael Weber</SelectItem>
-                  <SelectItem value="fischer">Lisa Fischer</SelectItem>
+                  {employees.map((emp: any) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.firstName} {emp.lastName}
+                    </SelectItem>
+                  ))}
+                  {employees.length === 0 && (
+                    <SelectItem value="__none" disabled>Keine Mitarbeiter vorhanden</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Prüfkriterien</Label>
-              <Textarea 
-                placeholder="z.B. Maßhaltigkeit, Oberflächenqualität, Funktionstest..."
-                rows={4}
-                value={criteria}
-                onChange={(e) => setCriteria(e.target.value)}
-              />
             </div>
             <div className="space-y-2">
               <Label>Bemerkungen</Label>
               <Textarea 
                 placeholder="Zusätzliche Hinweise zur Prüfung..."
-                rows={3}
+                rows={4}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -201,10 +159,10 @@ export default function QualityCheckCreate() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
-            Checklisten
-            {selectedChecklists.length > 0 && (
+            Checkliste auswählen *
+            {selectedChecklistData && (
               <Badge variant="secondary" className="ml-2">
-                {selectedChecklists.length} ausgewählt • {totalPoints} Prüfpunkte
+                {selectedChecklistData.items?.length || 0} Prüfpunkte
               </Badge>
             )}
           </CardTitle>
@@ -215,60 +173,34 @@ export default function QualityCheckCreate() {
           </Button>
         </CardHeader>
         <CardContent>
-          {/* Ausgewählte Checklisten */}
-          {selectedChecklistData.length > 0 && (
-            <div className="mb-4 space-y-2">
-              <Label className="text-sm text-muted-foreground">Ausgewählte Checklisten:</Label>
-              <div className="flex flex-wrap gap-2">
-                {selectedChecklistData.map((checklist) => (
-                  <Badge
-                    key={checklist.id}
-                    variant="secondary"
-                    className="gap-1 pr-1"
-                  >
-                    {checklist.name}
-                    <span className="text-muted-foreground">({checklist.points} Punkte)</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 ml-1 hover:bg-destructive/20"
-                      onClick={() => removeChecklist(checklist.id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Verfügbare Checklisten */}
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {availableChecklists.map((checklist) => {
-              const isSelected = selectedChecklists.includes(checklist.id);
+            {checklists.map((checklist: any) => {
+              const isSelected = selectedChecklist === checklist.id;
               return (
                 <div
                   key={checklist.id}
                   className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
                     isSelected ? "border-primary bg-primary/5" : "hover:border-primary/30"
                   }`}
-                  onClick={() => toggleChecklist(checklist.id)}
+                  onClick={() => setSelectedChecklist(isSelected ? "" : checklist.id)}
                 >
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={() => toggleChecklist(checklist.id)}
+                    onCheckedChange={() => setSelectedChecklist(isSelected ? "" : checklist.id)}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{checklist.name}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${categoryColors[checklist.category] || ""}`}
-                      >
-                        {checklist.category}
-                      </Badge>
+                      {checklist.category && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${categoryColors[checklist.category] || ""}`}
+                        >
+                          {checklist.category}
+                        </Badge>
+                      )}
                       <span className="text-xs text-muted-foreground">
-                        {checklist.points} Punkte
+                        {checklist.items?.length || 0} Punkte
                       </span>
                     </div>
                   </div>
@@ -277,7 +209,7 @@ export default function QualityCheckCreate() {
             })}
           </div>
 
-          {availableChecklists.length === 0 && (
+          {checklists.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <ClipboardList className="mx-auto h-8 w-8 mb-2 opacity-50" />
               <p>Keine Checklisten-Vorlagen vorhanden</p>
@@ -291,8 +223,8 @@ export default function QualityCheckCreate() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2" onClick={handleSave}>
-          <Save className="h-4 w-4" />
+        <Button className="gap-2" onClick={handleSave} disabled={createMutation.isPending}>
+          {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Prüfung anlegen
         </Button>
       </div>

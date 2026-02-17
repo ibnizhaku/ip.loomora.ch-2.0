@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Trash2, GripVertical, Plus, Copy, ClipboardList } from "lucide-react";
+import { ArrowLeft, Save, Trash2, GripVertical, Plus, Copy, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,8 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useQualityChecklist, useUpdateQualityChecklist, useDeleteQualityChecklist, useCreateQualityChecklist } from "@/hooks/use-quality-control";
 
 interface CheckPoint {
   id: string;
@@ -36,50 +35,36 @@ interface CheckPoint {
   weight: number;
 }
 
-
-const categoryLabels: Record<string, string> = {
-  schweissen: "Schweissen",
-  massgenauigkeit: "Massgenauigkeit",
-  oberflaeche: "Oberfläche",
-  verbindungen: "Verbindungen",
-  wareneingang: "Wareneingang",
-  endkontrolle: "Endkontrolle",
-};
-
-const normLabels: Record<string, string> = {
-  "en1090-2": "SN EN 1090-2",
-  iso12944: "ISO 12944",
-  iso9001: "ISO 9001",
-  iso3834: "ISO 3834",
-};
-
 export default function QualityChecklistDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const { data: apiData } = useQuery({
-    queryKey: ["/quality", id],
-    queryFn: () => api.get<any>(`/quality/${id}`),
-    enabled: !!id,
-  });
-  
-  const template = apiData?.data || null;
+  const { data: template, isLoading } = useQualityChecklist(id || "");
+  const updateMutation = useUpdateQualityChecklist();
+  const deleteMutation = useDeleteQualityChecklist();
+  const duplicateMutation = useCreateQualityChecklist();
   
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
-  const [norm, setNorm] = useState("");
-  const [execClass, setExecClass] = useState("");
+  const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [checkPoints, setCheckPoints] = useState<CheckPoint[]>([]);
   
   useEffect(() => {
     if (template) {
-      setName(template.name || "");
-      setCategory(template.category || "");
-      setNorm(template.norm || "");
-      setExecClass(template.execClass || "");
-      setDescription(template.description || "");
-      setCheckPoints(template.checkPoints || []);
+      const t = template as any;
+      setName(t.name || "");
+      setCategory(t.category || "");
+      setType(t.type || "");
+      setDescription(t.description || "");
+      setCheckPoints(
+        (t.items || []).map((item: any) => ({
+          id: item.id || crypto.randomUUID(),
+          name: item.name || "",
+          targetValue: item.description || "",
+          weight: 10,
+        }))
+      );
     }
   }, [template]);
   
@@ -105,14 +90,8 @@ export default function QualityChecklistDetail() {
     );
   };
 
-  const handleDragStart = (index: number) => {
-    dragItem.current = index;
-  };
-
-  const handleDragEnter = (index: number) => {
-    dragOverItem.current = index;
-  };
-
+  const handleDragStart = (index: number) => { dragItem.current = index; };
+  const handleDragEnter = (index: number) => { dragOverItem.current = index; };
   const handleDragEnd = () => {
     if (dragItem.current !== null && dragOverItem.current !== null) {
       const newCheckPoints = [...checkPoints];
@@ -125,7 +104,7 @@ export default function QualityChecklistDetail() {
     dragOverItem.current = null;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name) {
       toast.error("Bitte geben Sie einen Namen ein");
       return;
@@ -134,19 +113,67 @@ export default function QualityChecklistDetail() {
       toast.error("Bitte füllen Sie alle Prüfpunkte aus");
       return;
     }
-    toast.success("Checklisten-Vorlage gespeichert");
-    navigate("/quality/checklists");
+    try {
+      await updateMutation.mutateAsync({
+        id: id!,
+        data: {
+          name,
+          description: description || undefined,
+          type: type || undefined,
+          category: category || undefined,
+          items: checkPoints.map((cp, index) => ({
+            name: cp.name,
+            description: cp.targetValue || undefined,
+            required: true,
+            sortOrder: index,
+          })),
+        } as any,
+      });
+      toast.success("Checklisten-Vorlage gespeichert");
+      navigate("/quality/checklists");
+    } catch {
+      toast.error("Fehler beim Speichern");
+    }
   };
 
-  const handleDuplicate = () => {
-    toast.success(`Vorlage "${name}" dupliziert`);
-    navigate("/quality/checklists");
+  const handleDuplicate = async () => {
+    try {
+      await duplicateMutation.mutateAsync({
+        name: `${name} (Kopie)`,
+        description: description || undefined,
+        type: type || undefined,
+        category: category || undefined,
+        items: checkPoints.map((cp, index) => ({
+          name: cp.name,
+          description: cp.targetValue || undefined,
+          required: true,
+          sortOrder: index,
+        })),
+      } as any);
+      toast.success(`Vorlage "${name}" dupliziert`);
+      navigate("/quality/checklists");
+    } catch {
+      toast.error("Fehler beim Duplizieren");
+    }
   };
 
-  const handleDelete = () => {
-    toast.success(`Vorlage "${template?.id || id}" gelöscht`);
-    navigate("/quality/checklists");
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(id!);
+      toast.success("Vorlage gelöscht");
+      navigate("/quality/checklists");
+    } catch {
+      toast.error("Fehler beim Löschen");
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const totalWeight = checkPoints.reduce((sum, cp) => sum + cp.weight, 0);
 
@@ -159,18 +186,14 @@ export default function QualityChecklistDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">{template?.id || id}</h1>
-            {template?.category && (
-              <Badge variant="outline">{categoryLabels[template.category] || template.category}</Badge>
-            )}
-            {template?.norm && (
-              <Badge variant="secondary">{normLabels[template.norm] || template.norm}</Badge>
-            )}
+            <h1 className="font-display text-2xl font-bold">{name || id}</h1>
+            {category && <Badge variant="outline">{category}</Badge>}
+            {type && <Badge variant="secondary">{type}</Badge>}
           </div>
-          <p className="text-muted-foreground">{template?.name || ""}</p>
+          <p className="text-muted-foreground">{description || ""}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDuplicate}>
+          <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}>
             <Copy className="mr-2 h-4 w-4" />
             Duplizieren
           </Button>
@@ -185,9 +208,8 @@ export default function QualityChecklistDetail() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Vorlage löschen?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Möchten Sie die Vorlage "{template?.name || ""}" wirklich löschen? 
+                  Möchten Sie die Vorlage "{name}" wirklich löschen? 
                   Diese Aktion kann nicht rückgängig gemacht werden.
-                  {template?.usageCount !== undefined && ` Die Vorlage wurde ${template.usageCount}x verwendet.`}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -201,34 +223,6 @@ export default function QualityChecklistDetail() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Verwendungen</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{template?.usageCount || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Prüfpunkte</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{checkPoints.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Zuletzt verwendet</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{template?.lastUsed || "-"}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Grunddaten */}
         <Card className="lg:col-span-1">
@@ -238,52 +232,26 @@ export default function QualityChecklistDetail() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Vorlagenname *</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Kategorie</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Kategorie wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="schweissen">Schweissen</SelectItem>
-                  <SelectItem value="massgenauigkeit">Massgenauigkeit</SelectItem>
-                  <SelectItem value="oberflaeche">Oberfläche</SelectItem>
-                  <SelectItem value="verbindungen">Verbindungen</SelectItem>
-                  <SelectItem value="wareneingang">Wareneingang</SelectItem>
-                  <SelectItem value="endkontrolle">Endkontrolle</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="z.B. Schweissen, Oberfläche..."
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Prüfnorm</Label>
-              <Select value={norm} onValueChange={setNorm}>
+              <Label>Prüfungstyp</Label>
+              <Select value={type} onValueChange={setType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Norm wählen" />
+                  <SelectValue placeholder="Typ wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en1090-2">SN EN 1090-2</SelectItem>
-                  <SelectItem value="iso12944">ISO 12944</SelectItem>
-                  <SelectItem value="iso9001">ISO 9001</SelectItem>
-                  <SelectItem value="iso3834">ISO 3834</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Ausführungsklasse</Label>
-              <Select value={execClass} onValueChange={setExecClass}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Klasse wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="exc1">EXC1</SelectItem>
-                  <SelectItem value="exc2">EXC2</SelectItem>
-                  <SelectItem value="exc3">EXC3</SelectItem>
-                  <SelectItem value="exc4">EXC4</SelectItem>
+                  <SelectItem value="INCOMING">Wareneingang</SelectItem>
+                  <SelectItem value="IN_PROCESS">Fertigungsbegleitend</SelectItem>
+                  <SelectItem value="FINAL">Endkontrolle</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -379,8 +347,8 @@ export default function QualityChecklistDetail() {
         <Button variant="outline" onClick={() => navigate("/quality/checklists")}>
           Abbrechen
         </Button>
-        <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" />
+        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Änderungen speichern
         </Button>
       </div>
