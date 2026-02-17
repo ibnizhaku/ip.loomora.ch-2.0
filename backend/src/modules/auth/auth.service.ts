@@ -8,6 +8,8 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TokenService } from './services/token.service';
 import { MembershipService } from './services/membership.service';
+import { AccountingSeedService } from '../finance/accounting-seed.service';
+import { AccountingSeedService } from '../finance/accounting-seed.service';
 import { 
   LoginDto, 
   RegisterDto, 
@@ -33,6 +35,7 @@ export class AuthService {
     private prisma: PrismaService,
     private tokenService: TokenService,
     private membershipService: MembershipService,
+    private accountingSeedService: AccountingSeedService,
   ) {}
 
   /**
@@ -375,6 +378,11 @@ export class AuthService {
       });
 
       return { user, company };
+    });
+
+    // Buchhaltungs-Setup asynchron starten (nicht blockierend)
+    this.accountingSeedService.seedCompany(result.company.id).catch(err => {
+      console.error('AccountingSeed failed for new company', result.company.id, err);
     });
 
     return {
