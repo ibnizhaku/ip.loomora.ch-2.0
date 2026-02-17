@@ -34,6 +34,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -571,6 +572,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                   <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Kunde auswählen</DialogTitle>
+                      <DialogDescription>Suchen und wählen Sie einen Kunden aus der Liste.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="relative">
@@ -635,6 +637,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                   <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Produkt auswählen</DialogTitle>
+                      <DialogDescription>Suchen und wählen Sie ein Produkt aus dem Katalog.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="relative">
