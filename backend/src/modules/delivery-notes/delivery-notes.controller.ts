@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DeliveryNotesService } from './delivery-notes.service';
+import { PdfService } from '../../common/services/pdf.service';
 import { CreateDeliveryNoteDto, UpdateDeliveryNoteDto } from './dto/delivery-note.dto';
 
 @ApiTags('Delivery Notes')
@@ -10,7 +12,10 @@ import { CreateDeliveryNoteDto, UpdateDeliveryNoteDto } from './dto/delivery-not
 @UseGuards(JwtAuthGuard)
 @Controller('delivery-notes')
 export class DeliveryNotesController {
-  constructor(private readonly deliveryNotesService: DeliveryNotesService) {}
+  constructor(
+    private readonly deliveryNotesService: DeliveryNotesService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List all delivery notes' })
@@ -35,6 +40,23 @@ export class DeliveryNotesController {
   @ApiOperation({ summary: 'Get delivery note statistics' })
   getStats(@CurrentUser() user: any) {
     return this.deliveryNotesService.getStats(user.companyId);
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Generate delivery note PDF' })
+  async generatePdf(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Res() res: Response,
+  ) {
+    const deliveryNote = await this.deliveryNotesService.findOne(id, user.companyId);
+    const pdfBuffer = await this.pdfService.generateDeliveryNotePdf(deliveryNote);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="Lieferschein-${deliveryNote.number}.pdf"`,
+    });
+    res.send(pdfBuffer);
   }
 
   @Get(':id')

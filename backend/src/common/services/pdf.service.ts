@@ -34,15 +34,18 @@ export class PdfService {
       }
       doc.moveDown(2);
 
-      // Items table
+      // Items table – hidePrices: nur Pos, Beschreibung, Menge, Einheit (für Lieferscheine)
+      const hidePrices = invoice.hidePrices === true;
       const tableTop = doc.y;
       doc.fontSize(9).font('Helvetica-Bold');
       doc.text('Pos', 50, tableTop);
-      doc.text('Beschreibung', 80, tableTop);
-      doc.text('Menge', 300, tableTop);
-      doc.text('Einheit', 350, tableTop);
-      doc.text('Preis', 400, tableTop, { width: 80, align: 'right' });
-      doc.text('Total', 480, tableTop, { width: 80, align: 'right' });
+      doc.text('Beschreibung', 80, tableTop, { width: hidePrices ? 360 : 210 });
+      doc.text('Menge', hidePrices ? 460 : 300, tableTop);
+      doc.text('Einheit', hidePrices ? 510 : 350, tableTop);
+      if (!hidePrices) {
+        doc.text('Preis', 400, tableTop, { width: 80, align: 'right' });
+        doc.text('Total', 480, tableTop, { width: 80, align: 'right' });
+      }
 
       doc.moveTo(50, tableTop + 15).lineTo(560, tableTop + 15).stroke();
 
@@ -51,28 +54,32 @@ export class PdfService {
 
       (invoice.items || []).forEach((item: any, index: number) => {
         doc.text(String(index + 1), 50, y);
-        doc.text(item.description || '', 80, y, { width: 210 });
-        doc.text(String(item.quantity || 0), 300, y);
-        doc.text(item.unit || 'Stk', 350, y);
-        doc.text(`${Number(item.unitPrice || 0).toFixed(2)}`, 400, y, { width: 80, align: 'right' });
-        doc.text(`${Number(item.total || 0).toFixed(2)}`, 480, y, { width: 80, align: 'right' });
+        doc.text(item.description || '', 80, y, { width: hidePrices ? 360 : 210 });
+        doc.text(String(item.quantity || 0), hidePrices ? 460 : 300, y);
+        doc.text(item.unit || 'Stk', hidePrices ? 510 : 350, y);
+        if (!hidePrices) {
+          doc.text(`${Number(item.unitPrice || 0).toFixed(2)}`, 400, y, { width: 80, align: 'right' });
+          doc.text(`${Number(item.total || 0).toFixed(2)}`, 480, y, { width: 80, align: 'right' });
+        }
         y += 20;
       });
 
       doc.moveDown(2);
 
-      // Totals
-      const totalsX = 400;
-      let totalsY = y + 20;
-      doc.text('Zwischensumme:', totalsX, totalsY);
-      doc.text(`CHF ${Number(invoice.subtotal || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
-      totalsY += 15;
-      doc.text('MwSt 8.1%:', totalsX, totalsY);
-      doc.text(`CHF ${Number(invoice.vatAmount || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
-      totalsY += 15;
-      doc.font('Helvetica-Bold');
-      doc.text('Gesamtbetrag:', totalsX, totalsY);
-      doc.text(`CHF ${Number(invoice.totalAmount || invoice.total || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+      // Totals – nur anzeigen wenn Preise sichtbar
+      if (!hidePrices) {
+        const totalsX = 400;
+        let totalsY = y + 20;
+        doc.text('Zwischensumme:', totalsX, totalsY);
+        doc.text(`CHF ${Number(invoice.subtotal || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+        totalsY += 15;
+        doc.text('MwSt 8.1%:', totalsX, totalsY);
+        doc.text(`CHF ${Number(invoice.vatAmount || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+        totalsY += 15;
+        doc.font('Helvetica-Bold');
+        doc.text('Gesamtbetrag:', totalsX, totalsY);
+        doc.text(`CHF ${Number(invoice.totalAmount || invoice.total || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+      }
 
       // QR-Bill (simplified - full ISO 20022 implementation would be longer)
       if (invoice.qrReference) {
@@ -104,7 +111,7 @@ export class PdfService {
 
   async generateDeliveryNotePdf(deliveryNote: any): Promise<Buffer> {
     // Similar but without prices, title "LIEFERSCHEIN"
-    return this.generateInvoicePdf({ ...deliveryNote, title: 'LIEFERSCHEIN', hideProces: true });
+    return this.generateInvoicePdf({ ...deliveryNote, title: 'LIEFERSCHEIN', hidePrices: true });
   }
 
   async generateReminderPdf(reminder: any): Promise<Buffer> {
