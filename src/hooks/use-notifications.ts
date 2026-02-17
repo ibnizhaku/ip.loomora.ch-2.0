@@ -43,6 +43,8 @@ export function useUnreadNotificationCount() {
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => api.get<UnreadCount>('/notifications/unread-count'),
     refetchInterval: 30000, // Poll every 30s
+    retry: false,           // Kein Retry bei 401 (Token-Refresh handled by api.ts)
+    throwOnError: false,    // 401 nicht als unkontrollierten Fehler behandeln
   });
 }
 

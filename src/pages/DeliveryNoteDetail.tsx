@@ -121,12 +121,12 @@ const DeliveryNoteDetail = () => {
   const status = statusConfig[deliveryNoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
 
-  // Prepare PDF data for delivery note
+  // Prepare PDF data for delivery note – rohe ISO-Daten verwenden (nicht vorformatiert)
   const pdfData: SalesDocumentData = {
     type: 'delivery-note',
-    number: deliveryNoteData.id,
-    date: deliveryNoteData.createdAt,
-    deliveryDate: deliveryNoteData.deliveredAt,
+    number: (rawDn as any).number || deliveryNoteData.id,
+    date: (rawDn as any).deliveryDate || (rawDn as any).createdAt || new Date().toISOString(),
+    deliveryDate: (rawDn as any).shippedDate || (rawDn as any).deliveryDate,
     orderNumber: deliveryNoteData.order,
     company: {
       name: "Loomora Metallbau AG",
