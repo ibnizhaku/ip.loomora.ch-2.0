@@ -354,9 +354,9 @@ export default function Customers() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{customer.name}</p>
+                            <p className="font-medium">{customer.companyName || customer.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {customer.companyName || customer.number}
+                              {customer.companyName ? customer.name : customer.number}
                             </p>
                           </div>
                         </div>
