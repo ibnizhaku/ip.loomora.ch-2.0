@@ -21,6 +21,30 @@ export class JournalEntriesService {
     EXPENSE: '4000',        // Aufwand
   };
 
+  /** Maps raw Prisma entry to frontend-expected field names */
+  private mapEntry(entry: any) {
+    const totalDebit = entry.lines?.reduce((s: number, l: any) => s + Number(l.debit || 0), 0) ?? Number(entry.totalAmount || 0);
+    const totalCredit = entry.lines?.reduce((s: number, l: any) => s + Number(l.credit || 0), 0) ?? Number(entry.totalAmount || 0);
+    return {
+      ...entry,
+      // Field aliases for frontend compatibility
+      entryDate: entry.date,
+      postingDate: entry.postedAt ?? null,
+      totalDebit,
+      totalCredit,
+      sourceType: entry.documentType ?? null,
+      sourceId: entry.documentId ?? null,
+      // Map lines for frontend
+      lines: entry.lines?.map((l: any) => ({
+        ...l,
+        accountCode: l.account?.number ?? null,
+        accountName: l.account?.name ?? null,
+        debit: Number(l.debit || 0),
+        credit: Number(l.credit || 0),
+      })) ?? [],
+    };
+  }
+
   async findAll(companyId: string, params: {
     page?: number;
     pageSize?: number;
@@ -74,7 +98,7 @@ export class JournalEntriesService {
     ]);
 
     return {
-      data,
+      data: data.map((e: any) => this.mapEntry(e)),
       total,
       page,
       pageSize,
@@ -102,7 +126,7 @@ export class JournalEntriesService {
       throw new NotFoundException('Buchung nicht gefunden');
     }
 
-    return entry;
+    return this.mapEntry(entry);
   }
 
   async create(companyId: string, dto: CreateJournalEntryDto) {

@@ -42,12 +42,37 @@ export class BudgetsService {
     ]);
 
     return {
-      data,
+      data: data.map((b: any) => this.mapBudget(b)),
       total,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  /** Berechnet startDate, endDate und totalBudget für Frontend-Kompatibilität */
+  private mapBudget(b: any) {
+    let startDate: string;
+    let endDate: string;
+    if (b.period === 'YEARLY') {
+      startDate = `${b.year}-01-01`;
+      endDate   = `${b.year}-12-31`;
+    } else if (b.period === 'QUARTERLY' && b.quarter) {
+      const startMonth = (b.quarter - 1) * 3 + 1;
+      const endMonth   = startMonth + 2;
+      startDate = `${b.year}-${String(startMonth).padStart(2, '0')}-01`;
+      const lastDay = new Date(b.year, endMonth, 0).getDate();
+      endDate   = `${b.year}-${String(endMonth).padStart(2, '0')}-${lastDay}`;
+    } else if (b.period === 'MONTHLY' && b.month) {
+      startDate = `${b.year}-${String(b.month).padStart(2, '0')}-01`;
+      const lastDay = new Date(b.year, b.month, 0).getDate();
+      endDate   = `${b.year}-${String(b.month).padStart(2, '0')}-${lastDay}`;
+    } else {
+      startDate = `${b.year}-01-01`;
+      endDate   = `${b.year}-12-31`;
+    }
+    const totalBudget = Number(b.totalAmount || 0);
+    return { ...b, startDate, endDate, totalBudget };
   }
 
   async findOne(id: string, companyId: string) {
