@@ -271,33 +271,32 @@ export default function Customers() {
                   </div>
 
                   {/* Actions */}
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={(e) => e.stopPropagation()}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}`)}>
-                          Details
+                        <DropdownMenuItem onSelect={() => navigate(`/customers/${customer.id}`)}>
+                          Anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate(`/customers/${customer.id}/edit`)}>
+                          Bearbeiten
                         </DropdownMenuItem>
                         {customer.email && (
-                          <DropdownMenuItem onClick={() => window.location.href = `mailto:${customer.email}`}>
+                          <DropdownMenuItem onSelect={() => window.location.href = `mailto:${customer.email}`}>
                             E-Mail senden
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem 
                           className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(customer.id, customer.name);
-                          }}
+                          onSelect={() => handleDelete(customer.id, customer.name)}
                         >
                           Löschen
                         </DropdownMenuItem>
@@ -395,38 +394,34 @@ export default function Customers() {
                         CHF {(customer.totalRevenue || 0).toLocaleString("de-CH")}
                       </TableCell>
                       <TableCell className="text-right">{customer.projectCount || 0}</TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={(e) => e.stopPropagation()}
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}/edit`)}>
+                            <DropdownMenuItem onSelect={() => navigate(`/customers/${customer.id}/edit`)}>
                               Bearbeiten
                             </DropdownMenuItem>
                             {customer.email && (
-                              <DropdownMenuItem onClick={() => window.location.href = `mailto:${customer.email}`}>
+                              <DropdownMenuItem onSelect={() => window.location.href = `mailto:${customer.email}`}>
                                 E-Mail senden
                               </DropdownMenuItem>
                             )}
                             {customer.phone && (
-                              <DropdownMenuItem onClick={() => window.location.href = `tel:${customer.phone}`}>
+                              <DropdownMenuItem onSelect={() => window.location.href = `tel:${customer.phone}`}>
                                 Anrufen
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(customer.id, customer.name);
-                              }}
+                              onSelect={() => handleDelete(customer.id, customer.name)}
                             >
                               Löschen
                             </DropdownMenuItem>
