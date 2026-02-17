@@ -473,8 +473,8 @@ export class QuotesService {
       where: { id, companyId },
     });
     if (!quote) throw new NotFoundException('Quote not found');
-    if (quote.status !== DocumentStatus.DRAFT) {
-      throw new BadRequestException('Only draft quotes can be sent');
+    if (quote.status === DocumentStatus.CANCELLED) {
+      throw new BadRequestException('Cancelled quotes cannot be sent');
     }
     return this.prisma.quote.update({
       where: { id },
