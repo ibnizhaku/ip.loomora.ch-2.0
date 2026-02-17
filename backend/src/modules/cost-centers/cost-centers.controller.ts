@@ -58,7 +58,13 @@ export class CostCentersController {
 
   @Post()
   @ApiOperation({ summary: 'Create new cost center' })
-  create(@Body() dto: CreateCostCenterDto, @CurrentUser() user: any) {
+  create(@Body() body: any, @CurrentUser() user: any) {
+    // Frontend sendet 'code' und 'budget' – auf DTO-Felder mappen
+    const dto: CreateCostCenterDto = {
+      ...body,
+      number: body.number ?? body.code,
+      budgetAmount: body.budgetAmount ?? body.budget,
+    };
     return this.costCentersService.create(user.companyId, dto);
   }
 
@@ -66,9 +72,15 @@ export class CostCentersController {
   @ApiOperation({ summary: 'Update cost center' })
   update(
     @Param('id') id: string,
-    @Body() dto: UpdateCostCenterDto,
+    @Body() body: any,
     @CurrentUser() user: any,
   ) {
+    // Frontend sendet 'code' und 'budget' – auf DTO-Felder mappen
+    const dto: UpdateCostCenterDto = {
+      ...body,
+      ...(body.code !== undefined && { number: body.code }),
+      ...(body.budget !== undefined && { budgetAmount: body.budget }),
+    };
     return this.costCentersService.update(id, user.companyId, dto);
   }
 
