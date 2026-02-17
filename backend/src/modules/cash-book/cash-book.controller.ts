@@ -25,7 +25,52 @@ export class CashBookController {
     return this.cashBookService.createRegister(user.companyId, dto);
   }
 
-  // Cash Transactions
+  // Root endpoint: GET /cash-book → maps to transactions with frontend field names
+  @Get()
+  @ApiOperation({ summary: 'List cash transactions (Frontend alias for /transactions)' })
+  async findAllMapped(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('registerId') registerId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('type') type?: string,
+    @Query('search') search?: string,
+  ) {
+    const result = await this.cashBookService.findAll(user.companyId, {
+      page: page ? parseInt(page) : undefined,
+      pageSize: pageSize ? parseInt(pageSize) : undefined,
+      registerId,
+      startDate,
+      endDate,
+      type,
+      search,
+    });
+
+    const VAT_LABELS: Record<string, number> = {
+      STANDARD: 8.1,
+      REDUCED: 2.6,
+      SPECIAL: 3.8,
+      EXEMPT: 0,
+    };
+
+    return {
+      ...result,
+      data: result.data.map((t: any) => ({
+        ...t,
+        documentNumber: t.number,
+        runningBalance: Number(t.balanceAfter) || 0,
+        taxRate: VAT_LABELS[t.vatRate] ?? (parseFloat(t.vatRate) || 0),
+        costCenter: t.costCenter?.name || null,
+        type: t.type === 'RECEIPT' ? 'income' : 'expense',
+        date: t.date ? new Date(t.date).toLocaleDateString('de-CH') : '',
+        amount: Number(t.amount),
+      })),
+    };
+  }
+
+    // Cash Transactions
   @Get('transactions')
   @ApiOperation({ summary: 'List all cash transactions' })
   findAll(

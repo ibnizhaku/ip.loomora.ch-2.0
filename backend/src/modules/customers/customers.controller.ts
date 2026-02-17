@@ -13,7 +13,13 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
-  @Get('stats')
+  @Get('debtors')
+  @ApiOperation({ summary: 'Get customers with open receivables (Debtors list)' })
+  findDebtors(@CurrentUser() user: CurrentUserPayload) {
+    return this.customersService.findDebtors(user.companyId);
+  }
+
+    @Get('stats')
   @ApiOperation({ summary: 'Get customer statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.customersService.getStats(user.companyId);

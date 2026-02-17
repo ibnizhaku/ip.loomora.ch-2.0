@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,11 +167,34 @@ export default function Creditors() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const totalPayables = creditors.reduce((sum, c) => sum + c.openAmount, 0);
-  const totalOverdue = creditors.reduce((sum, c) => sum + c.overdueAmount, 0);
-  const overdueCount = creditors.filter((c) => c.status === "overdue").length;
+  const { data: apiData } = useQuery({
+    queryKey: ["/suppliers/creditors"],
+    queryFn: () => api.get<any>("/suppliers/creditors"),
+  });
 
-  const filteredCreditors = creditors.filter(
+  // Use API data if available, otherwise fall back to mock data
+  const creditorsList: Creditor[] = apiData?.data && apiData.data.length > 0
+    ? apiData.data.map((c: any) => ({
+        id: c.id,
+        number: c.number || `KRE-${c.id.slice(-5)}`,
+        name: c.name,
+        company: c.company || c.name,
+        totalPayables: Number(c.totalPayables || 0),
+        openAmount: Number(c.openAmount || 0),
+        overdueAmount: Number(c.overdueAmount || 0),
+        lastPayment: c.lastPayment || "–",
+        paymentTerms: c.paymentTerms || 30,
+        status: (c.status || "current") as Creditor["status"],
+        invoiceCount: c.invoiceCount || 0,
+        bankAccount: c.bankAccount || "–",
+      }))
+    : creditors;
+
+  const totalPayables = creditorsList.reduce((sum, c) => sum + c.openAmount, 0);
+  const totalOverdue = creditorsList.reduce((sum, c) => sum + c.overdueAmount, 0);
+  const overdueCount = creditorsList.filter((c) => c.status === "overdue").length;
+
+  const filteredCreditors = creditorsList.filter(
     (creditor) =>
       creditor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       creditor.company.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -330,4 +330,60 @@ export class CustomersService {
 
     return this.prisma.contact.delete({ where: { id: contactId } });
   }
+  async findDebtors(companyId: string) {
+    const customers = await this.prisma.customer.findMany({
+      where: { companyId, isActive: true },
+      include: {
+        invoices: {
+          where: { status: { not: 'DRAFT' } },
+          select: {
+            id: true,
+            totalAmount: true,
+            paidAmount: true,
+            dueDate: true,
+            status: true,
+            paidAt: true,
+          },
+        },
+      },
+      orderBy: { companyName: 'asc' },
+    });
+
+    const now = new Date();
+
+    return customers
+      .map((c: any) => {
+        const invoices = c.invoices || [];
+        const totalReceivables = invoices.reduce((sum: number, inv: any) => sum + Number(inv.totalAmount), 0);
+        const openAmount = invoices
+          .filter((inv: any) => inv.status !== 'PAID' && inv.status !== 'CANCELLED')
+          .reduce((sum: number, inv: any) => sum + (Number(inv.totalAmount) - Number(inv.paidAmount || 0)), 0);
+        const overdueAmount = invoices
+          .filter((inv: any) => inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.dueDate && new Date(inv.dueDate) < now)
+          .reduce((sum: number, inv: any) => sum + (Number(inv.totalAmount) - Number(inv.paidAmount || 0)), 0);
+        const lastPaid = invoices
+          .filter((inv: any) => inv.paidAt)
+          .sort((a: any, b: any) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())[0];
+
+        let status: 'good' | 'warning' | 'critical' = 'good';
+        if (overdueAmount > 0) status = overdueAmount > totalReceivables * 0.5 ? 'critical' : 'warning';
+
+        return {
+          id: c.id,
+          number: c.number,
+          name: c.name,
+          company: c.companyName || c.name,
+          totalReceivables,
+          openAmount,
+          overdueAmount,
+          lastPayment: lastPaid ? new Date(lastPaid.paidAt).toISOString().split('T')[0] : null,
+          paymentTerms: c.paymentTermDays || 30,
+          creditLimit: Number(c.creditLimit || 0),
+          status,
+          invoiceCount: invoices.length,
+        };
+      })
+      .filter((d: any) => d.totalReceivables > 0 || d.openAmount > 0);
+  }
+
 }

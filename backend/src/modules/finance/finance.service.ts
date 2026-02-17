@@ -130,13 +130,25 @@ export class FinanceService {
   // =====================
 
   async findAllBankAccounts(companyId: string) {
-    return this.prisma.bankAccount.findMany({
+    const accounts = await this.prisma.bankAccount.findMany({
       where: { companyId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
       include: {
         _count: { select: { transactions: true } },
       },
     });
+    return accounts.map((a: any) => this.mapBankAccount(a));
+  }
+
+  private mapBankAccount(a: any) {
+    return {
+      ...a,
+      bank: a.bankName || a.name,
+      balance: Number(a.balance),
+      type: 'checking' as const,
+      lastSync: a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('de-CH') : null,
+      status: 'active' as const,
+    };
   }
 
   async findOneBankAccount(id: string, companyId: string) {
@@ -154,7 +166,7 @@ export class FinanceService {
       throw new NotFoundException('Bank account not found');
     }
 
-    return bankAccount;
+    return this.mapBankAccount(bankAccount);
   }
 
   async createBankAccount(companyId: string, dto: CreateBankAccountDto) {
@@ -281,7 +293,53 @@ export class FinanceService {
     };
   }
 
-  // Monthly summary for Finance dashboard chart
+  // Recent transactions for Finance Dashboard (/finance root endpoint)
+  async getRecentTransactions(companyId: string) {
+    const invoices = await this.prisma.invoice.findMany({
+      where: { companyId },
+      orderBy: { date: 'desc' },
+      take: 20,
+      include: {
+        customer: { select: { name: true, companyName: true } },
+      },
+    });
+
+    const purchaseInvoices = await this.prisma.purchaseInvoice.findMany({
+      where: { companyId },
+      orderBy: { date: 'desc' },
+      take: 10,
+      include: {
+        supplier: { select: { name: true, companyName: true } },
+      },
+    });
+
+    const incomeItems = invoices.map((inv: any) => ({
+      id: inv.id,
+      description: `Rechnung ${inv.number}` + (inv.customer ? ` – ${inv.customer.companyName || inv.customer.name}` : ''),
+      category: 'Rechnung',
+      amount: Number(inv.totalAmount),
+      type: 'income' as const,
+      date: inv.date ? new Date(inv.date).toLocaleDateString('de-CH') : '',
+      status: inv.status === 'PAID' ? 'completed' : 'pending',
+    }));
+
+    const expenseItems = purchaseInvoices.map((pi: any) => ({
+      id: pi.id,
+      description: `Eingangsrechnung ${pi.number}` + (pi.supplier ? ` – ${pi.supplier.companyName || pi.supplier.name}` : ''),
+      category: 'Eingangsrechnung',
+      amount: Number(pi.totalAmount),
+      type: 'expense' as const,
+      date: pi.date ? new Date(pi.date).toLocaleDateString('de-CH') : '',
+      status: pi.status === 'PAID' ? 'completed' : 'pending',
+    }));
+
+    // Merge and sort by date descending, take 20
+    const all = [...incomeItems, ...expenseItems].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
+
+    return { data: all };
+  }
+
+    // Monthly summary for Finance dashboard chart
   async getMonthlySummary(companyId: string) {
     const months: string[] = [];
     const now = new Date();

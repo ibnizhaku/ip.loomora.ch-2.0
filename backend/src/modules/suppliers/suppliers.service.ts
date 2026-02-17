@@ -209,4 +209,63 @@ export class SuppliersService {
       where: { id },
     });
   }
+  async findCreditors(companyId: string) {
+    const suppliers = await this.prisma.supplier.findMany({
+      where: { companyId, isActive: true },
+      include: {
+        purchaseInvoices: {
+          where: { status: { not: 'DRAFT' } },
+          select: {
+            id: true,
+            totalAmount: true,
+            paidAmount: true,
+            dueDate: true,
+            status: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: { companyName: 'asc' },
+    });
+
+    const now = new Date();
+
+    return suppliers
+      .map((s: any) => {
+        const invoices = s.purchaseInvoices || [];
+        const totalPayables = invoices.reduce((sum: number, inv: any) => sum + Number(inv.totalAmount), 0);
+        const openAmount = invoices
+          .filter((inv: any) => inv.status !== 'PAID' && inv.status !== 'CANCELLED')
+          .reduce((sum: number, inv: any) => sum + (Number(inv.totalAmount) - Number(inv.paidAmount || 0)), 0);
+        const overdueAmount = invoices
+          .filter((inv: any) => inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.dueDate && new Date(inv.dueDate) < now)
+          .reduce((sum: number, inv: any) => sum + (Number(inv.totalAmount) - Number(inv.paidAmount || 0)), 0);
+        const lastPaid = invoices
+          .filter((inv: any) => inv.status === 'PAID')
+          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+
+        let status: 'current' | 'due_soon' | 'overdue' = 'current';
+        if (overdueAmount > 0) status = 'overdue';
+        else if (invoices.some((inv: any) => inv.dueDate && (new Date(inv.dueDate).getTime() - now.getTime()) < 7 * 24 * 60 * 60 * 1000 && inv.status !== 'PAID')) {
+          status = 'due_soon';
+        }
+
+        return {
+          id: s.id,
+          number: s.number,
+          name: s.name,
+          company: s.companyName || s.name,
+          totalPayables,
+          openAmount,
+          overdueAmount,
+          lastPayment: lastPaid ? new Date(lastPaid.updatedAt).toISOString().split('T')[0] : null,
+          paymentTerms: s.paymentTermDays || 30,
+          status,
+          invoiceCount: invoices.length,
+          bankAccount: s.iban || null,
+        };
+      })
+      .filter((c: any) => c.totalPayables > 0 || c.openAmount > 0);
+  }
+
 }

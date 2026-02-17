@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,11 +160,34 @@ export default function Debtors() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const totalReceivables = debtors.reduce((sum, d) => sum + d.openAmount, 0);
-  const totalOverdue = debtors.reduce((sum, d) => sum + d.overdueAmount, 0);
-  const criticalCount = debtors.filter((d) => d.status === "critical").length;
+  const { data: apiData } = useQuery({
+    queryKey: ["/customers/debtors"],
+    queryFn: () => api.get<any>("/customers/debtors"),
+  });
 
-  const filteredDebtors = debtors.filter(
+  // Use API data if available, otherwise fall back to mock data
+  const debtorsList: Debtor[] = apiData?.data && apiData.data.length > 0
+    ? apiData.data.map((d: any) => ({
+        id: d.id,
+        number: d.number || `DEB-${d.id.slice(-5)}`,
+        name: d.name,
+        company: d.company || d.name,
+        totalReceivables: Number(d.totalReceivables || 0),
+        openAmount: Number(d.openAmount || 0),
+        overdueAmount: Number(d.overdueAmount || 0),
+        lastPayment: d.lastPayment || "–",
+        paymentTerms: d.paymentTerms || 30,
+        creditLimit: Number(d.creditLimit || 0),
+        status: (d.status || "good") as Debtor["status"],
+        invoiceCount: d.invoiceCount || 0,
+      }))
+    : debtors;
+
+  const totalReceivables = debtorsList.reduce((sum, d) => sum + d.openAmount, 0);
+  const totalOverdue = debtorsList.reduce((sum, d) => sum + d.overdueAmount, 0);
+  const criticalCount = debtorsList.filter((d) => d.status === "critical").length;
+
+  const filteredDebtors = debtorsList.filter(
     (debtor) =>
       debtor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       debtor.company.toLowerCase().includes(searchTerm.toLowerCase()) ||

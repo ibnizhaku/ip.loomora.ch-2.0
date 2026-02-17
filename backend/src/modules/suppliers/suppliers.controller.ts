@@ -24,7 +24,13 @@ export class SuppliersController {
     return this.suppliersService.findAll(user.companyId, query);
   }
 
-  @Get('stats')
+  @Get('creditors')
+  @ApiOperation({ summary: 'Get suppliers with open payables (Creditors list)' })
+  findCreditors(@CurrentUser() user: CurrentUserPayload) {
+    return this.suppliersService.findCreditors(user.companyId);
+  }
+
+    @Get('stats')
   @ApiOperation({ summary: 'Get supplier statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.suppliersService.getStats(user.companyId);

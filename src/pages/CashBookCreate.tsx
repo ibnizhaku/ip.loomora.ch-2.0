@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +56,16 @@ const expenseCategories = [
 
 export default function CashBookCreate() {
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch available cash registers
+  const { data: registersData } = useQuery({
+    queryKey: ["/cash-book/registers"],
+    queryFn: () => api.get<any>("/cash-book/registers"),
+  });
+  const registers = registersData?.data || registersData || [];
+  const defaultRegister = registers[0];
+
   const [formData, setFormData] = useState({
     type: "" as "income" | "expense" | "",
     date: new Date().toISOString().split("T")[0],
@@ -65,7 +77,7 @@ export default function CashBookCreate() {
     notes: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.type || !formData.amount || !formData.description) {
@@ -73,11 +85,43 @@ export default function CashBookCreate() {
       return;
     }
 
-    const year = new Date().getFullYear();
-    const docNumber = `KB-${year}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`;
+    if (!defaultRegister) {
+      toast.error("Keine Kasse gefunden. Bitte zuerst eine Kasse anlegen.");
+      return;
+    }
 
-    toast.success(`Kassenbuchung ${docNumber} erfasst`);
-    navigate("/cash-book");
+    setIsSubmitting(true);
+    try {
+      const vatRateMap: Record<string, string> = {
+        "0": "EXEMPT",
+        "2.6": "REDUCED",
+        "3.8": "SPECIAL",
+        "8.1": "STANDARD",
+      };
+
+      const payload = {
+        date: formData.date,
+        type: formData.type === "income" ? "RECEIPT" : "PAYMENT",
+        amount: parseFloat(formData.amount),
+        description: formData.description,
+        category: formData.category || undefined,
+        vatRate: vatRateMap[formData.taxRate] || "STANDARD",
+        reference: formData.notes || undefined,
+      };
+
+      const result = await api.post<any>(
+        `/cash-book/registers/${defaultRegister.id}/transactions`,
+        payload
+      );
+
+      const docNumber = result?.number || `KB-${new Date().getFullYear()}-XXX`;
+      toast.success(`Kassenbuchung ${docNumber} erfasst`);
+      navigate("/cash-book");
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Speichern der Kassenbuchung");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const categories = formData.type === "income" ? incomeCategories : expenseCategories;
@@ -301,9 +345,9 @@ export default function CashBookCreate() {
           <Button type="button" variant="outline" onClick={() => navigate("/cash-book")}>
             Abbrechen
           </Button>
-          <Button type="submit" className="gap-2">
+          <Button type="submit" className="gap-2" disabled={isSubmitting}>
             <Save className="h-4 w-4" />
-            Buchung erfassen
+            {isSubmitting ? "Wird gespeichert..." : "Buchung erfassen"}
           </Button>
         </div>
       </form>

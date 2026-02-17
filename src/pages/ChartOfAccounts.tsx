@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -178,6 +180,41 @@ export default function ChartOfAccounts() {
   const [expandedIds, setExpandedIds] = useState<string[]>(["1", "4", "6"]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Fetch from API
+  const { data: apiData } = useQuery({
+    queryKey: ["/finance/accounts"],
+    queryFn: () => api.get<any>("/finance/accounts?pageSize=500"),
+  });
+
+  // Build tree from flat API data, fallback to hardcoded if empty
+  const accountsData: Account[] = useMemo(() => {
+    const flat = apiData?.data || [];
+    if (flat.length === 0) return accounts;
+
+    // Group into parent accounts (no parentId) and children
+    const parents = flat.filter((a: any) => !a.parentId);
+    const children = flat.filter((a: any) => a.parentId);
+    
+    return parents.map((p: any) => ({
+      id: p.id,
+      number: p.number,
+      name: p.name,
+      type: (p.type?.toLowerCase() || 'asset') as Account['type'],
+      category: p.type || 'asset',
+      balance: Number(p.balance || 0),
+      children: children
+        .filter((c: any) => c.parentId === p.id)
+        .map((c: any) => ({
+          id: c.id,
+          number: c.number,
+          name: c.name,
+          type: (c.type?.toLowerCase() || 'asset') as Account['type'],
+          category: c.type || 'asset',
+          balance: Number(c.balance || 0),
+        })),
+    }));
+  }, [apiData]);
+
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -295,7 +332,7 @@ export default function ChartOfAccounts() {
                 });
               };
               
-              const csvContent = "Kontonummer;Kontoname;Typ;Saldo CHF\n" + flattenAccounts(accounts).join("\n");
+              const csvContent = "Kontonummer;Kontoname;Typ;Saldo CHF\n" + flattenAccounts(accountsData).join("\n");
               const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -341,7 +378,7 @@ export default function ChartOfAccounts() {
               {label}
             </Badge>
             <p className="text-2xl font-bold">
-              CHF {accounts
+              CHF {accountsData
                 .filter((a) => a.type === type)
                 .reduce((acc, a) => acc + a.balance, 0)
                 .toLocaleString("de-CH")}
@@ -352,7 +389,7 @@ export default function ChartOfAccounts() {
 
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="space-y-1">
-          {accounts.map((account) => renderAccount(account))}
+          {(searchQuery ? accountsData.flatMap(a => [a, ...(a.children || [])]).filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.number.includes(searchQuery)) : accountsData).map((account) => renderAccount(account))}
         </div>
       </div>
     </div>
