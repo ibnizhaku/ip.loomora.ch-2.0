@@ -1,8 +1,8 @@
 import { Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AccountingSeedService } from './accounting-seed.service';
-import { CurrentUser, CurrentUserPayload } from '../../auth/decorators/current-user.decorator';
+import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Accounting Seed')
 @ApiBearerAuth()
