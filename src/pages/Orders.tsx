@@ -16,6 +16,10 @@ import {
   Eye,
   Pencil,
   FileText,
+  LayoutGrid,
+  List,
+  Building2,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,6 +133,7 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/orders/${id}`),
@@ -254,7 +259,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters + View Toggle */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -265,138 +270,115 @@ export default function Orders() {
             className="pl-10"
           />
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="icon" className={cn("relative", hasActiveFilters && "border-primary text-primary")}>
-              <Filter className="h-4 w-4" />
-              {hasActiveFilters && (
-                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 bg-popover" align="end">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Filter</h4>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className={cn("relative", hasActiveFilters && "border-primary text-primary")}>
+                <Filter className="h-4 w-4" />
                 {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={resetFilters}>
-                    Zurücksetzen
-                  </Button>
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Status</Label>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 bg-popover" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Filter</h4>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={resetFilters}>
+                      Zurücksetzen
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-2">
-                  {Object.entries(statusConfig).map(([key, value]) => (
-                    <div key={key} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`status-${key}`}
-                        checked={statusFilters.includes(key)}
-                        onCheckedChange={() => toggleStatusFilter(key)}
-                      />
-                      <label htmlFor={`status-${key}`} className="text-sm cursor-pointer">
-                        {value.label}
-                      </label>
-                    </div>
-                  ))}
+                  <Label className="text-sm font-medium">Status</Label>
+                  <div className="space-y-2">
+                    {Object.entries(statusConfig).map(([key, value]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${key}`}
+                          checked={statusFilters.includes(key)}
+                          onCheckedChange={() => toggleStatusFilter(key)}
+                        />
+                        <label htmlFor={`status-${key}`} className="text-sm cursor-pointer">
+                          {value.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Priorität</Label>
+                  <div className="space-y-2">
+                    {Object.entries(priorityConfig).map(([key, value]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`priority-${key}`}
+                          checked={priorityFilters.includes(key)}
+                          onCheckedChange={() => togglePriorityFilter(key)}
+                        />
+                        <label htmlFor={`priority-${key}`} className="text-sm cursor-pointer">
+                          {value.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Priorität</Label>
-                <div className="space-y-2">
-                  {Object.entries(priorityConfig).map(([key, value]) => (
-                    <div key={key} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`priority-${key}`}
-                        checked={priorityFilters.includes(key)}
-                        onCheckedChange={() => togglePriorityFilter(key)}
-                      />
-                      <label htmlFor={`priority-${key}`} className="text-sm cursor-pointer">
-                        {value.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+          <div className="flex items-center rounded-lg border border-border bg-card p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "table" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "cards" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Auftrag</TableHead>
-              <TableHead>Kunde</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Fortschritt</TableHead>
-              <TableHead>Priorität</TableHead>
-              <TableHead className="text-right">Betrag</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredOrders.map((order, index) => {
+      {/* Card View */}
+      {viewMode === "cards" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredOrders.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+              Keine Aufträge gefunden
+            </div>
+          ) : (
+            filteredOrders.map((order, index) => {
               const sCfg = statusConfig[order.status] || defaultStatusCfg;
               const StatusIcon = sCfg.icon;
               return (
-                <TableRow
+                <div
                   key={order.id}
-                  className="cursor-pointer animate-fade-in hover:bg-muted/50"
+                  className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => navigate(`/orders/${order.id}`)}
                 >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                        <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <span className="font-medium">{order.number}</span>
-                        <p className="text-xs text-muted-foreground">
-                          {order.items} Artikel • {order.orderDate}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{order.client}</TableCell>
-                  <TableCell>
-                    <Badge className={cn("gap-1", sCfg.color)}>
-                      <StatusIcon className="h-3 w-3" />
-                      {sCfg.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="w-24 space-y-1">
-                      <Progress value={order.progress} className="h-1.5" />
-                      <span className="text-xs text-muted-foreground">
-                        {order.progress}%
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={(priorityConfig[order.priority] || priorityConfig.medium).color}>
-                      {(priorityConfig[order.priority] || priorityConfig.medium).label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    CHF {order.amount.toLocaleString("de-CH")}
-                  </TableCell>
-                  <TableCell>
+                  <div className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}>
+                        <DropdownMenuItem onClick={() => navigate(`/orders/${order.id}`)}>
                           <Eye className="h-4 w-4 mr-2" />
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/edit`); }}>
+                        <DropdownMenuItem onClick={() => navigate(`/orders/${order.id}/edit`)}>
                           <Pencil className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
@@ -412,8 +394,7 @@ export default function Orders() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             if (confirm("Auftrag wirklich löschen?")) {
                               deleteMutation.mutate(order.id);
                             }
@@ -423,13 +404,164 @@ export default function Orders() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                      <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{order.number}</p>
+                      <p className="text-sm text-muted-foreground">{order.items} Artikel</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span>{order.client}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>Bestellt: {order.orderDate}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Fortschritt</span>
+                        <span>{order.progress}%</span>
+                      </div>
+                      <Progress value={order.progress} className="h-1.5" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn("gap-1", sCfg.color)}>
+                        <StatusIcon className="h-3 w-3" />
+                        {sCfg.label}
+                      </Badge>
+                      <Badge className={(priorityConfig[order.priority] || priorityConfig.medium).color}>
+                        {(priorityConfig[order.priority] || priorityConfig.medium).label}
+                      </Badge>
+                    </div>
+                    <span className="font-semibold">CHF {order.amount.toLocaleString("de-CH")}</span>
+                  </div>
+                </div>
               );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+            })
+          )}
+        </div>
+      )}
+
+      {/* Table View */}
+      {viewMode === "table" && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Auftrag</TableHead>
+                <TableHead>Kunde</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Fortschritt</TableHead>
+                <TableHead>Priorität</TableHead>
+                <TableHead className="text-right">Betrag</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.map((order, index) => {
+                const sCfg = statusConfig[order.status] || defaultStatusCfg;
+                const StatusIcon = sCfg.icon;
+                return (
+                  <TableRow
+                    key={order.id}
+                    className="cursor-pointer animate-fade-in hover:bg-muted/50"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => navigate(`/orders/${order.id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                          <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <span className="font-medium">{order.number}</span>
+                          <p className="text-xs text-muted-foreground">
+                            {order.items} Artikel • {order.orderDate}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{order.client}</TableCell>
+                    <TableCell>
+                      <Badge className={cn("gap-1", sCfg.color)}>
+                        <StatusIcon className="h-3 w-3" />
+                        {sCfg.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="w-24 space-y-1">
+                        <Progress value={order.progress} className="h-1.5" />
+                        <span className="text-xs text-muted-foreground">
+                          {order.progress}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={(priorityConfig[order.priority] || priorityConfig.medium).color}>
+                        {(priorityConfig[order.priority] || priorityConfig.medium).label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      CHF {order.amount.toLocaleString("de-CH")}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Anzeigen
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/edit`); }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Bearbeiten
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={(e) => handleCreateDeliveryNote(order, e)}>
+                            <Truck className="h-4 w-4 mr-2" />
+                            Lieferschein erstellen
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => handleCreateInvoice(order, e)}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Rechnung erstellen
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Auftrag wirklich löschen?")) {
+                                deleteMutation.mutate(order.id);
+                              }
+                            }}
+                          >
+                            Löschen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

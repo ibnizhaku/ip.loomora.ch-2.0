@@ -16,6 +16,9 @@ import {
   Download,
   Mail,
   XCircle,
+  LayoutGrid,
+  List,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +110,7 @@ const CreditNotes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const toggleStatusFilter = (status: string) => {
     setStatusFilters((prev) =>
@@ -189,7 +193,7 @@ const CreditNotes = () => {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters + View Toggle */}
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -200,157 +204,258 @@ const CreditNotes = () => {
             className="pl-10"
           />
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn(hasActiveFilters && "border-primary text-primary")}>
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-              {hasActiveFilters && (
-                <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 bg-popover" align="end">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Filter</h4>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn(hasActiveFilters && "border-primary text-primary")}>
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
                 {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={resetFilters}>
-                    Zurücksetzen
-                  </Button>
+                  <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Status</Label>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 bg-popover" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Filter</h4>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={resetFilters}>
+                      Zurücksetzen
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-2">
-                  {Object.keys(statusConfig).map((status) => (
-                    <div key={status} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`status-${status}`}
-                        checked={statusFilters.includes(status)}
-                        onCheckedChange={() => toggleStatusFilter(status)}
-                      />
-                      <label htmlFor={`status-${status}`} className="text-sm cursor-pointer">
-                        {status}
-                      </label>
-                    </div>
-                  ))}
+                  <Label className="text-sm font-medium">Status</Label>
+                  <div className="space-y-2">
+                    {Object.keys(statusConfig).map((status) => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${status}`}
+                          checked={statusFilters.includes(status)}
+                          onCheckedChange={() => toggleStatusFilter(status)}
+                        />
+                        <label htmlFor={`status-${status}`} className="text-sm cursor-pointer">
+                          {status}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Grund</Label>
+                  <div className="space-y-2">
+                    {reasonConfig.map((reason) => (
+                      <div key={reason} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`reason-${reason}`}
+                          checked={reasonFilters.includes(reason)}
+                          onCheckedChange={() => toggleReasonFilter(reason)}
+                        />
+                        <label htmlFor={`reason-${reason}`} className="text-sm cursor-pointer">
+                          {reason}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Grund</Label>
-                <div className="space-y-2">
-                  {reasonConfig.map((reason) => (
-                    <div key={reason} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`reason-${reason}`}
-                        checked={reasonFilters.includes(reason)}
-                        onCheckedChange={() => toggleReasonFilter(reason)}
-                      />
-                      <label htmlFor={`reason-${reason}`} className="text-sm cursor-pointer">
-                        {reason}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+          <div className="flex items-center rounded-lg border border-border bg-card p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "table" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "cards" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Gutschrift-Nr.</TableHead>
-                <TableHead>Rechnung</TableHead>
-                <TableHead>Kunde</TableHead>
-                <TableHead>Datum</TableHead>
-                <TableHead>Grund</TableHead>
-                <TableHead className="text-right">Betrag</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredNotes.map((note) => {
-                const status = statusConfig[note.status] || statusConfig["Entwurf"];
-                return (
-                  <TableRow 
-                    key={note.id} 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/credit-notes/${note.id}`)}
-                  >
-                    <TableCell>
-                      <span className="font-medium hover:text-primary">
-                        {note.number}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span 
-                        className="text-muted-foreground hover:text-primary cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${note.invoice}`); }}
-                      >
-                        {note.invoice}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        {note.customer}
-                      </div>
-                    </TableCell>
-                    <TableCell>{note.date}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{note.reason}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-destructive">
-                      -CHF {(Number(note.total) || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={status.color}>{note.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/credit-notes/${note.id}`); }}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Anzeigen
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => handleDownloadPdf(note, e)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            PDF herunterladen
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => handleSendEmail(note, e)}>
-                            <Mail className="h-4 w-4 mr-2" />
-                            Per E-Mail senden
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-destructive" 
-                            onClick={(e) => handleCancel(note, e)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Stornieren
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Card View */}
+      {viewMode === "cards" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredNotes.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+              Keine Gutschriften gefunden
+            </div>
+          ) : (
+            filteredNotes.map((note, index) => {
+              const status = statusConfig[note.status] || statusConfig["Entwurf"];
+              return (
+                <div
+                  key={note.id}
+                  className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/credit-notes/${note.id}`)}
+                >
+                  <div className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuItem onClick={() => navigate(`/credit-notes/${note.id}`)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleDownloadPdf(note, e)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          PDF herunterladen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleSendEmail(note, e)}>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Per E-Mail senden
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleCancel(note, e)}>
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Stornieren
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                      <ArrowDownLeft className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{note.number}</p>
+                      <p className="text-sm text-muted-foreground">Rechnung: {note.invoice}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span>{note.customer}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>{note.date}</span>
+                    </div>
+                    <Badge variant="outline">{note.reason}</Badge>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-border">
+                    <Badge className={status.color}>{note.status}</Badge>
+                    <span className="font-semibold text-destructive">-CHF {(Number(note.total) || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Table View */}
+      {viewMode === "table" && (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Gutschrift-Nr.</TableHead>
+                  <TableHead>Rechnung</TableHead>
+                  <TableHead>Kunde</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Grund</TableHead>
+                  <TableHead className="text-right">Betrag</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredNotes.map((note) => {
+                  const status = statusConfig[note.status] || statusConfig["Entwurf"];
+                  return (
+                    <TableRow 
+                      key={note.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/credit-notes/${note.id}`)}
+                    >
+                      <TableCell>
+                        <span className="font-medium hover:text-primary">
+                          {note.number}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span 
+                          className="text-muted-foreground hover:text-primary cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${note.invoice}`); }}
+                        >
+                          {note.invoice}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          {note.customer}
+                        </div>
+                      </TableCell>
+                      <TableCell>{note.date}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{note.reason}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-destructive">
+                        -CHF {(Number(note.total) || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={status.color}>{note.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/credit-notes/${note.id}`); }}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Anzeigen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleDownloadPdf(note, e)}>
+                              <Download className="h-4 w-4 mr-2" />
+                              PDF herunterladen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleSendEmail(note, e)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Per E-Mail senden
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive" 
+                              onClick={(e) => handleCancel(note, e)}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Stornieren
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
