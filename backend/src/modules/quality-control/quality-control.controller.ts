@@ -52,7 +52,17 @@ export class QualityControlController {
 
   @Post('checklists')
   @ApiOperation({ summary: 'Create new checklist' })
-  createChecklist(@Body() dto: CreateQualityChecklistDto, @CurrentUser() user: any) {
+  createChecklist(@Body() body: any, @CurrentUser() user: any) {
+    // Frontend sendet items[].order statt sortOrder
+    const dto: CreateQualityChecklistDto = {
+      ...body,
+      items: (body.items || []).map((item: any, idx: number) => ({
+        name: item.name,
+        description: item.description,
+        required: item.required ?? true,
+        sortOrder: item.sortOrder ?? item.order ?? idx,
+      })),
+    };
     return this.qualityService.createChecklist(user.companyId, dto);
   }
 
@@ -60,9 +70,18 @@ export class QualityControlController {
   @ApiOperation({ summary: 'Update checklist' })
   updateChecklist(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateQualityChecklistDto>,
+    @Body() body: any,
     @CurrentUser() user: any,
   ) {
+    const dto = {
+      ...body,
+      items: body.items ? body.items.map((item: any, idx: number) => ({
+        name: item.name,
+        description: item.description,
+        required: item.required ?? true,
+        sortOrder: item.sortOrder ?? item.order ?? idx,
+      })) : undefined,
+    };
     return this.qualityService.updateChecklist(id, user.companyId, dto);
   }
 
@@ -133,9 +152,21 @@ export class QualityControlController {
   @ApiOperation({ summary: 'Complete quality check with results' })
   completeCheck(
     @Param('id') id: string,
-    @Body() dto: CompleteQualityCheckDto,
+    @Body() body: any,
     @CurrentUser() user: any,
   ) {
+    // Frontend sendet overallStatus statt status, value statt measuredValue
+    const dto: CompleteQualityCheckDto = {
+      status: body.status ?? body.overallStatus,
+      notes: body.notes ?? body.overallNotes,
+      results: (body.results || []).map((r: any) => ({
+        checklistItemId: r.checklistItemId,
+        passed: r.passed,
+        notes: r.notes,
+        measuredValue: r.measuredValue ?? r.value,
+        photoUrls: r.photoUrls || [],
+      })),
+    };
     return this.qualityService.completeCheck(id, user.companyId, dto);
   }
 

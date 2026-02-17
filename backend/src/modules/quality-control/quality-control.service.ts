@@ -16,6 +16,18 @@ export class QualityControlService {
 
   // ============ CHECKLISTS ============
 
+  /** Maps checklist response for frontend (sortOrder -> order, adds isActive default) */
+  private mapChecklist(c: any) {
+    return {
+      ...c,
+      isActive: c.isActive ?? true,
+      items: (c.items || []).map((item: any) => ({
+        ...item,
+        order: item.sortOrder ?? 0,
+      })),
+    };
+  }
+
   async findAllChecklists(companyId: string, params: {
     page?: number;
     pageSize?: number;
@@ -48,7 +60,7 @@ export class QualityControlService {
     ]);
 
     return {
-      data,
+      data: data.map((c: any) => this.mapChecklist(c)),
       total,
       page,
       pageSize,
@@ -68,7 +80,7 @@ export class QualityControlService {
       throw new NotFoundException('Checkliste nicht gefunden');
     }
 
-    return checklist;
+    return this.mapChecklist(checklist);
   }
 
   async createChecklist(companyId: string, dto: CreateQualityChecklistDto) {

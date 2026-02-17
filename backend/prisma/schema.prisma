@@ -2665,6 +2665,7 @@ model QualityChecklist {
   description String?
   type        String   @default("FINAL")  // INCOMING, IN_PROCESS, FINAL
   category    String?  // Schweissnaht, Massgenauigkeit, Oberfläche
+  isActive    Boolean  @default(true)
   
   companyId   String
   
