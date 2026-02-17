@@ -70,16 +70,51 @@ export default function DocumentDetail() {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Eye className="h-5 w-5" />Vorschau</CardTitle></CardHeader>
             <CardContent>
-              <div className="aspect-[4/3] rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-border">
-                <div className="text-center">
-                  <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">{doc.name}</p>
-                  <p className="text-muted-foreground">{formatSize(doc.fileSize)}</p>
-                  <Button className="mt-4 gap-2" onClick={() => navigate(`/documents/${id}/preview`)}>
-                    <Eye className="h-4 w-4" />Dokument öffnen
-                  </Button>
-                </div>
-              </div>
+              {(() => {
+                const mime = doc.mimeType || '';
+                const previewUrl = doc.fileUrl || doc.storageUrl;
+                const isImage = mime.startsWith('image/');
+                const isPdf = mime === 'application/pdf';
+
+                if (isImage && previewUrl) {
+                  return (
+                    <div className="rounded-lg overflow-hidden border bg-muted flex items-center justify-center min-h-[300px]">
+                      <img
+                        src={previewUrl}
+                        alt={doc.name}
+                        className="max-w-full max-h-[600px] object-contain"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                  );
+                }
+
+                if (isPdf && previewUrl) {
+                  return (
+                    <div className="rounded-lg overflow-hidden border" style={{ height: '600px' }}>
+                      <iframe
+                        src={previewUrl}
+                        title={doc.name}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  );
+                }
+
+                // Fallback für nicht vorschaubare Dateitypen
+                return (
+                  <div className="aspect-[4/3] rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-border">
+                    <div className="text-center">
+                      <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-lg font-medium">{doc.name}</p>
+                      <p className="text-muted-foreground">{formatSize(doc.fileSize)}</p>
+                      <Button className="mt-4 gap-2" onClick={() => previewUrl && window.open(previewUrl, '_blank')}>
+                        <Eye className="h-4 w-4" />Dokument öffnen
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 
