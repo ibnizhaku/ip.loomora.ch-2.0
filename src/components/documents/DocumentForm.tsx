@@ -400,11 +400,11 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     // Type-specific fields
     if (type === "quote") {
       payload.issueDate = documentDate;
-      if (validDays) {
-        const valid = new Date(documentDate);
-        valid.setDate(valid.getDate() + parseInt(validDays));
-        payload.validUntil = valid.toISOString().split("T")[0];
-      }
+      // validUntil is required by the backend – default to 30 days
+      const days = parseInt(validDays) || 30;
+      const valid = new Date(documentDate);
+      valid.setDate(valid.getDate() + days);
+      payload.validUntil = valid.toISOString().split("T")[0];
     } else if (type === "invoice") {
       payload.issueDate = documentDate;
       if (paymentDays) {

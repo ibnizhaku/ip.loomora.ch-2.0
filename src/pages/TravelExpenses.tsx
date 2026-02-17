@@ -69,7 +69,7 @@ interface TravelExpense {
   startDate: string;
   endDate: string;
   totalAmount: number;
-  status: "draft" | "submitted" | "approved" | "rejected" | "paid";
+  status: "draft" | "pending" | "submitted" | "approved" | "rejected" | "paid";
   items: {
     category: "transport" | "accommodation" | "meals" | "other";
     amount: number;
