@@ -74,6 +74,13 @@ export default function EmployeeContractDetail() {
       if (typeof val === "object" && val.name) return val.name;
       return "–";
     };
+    // Format ISO date strings to yyyy-MM-dd for date inputs
+    const toDateInput = (val?: string | null): string => {
+      if (!val) return "";
+      try {
+        return val.includes("T") ? val.split("T")[0] : val;
+      } catch { return val; }
+    };
     return {
       id: apiData.id || id || "",
       mitarbeiter: apiData.employeeName || (apiData.employee ? `${apiData.employee.firstName} ${apiData.employee.lastName}` : "–"),
@@ -83,8 +90,8 @@ export default function EmployeeContractDetail() {
       vorgesetzter: extractName(apiData.supervisor),
       vertragsart: apiData.contractType || "Unbefristet",
       status: apiData.status || "aktiv",
-      eintrittsdatum: apiData.startDate || "",
-      probezeit: apiData.probationEnd || "–",
+      eintrittsdatum: toDateInput(apiData.startDate),
+      probezeit: toDateInput(apiData.probationEnd) || "–",
       kündigungsfrist: apiData.noticePeriod || "–",
       arbeitsort: apiData.workLocation || "–",
       gav: apiData.gav || "GAV Metallbau Schweiz",
