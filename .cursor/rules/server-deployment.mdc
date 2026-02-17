@@ -1,0 +1,36 @@
+---
+description: Server-Zugangsdaten und Deployment-Prozess für Loomora
+alwaysApply: true
+---
+
+# Server & Deployment
+
+## SSH-Zugang
+- **Host:** `root@srv1174249.hstgr.cloud`
+- **Passwort:** `Lorin6korab.`
+- **Befehl:** `sshpass -p 'Lorin6korab.' ssh -o StrictHostKeyChecking=no root@srv1174249.hstgr.cloud`
+- **ACHTUNG:** `root@loomora.ch` funktioniert NICHT mehr!
+
+## Verzeichnisse
+- **Server-Projektpfad:** `/var/www/loomora`
+- **Backend:** `/var/www/loomora/backend`
+- **Frontend (dist):** `/var/www/loomora/dist`
+
+## Deployment-Ablauf (immer in dieser Reihenfolge)
+1. `cd /var/www/loomora && git pull origin main` (bei Konflikten: `git stash && git pull origin main`)
+2. `cd /var/www/loomora/backend && npm install`
+3. Schema-Änderungen: `DATABASE_URL="postgresql://loomora:loomora_secret@localhost:5432/loomora?schema=public" npx prisma db push`
+4. `npx prisma generate`
+5. Backend Build: `nest build` (global installiert)
+6. Frontend Build: `cd /var/www/loomora && npx vite build`
+7. `pm2 restart all`
+
+## Datenbank
+- **PostgreSQL:** `postgresql://loomora:loomora_secret@localhost:5432/loomora`
+- **psql-Zugriff:** `PGPASSWORD=loomora_secret psql -U loomora -d loomora`
+
+## Wichtige Regeln
+- NIEMALS falsche SSH-Credentials verwenden (kein `ibni@185.220.180.97`)
+- NIEMALS falsches Verzeichnis verwenden (kein `/var/www/ip.loomora.ch-2.0`)
+- `DATABASE_URL` muss bei `prisma db push` explizit gesetzt werden
+- PM2 läuft im Cluster-Modus (4 Instanzen)

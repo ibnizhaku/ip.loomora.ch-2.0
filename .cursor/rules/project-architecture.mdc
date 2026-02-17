@@ -1,0 +1,33 @@
+---
+description: Projektarchitektur und Arbeitsweise Loomora
+alwaysApply: true
+---
+
+# Loomora Projektarchitektur
+
+## Tech-Stack
+- **Frontend:** React + Vite + TypeScript (von Lovable verwaltet)
+- **Backend:** NestJS + Prisma + PostgreSQL
+- **Auth:** JWT mit Multi-Tenant-Support
+- **Hosting:** PM2 Cluster auf loomora.ch
+
+## Arbeitsaufteilung
+- **Lovable:** Frontend-Änderungen (src/ Verzeichnis)
+- **Cursor:** Backend-Änderungen (backend/ Verzeichnis)
+- **Regel:** NIEMALS Frontend-Code ändern, es sei denn explizit angefragt
+- Nach Lovable-Änderungen: immer `git pull origin main --rebase` lokal
+
+## Wichtige Pfade (lokal)
+- Workspace: `/Users/ibnizhaku/Desktop/ip.loomora.ch-2.0`
+- Backend: `backend/src/modules/`
+- Prisma Schema: `backend/prisma/schema.prisma`
+- Frontend Hooks: `src/hooks/`
+- Frontend Pages: `src/pages/`
+
+## Multi-Tenant
+- Alle DB-Queries MÜSSEN nach `companyId` filtern
+- JWT enthält: `userId`, `email`, `activeCompanyId`, `permissions[]`, `isOwner`
+- Permissions: 55 granulare Module-Keys (z.B. `invoices:read`, `employees:write`)
+
+## Sprache
+- Immer auf Deutsch antworten

@@ -9,8 +9,13 @@ export enum DeliveryNoteStatus {
 }
 
 export class DeliveryNoteItemDto {
+  @IsOptional()
+  @IsNumber()
+  position?: number;
+
+  @IsOptional()
   @IsString()
-  productId: string;
+  productId?: string;
 
   @IsNumber()
   quantity: number;
@@ -33,6 +38,10 @@ export class CreateDeliveryNoteDto {
   orderId?: string;
 
   @IsOptional()
+  @IsEnum(DeliveryNoteStatus)
+  status?: DeliveryNoteStatus;
+
+  @IsOptional()
   @IsDateString()
   deliveryDate?: string;
 
@@ -51,6 +60,10 @@ export class CreateDeliveryNoteDto {
   @IsOptional()
   @IsString()
   trackingNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  projectId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

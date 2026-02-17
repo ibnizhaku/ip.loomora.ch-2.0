@@ -82,25 +82,28 @@ export class DeliveryNotesService {
     const year = new Date().getFullYear();
     const number = `LS-${year}-${String(count + 1).padStart(4, '0')}`;
 
+    const status = dto.status || DeliveryNoteStatus.DRAFT;
+
     const created = await this.prisma.deliveryNote.create({
       data: {
         companyId,
         customerId: dto.customerId,
         orderId: dto.orderId,
         number,
-        status: DeliveryNoteStatus.DRAFT,
+        status,
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
         deliveryAddress: dto.deliveryAddress,
         notes: dto.notes,
         carrier: dto.carrier,
         trackingNumber: dto.trackingNumber,
+        shippedAt: status === DeliveryNoteStatus.SHIPPED ? new Date() : undefined,
         items: {
           create: dto.items.map((item, index) => ({
-            productId: item.productId,
+            productId: item.productId || undefined,
             quantity: item.quantity,
             unit: item.unit || 'Stk',
             description: item.description,
-            position: index + 1,
+            position: item.position || index + 1,
           })),
         },
       },
