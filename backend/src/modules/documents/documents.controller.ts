@@ -155,8 +155,32 @@ export class DocumentsController {
   ) {
     const doc = await this.documentsService.findDocumentById(id, user.companyId);
 
-    if (!doc.storagePath || !existsSync(doc.storagePath)) {
-      throw new HttpNotFoundException('Datei nicht auf dem Server gefunden');
+    console.log('Download doc:', { id, storagePath: doc.storagePath, storageUrl: doc.storageUrl });
+
+    // Ermittle den tatsächlichen Dateipfad (absolute Pfade bevorzugt)
+    let absolutePath: string | null = null;
+
+    if (doc.storagePath) {
+      // Absoluter Pfad → direkt prüfen
+      if (doc.storagePath.startsWith('/')) {
+        if (existsSync(doc.storagePath)) {
+          absolutePath = doc.storagePath;
+        }
+      } else {
+        // Relativer Pfad → relativ zum Upload-Verzeichnis auflösen
+        const resolved = join(UPLOAD_DIR, doc.storagePath);
+        if (existsSync(resolved)) absolutePath = resolved;
+        // Fallback: relativ zum cwd
+        const resolvedCwd = join(process.cwd(), doc.storagePath);
+        if (!absolutePath && existsSync(resolvedCwd)) absolutePath = resolvedCwd;
+      }
+    }
+
+    if (!absolutePath) {
+      console.error('Datei nicht gefunden:', { storagePath: doc.storagePath, checkedIn: UPLOAD_DIR });
+      throw new HttpNotFoundException(
+        `Datei nicht auf dem Server gefunden. Pfad: ${doc.storagePath || '(leer)'}`,
+      );
     }
 
     res.set({
@@ -164,7 +188,7 @@ export class DocumentsController {
       'Content-Disposition': `inline; filename="${encodeURIComponent(doc.name)}"`,
     });
 
-    const stream = createReadStream(doc.storagePath);
+    const stream = createReadStream(absolutePath);
     return new StreamableFile(stream);
   }
 
