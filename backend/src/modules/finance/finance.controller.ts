@@ -98,16 +98,6 @@ export class FinanceController {
   }
 
   // =====================
-  // FINANCE DASHBOARD (root /finance endpoint for Frontend)
-  // =====================
-
-  @Get()
-  @ApiOperation({ summary: 'Get recent financial transactions for Finance Dashboard' })
-  getRecentTransactions(@CurrentUser() user: CurrentUserPayload) {
-    return this.financeService.getRecentTransactions(user.companyId);
-  }
-
-  // =====================
   // FINANCIAL REPORTS
   // =====================
 
