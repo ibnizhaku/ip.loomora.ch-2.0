@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -39,26 +39,26 @@ export function PDFPreviewDialog({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Generate PDF when dialog opens
-  const handleOpenChange = async (newOpen: boolean) => {
-    if (newOpen && documentData) {
+  // Generate PDF when dialog opens (either via prop or internal change)
+  useEffect(() => {
+    if (open && documentData) {
       setIsLoading(true);
-      try {
-        // Small delay for UX
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const url = getSalesDocumentPDFDataUrl(documentData);
-        setPdfUrl(url);
-      } catch (error) {
-        console.error("PDF generation error:", error);
-        toast.error("Fehler beim Erstellen der PDF-Vorschau");
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
+      const timer = setTimeout(() => {
+        try {
+          const url = getSalesDocumentPDFDataUrl(documentData);
+          setPdfUrl(url);
+        } catch (error) {
+          console.error("PDF generation error:", error);
+          toast.error("Fehler beim Erstellen der PDF-Vorschau");
+        } finally {
+          setIsLoading(false);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    } else if (!open) {
       setPdfUrl(null);
     }
-    onOpenChange(newOpen);
-  };
+  }, [open, documentData]);
 
   const handleDownload = () => {
     if (!documentData) return;
@@ -89,7 +89,7 @@ export function PDFPreviewDialog({
   const displayTitle = title || `${typeLabel} ${documentData?.number || ''}`;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
           <div className="flex items-center justify-between">
