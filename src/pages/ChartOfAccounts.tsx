@@ -38,126 +38,6 @@ interface Account {
   isExpanded?: boolean;
 }
 
-// Schweizer Kontenrahmen KMU (nach OR 957a)
-const accounts: Account[] = [
-  {
-    id: "1",
-    number: "1",
-    name: "Aktiven",
-    type: "asset",
-    category: "Aktiven",
-    balance: 856000,
-    children: [
-      { id: "1-1", number: "1000", name: "Kasse", type: "asset", category: "Aktiven", balance: 2500 },
-      { id: "1-2", number: "1010", name: "Post", type: "asset", category: "Aktiven", balance: 15000 },
-      { id: "1-3", number: "1020", name: "Bank UBS", type: "asset", category: "Aktiven", balance: 125000 },
-      { id: "1-4", number: "1021", name: "Bank ZKB", type: "asset", category: "Aktiven", balance: 85000 },
-      { id: "1-5", number: "1100", name: "Debitoren (Forderungen aus L+L)", type: "asset", category: "Aktiven", balance: 178500 },
-      { id: "1-6", number: "1109", name: "Delkredere", type: "asset", category: "Aktiven", balance: -8925 },
-      { id: "1-7", number: "1170", name: "Vorsteuer MWST", type: "asset", category: "Aktiven", balance: 12400 },
-      { id: "1-8", number: "1200", name: "Warenvorräte", type: "asset", category: "Aktiven", balance: 45000 },
-      { id: "1-9", number: "1300", name: "Aktive Rechnungsabgrenzung", type: "asset", category: "Aktiven", balance: 1525 },
-      { id: "1-10", number: "1500", name: "Maschinen und Apparate", type: "asset", category: "Aktiven", balance: 180000 },
-      { id: "1-11", number: "1509", name: "WB Maschinen", type: "asset", category: "Aktiven", balance: -45000 },
-      { id: "1-12", number: "1520", name: "Fahrzeuge", type: "asset", category: "Aktiven", balance: 120000 },
-      { id: "1-13", number: "1529", name: "WB Fahrzeuge", type: "asset", category: "Aktiven", balance: -48000 },
-      { id: "1-14", number: "1600", name: "Immobilien", type: "asset", category: "Aktiven", balance: 350000 },
-      { id: "1-15", number: "1609", name: "WB Immobilien", type: "asset", category: "Aktiven", balance: -30000 },
-    ],
-  },
-  {
-    id: "2",
-    number: "2",
-    name: "Passiven",
-    type: "liability",
-    category: "Passiven",
-    balance: 856000,
-    children: [
-      { id: "2-1", number: "2000", name: "Kreditoren (Verbindlichkeiten aus L+L)", type: "liability", category: "Passiven", balance: 78000 },
-      { id: "2-2", number: "2030", name: "Kontokorrent AHV/IV/EO/ALV", type: "liability", category: "Passiven", balance: 12500 },
-      { id: "2-3", number: "2050", name: "Kontokorrent Quellensteuer", type: "liability", category: "Passiven", balance: 3400 },
-      { id: "2-4", number: "2100", name: "Bankverbindlichkeiten kurzfristig", type: "liability", category: "Passiven", balance: 25000 },
-      { id: "2-5", number: "2200", name: "MWST-Schuld", type: "liability", category: "Passiven", balance: 18600 },
-      { id: "2-6", number: "2300", name: "Passive Rechnungsabgrenzung", type: "liability", category: "Passiven", balance: 18500 },
-      { id: "2-7", number: "2400", name: "Bankdarlehen", type: "liability", category: "Passiven", balance: 150000 },
-      { id: "2-8", number: "2450", name: "Hypotheken", type: "liability", category: "Passiven", balance: 50000 },
-    ],
-  },
-  {
-    id: "3",
-    number: "28",
-    name: "Eigenkapital",
-    type: "equity",
-    category: "Passiven",
-    balance: 500000,
-    children: [
-      { id: "3-1", number: "2800", name: "Aktienkapital / Stammkapital", type: "equity", category: "Passiven", balance: 100000 },
-      { id: "3-2", number: "2900", name: "Gesetzliche Kapitalreserven", type: "equity", category: "Passiven", balance: 50000 },
-      { id: "3-3", number: "2950", name: "Gewinnvortrag / Verlustvortrag", type: "equity", category: "Passiven", balance: 280000 },
-      { id: "3-4", number: "2979", name: "Jahresgewinn / Jahresverlust", type: "equity", category: "Passiven", balance: 70000 },
-    ],
-  },
-  {
-    id: "4",
-    number: "3",
-    name: "Betriebsertrag aus Lieferungen und Leistungen",
-    type: "revenue",
-    category: "Ertrag",
-    balance: 1250000,
-    children: [
-      { id: "4-1", number: "3000", name: "Produktionserlöse", type: "revenue", category: "Ertrag", balance: 850000 },
-      { id: "4-2", number: "3200", name: "Handelserlöse", type: "revenue", category: "Ertrag", balance: 320000 },
-      { id: "4-3", number: "3400", name: "Dienstleistungserlöse", type: "revenue", category: "Ertrag", balance: 95000 },
-      { id: "4-4", number: "3800", name: "Erlösminderungen", type: "revenue", category: "Ertrag", balance: -15000 },
-    ],
-  },
-  {
-    id: "5",
-    number: "4",
-    name: "Aufwand für Material, Handelswaren, Dienstleistungen",
-    type: "expense",
-    category: "Aufwand",
-    balance: 580000,
-    children: [
-      { id: "5-1", number: "4000", name: "Materialaufwand", type: "expense", category: "Aufwand", balance: 380000 },
-      { id: "5-2", number: "4200", name: "Handelswarenaufwand", type: "expense", category: "Aufwand", balance: 165000 },
-      { id: "5-3", number: "4400", name: "Aufwand für bezogene Dienstleistungen", type: "expense", category: "Aufwand", balance: 35000 },
-    ],
-  },
-  {
-    id: "6",
-    number: "5",
-    name: "Personalaufwand",
-    type: "expense",
-    category: "Aufwand",
-    balance: 420000,
-    children: [
-      { id: "6-1", number: "5000", name: "Löhne und Gehälter", type: "expense", category: "Aufwand", balance: 320000 },
-      { id: "6-2", number: "5700", name: "Sozialversicherungsaufwand AHV/IV/EO/ALV", type: "expense", category: "Aufwand", balance: 42000 },
-      { id: "6-3", number: "5710", name: "Aufwand BVG (Pensionskasse)", type: "expense", category: "Aufwand", balance: 38000 },
-      { id: "6-4", number: "5720", name: "Aufwand UVG/NBU", type: "expense", category: "Aufwand", balance: 8500 },
-      { id: "6-5", number: "5730", name: "Aufwand KTG", type: "expense", category: "Aufwand", balance: 4500 },
-      { id: "6-6", number: "5800", name: "Übriger Personalaufwand", type: "expense", category: "Aufwand", balance: 7000 },
-    ],
-  },
-  {
-    id: "7",
-    number: "6",
-    name: "Übriger betrieblicher Aufwand",
-    type: "expense",
-    category: "Aufwand",
-    balance: 125000,
-    children: [
-      { id: "7-1", number: "6000", name: "Raumaufwand", type: "expense", category: "Aufwand", balance: 36000 },
-      { id: "7-2", number: "6100", name: "Unterhalt und Reparaturen", type: "expense", category: "Aufwand", balance: 18000 },
-      { id: "7-3", number: "6200", name: "Fahrzeugaufwand", type: "expense", category: "Aufwand", balance: 24000 },
-      { id: "7-4", number: "6300", name: "Sachversicherungen", type: "expense", category: "Aufwand", balance: 8500 },
-      { id: "7-5", number: "6500", name: "Verwaltungsaufwand", type: "expense", category: "Aufwand", balance: 22000 },
-      { id: "7-6", number: "6570", name: "Informatikaufwand", type: "expense", category: "Aufwand", balance: 12000 },
-      { id: "7-7", number: "6600", name: "Werbeaufwand", type: "expense", category: "Aufwand", balance: 4500 },
-    ],
-  },
-];
 
 const typeColors = {
   asset: "bg-blue-500/10 text-blue-600",
@@ -189,7 +69,7 @@ export default function ChartOfAccounts() {
   // Build tree from flat API data, fallback to hardcoded if empty
   const accountsData: Account[] = useMemo(() => {
     const flat = apiData?.data || [];
-    if (flat.length === 0) return accounts;
+    if (flat.length === 0) return [];
 
     // Group into parent accounts (no parentId) and children
     const parents = flat.filter((a: any) => !a.parentId);
@@ -388,9 +268,21 @@ export default function ChartOfAccounts() {
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="space-y-1">
-          {(searchQuery ? accountsData.flatMap(a => [a, ...(a.children || [])]).filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.number.includes(searchQuery)) : accountsData).map((account) => renderAccount(account))}
-        </div>
+        {accountsData.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Folder className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <p className="font-medium text-lg">Noch kein Kontenplan vorhanden</p>
+            <p className="text-sm mt-1">Legen Sie Ihr erstes Konto an, um den Kontenplan aufzubauen.</p>
+            <Button className="mt-4 gap-2" onClick={() => navigate("/chart-of-accounts/new")}>
+              <Plus className="h-4 w-4" />
+              Erstes Konto anlegen
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {(searchQuery ? accountsData.flatMap(a => [a, ...(a.children || [])]).filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.number.includes(searchQuery)) : accountsData).map((account) => renderAccount(account))}
+          </div>
+        )}
       </div>
     </div>
   );

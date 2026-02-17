@@ -49,86 +49,7 @@ interface Debtor {
   invoiceCount: number;
 }
 
-const debtors: Debtor[] = [
-  {
-    id: "1",
-    number: "DEB-10001",
-    name: "Thomas Müller",
-    company: "TechStart GmbH",
-    totalReceivables: 45000,
-    openAmount: 12500,
-    overdueAmount: 0,
-    lastPayment: "2024-01-15",
-    paymentTerms: 30,
-    creditLimit: 50000,
-    status: "good",
-    invoiceCount: 8,
-  },
-  {
-    id: "2",
-    number: "DEB-10002",
-    name: "Lisa Weber",
-    company: "Digital Solutions AG",
-    totalReceivables: 78000,
-    openAmount: 23400,
-    overdueAmount: 5600,
-    lastPayment: "2024-01-10",
-    paymentTerms: 14,
-    creditLimit: 80000,
-    status: "warning",
-    invoiceCount: 12,
-  },
-  {
-    id: "3",
-    number: "DEB-10003",
-    name: "Michael Schneider",
-    company: "Innovation Labs",
-    totalReceivables: 34500,
-    openAmount: 8900,
-    overdueAmount: 8900,
-    lastPayment: "2023-12-20",
-    paymentTerms: 30,
-    creditLimit: 40000,
-    status: "critical",
-    invoiceCount: 5,
-  },
-  {
-    id: "4",
-    number: "DEB-10004",
-    name: "Sandra Fischer",
-    company: "Cloud Systems KG",
-    totalReceivables: 156000,
-    openAmount: 45000,
-    overdueAmount: 0,
-    lastPayment: "2024-01-18",
-    paymentTerms: 45,
-    creditLimit: 200000,
-    status: "good",
-    invoiceCount: 24,
-  },
-  {
-    id: "5",
-    number: "DEB-10005",
-    name: "Peter Wagner",
-    company: "Smart Factory GmbH",
-    totalReceivables: 67800,
-    openAmount: 18500,
-    overdueAmount: 3200,
-    lastPayment: "2024-01-05",
-    paymentTerms: 30,
-    creditLimit: 75000,
-    status: "warning",
-    invoiceCount: 15,
-  },
-];
 
-const openInvoices = [
-  { id: "RE-2024-0156", debtor: "TechStart GmbH", amount: 4500, dueDate: "2024-02-15", daysOpen: 0 },
-  { id: "RE-2024-0148", debtor: "Digital Solutions AG", amount: 8900, dueDate: "2024-01-25", daysOpen: 5 },
-  { id: "RE-2024-0142", debtor: "Digital Solutions AG", amount: 5600, dueDate: "2024-01-10", daysOpen: 20 },
-  { id: "RE-2024-0138", debtor: "Innovation Labs", amount: 8900, dueDate: "2024-01-05", daysOpen: 25 },
-  { id: "RE-2024-0155", debtor: "Cloud Systems KG", amount: 12000, dueDate: "2024-03-01", daysOpen: 0 },
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -160,28 +81,25 @@ export default function Debtors() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: apiData } = useQuery({
+  const { data: apiData, isLoading } = useQuery({
     queryKey: ["/customers/debtors"],
     queryFn: () => api.get<any>("/customers/debtors"),
   });
 
-  // Use API data if available, otherwise fall back to mock data
-  const debtorsList: Debtor[] = apiData?.data && apiData.data.length > 0
-    ? apiData.data.map((d: any) => ({
-        id: d.id,
-        number: d.number || `DEB-${d.id.slice(-5)}`,
-        name: d.name,
-        company: d.company || d.name,
-        totalReceivables: Number(d.totalReceivables || 0),
-        openAmount: Number(d.openAmount || 0),
-        overdueAmount: Number(d.overdueAmount || 0),
-        lastPayment: d.lastPayment || "–",
-        paymentTerms: d.paymentTerms || 30,
-        creditLimit: Number(d.creditLimit || 0),
-        status: (d.status || "good") as Debtor["status"],
-        invoiceCount: d.invoiceCount || 0,
-      }))
-    : debtors;
+  const debtorsList: Debtor[] = (apiData?.data || []).map((d: any) => ({
+    id: d.id,
+    number: d.number || `DEB-${d.id.slice(-5)}`,
+    name: d.name,
+    company: d.company || d.name,
+    totalReceivables: Number(d.totalReceivables || 0),
+    openAmount: Number(d.openAmount || 0),
+    overdueAmount: Number(d.overdueAmount || 0),
+    lastPayment: d.lastPayment || "–",
+    paymentTerms: d.paymentTerms || 30,
+    creditLimit: Number(d.creditLimit || 0),
+    status: (d.status || "good") as Debtor["status"],
+    invoiceCount: d.invoiceCount || 0,
+  }));
 
   const totalReceivables = debtorsList.reduce((sum, d) => sum + d.openAmount, 0);
   const totalOverdue = debtorsList.reduce((sum, d) => sum + d.overdueAmount, 0);
@@ -227,7 +145,7 @@ export default function Debtors() {
               CHF {totalReceivables.toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
-              {debtors.length} Debitoren
+              {debtorsList.length} Debitoren
             </p>
           </CardContent>
         </Card>
@@ -311,6 +229,13 @@ export default function Debtors() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {filteredDebtors.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                      {isLoading ? "Wird geladen..." : debtorsList.length === 0 ? "Keine Debitoren mit offenen Forderungen vorhanden." : "Keine Ergebnisse für Ihre Suche."}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {filteredDebtors.map((debtor) => (
                   <TableRow key={debtor.id}>
                     <TableCell className="font-mono text-sm">{debtor.number}</TableCell>
@@ -383,7 +308,7 @@ export default function Debtors() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {debtors
+                {debtorsList
                   .filter((d) => d.overdueAmount > 0)
                   .map((debtor) => (
                     <TableRow key={debtor.id}>
@@ -419,50 +344,17 @@ export default function Debtors() {
 
         <TabsContent value="invoices" className="space-y-4">
           <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rechnung</TableHead>
-                  <TableHead>Debitor</TableHead>
-                  <TableHead className="text-right">Betrag</TableHead>
-                  <TableHead>Fällig am</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {openInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-mono text-sm">{invoice.id}</TableCell>
-                    <TableCell className="font-medium">{typeof invoice.debtor === 'object' ? (invoice.debtor as any)?.name || (invoice.debtor as any)?.companyName : invoice.debtor}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      CHF {invoice.amount.toLocaleString("de-CH")}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(invoice.dueDate).toLocaleDateString("de-DE")}
-                    </TableCell>
-                    <TableCell>
-                      {invoice.daysOpen === 0 ? (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          <CheckCircle className="mr-1 h-3 w-3" />
-                          Offen
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          {invoice.daysOpen} Tage überfällig
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <CardContent className="pt-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p className="font-medium">Offene Rechnungen</p>
+                <p className="text-sm mt-1">Alle offenen Rechnungen finden Sie in der Rechnungsverwaltung.</p>
+                <Button className="mt-4" onClick={() => navigate("/invoices?status=SENT")}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Zu den Rechnungen
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

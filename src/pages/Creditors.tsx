@@ -49,93 +49,8 @@ interface Creditor {
   bankAccount: string;
 }
 
-const creditors: Creditor[] = [
-  {
-    id: "1",
-    number: "KRE-20001",
-    name: "Hans Meier",
-    company: "Meier Elektronik GmbH",
-    totalPayables: 89000,
-    openAmount: 23400,
-    overdueAmount: 0,
-    lastPayment: "2024-01-18",
-    paymentTerms: 30,
-    status: "current",
-    invoiceCount: 12,
-    bankAccount: "DE89 3704 0044 0532 0130 00",
-  },
-  {
-    id: "2",
-    number: "KRE-20002",
-    name: "Petra Schmidt",
-    company: "Schmidt Bürobedarf",
-    totalPayables: 12500,
-    openAmount: 4500,
-    overdueAmount: 0,
-    lastPayment: "2024-01-15",
-    paymentTerms: 14,
-    status: "due_soon",
-    invoiceCount: 8,
-    bankAccount: "DE89 3704 0044 0532 0130 01",
-  },
-  {
-    id: "3",
-    number: "KRE-20003",
-    name: "Klaus Weber",
-    company: "Weber Logistics AG",
-    totalPayables: 156000,
-    openAmount: 45000,
-    overdueAmount: 12000,
-    lastPayment: "2023-12-20",
-    paymentTerms: 30,
-    status: "overdue",
-    invoiceCount: 24,
-    bankAccount: "DE89 3704 0044 0532 0130 02",
-  },
-  {
-    id: "4",
-    number: "KRE-20004",
-    name: "Anna Bauer",
-    company: "Bauer IT Services",
-    totalPayables: 67800,
-    openAmount: 18500,
-    overdueAmount: 0,
-    lastPayment: "2024-01-10",
-    paymentTerms: 45,
-    status: "current",
-    invoiceCount: 15,
-    bankAccount: "DE89 3704 0044 0532 0130 03",
-  },
-  {
-    id: "5",
-    number: "KRE-20005",
-    name: "Martin Hoffmann",
-    company: "Hoffmann Werkzeuge KG",
-    totalPayables: 34500,
-    openAmount: 8900,
-    overdueAmount: 2500,
-    lastPayment: "2024-01-05",
-    paymentTerms: 14,
-    status: "overdue",
-    invoiceCount: 6,
-    bankAccount: "DE89 3704 0044 0532 0130 04",
-  },
-];
 
-const openBills = [
-  { id: "ER-2024-0089", creditor: "Meier Elektronik GmbH", amount: 8500, dueDate: "2024-02-15", daysUntilDue: 25 },
-  { id: "ER-2024-0092", creditor: "Schmidt Bürobedarf", amount: 2300, dueDate: "2024-01-25", daysUntilDue: 5 },
-  { id: "ER-2024-0078", creditor: "Weber Logistics AG", amount: 12000, dueDate: "2024-01-10", daysUntilDue: -10 },
-  { id: "ER-2024-0095", creditor: "Bauer IT Services", amount: 6700, dueDate: "2024-02-28", daysUntilDue: 38 },
-  { id: "ER-2024-0085", creditor: "Hoffmann Werkzeuge KG", amount: 2500, dueDate: "2024-01-15", daysUntilDue: -5 },
-];
 
-const upcomingPayments = [
-  { date: "2024-01-25", count: 3, amount: 12500 },
-  { date: "2024-01-31", count: 5, amount: 28900 },
-  { date: "2024-02-15", count: 8, amount: 45600 },
-  { date: "2024-02-28", count: 4, amount: 18700 },
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -167,28 +82,25 @@ export default function Creditors() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: apiData } = useQuery({
+  const { data: apiData, isLoading } = useQuery({
     queryKey: ["/suppliers/creditors"],
     queryFn: () => api.get<any>("/suppliers/creditors"),
   });
 
-  // Use API data if available, otherwise fall back to mock data
-  const creditorsList: Creditor[] = apiData?.data && apiData.data.length > 0
-    ? apiData.data.map((c: any) => ({
-        id: c.id,
-        number: c.number || `KRE-${c.id.slice(-5)}`,
-        name: c.name,
-        company: c.company || c.name,
-        totalPayables: Number(c.totalPayables || 0),
-        openAmount: Number(c.openAmount || 0),
-        overdueAmount: Number(c.overdueAmount || 0),
-        lastPayment: c.lastPayment || "–",
-        paymentTerms: c.paymentTerms || 30,
-        status: (c.status || "current") as Creditor["status"],
-        invoiceCount: c.invoiceCount || 0,
-        bankAccount: c.bankAccount || "–",
-      }))
-    : creditors;
+  const creditorsList: Creditor[] = (apiData?.data || []).map((c: any) => ({
+    id: c.id,
+    number: c.number || `KRE-${c.id.slice(-5)}`,
+    name: c.name,
+    company: c.company || c.name,
+    totalPayables: Number(c.totalPayables || 0),
+    openAmount: Number(c.openAmount || 0),
+    overdueAmount: Number(c.overdueAmount || 0),
+    lastPayment: c.lastPayment || "–",
+    paymentTerms: c.paymentTerms || 30,
+    status: (c.status || "current") as Creditor["status"],
+    invoiceCount: c.invoiceCount || 0,
+    bankAccount: c.bankAccount || "–",
+  }));
 
   const totalPayables = creditorsList.reduce((sum, c) => sum + c.openAmount, 0);
   const totalOverdue = creditorsList.reduce((sum, c) => sum + c.overdueAmount, 0);
@@ -238,7 +150,7 @@ export default function Creditors() {
               CHF {totalPayables.toLocaleString("de-CH")}
             </div>
             <p className="text-xs text-muted-foreground">
-              {creditors.length} Kreditoren
+              {creditorsList.length} Kreditoren
             </p>
           </CardContent>
         </Card>
@@ -262,9 +174,9 @@ export default function Creditors() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">CHF 12'500</div>
+            <div className="text-2xl font-bold">CHF {creditorsList.filter(c => c.status === 'due_soon').reduce((s, c) => s + c.openAmount, 0).toLocaleString('de-CH')}</div>
             <p className="text-xs text-muted-foreground">
-              3 Rechnungen
+              {creditorsList.filter(c => c.status === 'due_soon').length} Kreditoren
             </p>
           </CardContent>
         </Card>
@@ -274,7 +186,7 @@ export default function Creditors() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">27 Tage</div>
+            <div className="text-2xl font-bold">{creditorsList.length > 0 ? Math.round(creditorsList.reduce((s, c) => s + c.paymentTerms, 0) / creditorsList.length) : 0} Tage</div>
             <p className="text-xs text-muted-foreground">
               Ø DPO (Days Payable Outstanding)
             </p>
@@ -283,26 +195,29 @@ export default function Creditors() {
       </div>
 
       {/* Upcoming Payments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Anstehende Zahlungen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            {upcomingPayments.map((payment, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">
-                    {new Date(payment.date).toLocaleDateString("de-DE")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{payment.count} Rechnungen</p>
-                </div>
-                <p className="font-semibold">CHF {payment.amount.toLocaleString("de-CH")}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {creditorsList.filter(c => c.status === 'due_soon' || c.status === 'overdue').length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Bald fällige / überfällige Kreditoren</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              {creditorsList
+                .filter(c => c.status === 'due_soon' || c.status === 'overdue')
+                .slice(0, 4)
+                .map((c) => (
+                  <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium">{c.company}</p>
+                      <p className="text-xs text-muted-foreground">{c.paymentTerms} Tage Ziel</p>
+                    </div>
+                    <p className="font-semibold">CHF {c.openAmount.toLocaleString("de-CH")}</p>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="all" className="space-y-4">
         <div className="flex items-center justify-between">
@@ -344,6 +259,13 @@ export default function Creditors() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {filteredCreditors.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                      {isLoading ? "Wird geladen..." : creditorsList.length === 0 ? "Keine Kreditoren mit offenen Verbindlichkeiten vorhanden." : "Keine Ergebnisse für Ihre Suche."}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {filteredCreditors.map((creditor) => (
                   <TableRow key={creditor.id}>
                     <TableCell className="font-mono text-sm">{creditor.number}</TableCell>
@@ -399,56 +321,17 @@ export default function Creditors() {
 
         <TabsContent value="bills" className="space-y-4">
           <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rechnung</TableHead>
-                  <TableHead>Kreditor</TableHead>
-                  <TableHead className="text-right">Betrag</TableHead>
-                  <TableHead>Fällig am</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {openBills.map((bill) => (
-                  <TableRow key={bill.id}>
-                    <TableCell className="font-mono text-sm">{bill.id}</TableCell>
-                    <TableCell className="font-medium">{typeof bill.creditor === 'object' ? (bill.creditor as any)?.name || (bill.creditor as any)?.companyName : bill.creditor}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      CHF {bill.amount.toLocaleString("de-CH")}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(bill.dueDate).toLocaleDateString("de-DE")}
-                    </TableCell>
-                    <TableCell>
-                      {bill.daysUntilDue > 7 ? (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          <CheckCircle className="mr-1 h-3 w-3" />
-                          {bill.daysUntilDue} Tage
-                        </Badge>
-                      ) : bill.daysUntilDue > 0 ? (
-                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                          <Clock className="mr-1 h-3 w-3" />
-                          {bill.daysUntilDue} Tage
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          {Math.abs(bill.daysUntilDue)} Tage überfällig
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline">
-                        <CreditCard className="mr-2 h-3 w-3" />
-                        Zahlen
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <CardContent className="pt-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p className="font-medium">Offene Eingangsrechnungen</p>
+                <p className="text-sm mt-1">Alle offenen Eingangsrechnungen finden Sie in der Eingangsrechnungsverwaltung.</p>
+                <Button className="mt-4" onClick={() => navigate("/purchase-invoices")}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Zu den Eingangsrechnungen
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
@@ -464,7 +347,7 @@ export default function Creditors() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {creditors
+                {creditorsList
                   .filter((c) => c.overdueAmount > 0)
                   .map((creditor) => (
                     <TableRow key={creditor.id}>
