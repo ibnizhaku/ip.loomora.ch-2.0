@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useDMSDocument, useDeleteDocument } from "@/hooks/use-documents";
+import { AuthImage } from "@/components/ui/auth-image";
 
 const typeColors: Record<string, string> = {
   "application/pdf": "bg-destructive/10 text-destructive",
@@ -79,11 +80,16 @@ export default function DocumentDetail() {
                 if (isImage && previewUrl) {
                   return (
                     <div className="rounded-lg overflow-hidden border bg-muted flex items-center justify-center min-h-[300px]">
-                      <img
+                      <AuthImage
                         src={previewUrl}
                         alt={doc.name}
                         className="max-w-full max-h-[600px] object-contain"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        fallback={
+                          <div className="text-center p-8 text-muted-foreground">
+                            <FileText className="h-12 w-12 mx-auto mb-2" />
+                            <p>Vorschau nicht verfügbar</p>
+                          </div>
+                        }
                       />
                     </div>
                   );
@@ -92,10 +98,19 @@ export default function DocumentDetail() {
                 if (isPdf && previewUrl) {
                   return (
                     <div className="rounded-lg overflow-hidden border" style={{ height: '600px' }}>
-                      <iframe
+                      <AuthImage
                         src={previewUrl}
-                        title={doc.name}
+                        alt={doc.name}
+                        asPdf={true}
                         className="w-full h-full"
+                        fallback={
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                            <FileText className="h-12 w-12 text-muted-foreground" />
+                            <Button onClick={() => window.open(previewUrl, '_blank')}>
+                              <Eye className="h-4 w-4 mr-2" />PDF öffnen
+                            </Button>
+                          </div>
+                        }
                       />
                     </div>
                   );
