@@ -10,12 +10,10 @@ import { MembershipService } from './services/membership.service';
 import { TwoFactorService } from './services/two-factor.service';
 import { UsersModule } from '../users/users.module';
 import { FinanceModule } from '../finance/finance.module';
-import { FinanceModule } from '../finance/finance.module';
 
 @Module({
   imports: [
     UsersModule,
-    FinanceModule,
     FinanceModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

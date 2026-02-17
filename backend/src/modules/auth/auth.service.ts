@@ -9,7 +9,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TokenService } from './services/token.service';
 import { MembershipService } from './services/membership.service';
 import { AccountingSeedService } from '../finance/accounting-seed.service';
-import { AccountingSeedService } from '../finance/accounting-seed.service';
 import { 
   LoginDto, 
   RegisterDto, 
