@@ -441,7 +441,7 @@ export default function Suppliers() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
                               Anzeigen
                             </DropdownMenuItem>
@@ -453,10 +453,7 @@ export default function Suppliers() {
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(supplier.id, supplier.name);
-                              }}
+                              onClick={() => handleDelete(supplier.id, supplier.name)}
                             >
                               Deaktivieren
                             </DropdownMenuItem>
