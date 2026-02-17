@@ -234,6 +234,14 @@ model Company {
   bankAccounts  BankAccount[]
   chartOfAccounts ChartOfAccount[]
   journalEntries JournalEntry[]
+  journalEntriesExtended JournalEntryExtended[]
+  costCenters   CostCenter[]
+  budgets       Budget[]
+  vatReturns    VatReturn[]
+  fixedAssets   FixedAsset[]
+  cashRegisters CashRegister[]
+  cashTransactions CashTransaction[]
+  cashClosings  CashClosing[]
   projects      Project[]
   employees     Employee[]
   departments   Department[]
@@ -2879,6 +2887,7 @@ model JournalEntryExtended {
   reversedBy      JournalEntryExtended[] @relation("JournalReversal")
   
   companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2939,6 +2948,7 @@ model CostCenter {
   isActive        Boolean  @default(true)
   
   companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2988,6 +2998,7 @@ model Budget {
   approvedAt      DateTime?
   
   companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -3042,6 +3053,7 @@ model CashRegister {
   isDefault       Boolean  @default(false)
   
   companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -3081,6 +3093,7 @@ model CashTransaction {
   isPosted        Boolean  @default(false)
   
   companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   
@@ -3104,6 +3117,7 @@ model CashClosing {
   notes           String?
   
   companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   
@@ -3160,6 +3174,7 @@ model VatReturn {
   notes               String?
   
   companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -3235,6 +3250,7 @@ model FixedAsset {
   depreciationAccountId String?
   
   companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
