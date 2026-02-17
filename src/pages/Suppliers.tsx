@@ -12,6 +12,8 @@ import {
   Star,
   Banknote,
   Loader2,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,7 @@ const statusConfig = {
 export default function Suppliers() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   
   const { data, isLoading, error } = useSuppliers({ search: searchQuery, pageSize: 100 });
   const stats = useSupplierStats();
@@ -139,7 +142,7 @@ export default function Suppliers() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters + View Toggle */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -150,9 +153,29 @@ export default function Suppliers() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon">
+            <Filter className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center rounded-lg border border-border bg-card p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "table" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "cards" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -172,8 +195,137 @@ export default function Suppliers() {
         </div>
       )}
 
-      {/* Table */}
-      {!isLoading && !error && (
+      {/* Card View */}
+      {!isLoading && !error && viewMode === "cards" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {suppliers.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+              {searchQuery ? "Keine Lieferanten gefunden" : "Noch keine Lieferanten vorhanden"}
+            </div>
+          ) : (
+            suppliers.map((supplier, index) => {
+              const status = getSupplierStatus(supplier);
+              return (
+                <div
+                  key={supplier.id}
+                  className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                >
+                  {/* Top: Avatar + Name + Status */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+                          {(supplier.companyName || supplier.name)
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{supplier.companyName || supplier.name}</p>
+                        <p className="text-sm text-muted-foreground">{supplier.number}</p>
+                      </div>
+                    </div>
+                    <Badge className={statusConfig[status].color}>
+                      {statusConfig[status].label}
+                    </Badge>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2 mb-4">
+                    {supplier.name && supplier.companyName && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Building2 className="h-3.5 w-3.5 text-primary" />
+                        {supplier.name}
+                      </div>
+                    )}
+                    {supplier.email && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-3.5 w-3.5 text-primary" />
+                        <span className="truncate">{supplier.email}</span>
+                      </div>
+                    )}
+                    {supplier.phone && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-3.5 w-3.5 text-primary" />
+                        {supplier.phone}
+                      </div>
+                    )}
+                    {supplier.city && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 text-primary" />
+                        {supplier.zipCode} {supplier.city}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Stats */}
+                  <div className="flex items-center justify-between pt-3 border-t border-border">
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <span className="font-medium text-success">CHF {(supplier.totalValue || 0).toLocaleString("de-CH")}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            i < (supplier.rating || 0)
+                              ? "text-warning fill-warning"
+                              : "text-muted"
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                          Anzeigen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}>
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
+                          Bestellung aufgeben
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(supplier.id, supplier.name);
+                          }}
+                        >
+                          Deaktivieren
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Table View */}
+      {!isLoading && !error && viewMode === "table" && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
