@@ -264,8 +264,27 @@ export default function TravelExpenses() {
             variant="outline" 
             className="gap-2"
             onClick={() => {
-              toast.success("Export wird erstellt...");
-              setTimeout(() => toast.success("Reisekosten-Report als CSV exportiert"), 1000);
+              if (expenses.length === 0) {
+                toast.error("Keine Reisekosten zum Exportieren");
+                return;
+              }
+              const headers = ["Nr.", "Mitarbeiter", "Reisezweck", "Betrag (CHF)", "Status"];
+              const rows = expenses.map(e => [
+                e.number || "",
+                e.employee?.name || "",
+                e.purpose || e.destination || "",
+                String(e.totalAmount || 0),
+                statusLabels[e.status] || e.status,
+              ]);
+              const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `Reisekosten_${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success("Reisekosten als CSV exportiert");
             }}
           >
             <Download className="h-4 w-4" />
