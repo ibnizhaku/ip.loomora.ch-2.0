@@ -2115,6 +2115,10 @@ model EmployeeContract {
   workload        Decimal? @db.Decimal(5, 2)  // e.g. 100.00 for full time
   workLocation    String?
   
+  status          String   @default("ACTIVE")  // ACTIVE, TERMINATED, SUSPENDED
+  publicHolidays  Int?     // Anzahl Feiertage pro Jahr
+  ahvNumber       String?  // AHV-Nummer des Mitarbeiters
+  
   notes           String?
   
   createdAt       DateTime @default(now())

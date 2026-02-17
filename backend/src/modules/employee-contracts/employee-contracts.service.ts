@@ -107,6 +107,9 @@ export class EmployeeContractsService {
         thirteenthMonth: dto.thirteenthMonth || false,
         workload: dto.workload,
         workLocation: dto.workLocation,
+        status: dto.status || 'ACTIVE',
+        publicHolidays: dto.publicHolidays,
+        ahvNumber: dto.ahvNumber,
         notes: dto.notes,
       },
       include: {
@@ -138,6 +141,9 @@ export class EmployeeContractsService {
     if (dto.thirteenthMonth !== undefined) data.thirteenthMonth = dto.thirteenthMonth;
     if (dto.workload !== undefined) data.workload = dto.workload;
     if (dto.workLocation !== undefined) data.workLocation = dto.workLocation;
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.publicHolidays !== undefined) data.publicHolidays = dto.publicHolidays;
+    if (dto.ahvNumber !== undefined) data.ahvNumber = dto.ahvNumber;
     if (dto.notes !== undefined) data.notes = dto.notes;
 
     return this.prisma.employeeContract.update({

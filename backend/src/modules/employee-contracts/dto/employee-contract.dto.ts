@@ -96,6 +96,21 @@ export class CreateEmployeeContractDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  status?: string; // ACTIVE, TERMINATED, SUSPENDED
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  publicHolidays?: number; // Anzahl Feiertage pro Jahr
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  ahvNumber?: string; // AHV-Nummer des Mitarbeiters
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
   notes?: string;
 }
 
