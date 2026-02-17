@@ -40,7 +40,7 @@ export class CostCentersService {
     ]);
 
     return {
-      data,
+      data: data.map((cc: any) => ({ ...cc, code: cc.number })),
       total,
       page,
       pageSize,

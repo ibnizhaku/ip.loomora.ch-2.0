@@ -53,7 +53,7 @@ export class FinanceService {
     const enrichedData = await Promise.all(
       data.map(async (account: any) => {
         const balance = await this.calculateAccountBalance(account.id, account.type);
-        return { ...account, balance };
+        return { ...account, code: account.number, balance };
       }),
     );
 
