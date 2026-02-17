@@ -154,11 +154,9 @@ export function mapPayslipResponse(payslip: any) {
 export function mapDeliveryNoteResponse(deliveryNote: any) {
   if (!deliveryNote) return deliveryNote;
   
-  const { date, ...rest } = deliveryNote;
-  
   return {
-    ...rest,
-    deliveryDate: date,
+    ...deliveryNote,
+    // deliveryDate bleibt wie es ist (Prisma-Feld heißt bereits deliveryDate, nicht date)
     customerName: deliveryNote.customer?.name,
     orderNumber: deliveryNote.order?.number,
   };

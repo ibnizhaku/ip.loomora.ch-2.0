@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const PDFDocument = require('pdfkit') as typeof import('pdfkit');
 import QRCode from 'qrcode';
 
 @Injectable()
