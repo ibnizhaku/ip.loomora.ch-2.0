@@ -139,29 +139,36 @@ const TravelExpenseCreate = () => {
     return File;
   };
 
-  const handleSubmit = () => {
-    if (!formData.employeeId || !formData.purpose || !formData.destination || !formData.startDate) {
+  const buildPayload = (status: string) => {
+    // Map frontend items to backend flat fields
+    const transport = items.filter(i => i.category === "transport").reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+    const accommodation = items.filter(i => i.category === "accommodation").reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+    const meals = items.filter(i => i.category === "meals").reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+    const other = items.filter(i => i.category === "other").reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+
+    return {
+      employeeId: formData.employeeId,
+      date: formData.startDate,
+      description: `${formData.purpose}${formData.destination ? ` – ${formData.destination}` : ''}`,
+      mealAllowance: meals || undefined,
+      accommodation: accommodation || undefined,
+      otherExpenses: (transport + other) || undefined,
+      totalAmount,
+      status,
+    };
+  };
+
+  const handleSubmit = (asDraft = false) => {
+    if (!formData.employeeId || !formData.purpose || !formData.startDate) {
       toast.error("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
-    createExpense.mutate({
-      employeeId: formData.employeeId,
-      purpose: formData.purpose,
-      destination: formData.destination,
-      startDate: formData.startDate,
-      endDate: formData.endDate || formData.startDate,
-      totalAmount,
-      status: "Eingereicht",
-      items: items.map(item => ({
-        category: item.category,
-        description: item.description,
-        amount: parseFloat(item.amount) || 0,
-        date: item.date,
-      })),
-    }, {
+    const status = asDraft ? "draft" : "pending";
+
+    createExpense.mutate(buildPayload(status) as any, {
       onSuccess: () => {
-        toast.success("Reisekostenabrechnung erstellt", {
+        toast.success(asDraft ? "Als Entwurf gespeichert" : "Reisekostenabrechnung eingereicht", {
           description: `${formData.purpose} - CHF ${formatCHF(totalAmount)}`
         });
         navigate("/travel-expenses");
@@ -494,10 +501,11 @@ const TravelExpenseCreate = () => {
         <Button variant="outline" onClick={() => navigate("/travel-expenses")}>
           Abbrechen
         </Button>
-        <Button variant="secondary" onClick={() => toast.info("Als Entwurf gespeichert")}>
+        <Button variant="secondary" onClick={() => handleSubmit(true)} disabled={createExpense.isPending}>
+          {createExpense.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Als Entwurf speichern
         </Button>
-        <Button onClick={handleSubmit} disabled={createExpense.isPending}>
+        <Button onClick={() => handleSubmit(false)} disabled={createExpense.isPending}>
           {createExpense.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Einreichen
         </Button>
