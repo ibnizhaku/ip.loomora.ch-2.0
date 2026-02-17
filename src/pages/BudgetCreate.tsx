@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Target, Calculator } from "lucide-react";
+import { ArrowLeft, Save, Target, Calculator, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,56 +13,88 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useCostCenters } from "@/hooks/use-cost-centers";
+import { useCreateBudget } from "@/hooks/use-budgets";
+import { useAccounts } from "@/hooks/use-finance";
 
-const categories = [
-  { value: "operating", label: "Betriebskosten (OPEX)" },
-  { value: "capex", label: "Investitionen (CAPEX)" },
-  { value: "personnel", label: "Personalkosten" },
-  { value: "marketing", label: "Marketing & Vertrieb" },
-  { value: "it", label: "IT & Technologie" },
-  { value: "administration", label: "Verwaltung" },
-  { value: "research", label: "Forschung & Entwicklung" },
+const periodTypes = [
+  { value: "YEARLY", label: "Jährlich" },
+  { value: "QUARTERLY", label: "Quartalsweise" },
+  { value: "MONTHLY", label: "Monatlich" },
 ];
 
-const periods = [
-  { value: "2024", label: "Geschäftsjahr 2024" },
-  { value: "2025", label: "Geschäftsjahr 2025" },
-  { value: "q1-2024", label: "Q1 2024" },
-  { value: "q2-2024", label: "Q2 2024" },
-  { value: "q3-2024", label: "Q3 2024" },
-  { value: "q4-2024", label: "Q4 2024" },
+const currentYear = new Date().getFullYear();
+const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+
+const quarters = [
+  { value: "1", label: "Q1" },
+  { value: "2", label: "Q2" },
+  { value: "3", label: "Q3" },
+  { value: "4", label: "Q4" },
 ];
 
-const costCenters = [
-  { value: "1000", label: "1000 - Produktion" },
-  { value: "2000", label: "2000 - Vertrieb" },
-  { value: "3000", label: "3000 - Verwaltung" },
-  { value: "4000", label: "4000 - IT" },
-  { value: "5000", label: "5000 - Marketing" },
+const months = [
+  { value: "1", label: "Januar" }, { value: "2", label: "Februar" },
+  { value: "3", label: "März" }, { value: "4", label: "April" },
+  { value: "5", label: "Mai" }, { value: "6", label: "Juni" },
+  { value: "7", label: "Juli" }, { value: "8", label: "August" },
+  { value: "9", label: "September" }, { value: "10", label: "Oktober" },
+  { value: "11", label: "November" }, { value: "12", label: "Dezember" },
 ];
 
 export default function BudgetCreate() {
   const navigate = useNavigate();
+  const createBudget = useCreateBudget();
+  const { data: costCentersData, isLoading: costCentersLoading } = useCostCenters({ pageSize: 100 });
+  const { data: accountsData, isLoading: accountsLoading } = useAccounts({});
+
+  const costCenters = useMemo(() => {
+    const items = costCentersData?.data || costCentersData || [];
+    return Array.isArray(items) ? items : [];
+  }, [costCentersData]);
+
+  const accounts = useMemo(() => {
+    const items = accountsData?.data || accountsData || [];
+    return Array.isArray(items) ? items : [];
+  }, [accountsData]);
+
   const [formData, setFormData] = useState({
     name: "",
-    category: "",
-    period: "2024",
+    accountId: "",
+    period: "YEARLY",
+    year: String(currentYear),
+    quarter: "",
+    month: "",
     costCenter: "",
     plannedAmount: "",
     description: "",
     responsible: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.category || !formData.plannedAmount) {
+
+    if (!formData.name || !formData.plannedAmount) {
       toast.error("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
-    toast.success("Budget erfolgreich angelegt");
-    navigate("/budgets");
+    try {
+      await createBudget.mutateAsync({
+        name: formData.name,
+        description: formData.description || undefined,
+        period: formData.period as any,
+        year: parseInt(formData.year),
+        lines: [{
+          accountId: formData.accountId || undefined as any,
+          amount: parseFloat(formData.plannedAmount),
+        }],
+      });
+      toast.success("Budget erfolgreich angelegt");
+      navigate("/budgets");
+    } catch {
+      toast.error("Fehler beim Anlegen des Budgets");
+    }
   };
 
   const plannedAmount = parseFloat(formData.plannedAmount) || 0;
@@ -105,18 +137,18 @@ export default function BudgetCreate() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="category">Kategorie *</Label>
+                  <Label htmlFor="accountId">Konto</Label>
                   <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    value={formData.accountId}
+                    onValueChange={(value) => setFormData({ ...formData, accountId: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Kategorie wählen" />
+                      <SelectValue placeholder={accountsLoading ? "Laden..." : "Konto wählen"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
+                      {accounts.map((acc: any) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.code ? `${acc.code} - ` : ""}{acc.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -126,13 +158,13 @@ export default function BudgetCreate() {
                   <Label htmlFor="period">Budgetperiode *</Label>
                   <Select
                     value={formData.period}
-                    onValueChange={(value) => setFormData({ ...formData, period: value })}
+                    onValueChange={(value) => setFormData({ ...formData, period: value, quarter: "", month: "" })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {periods.map((p) => (
+                      {periodTypes.map((p) => (
                         <SelectItem key={p.value} value={p.value}>
                           {p.label}
                         </SelectItem>
@@ -141,18 +173,72 @@ export default function BudgetCreate() {
                   </Select>
                 </div>
                 <div>
+                  <Label htmlFor="year">Jahr *</Label>
+                  <Select
+                    value={formData.year}
+                    onValueChange={(value) => setFormData({ ...formData, year: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.period === "QUARTERLY" && (
+                  <div>
+                    <Label>Quartal *</Label>
+                    <Select
+                      value={formData.quarter}
+                      onValueChange={(value) => setFormData({ ...formData, quarter: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Quartal wählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {quarters.map((q) => (
+                          <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {formData.period === "MONTHLY" && (
+                  <div>
+                    <Label>Monat *</Label>
+                    <Select
+                      value={formData.month}
+                      onValueChange={(value) => setFormData({ ...formData, month: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Monat wählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
                   <Label htmlFor="costCenter">Kostenstelle</Label>
                   <Select
                     value={formData.costCenter}
                     onValueChange={(value) => setFormData({ ...formData, costCenter: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Optional zuordnen" />
+                      <SelectValue placeholder={costCentersLoading ? "Laden..." : "Optional zuordnen"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {costCenters.map((cc) => (
-                        <SelectItem key={cc.value} value={cc.value}>
-                          {cc.label}
+                      {costCenters.map((cc: any) => (
+                        <SelectItem key={cc.id} value={cc.id}>
+                          {cc.code ? `${cc.code} - ` : ""}{cc.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -227,18 +313,18 @@ export default function BudgetCreate() {
                     </p>
                   </div>
                 </div>
-                {formData.category && (
+                {formData.period && (
                   <div className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground">Kategorie</p>
+                    <p className="text-xs text-muted-foreground">Periode</p>
                     <p className="font-medium">
-                      {categories.find(c => c.value === formData.category)?.label}
+                      {periodTypes.find(p => p.value === formData.period)?.label} {formData.year}
                     </p>
                   </div>
                 )}
               </div>
               <div className="mt-6 flex gap-2">
-                <Button type="submit" className="flex-1 gap-2">
-                  <Save className="h-4 w-4" />
+                <Button type="submit" className="flex-1 gap-2" disabled={createBudget.isPending}>
+                  {createBudget.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Speichern
                 </Button>
                 <Button
