@@ -371,16 +371,23 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
 
     const documentDate = (document.querySelector('input[type="date"]') as HTMLInputElement)?.value || new Date().toISOString().split("T")[0];
 
+    const isDeliveryNote = type === "delivery-note";
     const payload: any = {
       customerId: selectedCustomer.id,
-      status: asDraft ? "DRAFT" : "SENT",
-      items: positions.map((pos, idx) => ({
-        position: idx + 1,
-        description: pos.description,
-        quantity: pos.quantity,
-        unit: pos.unit,
-        unitPrice: pos.price,
-      })),
+      status: asDraft ? "DRAFT" : (isDeliveryNote ? "SHIPPED" : "SENT"),
+      items: positions.map((pos, idx) => {
+        const item: any = {
+          position: idx + 1,
+          description: pos.description,
+          quantity: pos.quantity,
+          unit: pos.unit,
+        };
+        // Delivery notes don't use unitPrice
+        if (!isDeliveryNote) {
+          item.unitPrice = pos.price;
+        }
+        return item;
+      }),
       notes: notes || undefined,
     };
 
