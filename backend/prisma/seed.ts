@@ -1960,52 +1960,128 @@ async function main() {
   console.log('📦 Erstelle Kontenrahmen...');
 
   const accounts = await Promise.all([
-    // Aktiven
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1000' } }, update: {}, create: { number: '1000', name: 'Kasse', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1020' } }, update: {}, create: { number: '1020', name: 'Bank UBS', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1021' } }, update: {}, create: { number: '1021', name: 'Bank PostFinance', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1100' } }, update: {}, create: { number: '1100', name: 'Debitoren', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1170' } }, update: {}, create: { number: '1170', name: 'Vorsteuer MWST', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1200' } }, update: {}, create: { number: '1200', name: 'Vorräte Material', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1500' } }, update: {}, create: { number: '1500', name: 'Maschinen und Geräte', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1510' } }, update: {}, create: { number: '1510', name: 'Fahrzeuge', type: 'ASSET', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1520' } }, update: {}, create: { number: '1520', name: 'Werkzeuge', type: 'ASSET', companyId: company.id } }),
-    // Passiven
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2000' } }, update: {}, create: { number: '2000', name: 'Kreditoren', type: 'LIABILITY', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2200' } }, update: {}, create: { number: '2200', name: 'MWST Schuld', type: 'LIABILITY', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2300' } }, update: {}, create: { number: '2300', name: 'Passive Rechnungsabgrenzung', type: 'LIABILITY', companyId: company.id } }),
-    // Eigenkapital
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2800' } }, update: {}, create: { number: '2800', name: 'Aktienkapital', type: 'EQUITY', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2900' } }, update: {}, create: { number: '2900', name: 'Gewinnvortrag', type: 'EQUITY', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2990' } }, update: {}, create: { number: '2990', name: 'Jahresgewinn/-verlust', type: 'EQUITY', companyId: company.id } }),
-    // Ertrag
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3000' } }, update: {}, create: { number: '3000', name: 'Produktionserlöse', type: 'REVENUE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3200' } }, update: {}, create: { number: '3200', name: 'Dienstleistungserlöse', type: 'REVENUE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3800' } }, update: {}, create: { number: '3800', name: 'Sonstige Erlöse', type: 'REVENUE', companyId: company.id } }),
-    // Aufwand
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4000' } }, update: {}, create: { number: '4000', name: 'Materialaufwand', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4400' } }, update: {}, create: { number: '4400', name: 'Fremdleistungen', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5000' } }, update: {}, create: { number: '5000', name: 'Lohnaufwand', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5700' } }, update: {}, create: { number: '5700', name: 'Sozialversicherungen', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6000' } }, update: {}, create: { number: '6000', name: 'Raumaufwand', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6200' } }, update: {}, create: { number: '6200', name: 'Fahrzeugaufwand', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6500' } }, update: {}, create: { number: '6500', name: 'Verwaltungsaufwand', type: 'EXPENSE', companyId: company.id } }),
-    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6800' } }, update: {}, create: { number: '6800', name: 'Abschreibungen', type: 'EXPENSE', companyId: company.id } }),
+    // ── KLASSE 1: AKTIVEN ──────────────────────────────────────
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1000' } }, update: {}, create: { number: '1000', name: 'Kasse', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1010' } }, update: {}, create: { number: '1010', name: 'Postcheck', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1020' } }, update: {}, create: { number: '1020', name: 'Bank UBS', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1021' } }, update: {}, create: { number: '1021', name: 'Bank PostFinance', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1030' } }, update: {}, create: { number: '1030', name: 'Kurzfristige Geldanlagen', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1060' } }, update: {}, create: { number: '1060', name: 'Wertschriften (kurzfristig)', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1100' } }, update: {}, create: { number: '1100', name: 'Debitoren (Forderungen aus L+L)', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1109' } }, update: {}, create: { number: '1109', name: 'Delkredere', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1140' } }, update: {}, create: { number: '1140', name: 'Sonstige kurzfristige Forderungen', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1170' } }, update: {}, create: { number: '1170', name: 'Vorsteuer MWST', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1176' } }, update: {}, create: { number: '1176', name: 'Verrechnungssteuer', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1200' } }, update: {}, create: { number: '1200', name: 'Handelswaren', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1210' } }, update: {}, create: { number: '1210', name: 'Rohstoffe', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1260' } }, update: {}, create: { number: '1260', name: 'Fertigfabrikate', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1300' } }, update: {}, create: { number: '1300', name: 'Aktive Rechnungsabgrenzung', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1310' } }, update: {}, create: { number: '1310', name: 'Vorauszahlungen', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1440' } }, update: {}, create: { number: '1440', name: 'Finanzanlagen (langfristig)', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1500' } }, update: {}, create: { number: '1500', name: 'Maschinen und Apparate', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1509' } }, update: {}, create: { number: '1509', name: 'WB Maschinen und Apparate', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1520' } }, update: {}, create: { number: '1520', name: 'Fahrzeuge', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1529' } }, update: {}, create: { number: '1529', name: 'WB Fahrzeuge', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1530' } }, update: {}, create: { number: '1530', name: 'Büromobiliar und -einrichtung', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1539' } }, update: {}, create: { number: '1539', name: 'WB Büromobiliar', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1540' } }, update: {}, create: { number: '1540', name: 'Büromaschinen und EDV', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1549' } }, update: {}, create: { number: '1549', name: 'WB Büromaschinen und EDV', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1600' } }, update: {}, create: { number: '1600', name: 'Immobilien (Grundstücke und Gebäude)', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1609' } }, update: {}, create: { number: '1609', name: 'WB Immobilien', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1700' } }, update: {}, create: { number: '1700', name: 'Immaterielle Werte', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '1709' } }, update: {}, create: { number: '1709', name: 'WB Immaterielle Werte', type: 'ASSET', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2000' } }, update: {}, create: { number: '2000', name: 'Kreditoren (Verbindlichkeiten aus L+L)', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2030' } }, update: {}, create: { number: '2030', name: 'Kontokorrent AHV/IV/EO/ALV', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2050' } }, update: {}, create: { number: '2050', name: 'Kontokorrent Quellensteuer', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2100' } }, update: {}, create: { number: '2100', name: 'Bankverbindlichkeiten (kurzfristig)', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2200' } }, update: {}, create: { number: '2200', name: 'MWST-Schuld', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2201' } }, update: {}, create: { number: '2201', name: 'Abrechnungskonto MWST', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2210' } }, update: {}, create: { number: '2210', name: 'Direkte Steuern', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2300' } }, update: {}, create: { number: '2300', name: 'Passive Rechnungsabgrenzung', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2310' } }, update: {}, create: { number: '2310', name: 'Erhaltene Vorauszahlungen', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2330' } }, update: {}, create: { number: '2330', name: 'Kurzfristige Rückstellungen', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2400' } }, update: {}, create: { number: '2400', name: 'Bankdarlehen (langfristig)', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2420' } }, update: {}, create: { number: '2420', name: 'Hypotheken', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2500' } }, update: {}, create: { number: '2500', name: 'Langfristige Rückstellungen', type: 'LIABILITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2800' } }, update: {}, create: { number: '2800', name: 'Aktienkapital / Stammkapital', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2810' } }, update: {}, create: { number: '2810', name: 'Partizipationskapital', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2900' } }, update: {}, create: { number: '2900', name: 'Gesetzliche Kapitalreserven', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2950' } }, update: {}, create: { number: '2950', name: 'Gesetzliche Gewinnreserven', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2960' } }, update: {}, create: { number: '2960', name: 'Freiwillige Gewinnreserven', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2970' } }, update: {}, create: { number: '2970', name: 'Gewinnvortrag / Verlustvortrag', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '2979' } }, update: {}, create: { number: '2979', name: 'Jahresgewinn / Jahresverlust', type: 'EQUITY', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3000' } }, update: {}, create: { number: '3000', name: 'Produktionserlöse', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3200' } }, update: {}, create: { number: '3200', name: 'Handelserlöse', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3400' } }, update: {}, create: { number: '3400', name: 'Dienstleistungserlöse', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3600' } }, update: {}, create: { number: '3600', name: 'Übrige Betriebserträge', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3710' } }, update: {}, create: { number: '3710', name: 'Bestandesänderungen', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3800' } }, update: {}, create: { number: '3800', name: 'Erlösminderungen', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3900' } }, update: {}, create: { number: '3900', name: 'Betrieblicher Nebenertrag', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3950' } }, update: {}, create: { number: '3950', name: 'Finanzerträge', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '3960' } }, update: {}, create: { number: '3960', name: 'Ausserordentliche Erträge', type: 'REVENUE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4000' } }, update: {}, create: { number: '4000', name: 'Materialaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4200' } }, update: {}, create: { number: '4200', name: 'Handelswarenaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4400' } }, update: {}, create: { number: '4400', name: 'Aufwand für bezogene Dienstleistungen', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '4500' } }, update: {}, create: { number: '4500', name: 'Übriger Betriebsaufwand (Material)', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5000' } }, update: {}, create: { number: '5000', name: 'Löhne und Gehälter', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5100' } }, update: {}, create: { number: '5100', name: 'Temporäre Arbeitnehmer', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5700' } }, update: {}, create: { number: '5700', name: 'AHV/IV/EO/ALV Arbeitgeber', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5710' } }, update: {}, create: { number: '5710', name: 'BVG (Pensionskasse) Arbeitgeber', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5720' } }, update: {}, create: { number: '5720', name: 'UVG/NBU Prämien', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5730' } }, update: {}, create: { number: '5730', name: 'KTG Prämien', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5800' } }, update: {}, create: { number: '5800', name: 'Übriger Personalaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5810' } }, update: {}, create: { number: '5810', name: 'Aus- und Weiterbildung', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5820' } }, update: {}, create: { number: '5820', name: 'Personalnebenkosten', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '5900' } }, update: {}, create: { number: '5900', name: 'Sozialleistungen', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6000' } }, update: {}, create: { number: '6000', name: 'Raumaufwand (Miete)', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6100' } }, update: {}, create: { number: '6100', name: 'Unterhalt und Reparaturen', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6110' } }, update: {}, create: { number: '6110', name: 'Fahrzeugaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6120' } }, update: {}, create: { number: '6120', name: 'Leasing', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6200' } }, update: {}, create: { number: '6200', name: 'Fahrzeug- und Transportaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6210' } }, update: {}, create: { number: '6210', name: 'Reise- und Repräsentationsaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6300' } }, update: {}, create: { number: '6300', name: 'Sachversicherungen und Gebühren', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6400' } }, update: {}, create: { number: '6400', name: 'Energie und Entsorgung', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6500' } }, update: {}, create: { number: '6500', name: 'Verwaltungsaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6510' } }, update: {}, create: { number: '6510', name: 'Büromaterial und Drucksachen', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6520' } }, update: {}, create: { number: '6520', name: 'Telefon und Porto', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6530' } }, update: {}, create: { number: '6530', name: 'Beratungs- und Rechtskosten', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6540' } }, update: {}, create: { number: '6540', name: 'Revisionskosten', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6570' } }, update: {}, create: { number: '6570', name: 'Informatikaufwand (IT)', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6600' } }, update: {}, create: { number: '6600', name: 'Werbeaufwand / Marketing', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6640' } }, update: {}, create: { number: '6640', name: 'Fachliteratur und Abonnemente', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6700' } }, update: {}, create: { number: '6700', name: 'Abschreibungen', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6800' } }, update: {}, create: { number: '6800', name: 'Finanzaufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6801' } }, update: {}, create: { number: '6801', name: 'Zinsen und Bankspesen', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6900' } }, update: {}, create: { number: '6900', name: 'Steuern', type: 'EXPENSE', isActive: true, companyId: company.id } }),
+    prisma.chartOfAccount.upsert({ where: { companyId_number: { companyId: company.id, number: '6950' } }, update: {}, create: { number: '6950', name: 'Ausserordentlicher Aufwand', type: 'EXPENSE', isActive: true, companyId: company.id } }),
   ]);
 
-  console.log('  ✓ 26 Konten erstellt');
+  // Standardkasse erstellen (idempotent via upsert-ähnlich)
+  const existingCashReg = await prisma.cashRegister.findFirst({ where: { companyId: company.id } });
+  if (!existingCashReg) {
+    await prisma.cashRegister.create({
+      data: { companyId: company.id, name: 'Hauptkasse', location: 'Büro', currentBalance: 0, isDefault: true },
+    });
+  }
+
+  console.log(`  ✓ 93 Konten (OR 957a Käfer-Schema) + Standardkasse erstellt`);
 
   // =====================================================
   // 24. JOURNAL ENTRIES
   // =====================================================
   console.log('📦 Erstelle Buchungen...');
 
+  // Konten für Buchungen nach Kontonummer suchen (robust bei Reihenfolgeänderungen)
+  const accBank   = accounts.find(a => a.number === '1020')!; // Bank UBS
+  const accDebtor = accounts.find(a => a.number === '1100')!; // Debitoren
+  const accCred   = accounts.find(a => a.number === '2000')!; // Kreditoren
+
   await Promise.all([
     prisma.journalEntry.create({
       data: {
         date: daysAgo(70),
-        debitAccountId: accounts[1].id,
-        creditAccountId: accounts[3].id,
+        debitAccountId: accBank.id,
+        creditAccountId: accDebtor.id,
         amount: 48645,
         description: 'Zahlungseingang RE-2023-048',
         reference: 'RE-2023-048',
@@ -2015,8 +2091,8 @@ async function main() {
     prisma.journalEntry.create({
       data: {
         date: daysAgo(12),
-        debitAccountId: accounts[9].id,
-        creditAccountId: accounts[1].id,
+        debitAccountId: accCred.id,
+        creditAccountId: accBank.id,
         amount: 9188.50,
         description: 'Zahlung Stahl Schweiz AG',
         reference: 'LF-0001',
@@ -3609,7 +3685,7 @@ async function main() {
   console.log('   - 3 Rechnungen, 2 Mahnungen, 1 Gutschrift');
   console.log('   - 3 Bestellungen, 2 Wareneingänge, 3 Eingangsrechnungen');
   console.log('   - 3 Zahlungen, 2 Bankkonten');
-  console.log('   - 26 Konten, 2 Buchungen');
+  console.log('   - 93 Konten (OR 957a), Standardkasse + 2 Buchungen');
   console.log('   - 15 Lohnabrechnungen, 4 Abwesenheiten');
   console.log('   - GAV-Einstellungen, 6 GAV-Daten, 2 QST-Daten');
   console.log('   - 4 Kostenstellen, 2 Budgets, 4 Anlagen');
