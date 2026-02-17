@@ -293,10 +293,10 @@ export default function Suppliers() {
                             <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
                               Anzeigen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}>
                               Bearbeiten
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate("/purchase-orders/new")}>
+                            <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
                               Bestellung aufgeben
                             </DropdownMenuItem>
                             <DropdownMenuItem 
