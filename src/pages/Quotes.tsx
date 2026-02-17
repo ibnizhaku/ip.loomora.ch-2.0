@@ -64,6 +64,7 @@ interface Quote {
   id: string;
   number: string;
   client: string;
+  customerId?: string;
   amount: number;
   status: string;
   validUntil: string;
@@ -75,6 +76,7 @@ function mapQuote(raw: QuoteRaw): Quote {
     id: raw.id,
     number: raw.number || "",
     client: raw.customer?.companyName || raw.customer?.name || "–",
+    customerId: raw.customer?.id,
     amount: Number(raw.total || raw.subtotal || 0),
     status: (raw.status || "DRAFT").toLowerCase(),
     validUntil: raw.validUntil
@@ -113,6 +115,18 @@ export default function Quotes() {
     },
     onError: () => {
       toast.error("Fehler beim Löschen");
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/quotes/${id}/duplicate`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/quotes"] });
+      toast.success("Angebot dupliziert");
+      if (data?.id) navigate(`/quotes/${data.id}/edit`);
+    },
+    onError: () => {
+      toast.error("Fehler beim Duplizieren");
     },
   });
 
@@ -302,9 +316,17 @@ export default function Quotes() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
+                        <DropdownMenuItem className="gap-2" onSelect={() => duplicateMutation.mutate(quote.id)}>
                           <Copy className="h-4 w-4" />
                           Duplizieren
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
+                          <Send className="h-4 w-4" />
+                          Versenden
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
+                          <ArrowRight className="h-4 w-4" />
+                          In Rechnung umwandeln
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -421,7 +443,7 @@ export default function Quotes() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
+                          <DropdownMenuItem className="gap-2" onSelect={() => duplicateMutation.mutate(quote.id)}>
                             <Copy className="h-4 w-4" />
                             Duplizieren
                           </DropdownMenuItem>
