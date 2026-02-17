@@ -45,7 +45,7 @@ export class TravelExpensesService {
     ]);
 
     return {
-      data: data.map(e => this.mapEmployeeName(e)),
+      data: data.map(e => this.mapResponse(e)),
       pagination: {
         page,
         pageSize,
@@ -77,7 +77,7 @@ export class TravelExpensesService {
       throw new NotFoundException('Reisekostenabrechnung nicht gefunden');
     }
 
-    return this.mapEmployeeName(expense);
+    return this.mapResponse(expense);
   }
 
   async create(companyId: string, dto: CreateTravelExpenseDto) {
@@ -86,8 +86,14 @@ export class TravelExpensesService {
     });
     if (!employee) throw new NotFoundException('Mitarbeiter nicht gefunden');
 
+    // Generate number
+    const count = await this.prisma.travelExpense.count({ where: { employee: { companyId } } });
+    const year = new Date().getFullYear();
+    const number = `RK-${year}-${String(count + 1).padStart(4, '0')}`;
+
     const created = await this.prisma.travelExpense.create({
       data: {
+        number,
         employeeId: dto.employeeId,
         date: new Date(dto.date),
         description: dto.description,
@@ -112,7 +118,7 @@ export class TravelExpensesService {
       },
     });
 
-    return this.mapEmployeeName(created);
+    return this.mapResponse(created);
   }
 
   async update(id: string, companyId: string, dto: UpdateTravelExpenseDto) {
@@ -148,7 +154,7 @@ export class TravelExpensesService {
       },
     });
 
-    return this.mapEmployeeName(updated);
+    return this.mapResponse(updated);
   }
 
   async approve(id: string, companyId: string, approvedById: string) {
@@ -174,7 +180,7 @@ export class TravelExpensesService {
       },
     });
 
-    return this.mapEmployeeName(approved);
+    return this.mapResponse(approved);
   }
 
   async reject(id: string, companyId: string, reason?: string) {
@@ -199,17 +205,47 @@ export class TravelExpensesService {
       },
     });
 
-    return this.mapEmployeeName(rejected);
+    return this.mapResponse(rejected);
   }
 
-  private mapEmployeeName(expense: any) {
-    if (!expense?.employee) return expense;
+  private mapResponse(expense: any) {
+    if (!expense) return expense;
+
+    // Build items array from flat fields for frontend compatibility
+    const items: any[] = [];
+    const kmAmount = expense.kilometers && expense.kmRate
+      ? Number(expense.kilometers) * Number(expense.kmRate)
+      : 0;
+    if (kmAmount > 0) {
+      items.push({ category: 'transport', amount: kmAmount, description: `${expense.kilometers} km x CHF ${Number(expense.kmRate).toFixed(2)}` });
+    }
+    if (expense.otherExpenses && Number(expense.otherExpenses) > 0) {
+      items.push({ category: 'other', amount: Number(expense.otherExpenses), description: 'Sonstige Auslagen' });
+    }
+    if (expense.accommodation && Number(expense.accommodation) > 0) {
+      items.push({ category: 'accommodation', amount: Number(expense.accommodation), description: 'Unterkunft' });
+    }
+    if (expense.mealAllowance && Number(expense.mealAllowance) > 0) {
+      items.push({ category: 'meals', amount: Number(expense.mealAllowance), description: 'Verpflegung' });
+    }
+
+    // Map employee with name and initials
+    let employee = expense.employee;
+    if (employee) {
+      const firstName = employee.firstName || '';
+      const lastName = employee.lastName || '';
+      employee = {
+        ...employee,
+        name: `${firstName} ${lastName}`.trim(),
+        initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
+      };
+    }
+
     return {
       ...expense,
-      employee: {
-        ...expense.employee,
-        name: `${expense.employee.firstName} ${expense.employee.lastName}`,
-      },
+      items,
+      employee,
+      totalAmount: Number(expense.totalAmount || 0),
     };
   }
 

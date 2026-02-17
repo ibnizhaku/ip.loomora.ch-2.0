@@ -2340,6 +2340,7 @@ model TrainingParticipant {
 
 model TravelExpense {
   id              String   @id @default(cuid())
+  number          String?
   employeeId      String
   employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   
