@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Response } from 'express';
 import { QuotesService } from './quotes.service';
+import { PdfService } from '../../common/services/pdf.service';
 import { CreateQuoteDto, UpdateQuoteDto } from './dto/quote.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
@@ -11,7 +13,10 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('quotes')
 export class QuotesController {
-  constructor(private quotesService: QuotesService) {}
+  constructor(
+    private quotesService: QuotesService,
+    private pdfService: PdfService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all quotes' })
@@ -31,6 +36,22 @@ export class QuotesController {
   @ApiOperation({ summary: 'Get quote statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.getStats(user.companyId);
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Generate quote PDF' })
+  async generatePdf(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Res() res: Response,
+  ) {
+    const quote = await this.quotesService.findOne(id, user.companyId);
+    const pdfBuffer = await this.pdfService.generateQuotePdf(quote);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="Angebot-${quote.number}.pdf"`,
+    });
+    res.send(pdfBuffer);
   }
 
   @Get(':id')

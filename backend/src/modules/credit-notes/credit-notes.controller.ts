@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreditNotesService } from './credit-notes.service';
+import { PdfService } from '../../common/services/pdf.service';
 import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto';
 
 @ApiTags('Credit Notes')
@@ -10,7 +12,10 @@ import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto'
 @UseGuards(JwtAuthGuard)
 @Controller('credit-notes')
 export class CreditNotesController {
-  constructor(private readonly creditNotesService: CreditNotesService) {}
+  constructor(
+    private readonly creditNotesService: CreditNotesService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List all credit notes' })
@@ -29,6 +34,22 @@ export class CreditNotesController {
       customerId,
       search,
     });
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Generate credit note PDF' })
+  async generatePdf(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Res() res: Response,
+  ) {
+    const creditNote = await this.creditNotesService.findOne(id, user.companyId);
+    const pdfBuffer = await this.pdfService.generateCreditNotePdf(creditNote);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="Gutschrift-${creditNote.number}.pdf"`,
+    });
+    res.send(pdfBuffer);
   }
 
   @Get(':id')
