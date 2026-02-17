@@ -169,7 +169,56 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     }
   }
 
-  // Pre-fill from source order or quote
+  // Pre-fill from initialData in edit mode
+  const [editApplied, setEditApplied] = useState(false);
+  useEffect(() => {
+    if (!editMode || editApplied || !initialData) return;
+    const raw = initialData as any;
+
+    // Pre-fill customer
+    if (!selectedCustomer && raw.customer) {
+      setSelectedCustomer({
+        id: raw.customer.id,
+        name: raw.customer.companyName || raw.customer.name || "",
+        companyName: raw.customer.companyName,
+        street: raw.customer.street,
+        zipCode: raw.customer.zipCode,
+        city: raw.customer.city,
+        email: raw.customer.email,
+        phone: raw.customer.phone,
+        vatNumber: raw.customer.vatNumber,
+      });
+    }
+
+    // Pre-fill positions
+    const items = raw.items || raw.positions || [];
+    if (items.length > 0 && positions.length === 0) {
+      const mapped: Position[] = items.map((item: any, idx: number) => {
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.unitPrice || item.price || item.salePrice) || 0;
+        return {
+          id: Date.now() + idx,
+          description: item.description || item.name || "",
+          quantity: qty,
+          unit: item.unit || "Stück",
+          price,
+          total: qty * price,
+          vatRate: Number(item.vatRate) || 8.1,
+        };
+      });
+      setPositions(mapped);
+    }
+
+    // Pre-fill notes & settings
+    if (raw.notes) setNotes(raw.notes);
+    if (raw.validDays) setValidDays(String(raw.validDays));
+    if (raw.paymentTermDays) setPaymentDays(String(raw.paymentTermDays));
+    if (raw.projectId) setSelectedProjectId(raw.projectId);
+
+    setEditApplied(true);
+  }, [editMode, editApplied, initialData, selectedCustomer, positions.length]);
+
+  // Pre-fill from source order or quote (new document creation)
   const [sourceApplied, setSourceApplied] = useState(false);
   useEffect(() => {
     if (sourceApplied || editMode) return;
@@ -220,13 +269,21 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
 
   const isQuote = type === "quote";
   const isInvoice = type === "invoice";
+  const editTitleConfig: Record<string, string> = {
+    quote: "Angebot bearbeiten",
+    invoice: "Rechnung bearbeiten",
+    order: "Auftrag bearbeiten",
+    "delivery-note": "Lieferschein bearbeiten",
+    "credit-note": "Gutschrift bearbeiten",
+    "purchase-order": "Bestellung bearbeiten",
+  };
   const typeConfig: Record<string, { title: string; backPath: string; sendLabel: string }> = {
-    quote: { title: "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot senden" },
-    invoice: { title: "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung senden" },
-    order: { title: "Neuer Auftrag", backPath: "/orders", sendLabel: "Auftrag erstellen" },
-    "delivery-note": { title: "Neuer Lieferschein", backPath: "/delivery-notes", sendLabel: "Lieferschein erstellen" },
-    "credit-note": { title: "Neue Gutschrift", backPath: "/credit-notes", sendLabel: "Gutschrift erstellen" },
-    "purchase-order": { title: "Neue Bestellung", backPath: "/purchase-orders", sendLabel: "Bestellung senden" },
+    quote: { title: editMode ? editTitleConfig.quote : "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot senden" },
+    invoice: { title: editMode ? editTitleConfig.invoice : "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung senden" },
+    order: { title: editMode ? editTitleConfig.order : "Neuer Auftrag", backPath: "/orders", sendLabel: "Auftrag erstellen" },
+    "delivery-note": { title: editMode ? editTitleConfig["delivery-note"] : "Neuer Lieferschein", backPath: "/delivery-notes", sendLabel: "Lieferschein erstellen" },
+    "credit-note": { title: editMode ? editTitleConfig["credit-note"] : "Neue Gutschrift", backPath: "/credit-notes", sendLabel: "Gutschrift erstellen" },
+    "purchase-order": { title: editMode ? editTitleConfig["purchase-order"] : "Neue Bestellung", backPath: "/purchase-orders", sendLabel: "Bestellung senden" },
   };
   const { title, backPath, sendLabel } = typeConfig[type] || typeConfig.invoice;
 
