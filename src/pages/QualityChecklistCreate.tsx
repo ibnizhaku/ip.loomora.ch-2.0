@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, GripVertical, Save } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useCreateQualityChecklist } from "@/hooks/use-quality-control";
 
 interface CheckPoint {
   id: string;
@@ -25,10 +26,10 @@ interface CheckPoint {
 
 export default function QualityChecklistCreate() {
   const navigate = useNavigate();
+  const createMutation = useCreateQualityChecklist();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
-  const [norm, setNorm] = useState("");
-  const [execClass, setExecClass] = useState("");
+  const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [checkPoints, setCheckPoints] = useState<CheckPoint[]>([
     { id: crypto.randomUUID(), name: "", category: "", targetValue: "", weight: 10 },
@@ -56,14 +57,8 @@ export default function QualityChecklistCreate() {
     );
   };
 
-  const handleDragStart = (index: number) => {
-    dragItem.current = index;
-  };
-
-  const handleDragEnter = (index: number) => {
-    dragOverItem.current = index;
-  };
-
+  const handleDragStart = (index: number) => { dragItem.current = index; };
+  const handleDragEnter = (index: number) => { dragOverItem.current = index; };
   const handleDragEnd = () => {
     if (dragItem.current !== null && dragOverItem.current !== null) {
       const newCheckPoints = [...checkPoints];
@@ -76,7 +71,7 @@ export default function QualityChecklistCreate() {
     dragOverItem.current = null;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name) {
       toast.error("Bitte geben Sie einen Namen ein");
       return;
@@ -85,8 +80,24 @@ export default function QualityChecklistCreate() {
       toast.error("Bitte füllen Sie alle Prüfpunkte aus");
       return;
     }
-    toast.success("Checklisten-Vorlage erstellt");
-    navigate("/quality/checklists");
+    try {
+      await createMutation.mutateAsync({
+        name,
+        description: description || undefined,
+        type: type || undefined,
+        category: category || undefined,
+        items: checkPoints.map((cp, index) => ({
+          name: cp.name,
+          description: cp.targetValue || undefined,
+          required: true,
+          sortOrder: index,
+        })),
+      } as any);
+      toast.success("Checklisten-Vorlage erstellt");
+      navigate("/quality/checklists");
+    } catch {
+      toast.error("Fehler beim Erstellen der Vorlage");
+    }
   };
 
   const totalWeight = checkPoints.reduce((sum, cp) => sum + cp.weight, 0);
@@ -121,45 +132,22 @@ export default function QualityChecklistCreate() {
             </div>
             <div className="space-y-2">
               <Label>Kategorie</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Kategorie wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="schweissen">Schweissen</SelectItem>
-                  <SelectItem value="massgenauigkeit">Massgenauigkeit</SelectItem>
-                  <SelectItem value="oberflaeche">Oberfläche</SelectItem>
-                  <SelectItem value="verbindungen">Verbindungen</SelectItem>
-                  <SelectItem value="wareneingang">Wareneingang</SelectItem>
-                  <SelectItem value="endkontrolle">Endkontrolle</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="z.B. Schweissen, Oberfläche..."
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Prüfnorm</Label>
-              <Select value={norm} onValueChange={setNorm}>
+              <Label>Prüfungstyp</Label>
+              <Select value={type} onValueChange={setType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Norm wählen" />
+                  <SelectValue placeholder="Typ wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en1090-2">SN EN 1090-2</SelectItem>
-                  <SelectItem value="iso12944">ISO 12944</SelectItem>
-                  <SelectItem value="iso9001">ISO 9001</SelectItem>
-                  <SelectItem value="iso3834">ISO 3834</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Ausführungsklasse</Label>
-              <Select value={execClass} onValueChange={setExecClass}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Klasse wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="exc1">EXC1</SelectItem>
-                  <SelectItem value="exc2">EXC2</SelectItem>
-                  <SelectItem value="exc3">EXC3</SelectItem>
-                  <SelectItem value="exc4">EXC4</SelectItem>
+                  <SelectItem value="INCOMING">Wareneingang</SelectItem>
+                  <SelectItem value="IN_PROCESS">Fertigungsbegleitend</SelectItem>
+                  <SelectItem value="FINAL">Endkontrolle</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -258,8 +246,8 @@ export default function QualityChecklistCreate() {
         <Button variant="outline" onClick={() => navigate("/quality/checklists")}>
           Abbrechen
         </Button>
-        <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" />
+        <Button onClick={handleSave} disabled={createMutation.isPending}>
+          {createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Vorlage speichern
         </Button>
       </div>
