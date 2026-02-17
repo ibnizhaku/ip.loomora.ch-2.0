@@ -23,6 +23,8 @@ import {
   ChevronLeft,
   Check,
   Loader2,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,6 +128,7 @@ const Reminders = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [levelFilters, setLevelFilters] = useState<number[]>([]);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -360,7 +363,7 @@ const Reminders = () => {
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
-          {/* Filters */}
+          {/* Filters + View Toggle */}
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -371,52 +374,161 @@ const Reminders = () => {
                 className="pl-10"
               />
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn(hasActiveFilters && "border-primary text-primary")}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                  {hasActiveFilters && (
-                    <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 bg-popover" align="end">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Filter</h4>
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn(hasActiveFilters && "border-primary text-primary")}>
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
                     {hasActiveFilters && (
-                      <Button variant="ghost" size="sm" onClick={resetFilters}>
-                        Zurücksetzen
-                      </Button>
+                      <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
                     )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Mahnstufe</Label>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 bg-popover" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Filter</h4>
+                      {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={resetFilters}>
+                          Zurücksetzen
+                        </Button>
+                      )}
+                    </div>
                     <div className="space-y-2">
-                      {Object.entries(levelConfig).map(([key, value]) => (
-                        <div key={key} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`level-${key}`}
-                            checked={levelFilters.includes(parseInt(key))}
-                            onCheckedChange={() => toggleLevelFilter(parseInt(key))}
-                          />
-                          <label htmlFor={`level-${key}`} className="text-sm cursor-pointer flex items-center gap-2">
-                            <Badge className={value.color} variant="outline">{value.label}</Badge>
-                            {value.fee > 0 && (
-                              <span className="text-xs text-muted-foreground">+CHF {value.fee}</span>
-                            )}
-                          </label>
-                        </div>
-                      ))}
+                      <Label className="text-sm font-medium">Mahnstufe</Label>
+                      <div className="space-y-2">
+                        {Object.entries(levelConfig).map(([key, value]) => (
+                          <div key={key} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`level-${key}`}
+                              checked={levelFilters.includes(parseInt(key))}
+                              onCheckedChange={() => toggleLevelFilter(parseInt(key))}
+                            />
+                            <label htmlFor={`level-${key}`} className="text-sm cursor-pointer flex items-center gap-2">
+                              <Badge className={value.color} variant="outline">{value.label}</Badge>
+                              {value.fee > 0 && (
+                                <span className="text-xs text-muted-foreground">+CHF {value.fee}</span>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+              <div className="flex items-center rounded-lg border border-border bg-card p-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8", viewMode === "table" && "bg-primary/10 text-primary")}
+                  onClick={() => setViewMode("table")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8", viewMode === "cards" && "bg-primary/10 text-primary")}
+                  onClick={() => setViewMode("cards")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
 
+          {/* Card View */}
+          {viewMode === "cards" && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredReminders.length === 0 ? (
+                <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+                  Keine Mahnungen gefunden
+                </div>
+              ) : (
+                filteredReminders.map((reminder, index) => {
+                  const level = levelConfig[reminder.level] || levelConfig[1];
+                  return (
+                    <div
+                      key={reminder.id}
+                      className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => navigate(`/reminders/${reminder.id}`)}
+                    >
+                      <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedReminders.includes(reminder.id)}
+                          onCheckedChange={() => toggleReminderSelection(reminder.id)}
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover">
+                            <DropdownMenuItem onClick={() => navigate(`/reminders/${reminder.id}`)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Anzeigen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toast.success("PDF wird heruntergeladen...")}>
+                              <Download className="h-4 w-4 mr-2" />
+                              PDF herunterladen
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {reminder.level < 5 && (
+                              <DropdownMenuItem onClick={() => handleSendNextReminder(reminder)}>
+                                <Send className="h-4 w-4 mr-2" />
+                                {(levelConfig[Math.min(reminder.level + 1, 5)] || levelConfig[1]).label} senden
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => handleRecordPayment(reminder)}>
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Zahlung erfassen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{reminder.id}</p>
+                          <p className="text-sm text-muted-foreground">Rechnung: {reminder.invoice}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <span>{reminder.customer}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <Clock className="h-4 w-4" />
+                          <span>{reminder.daysOverdue} Tage überfällig</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>Letzte Mahnung: {reminder.lastReminder}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between pt-4 border-t border-border">
+                        <Badge className={level.color}>{level.label}</Badge>
+                        <span className="font-semibold">{formatCHF(reminder.amount)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
           {/* Table */}
+          {viewMode === "table" && (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -536,6 +648,7 @@ const Reminders = () => {
               </Table>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="overdue">

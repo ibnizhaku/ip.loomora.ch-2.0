@@ -15,6 +15,10 @@ import {
   Clock,
   Banknote,
   ArrowRight,
+  LayoutGrid,
+  List,
+  Building2,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +103,7 @@ export default function Quotes() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/quotes/${id}`),
@@ -204,7 +209,7 @@ export default function Quotes() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters + View Toggle */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -215,98 +220,82 @@ export default function Quotes() {
             className="pl-10"
           />
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="icon" className={statusFilters.length > 0 ? "border-primary text-primary" : ""}>
-              <Filter className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 bg-popover border border-border shadow-lg z-50" align="end">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Status filtern</p>
-                {statusFilters.length > 0 && (
-                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setStatusFilters([])}>
-                    Zurücksetzen
-                  </Button>
-                )}
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className={statusFilters.length > 0 ? "border-primary text-primary" : ""}>
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 bg-popover border border-border shadow-lg z-50" align="end">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Status filtern</p>
+                  {statusFilters.length > 0 && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setStatusFilters([])}>
+                      Zurücksetzen
+                    </Button>
+                  )}
+                </div>
+                {Object.entries(statusConfig).map(([key, cfg]) => (
+                  <label key={key} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={statusFilters.includes(key)}
+                      onCheckedChange={(checked) => {
+                        setStatusFilters(prev =>
+                          checked ? [...prev, key] : prev.filter(s => s !== key)
+                        );
+                      }}
+                    />
+                    <span className="text-sm">{cfg.label}</span>
+                  </label>
+                ))}
               </div>
-              {Object.entries(statusConfig).map(([key, cfg]) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={statusFilters.includes(key)}
-                    onCheckedChange={(checked) => {
-                      setStatusFilters(prev =>
-                        checked ? [...prev, key] : prev.filter(s => s !== key)
-                      );
-                    }}
-                  />
-                  <span className="text-sm">{cfg.label}</span>
-                </label>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+          <div className="flex items-center rounded-lg border border-border bg-card p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "table" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", viewMode === "cards" && "bg-primary/10 text-primary")}
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Angebot</TableHead>
-              <TableHead>Kunde</TableHead>
-              <TableHead>Projekt</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Betrag</TableHead>
-              <TableHead>Gültig bis</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredQuotes.map((quote, index) => {
+      {/* Card View */}
+      {viewMode === "cards" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredQuotes.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
+              Keine Angebote gefunden
+            </div>
+          ) : (
+            filteredQuotes.map((quote, index) => {
               const cfg = statusConfig[quote.status] || defaultStatus;
               const StatusIcon = cfg.icon;
               return (
-                <TableRow
+                <div
                   key={quote.id}
-                  className="cursor-pointer animate-fade-in hover:bg-muted/50"
+                  className="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-soft transition-all cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => navigate(`/quotes/${quote.id}`)}
                 >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <span className="font-medium">{quote.number}</span>
-                        <p className="text-xs text-muted-foreground">
-                          {quote.items} Positionen
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{quote.client}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    –
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={cn("gap-1", cfg.color)}>
-                      <StatusIcon className="h-3 w-3" />
-                      {cfg.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    CHF {quote.amount.toLocaleString("de-CH")}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {quote.validUntil}
-                  </TableCell>
-                  <TableCell>
+                  <div className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -317,19 +306,10 @@ export default function Quotes() {
                           <Copy className="h-4 w-4" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
-                          <Send className="h-4 w-4" />
-                          Versenden
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
-                          <ArrowRight className="h-4 w-4" />
-                          In Rechnung umwandeln
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             if (confirm("Offerte wirklich löschen?")) {
                               deleteMutation.mutate(quote.id);
                             }
@@ -339,13 +319,142 @@ export default function Quotes() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{quote.number}</p>
+                      <p className="text-sm text-muted-foreground">{quote.items} Positionen</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span>{quote.client}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>Gültig bis: {quote.validUntil}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-border">
+                    <Badge className={cn("gap-1", cfg.color)}>
+                      <StatusIcon className="h-3 w-3" />
+                      {cfg.label}
+                    </Badge>
+                    <span className="font-semibold">CHF {quote.amount.toLocaleString("de-CH")}</span>
+                  </div>
+                </div>
               );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+            })
+          )}
+        </div>
+      )}
+
+      {/* Table View */}
+      {viewMode === "table" && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Angebot</TableHead>
+                <TableHead>Kunde</TableHead>
+                <TableHead>Projekt</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Betrag</TableHead>
+                <TableHead>Gültig bis</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredQuotes.map((quote, index) => {
+                const cfg = statusConfig[quote.status] || defaultStatus;
+                const StatusIcon = cfg.icon;
+                return (
+                  <TableRow
+                    key={quote.id}
+                    className="cursor-pointer animate-fade-in hover:bg-muted/50"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => navigate(`/quotes/${quote.id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <span className="font-medium">{quote.number}</span>
+                          <p className="text-xs text-muted-foreground">
+                            {quote.items} Positionen
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{quote.client}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      –
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={cn("gap-1", cfg.color)}>
+                        <StatusIcon className="h-3 w-3" />
+                        {cfg.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      CHF {quote.amount.toLocaleString("de-CH")}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {quote.validUntil}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>Anzeigen</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => navigate(`/quotes/new?customerId=${quote.id}`)}>
+                            <Copy className="h-4 w-4" />
+                            Duplizieren
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
+                            <Send className="h-4 w-4" />
+                            Versenden
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
+                            <ArrowRight className="h-4 w-4" />
+                            In Rechnung umwandeln
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Offerte wirklich löschen?")) {
+                                deleteMutation.mutate(quote.id);
+                              }
+                            }}
+                          >
+                            Löschen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
