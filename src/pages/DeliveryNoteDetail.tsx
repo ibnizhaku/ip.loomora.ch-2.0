@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
-import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { SalesDocumentData, downloadSalesDocumentPDF, getSalesDocumentPDFDataUrl } from "@/lib/pdf/sales-document";
 import { useDeliveryNote } from "@/hooks/use-delivery-notes";
 
 // Status mapping from backend enum to German display labels
@@ -164,6 +164,14 @@ const DeliveryNoteDetail = () => {
     toast.success("PDF heruntergeladen");
   };
 
+  const handlePrint = () => {
+    const url = getSalesDocumentPDFDataUrl(pdfData);
+    const printWindow = window.open(url);
+    if (printWindow) {
+      printWindow.onload = () => { printWindow.print(); };
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,7 +207,7 @@ const DeliveryNoteDetail = () => {
             <FileText className="h-4 w-4 mr-2" />
             Rechnung erstellen
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
