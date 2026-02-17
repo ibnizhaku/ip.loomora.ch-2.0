@@ -289,24 +289,21 @@ export default function Suppliers() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
-                              Anzeigen
+                              Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}>
                               Bearbeiten
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate("/purchase-orders/new")}>
+                            <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
                               Bestellung aufgeben
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(supplier.id, supplier.name);
-                              }}
+                              onClick={() => handleDelete(supplier.id, supplier.name)}
                             >
-                              Deaktivieren
+                              Löschen
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
