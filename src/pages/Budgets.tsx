@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 import {
   Plus,
   Search,
@@ -17,6 +15,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,51 +37,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useBudgets, useDeleteBudget } from "@/hooks/use-budgets";
 
-const budgetDataByYear: Record<string, Budget[]> = {
-  "2024": [
-    { id: "1", name: "Personalkosten", category: "Operating", period: "2024", planned: 1200000, actual: 480000, forecast: 1180000, status: "on-track" },
-    { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2024", planned: 150000, actual: 85000, forecast: 175000, status: "at-risk" },
-    { id: "3", name: "IT Infrastruktur", category: "CAPEX", period: "2024", planned: 80000, actual: 95000, forecast: 120000, status: "over-budget" },
-    { id: "4", name: "Reisekosten", category: "Operating", period: "2024", planned: 45000, actual: 12000, forecast: 35000, status: "under-utilized" },
-    { id: "5", name: "Weiterbildung", category: "Operating", period: "2024", planned: 30000, actual: 8500, forecast: 28000, status: "on-track" },
-    { id: "6", name: "Büroausstattung", category: "CAPEX", period: "2024", planned: 25000, actual: 22000, forecast: 25000, status: "on-track" },
-  ],
-  "2023": [
-    { id: "1", name: "Personalkosten", category: "Operating", period: "2023", planned: 1100000, actual: 1080000, forecast: 1080000, status: "on-track" },
-    { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2023", planned: 120000, actual: 115000, forecast: 115000, status: "on-track" },
-    { id: "3", name: "IT Infrastruktur", category: "CAPEX", period: "2023", planned: 70000, actual: 68000, forecast: 68000, status: "on-track" },
-    { id: "4", name: "Reisekosten", category: "Operating", period: "2023", planned: 40000, actual: 38500, forecast: 38500, status: "on-track" },
-    { id: "5", name: "Weiterbildung", category: "Operating", period: "2023", planned: 25000, actual: 24000, forecast: 24000, status: "on-track" },
-  ],
-  "2025": [
-    { id: "1", name: "Personalkosten", category: "Operating", period: "2025", planned: 1350000, actual: 0, forecast: 1350000, status: "on-track" },
-    { id: "2", name: "Marketing & Werbung", category: "Operating", period: "2025", planned: 180000, actual: 0, forecast: 180000, status: "on-track" },
-    { id: "3", name: "IT Infrastruktur", category: "CAPEX", period: "2025", planned: 100000, actual: 0, forecast: 100000, status: "on-track" },
-    { id: "4", name: "Reisekosten", category: "Operating", period: "2025", planned: 50000, actual: 0, forecast: 50000, status: "on-track" },
-  ],
-};
-
-interface Budget {
-  id: string;
-  name: string;
-  category: string;
-  period: string;
-  planned: number;
-  actual: number;
-  forecast: number;
-  status: "on-track" | "at-risk" | "over-budget" | "under-utilized";
+// Map backend status to UI status
+function mapStatus(status: string): "on-track" | "at-risk" | "over-budget" | "under-utilized" {
+  switch (status) {
+    case "ACTIVE": return "on-track";
+    case "APPROVED": return "on-track";
+    case "DRAFT": return "under-utilized";
+    case "CLOSED": return "on-track";
+    default: return "on-track";
+  }
 }
-
-
-const monthlyData = [
-  { month: "Jan", planned: 125000, actual: 118000 },
-  { month: "Feb", planned: 125000, actual: 132000 },
-  { month: "Mär", planned: 125000, actual: 121000 },
-  { month: "Apr", planned: 125000, actual: 128000 },
-  { month: "Mai", planned: 125000, actual: 0 },
-  { month: "Jun", planned: 125000, actual: 0 },
-];
 
 const statusStyles = {
   "on-track": "bg-success/10 text-success",
@@ -105,61 +71,56 @@ const statusIcons = {
   "under-utilized": TrendingDown,
 };
 
+const backendStatusLabels: Record<string, string> = {
+  DRAFT: "Entwurf",
+  APPROVED: "Genehmigt",
+  ACTIVE: "Aktiv",
+  CLOSED: "Geschlossen",
+};
+
 export default function Budgets() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: apiData } = useQuery({ queryKey: ["/budgets"], queryFn: () => api.get<any>("/budgets") });
-  const budgets = apiData?.data || [];
-  const [year, setYear] = useState("2024");
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(String(currentYear));
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "on-track" | "at-risk" | "over-budget" | "under-utilized">("all");
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/budgets/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/budgets"] });
-      toast.success("Budget erfolgreich gelöscht");
-    },
-    onError: () => {
-      toast.error("Fehler beim Löschen");
-    },
+  const { data: apiData, isLoading } = useBudgets({
+    year: parseInt(year),
+    search: searchQuery || undefined,
+    pageSize: 50,
   });
+  const deleteMutation = useDeleteBudget();
 
-  const budgetList = budgetDataByYear[year] || budgets;
+  const budgetList = (apiData?.data || []).map((b: any) => ({
+    id: b.id,
+    name: b.name,
+    category: b.period || "–",
+    period: String(b.year),
+    planned: Number(b.totalAmount) || 0,
+    actual: 0, // Will come from comparison endpoint
+    forecast: 0,
+    status: mapStatus(b.status),
+    backendStatus: b.status,
+    lineCount: b._count?.lines || 0,
+  }));
 
-  const filteredBudgets = budgetList.filter((budget) => {
-    const matchesSearch = (budget.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (budget.category || "").toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || budget.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const totalPlanned = budgetList.reduce((acc, b) => acc + b.planned, 0);
 
-  const totalPlanned = budgetList.reduce((acc, b) => acc + (b.planned || 0), 0);
-  const totalActual = budgetList.reduce((acc, b) => acc + (b.actual || 0), 0);
-  const totalForecast = budgetList.reduce((acc, b) => acc + (b.forecast || 0), 0);
-  const utilizationPercent = totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : 0;
-
-  const onTrackCount = budgetList.filter(b => b.status === "on-track").length;
-  const atRiskCount = budgetList.filter(b => b.status === "at-risk").length;
-  const overBudgetCount = budgetList.filter(b => b.status === "over-budget").length;
-
-  const handleStatCardClick = (filter: "all" | "on-track" | "at-risk" | "over-budget" | "under-utilized") => {
-    setStatusFilter(statusFilter === filter ? "all" : filter);
-  };
+  const onTrackCount = budgetList.filter(b => b.backendStatus === "ACTIVE" || b.backendStatus === "APPROVED").length;
+  const draftCount = budgetList.filter(b => b.backendStatus === "DRAFT").length;
+  const closedCount = budgetList.filter(b => b.backendStatus === "CLOSED").length;
 
   const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
 
   const handleExport = () => {
     const csvContent = [
-      ["Name", "Kategorie", "Periode", "Geplant", "Ist", "Prognose", "Status"].join(";"),
+      ["Name", "Periode", "Jahr", "Betrag", "Status"].join(";"),
       ...budgetList.map(b => [
         b.name,
         b.category,
         b.period,
         b.planned.toString().replace(".", ","),
-        b.actual.toString().replace(".", ","),
-        b.forecast.toString().replace(".", ","),
-        statusLabels[b.status],
+        backendStatusLabels[b.backendStatus] || b.backendStatus,
       ].join(";"))
     ].join("\n");
 
@@ -171,6 +132,15 @@ export default function Budgets() {
     link.click();
     URL.revokeObjectURL(url);
     toast.success("Budget-Export wurde erstellt");
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    if (confirm(`Möchten Sie "${name}" wirklich löschen?`)) {
+      deleteMutation.mutate(id, {
+        onSuccess: () => toast.success("Budget erfolgreich gelöscht"),
+        onError: () => toast.error("Fehler beim Löschen"),
+      });
+    }
   };
 
   return (
@@ -191,9 +161,9 @@ export default function Budgets() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2025">2025</SelectItem>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
+              {[currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map(y => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Button variant="outline" className="gap-2" onClick={handleExport}>
@@ -219,54 +189,36 @@ export default function Budgets() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div
-          className={cn(
-            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
-            statusFilter === "on-track" && "border-success ring-2 ring-success/20"
-          )}
-          onClick={() => handleStatCardClick("on-track")}
-        >
+        <div className="rounded-xl border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
               <CheckCircle className="h-6 w-6 text-success" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Im Plan</p>
+              <p className="text-sm text-muted-foreground">Aktiv / Genehmigt</p>
               <p className="text-2xl font-bold">{onTrackCount}</p>
             </div>
           </div>
         </div>
-        <div
-          className={cn(
-            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
-            statusFilter === "at-risk" && "border-warning ring-2 ring-warning/20"
-          )}
-          onClick={() => handleStatCardClick("at-risk")}
-        >
+        <div className="rounded-xl border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
-              <AlertTriangle className="h-6 w-6 text-warning" />
+              <Edit className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Gefährdet</p>
-              <p className="text-2xl font-bold">{atRiskCount}</p>
+              <p className="text-sm text-muted-foreground">Entwürfe</p>
+              <p className="text-2xl font-bold">{draftCount}</p>
             </div>
           </div>
         </div>
-        <div
-          className={cn(
-            "rounded-xl border bg-card p-5 cursor-pointer transition-all hover:border-primary/50",
-            statusFilter === "over-budget" && "border-destructive ring-2 ring-destructive/20"
-          )}
-          onClick={() => handleStatCardClick("over-budget")}
-        >
+        <div className="rounded-xl border bg-card p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
-              <TrendingUp className="h-6 w-6 text-destructive" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+              <PiggyBank className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Überschritten</p>
-              <p className="text-2xl font-bold">{overBudgetCount}</p>
+              <p className="text-sm text-muted-foreground">Geschlossen</p>
+              <p className="text-2xl font-bold">{closedCount}</p>
             </div>
           </div>
         </div>
@@ -276,165 +228,115 @@ export default function Budgets() {
               <Target className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Geplant {year}</p>
+              <p className="text-sm text-muted-foreground">Gesamtbudget {year}</p>
               <p className="text-2xl font-bold">CHF {(totalPlanned / 1000).toFixed(0)}k</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="font-display font-semibold text-lg mb-6">
-          Budgetentwicklung {year}
-        </h3>
-        <div className="h-48 flex items-end justify-between gap-4">
-          {monthlyData.map((data) => (
-            <div key={data.month} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex gap-1 items-end justify-center h-36">
-                <div
-                  className="w-4 bg-muted rounded-t transition-all"
-                  style={{ height: `${(data.planned / 150000) * 100}%` }}
-                  title={`Geplant: CHF ${data.planned.toLocaleString("de-CH")}`}
-                />
-                {data.actual > 0 && (
-                  <div
-                    className={cn(
-                      "w-4 rounded-t transition-all",
-                      data.actual <= data.planned ? "bg-success" : "bg-destructive"
-                    )}
-                    style={{ height: `${(data.actual / 150000) * 100}%` }}
-                    title={`Ist: CHF ${data.actual.toLocaleString("de-CH")}`}
-                  />
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground">{data.month}</span>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-border">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-muted" />
-            <span className="text-sm text-muted-foreground">Geplant</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-success" />
-            <span className="text-sm text-muted-foreground">Ist (im Plan)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-destructive" />
-            <span className="text-sm text-muted-foreground">Ist (überschritten)</span>
-          </div>
-        </div>
-      </div>
-
       {/* Budget List */}
-      <div className="space-y-3">
-        {filteredBudgets.map((budget, index) => {
-          const StatusIcon = statusIcons[budget.status];
-          const utilization = budget.planned > 0 ? (budget.actual / budget.planned) * 100 : 0;
-          const forecastVariance = budget.forecast - budget.planned;
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : budgetList.length === 0 ? (
+        <div className="rounded-2xl border border-dashed bg-card p-12 text-center">
+          <PiggyBank className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="font-display font-semibold text-lg mb-2">Keine Budgets vorhanden</h3>
+          <p className="text-muted-foreground mb-4">Erstellen Sie Ihr erstes Budget für {year}.</p>
+          <Button onClick={() => navigate("/budgets/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Budget anlegen
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {budgetList.map((budget, index) => {
+            const utilization = budget.planned > 0 ? (budget.actual / budget.planned) * 100 : 0;
 
-          return (
-            <div
-              key={budget.id}
-              className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => navigate(`/budgets/${budget.id}`)}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-lg",
-                    statusStyles[budget.status]
-                  )}>
-                    <StatusIcon className="h-5 w-5" />
+            return (
+              <div
+                key={budget.id}
+                className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in cursor-pointer"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/budgets/${budget.id}`)}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg",
+                      budget.backendStatus === "ACTIVE" ? "bg-success/10" :
+                      budget.backendStatus === "APPROVED" ? "bg-info/10" :
+                      budget.backendStatus === "DRAFT" ? "bg-warning/10" : "bg-muted"
+                    )}>
+                      {budget.backendStatus === "ACTIVE" ? <CheckCircle className="h-5 w-5 text-success" /> :
+                       budget.backendStatus === "APPROVED" ? <CheckCircle className="h-5 w-5 text-info" /> :
+                       budget.backendStatus === "DRAFT" ? <Edit className="h-5 w-5 text-warning" /> :
+                       <PiggyBank className="h-5 w-5 text-muted-foreground" />}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{budget.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {budget.category} • {budget.period} • {budget.lineCount} Positionen
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                    <Badge className={cn(
+                      budget.backendStatus === "ACTIVE" ? "bg-success/10 text-success" :
+                      budget.backendStatus === "APPROVED" ? "bg-info/10 text-info" :
+                      budget.backendStatus === "DRAFT" ? "bg-warning/10 text-warning" :
+                      "bg-muted text-muted-foreground"
+                    )}>
+                      {backendStatusLabels[budget.backendStatus] || budget.backendStatus}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(budget.id, budget.name);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Gesamtbetrag</p>
+                    <p className="font-mono font-medium">CHF {budget.planned.toLocaleString("de-CH")}</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold">{budget.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {budget.category} • {budget.period}
-                    </p>
+                    <p className="text-muted-foreground">Positionen</p>
+                    <p className="font-mono font-medium">{budget.lineCount}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
-                  <Badge className={statusStyles[budget.status]}>
-                    {statusLabels[budget.status]}
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate(`/budgets/${budget.id}`)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Möchten Sie "${budget.name}" wirklich löschen?`)) {
-                            deleteMutation.mutate(budget.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
               </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Auslastung</span>
-                  <span className="font-medium">{utilization.toFixed(1)}%</span>
-                </div>
-                <Progress
-                  value={Math.min(utilization, 100)}
-                  className={cn(
-                    "h-2",
-                    utilization > 100 && "[&>div]:bg-destructive"
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Geplant</p>
-                  <p className="font-mono font-medium">CHF {budget.planned.toLocaleString("de-CH")}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Ist</p>
-                  <p className="font-mono font-medium">CHF {budget.actual.toLocaleString("de-CH")}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Prognose</p>
-                  <p className="font-mono font-medium">CHF {budget.forecast.toLocaleString("de-CH")}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Abweichung (Prog.)</p>
-                  <p className={cn(
-                    "font-mono font-medium",
-                    forecastVariance <= 0 ? "text-success" : "text-destructive"
-                  )}>
-                    {forecastVariance <= 0 ? "" : "+"}CHF {forecastVariance.toLocaleString("de-CH")}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
