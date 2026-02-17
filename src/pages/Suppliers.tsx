@@ -283,34 +283,30 @@ export default function Suppliers() {
                   </div>
 
                   {/* Actions */}
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={(e) => e.stopPropagation()}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/suppliers/${supplier.id}`)}>
                           Anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/suppliers/${supplier.id}/edit`)}>
                           Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
+                        <DropdownMenuItem onSelect={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
                           Bestellung aufgeben
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(supplier.id, supplier.name);
-                          }}
+                          onSelect={() => handleDelete(supplier.id, supplier.name)}
                         >
                           Deaktivieren
                         </DropdownMenuItem>
@@ -429,31 +425,30 @@ export default function Suppliers() {
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               className="h-8 w-8"
-                              onClick={(e) => e.stopPropagation()}
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}`)}>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => navigate(`/suppliers/${supplier.id}`)}>
                               Anzeigen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}>
+                            <DropdownMenuItem onSelect={() => navigate(`/suppliers/${supplier.id}/edit`)}>
                               Bearbeiten
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
+                            <DropdownMenuItem onSelect={() => navigate(`/purchase-orders/new?supplierId=${supplier.id}`)}>
                               Bestellung aufgeben
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={() => handleDelete(supplier.id, supplier.name)}
+                              onSelect={() => handleDelete(supplier.id, supplier.name)}
                             >
                               Deaktivieren
                             </DropdownMenuItem>
