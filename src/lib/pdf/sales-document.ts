@@ -215,12 +215,12 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
       }
     : {
         0: { cellWidth: 12, halign: "center" },
-        1: { cellWidth: 70 },
+        1: { cellWidth: 68 },
         2: { cellWidth: 18, halign: "right" },
         3: { cellWidth: 20 },
-        4: { cellWidth: 28, halign: "right" },
-        5: { cellWidth: 28, halign: "right" },
-      };
+        4: { cellWidth: 26, halign: "right" },
+        5: { cellWidth: 26, halign: "right" },
+      }; // Total: 12+68+18+20+26+26 = 170mm = A4 - margins
   
   autoTable(doc, {
     startY: yPos,
