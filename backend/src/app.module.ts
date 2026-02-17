@@ -36,6 +36,7 @@ import { CalculationsModule } from './modules/calculations/calculations.module';
 import { QualityControlModule } from './modules/quality-control/quality-control.module';
 import { ServiceTicketsModule } from './modules/service-tickets/service-tickets.module';
 // Extended Accounting
+import { JournalEntriesModule } from './modules/journal-entries/journal-entries.module';
 import { CostCentersModule } from './modules/cost-centers/cost-centers.module';
 import { BudgetsModule } from './modules/budgets/budgets.module';
 import { CashBookModule } from './modules/cash-book/cash-book.module';
@@ -122,6 +123,7 @@ import { RolesModule } from './modules/roles/roles.module';
     QualityControlModule,
     ServiceTicketsModule,
     // Extended Accounting
+    JournalEntriesModule,
     CostCentersModule,
     BudgetsModule,
     CashBookModule,
