@@ -408,7 +408,7 @@ export default function Customers() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/customers/${customer.id}/edit`)}>
                               Bearbeiten
                             </DropdownMenuItem>
                             {customer.email && (
