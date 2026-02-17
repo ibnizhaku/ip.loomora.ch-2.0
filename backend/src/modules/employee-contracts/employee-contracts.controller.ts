@@ -50,6 +50,7 @@ export class EmployeeContractsController {
     @Body() dto: UpdateEmployeeContractDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
+    console.log('UPDATE CONTRACT BODY:', JSON.stringify(dto));
     return this.employeeContractsService.update(id, user.companyId, dto);
   }
 

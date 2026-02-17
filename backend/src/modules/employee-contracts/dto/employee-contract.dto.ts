@@ -24,9 +24,10 @@ export class CreateEmployeeContractDto {
   @IsOptional()
   salaryType?: string; // Monatslohn, Stundenlohn
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsNumber()
-  baseSalary: number;
+  @IsOptional()
+  baseSalary?: number;
 
   @ApiPropertyOptional()
   @IsNumber()
