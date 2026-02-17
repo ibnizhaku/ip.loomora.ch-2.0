@@ -244,19 +244,25 @@ export default function EmployeeContractDetail() {
 
   const handleSave = async () => {
     if (!editData || !id) return;
+    // Ensure date is yyyy-MM-dd format
+    const formatDateForApi = (val: string) => {
+      if (!val || val === "–") return undefined;
+      return val.includes("T") ? val.split("T")[0] : val;
+    };
     updateMutation.mutate({
       id,
       data: {
         contractType: editData.vertragsart,
-        startDate: editData.eintrittsdatum,
+        startDate: formatDateForApi(editData.eintrittsdatum),
         workLocation: editData.arbeitsort === "–" ? undefined : editData.arbeitsort,
         noticePeriod: editData.kündigungsfrist === "–" ? undefined : editData.kündigungsfrist,
-        weeklyHours: editData.wochenarbeitszeit,
+        weeklyHours: Number(editData.wochenarbeitszeit) || undefined,
         gavClass: editData.lohnklasse,
-        baseSalary: editData.monatslohn,
-        hourlyRate: editData.stundenlohn,
-        vacationDays: editData.ferienanspruch,
+        baseSalary: Number(editData.monatslohn) || undefined,
+        hourlyRate: Number(editData.stundenlohn) || undefined,
+        vacationDays: Number(editData.ferienanspruch) || undefined,
         thirteenthMonth: editData.tage13,
+        workload: 100,
         position: editData.position === "–" ? undefined : editData.position,
         department: editData.abteilung === "–" ? undefined : editData.abteilung,
       },
