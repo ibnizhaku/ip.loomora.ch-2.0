@@ -59,6 +59,11 @@ export class CreateInvoiceDto {
   orderId?: string;
 
   @ApiPropertyOptional()
+  @IsEnum(InvoiceStatus)
+  @IsOptional()
+  status?: InvoiceStatus;
+
+  @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
   issueDate?: string;

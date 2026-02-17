@@ -115,7 +115,7 @@ export class CreditNotesService {
         customerId: dto.customerId,
         invoiceId: dto.invoiceId,
         number,
-        status: CreditNoteStatus.DRAFT,
+        status: dto.status || CreditNoteStatus.DRAFT,
         reason: dto.reason,
         reasonText: dto.reasonText,
         issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),

@@ -48,6 +48,10 @@ export class CreateCreditNoteDto {
   @IsString()
   invoiceId?: string;
 
+  @IsOptional()
+  @IsEnum(CreditNoteStatus)
+  status?: CreditNoteStatus;
+
   @IsEnum(CreditNoteReason)
   reason: CreditNoteReason;
 

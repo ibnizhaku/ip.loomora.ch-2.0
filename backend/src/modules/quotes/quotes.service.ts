@@ -125,7 +125,7 @@ export class QuotesService {
         number,
         customerId: dto.customerId,
         // projectId: dto.projectId,
-        status: DocumentStatus.DRAFT,
+        status: dto.status || DocumentStatus.DRAFT,
         date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         validUntil: dto.validUntil ? new Date(dto.validUntil) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         subtotal,

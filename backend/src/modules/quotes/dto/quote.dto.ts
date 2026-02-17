@@ -54,6 +54,11 @@ export class CreateQuoteDto {
   projectId?: string;
 
   @ApiPropertyOptional()
+  @IsEnum(DocumentStatus)
+  @IsOptional()
+  status?: DocumentStatus;
+
+  @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
   issueDate?: string;

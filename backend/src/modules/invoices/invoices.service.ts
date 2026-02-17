@@ -161,7 +161,7 @@ export class InvoicesService {
         customerId: dto.customerId,
         projectId: dto.projectId,
         orderId: dto.orderId,
-        status: InvoiceStatus.DRAFT,
+        status: (dto as any).status || InvoiceStatus.DRAFT,
         date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         dueDate: dto.dueDate ? new Date(dto.dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         subtotal,

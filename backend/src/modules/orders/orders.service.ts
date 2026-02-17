@@ -131,7 +131,7 @@ export class OrdersService {
         customerId: dto.customerId,
         projectId: dto.projectId,
         quoteId: dto.quoteId,
-        status: DocumentStatus.CONFIRMED,
+        status: dto.status || DocumentStatus.CONFIRMED,
         date: dto.orderDate ? new Date(dto.orderDate) : new Date(),
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
         shippingAddress: dto.deliveryAddress ? { address: dto.deliveryAddress } : undefined,

@@ -59,6 +59,11 @@ export class CreateOrderDto {
   quoteId?: string;
 
   @ApiPropertyOptional()
+  @IsEnum(DocumentStatus)
+  @IsOptional()
+  status?: DocumentStatus;
+
+  @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
   orderDate?: string;
