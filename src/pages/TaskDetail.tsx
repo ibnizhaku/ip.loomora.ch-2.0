@@ -515,45 +515,6 @@ const TaskDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Activity / Time Entries */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Zeiteinträge</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {timeEntries.length > 0 ? (
-                  timeEntries.map((entry: any, index: number) => {
-                    const approvalInfo = approvalStatusLabels[entry.approvalStatus] || approvalStatusLabels.pending;
-                    return (
-                      <div key={entry.id || index} className="flex gap-4 items-start">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{entry.description || "Zeitbuchung"}: {entry.duration} Min.</p>
-                            <Badge variant="outline" className={`text-xs ${approvalInfo.color}`}>
-                              {approvalInfo.label}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{formatDate(entry.date || entry.createdAt)}</span>
-                            <span>•</span>
-                            <span>{entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : "–"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Keine Zeiteinträge vorhanden
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}

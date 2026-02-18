@@ -59,11 +59,11 @@ import { de } from "date-fns/locale";
 import { TimeEntriesTable, type TimeEntryRow, type ApprovalStatus } from "@/components/time-tracking/TimeEntriesTable";
 import { TimeEntriesPDFPreview } from "@/components/time-tracking/TimeEntriesPDFPreview";
 import { TimeEntriesPDFData, downloadTimeEntriesPDF } from "@/lib/pdf/time-entries";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProjects } from "@/hooks/use-projects";
 import { useTasks } from "@/hooks/use-tasks";
 import { useEmployees } from "@/hooks/use-employees";
-import { useCreateTimeEntry } from "@/hooks/use-time-entries";
+import { useCreateTimeEntry, useApproveTimeEntries } from "@/hooks/use-time-entries";
 import { api } from "@/lib/api";
 
 interface TimeEntry {
@@ -96,6 +96,7 @@ function formatTime(seconds: number): string {
 
 export default function TimeTracking() {
   // Fetch real data from API
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({
     queryKey: ["/time-entries"],
     queryFn: () => api.get<any>("/time-entries"),
@@ -103,6 +104,7 @@ export default function TimeTracking() {
   const { data: projectsData } = useProjects({ pageSize: 100 });
   const { data: employeesData } = useEmployees({ pageSize: 100, status: 'ACTIVE' });
   const createTimeEntry = useCreateTimeEntry();
+  const approveTimeEntries = useApproveTimeEntries();
 
   const projects = (projectsData?.data || []).map((p: any) => ({ id: p.id, name: p.name }));
   const employees = (employeesData?.data || []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
@@ -271,16 +273,35 @@ export default function TimeTracking() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const handleApproveEntries = (ids: string[]) => {
-    setEntries(prev => prev.map(e => 
-      ids.includes(e.id) ? { ...e, approvalStatus: 'approved' as ApprovalStatus } : e
-    ));
+  const handleApproveEntries = async (ids: string[]) => {
+    try {
+      await approveTimeEntries.mutateAsync({ ids, status: 'approved' });
+      // Optimistic update im lokalen State
+      setEntries(prev => prev.map(e => 
+        ids.includes(e.id) ? { ...e, approvalStatus: 'approved' as ApprovalStatus } : e
+      ));
+      // Query-Cache invalidieren damit TaskDetail auch aktuell wird
+      queryClient.invalidateQueries({ queryKey: ["/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
+      toast.success(`${ids.length} Eintrag/Einträge genehmigt`);
+    } catch {
+      toast.error("Fehler beim Genehmigen der Einträge");
+    }
   };
 
-  const handleRejectEntries = (ids: string[]) => {
-    setEntries(prev => prev.map(e => 
-      ids.includes(e.id) ? { ...e, approvalStatus: 'rejected' as ApprovalStatus } : e
-    ));
+  const handleRejectEntries = async (ids: string[]) => {
+    try {
+      await approveTimeEntries.mutateAsync({ ids, status: 'rejected' });
+      // Optimistic update im lokalen State
+      setEntries(prev => prev.map(e => 
+        ids.includes(e.id) ? { ...e, approvalStatus: 'rejected' as ApprovalStatus } : e
+      ));
+      queryClient.invalidateQueries({ queryKey: ["/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
+      toast.success(`${ids.length} Eintrag/Einträge abgelehnt`);
+    } catch {
+      toast.error("Fehler beim Ablehnen der Einträge");
+    }
   };
 
   // Calculate stats
