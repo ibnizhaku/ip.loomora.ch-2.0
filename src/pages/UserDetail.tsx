@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, ShieldOff } from "lucide-react";
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, ShieldOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,19 +9,29 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { useUser } from "@/hooks/use-users";
+import { useUser, useUsers } from "@/hooks/use-users";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { use2FAAdminReset } from "@/hooks/use-2fa";
 import UserPermissionsWidget from "@/components/users/UserPermissionsWidget";
 import TwoFactorSetupDialog from "@/components/auth/TwoFactorSetupDialog";
 
+interface LoginHistoryEntry {
+  id: string;
+  datum: string;
+  ip: string;
+  geraet: string;
+  ort?: string;
+  status: 'erfolgreich' | 'fehlgeschlagen';
+}
 
-const loginHistorie = [
-  { datum: "29.01.2024 08:15", ip: "85.195.xxx.xxx", gerät: "Chrome / Windows", ort: "Zürich, CH", status: "erfolgreich" },
-  { datum: "28.01.2024 07:55", ip: "85.195.xxx.xxx", gerät: "Chrome / Windows", ort: "Zürich, CH", status: "erfolgreich" },
-  { datum: "26.01.2024 08:02", ip: "85.195.xxx.xxx", gerät: "Safari / iOS", ort: "Zürich, CH", status: "erfolgreich" },
-  { datum: "25.01.2024 18:30", ip: "178.82.xxx.xxx", gerät: "Chrome / Windows", ort: "Bern, CH", status: "fehlgeschlagen" },
-  { datum: "25.01.2024 08:10", ip: "85.195.xxx.xxx", gerät: "Chrome / Windows", ort: "Zürich, CH", status: "erfolgreich" },
-];
+function useLoginHistory(userId: string) {
+  return useQuery({
+    queryKey: ['login-history', userId],
+    queryFn: () => api.get<LoginHistoryEntry[]>(`/users/${userId}/login-history`),
+    enabled: !!userId,
+  });
+}
 
 const statusColors: Record<string, string> = {
   active: "bg-success/10 text-success",
@@ -46,12 +56,19 @@ export default function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: userData, isLoading } = useUser(id || "");
+  const { data: loginHistory, isLoading: historyLoading } = useLoginHistory(id || "");
 
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(userData?.twoFactor ?? false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [show2FADialog, setShow2FADialog] = useState(false);
   const adminResetMutation = use2FAAdminReset();
 
-  // Update local state when data loads
+  // Sync twoFactor state when userData loads
+  useEffect(() => {
+    if (userData) {
+      setTwoFactorEnabled(userData.twoFactor ?? false);
+    }
+  }, [userData]);
+
   const userName = userData?.name || "–";
   const userEmail = userData?.email || "–";
   const userPhone = userData?.phone || "–";
@@ -82,17 +99,11 @@ export default function UserDetail() {
   }
 
   const handleResetPassword = () => {
-    toast.success("Passwort-Reset E-Mail gesendet", {
-      description: `Eine E-Mail wurde an ${userEmail} gesendet`
-    });
+    navigate(`/users/${id}/edit`);
   };
 
-  const handleToggle2FA = (checked: boolean) => {
-    if (checked) {
-      setShow2FADialog(true);
-    } else {
-      setShow2FADialog(true); // Opens in disable mode
-    }
+  const handleToggle2FA = () => {
+    setShow2FADialog(true);
   };
 
   const handleAdminReset2FA = async () => {
@@ -102,8 +113,8 @@ export default function UserDetail() {
   };
 
   const handleEndSessions = () => {
-    toast.success("Alle Sitzungen beendet", {
-      description: "Der Benutzer muss sich erneut anmelden"
+    toast.info("Sitzungen beenden", {
+      description: "Diese Funktion erfordert einen Backend-Endpoint (Cursor-Prompt #5)"
     });
   };
 
@@ -124,7 +135,7 @@ export default function UserDetail() {
             </Badge>
             <Badge variant="outline">{roleLabels[userRole] || userRole}</Badge>
           </div>
-          <p className="text-muted-foreground">{id} {userEmployeeNumber && `• ${userEmployeeNumber}`}</p>
+          <p className="text-muted-foreground">{userEmail}{userEmployeeNumber && ` • MA-Nr. ${userEmployeeNumber}`}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleResetPassword}>
@@ -281,27 +292,41 @@ export default function UserDetail() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loginHistorie.map((l, i) => (
-                <TableRow key={i}>
-                  <TableCell>{l.datum}</TableCell>
-                  <TableCell className="font-mono text-sm">{l.ip}</TableCell>
-                  <TableCell>{l.gerät}</TableCell>
-                  <TableCell>{l.ort}</TableCell>
-                  <TableCell>
-                    {l.status === "erfolgreich" ? (
-                      <Badge className="bg-success/10 text-success">
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Erfolgreich
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-destructive/10 text-destructive">
-                        <XCircle className="mr-1 h-3 w-3" />
-                        Fehlgeschlagen
-                      </Badge>
-                    )}
+              {historyLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6">
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : loginHistory && loginHistory.length > 0 ? (
+                loginHistory.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell>{l.datum}</TableCell>
+                    <TableCell className="font-mono text-sm">{l.ip}</TableCell>
+                    <TableCell>{l.geraet}</TableCell>
+                    <TableCell>{l.ort || "–"}</TableCell>
+                    <TableCell>
+                      {l.status === "erfolgreich" ? (
+                        <Badge className="bg-success/10 text-success">
+                          <CheckCircle2 className="mr-1 h-3 w-3" />
+                          Erfolgreich
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-destructive/10 text-destructive">
+                          <XCircle className="mr-1 h-3 w-3" />
+                          Fehlgeschlagen
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-sm">
+                    Keine Login-Einträge vorhanden
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
