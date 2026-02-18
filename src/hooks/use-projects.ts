@@ -37,6 +37,7 @@ interface Project {
   spent?: number;
   team?: string[];
   members?: ProjectMember[];
+  milestones?: any[];
   tasks?: ProjectTask[];
   taskCount?: number;
   timeEntryCount?: number;

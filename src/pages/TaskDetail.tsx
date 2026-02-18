@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { TagInput } from "@/components/tasks/TagInput";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -687,17 +688,11 @@ const TaskDetail = () => {
               <CardTitle className="text-base">Tags</CardTitle>
             </CardHeader>
             <CardContent>
-              {task.tags && task.tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {task.tags.map((tag: any) => (
-                    <Badge key={tag.id || tag.name} variant="secondary">
-                      {tag.name || tag}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Keine Tags</p>
-              )}
+              <TagInput
+                tags={(task.tags || []).map((t: any) => t.name || t)}
+                onChange={() => {}}
+                readOnly
+              />
             </CardContent>
           </Card>
         </div>

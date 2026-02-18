@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { TagInput } from "@/components/tasks/TagInput";
 
 export default function TaskEdit() {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +54,7 @@ export default function TaskEdit() {
   const [assigneeId, setAssigneeId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [estimatedHours, setEstimatedHours] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (task) {
@@ -64,12 +66,13 @@ export default function TaskEdit() {
       setAssigneeId(task.assigneeId || "");
       setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
       setEstimatedHours(task.estimatedHours ? String(task.estimatedHours) : "");
+      setTags((task.tags || []).map((t: any) => t.name || t));
     }
   }, [task]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload: any = { title, status, priority };
+    const payload: any = { title, status, priority, tags };
     if (description) payload.description = description;
     if (projectId) payload.projectId = projectId;
     if (assigneeId) payload.assigneeId = assigneeId;
@@ -117,6 +120,18 @@ export default function TaskEdit() {
                   <Label>Beschreibung</Label>
                   <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  Tags
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TagInput tags={tags} onChange={setTags} />
               </CardContent>
             </Card>
           </div>
