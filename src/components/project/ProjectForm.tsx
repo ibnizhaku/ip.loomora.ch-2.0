@@ -406,7 +406,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
                   <SelectContent>
                     <SelectItem value="PLANNING">Planung</SelectItem>
                     <SelectItem value="ACTIVE">Aktiv</SelectItem>
-                    <SelectItem value="ON_HOLD">Pausiert</SelectItem>
+                    <SelectItem value="PAUSED">Pausiert</SelectItem>
                     <SelectItem value="COMPLETED">Abgeschlossen</SelectItem>
                     <SelectItem value="CANCELLED">Abgebrochen</SelectItem>
                   </SelectContent>

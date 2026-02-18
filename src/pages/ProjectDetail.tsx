@@ -69,7 +69,7 @@ import { Input } from "@/components/ui/input";
 const statusConfig: Record<string, { label: string; color: string }> = {
   PLANNING: { label: "Planung", color: "bg-muted text-muted-foreground" },
   ACTIVE: { label: "Aktiv", color: "bg-success/10 text-success" },
-  ON_HOLD: { label: "Pausiert", color: "bg-warning/10 text-warning" },
+  PAUSED: { label: "Pausiert", color: "bg-warning/10 text-warning" },
   COMPLETED: { label: "Abgeschlossen", color: "bg-info/10 text-info" },
   CANCELLED: { label: "Abgebrochen", color: "bg-destructive/10 text-destructive" },
 };
@@ -275,7 +275,7 @@ export default function ProjectDetail() {
               </DropdownMenuItem>
             )}
             {status === 'ACTIVE' && (
-              <DropdownMenuItem onClick={() => handleStatusChange('ON_HOLD')}>
+              <DropdownMenuItem onClick={() => handleStatusChange('PAUSED')}>
                 <Pause className="h-4 w-4 mr-2" />
                 Pausieren
               </DropdownMenuItem>
