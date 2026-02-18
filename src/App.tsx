@@ -358,7 +358,7 @@ const App = () => (
               <Route path="/purchase-invoices/new" element={<ProtectedLayout><PurchaseInvoiceCreate /></ProtectedLayout>} />
               <Route path="/purchase-invoices/:id" element={<ProtectedLayout><PurchaseInvoiceDetail /></ProtectedLayout>} />
               <Route path="/purchase-invoices/:id/edit" element={<ProtectedLayout><PurchaseInvoiceEdit /></ProtectedLayout>} />
-              <Route path="/inventory" element={<ProtectedLayout><PermissionGuard module="inventory"><Inventory /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/inventory" element={<ProtectedLayout><PermissionGuard module="products"><Inventory /></PermissionGuard></ProtectedLayout>} />
               <Route path="/inventory/:id" element={<ProtectedLayout><InventoryItemDetail /></ProtectedLayout>} />
               <Route path="/goods-receipts" element={<ProtectedLayout><PermissionGuard module="goods-receipts"><GoodsReceipts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/goods-receipts/new" element={<ProtectedLayout><GoodsReceiptCreate /></ProtectedLayout>} />
@@ -366,17 +366,17 @@ const App = () => (
               
               {/* Finanzen & Buchhaltung */}
               <Route path="/finance" element={<ProtectedLayout><PermissionGuard module="finance"><Finance /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/chart-of-accounts" element={<ProtectedLayout><PermissionGuard module="accounting"><ChartOfAccounts /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/chart-of-accounts" element={<ProtectedLayout><PermissionGuard module="finance"><ChartOfAccounts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/chart-of-accounts/new" element={<ProtectedLayout><ChartOfAccountCreate /></ProtectedLayout>} />
               <Route path="/chart-of-accounts/:id" element={<ProtectedLayout><ChartOfAccountDetail /></ProtectedLayout>} />
-              <Route path="/journal-entries" element={<ProtectedLayout><PermissionGuard module="accounting"><JournalEntries /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/journal-entries" element={<ProtectedLayout><PermissionGuard module="journal-entries"><JournalEntries /></PermissionGuard></ProtectedLayout>} />
               <Route path="/journal-entries/:id" element={<ProtectedLayout><JournalEntryDetail /></ProtectedLayout>} />
-              <Route path="/general-ledger" element={<ProtectedLayout><PermissionGuard module="accounting"><GeneralLedger /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/general-ledger" element={<ProtectedLayout><PermissionGuard module="finance"><GeneralLedger /></PermissionGuard></ProtectedLayout>} />
               <Route path="/general-ledger/:id" element={<ProtectedLayout><GeneralLedgerDetail /></ProtectedLayout>} />
-              <Route path="/open-items" element={<ProtectedLayout><PermissionGuard module="accounting"><OpenItems /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/debtors" element={<ProtectedLayout><PermissionGuard module="accounting"><Debtors /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/creditors" element={<ProtectedLayout><PermissionGuard module="accounting"><Creditors /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/balance-sheet" element={<ProtectedLayout><PermissionGuard module="accounting"><BalanceSheet /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/open-items" element={<ProtectedLayout><PermissionGuard module="finance"><OpenItems /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/debtors" element={<ProtectedLayout><PermissionGuard module="finance"><Debtors /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/creditors" element={<ProtectedLayout><PermissionGuard module="finance"><Creditors /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/balance-sheet" element={<ProtectedLayout><PermissionGuard module="finance"><BalanceSheet /></PermissionGuard></ProtectedLayout>} />
               <Route path="/vat-returns" element={<ProtectedLayout><PermissionGuard module="vat-returns"><VatReturns /></PermissionGuard></ProtectedLayout>} />
               <Route path="/vat-returns/:id" element={<ProtectedLayout><VatReturnDetail /></ProtectedLayout>} />
               <Route path="/fixed-assets" element={<ProtectedLayout><PermissionGuard module="fixed-assets"><FixedAssets /></PermissionGuard></ProtectedLayout>} />
@@ -388,7 +388,7 @@ const App = () => (
               <Route path="/bank-accounts" element={<ProtectedLayout><PermissionGuard module="bank-accounts"><BankAccounts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/bank-accounts/new" element={<ProtectedLayout><BankAccountCreate /></ProtectedLayout>} />
               <Route path="/bank-accounts/:id" element={<ProtectedLayout><BankAccountDetail /></ProtectedLayout>} />
-              <Route path="/sepa-payments" element={<ProtectedLayout><PermissionGuard module="accounting"><SepaPayments /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/sepa-payments" element={<ProtectedLayout><PermissionGuard module="payments"><SepaPayments /></PermissionGuard></ProtectedLayout>} />
               <Route path="/sepa-payments/:id" element={<ProtectedLayout><SepaPaymentDetail /></ProtectedLayout>} />
               <Route path="/cost-centers" element={<ProtectedLayout><PermissionGuard module="cost-centers"><CostCenters /></PermissionGuard></ProtectedLayout>} />
               <Route path="/cost-centers/new" element={<ProtectedLayout><CostCenterCreate /></ProtectedLayout>} />
@@ -400,7 +400,7 @@ const App = () => (
               <Route path="/contracts/new" element={<ProtectedLayout><ContractCreate /></ProtectedLayout>} />
               <Route path="/contracts/:id" element={<ProtectedLayout><ContractDetail /></ProtectedLayout>} />
               <Route path="/contracts/:id/edit" element={<ProtectedLayout><ContractEdit /></ProtectedLayout>} />
-              <Route path="/payments" element={<ProtectedLayout><PermissionGuard module="accounting"><Payments /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/payments" element={<ProtectedLayout><PermissionGuard module="payments"><Payments /></PermissionGuard></ProtectedLayout>} />
               <Route path="/payments/:id" element={<ProtectedLayout><PaymentDetail /></ProtectedLayout>} />
               
               {/* Stammdaten & Verwaltung */}
