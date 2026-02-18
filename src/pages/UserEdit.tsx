@@ -285,7 +285,7 @@ function EmployeeLinkCard({ user, userId }: EmployeeLinkCardProps) {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/hr/employees/${user.employeeId}`}>
+                <Link to={`/hr/${user.employeeId}`}>
                   <ExternalLink className="mr-1 h-3 w-3" />
                   HR-Profil öffnen
                 </Link>

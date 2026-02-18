@@ -218,7 +218,7 @@ export default function UserDetail() {
               {userEmployeeId && (
                 <div>
                   <p className="text-muted-foreground">Mitarbeiter-Nr.</p>
-                  <Link to={`/hr/employees/${userEmployeeId}`} className="text-primary hover:underline">
+                  <Link to={`/hr/${userEmployeeId}`} className="text-primary hover:underline">
                     {userEmployeeNumber || userEmployeeId}
                   </Link>
                 </div>
