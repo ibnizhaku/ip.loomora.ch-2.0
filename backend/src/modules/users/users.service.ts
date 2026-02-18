@@ -401,12 +401,29 @@ export class UsersService {
   }
 
   async endSessions(userId: string, companyId: string) {
+    return this.revokeSessions(userId, companyId, userId);
+  }
+
+  async revokeSessions(userId: string, companyId: string, requestingUserId: string) {
     const membership = await this.prisma.userCompanyMembership.findFirst({
       where: { userId, companyId },
     });
     if (!membership) throw new NotFoundException('Benutzer nicht gefunden');
 
     await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: requestingUserId,
+        action: 'LOCK',
+        module: 'USERS',
+        entityId: userId,
+        entityType: 'User',
+        description: `Alle aktiven Sitzungen für Benutzer ${userId} beendet`,
+        companyId,
+        retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+      },
+    });
 
     return { success: true, message: 'Alle Sitzungen wurden beendet' };
   }
