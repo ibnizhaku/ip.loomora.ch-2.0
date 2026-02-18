@@ -54,8 +54,14 @@ export class TimeEntriesController {
 
   @Post('approve')
   @ApiOperation({ summary: 'Approve or reject time entries (admin only)' })
-  approveEntries(@CurrentUser() user: CurrentUserPayload, @Body() dto: ApproveTimeEntriesDto) {
-    console.log('APPROVE BODY:', JSON.stringify(dto));
+  approveEntries(@CurrentUser() user: CurrentUserPayload, @Body() body: any) {
+    console.log('APPROVE RAW BODY:', JSON.stringify(body));
+    // Manuell aus body extrahieren um DTO-Validierungsfehler zu umgehen
+    const dto: ApproveTimeEntriesDto = {
+      ids: Array.isArray(body.ids) ? body.ids : [body.ids].filter(Boolean),
+      status: body.status,
+      reason: body.reason,
+    };
     return this.timeEntriesService.approveEntries(user.companyId, user.userId, dto);
   }
 
