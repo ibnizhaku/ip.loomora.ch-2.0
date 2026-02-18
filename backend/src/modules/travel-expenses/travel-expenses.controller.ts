@@ -1,18 +1,21 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { TravelExpensesService } from './travel-expenses.service';
 import { CreateTravelExpenseDto, UpdateTravelExpenseDto } from './dto/travel-expense.dto';
 
 @ApiTags('Travel Expenses')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('travel-expenses')
 export class TravelExpensesController {
   constructor(private readonly travelExpensesService: TravelExpensesService) {}
 
   @Get()
+  @RequirePermissions('travel-expenses:read')
   @ApiOperation({ summary: 'List all travel expenses' })
   findAll(
     @CurrentUser() user: CurrentUserPayload,
@@ -32,18 +35,21 @@ export class TravelExpensesController {
   }
 
   @Get(':id')
+  @RequirePermissions('travel-expenses:read')
   @ApiOperation({ summary: 'Get travel expense by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.travelExpensesService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('travel-expenses:write')
   @ApiOperation({ summary: 'Create new travel expense' })
   create(@Body() dto: CreateTravelExpenseDto, @CurrentUser() user: CurrentUserPayload) {
     return this.travelExpensesService.create(user.companyId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('travel-expenses:write')
   @ApiOperation({ summary: 'Update travel expense' })
   update(
     @Param('id') id: string,
@@ -54,12 +60,14 @@ export class TravelExpensesController {
   }
 
   @Post(':id/approve')
+  @RequirePermissions('travel-expenses:write')
   @ApiOperation({ summary: 'Approve travel expense' })
   approve(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.travelExpensesService.approve(id, user.companyId, user.userId);
   }
 
   @Post(':id/reject')
+  @RequirePermissions('travel-expenses:write')
   @ApiOperation({ summary: 'Reject travel expense' })
   reject(
     @Param('id') id: string,
@@ -70,6 +78,7 @@ export class TravelExpensesController {
   }
 
   @Delete(':id')
+  @RequirePermissions('travel-expenses:delete')
   @ApiOperation({ summary: 'Delete travel expense' })
   delete(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.travelExpensesService.delete(id, user.companyId);
