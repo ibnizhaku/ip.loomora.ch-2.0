@@ -64,7 +64,8 @@ import SocialInsuranceSettings from "@/components/settings/SocialInsuranceSettin
 import ExpenseRulesSettings from "@/components/settings/ExpenseRulesSettings";
 import ExpenseWorkflowSettings from "@/components/settings/ExpenseWorkflowSettings";
 import AbsenceWorkflowSettings from "@/components/settings/AbsenceWorkflowSettings";
-import { useSettings, useUpdateSettings, useTestSmtp } from "@/hooks/use-settings";
+import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
+import { useEmailAccount, useUpsertMailAccount, useTestMailConnection } from "@/hooks/use-email-account";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
@@ -93,7 +94,9 @@ export default function Settings() {
   // Hooks for E-Mail / SMTP Settings
   const { data: settingsData } = useSettings();
   const updateSettings = useUpdateSettings();
-  const testSmtp = useTestSmtp();
+  const { account: mailAccount } = useEmailAccount();
+  const upsertMailAccount = useUpsertMailAccount();
+  const testMailConnection = useTestMailConnection();
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("587");
   const [smtpUser, setSmtpUser] = useState("");
@@ -102,27 +105,27 @@ export default function Settings() {
   const [smtpFrom, setSmtpFrom] = useState("");
   const [smtpSsl, setSmtpSsl] = useState(true);
 
-  // Populate SMTP fields from loaded settings
+  // Populate SMTP fields from mail account (user-specific)
   useEffect(() => {
-    if (settingsData) {
-      setSmtpHost(settingsData.smtpHost ?? "");
-      setSmtpPort(String(settingsData.smtpPort ?? "587"));
-      setSmtpUser(settingsData.smtpUser ?? "");
-      setSmtpFromName(settingsData.smtpFromName ?? "");
-      setSmtpFrom(settingsData.smtpFrom ?? "");
-      setSmtpSsl(settingsData.smtpSsl ?? true);
+    if (mailAccount) {
+      setSmtpHost(mailAccount.smtpHost ?? "");
+      setSmtpPort(String(mailAccount.smtpPort ?? "587"));
+      setSmtpUser(mailAccount.smtpUser ?? "");
+      setSmtpFromName(mailAccount.fromName ?? "");
+      setSmtpFrom(mailAccount.fromEmail ?? "");
+      setSmtpSsl(mailAccount.smtpSsl ?? true);
     }
-  }, [settingsData]);
+  }, [mailAccount]);
 
   const handleSaveEmailSettings = async () => {
     try {
-      await updateSettings.mutateAsync({
+      await upsertMailAccount.mutateAsync({
         smtpHost,
         smtpPort: parseInt(smtpPort) || 587,
         smtpUser,
         smtpPassword: smtpPassword || undefined,
-        smtpFromName,
-        smtpFrom,
+        fromName: smtpFromName,
+        fromEmail: smtpFrom,
         smtpSsl,
       });
       toast.success("E-Mail-Konfiguration gespeichert");
@@ -133,7 +136,7 @@ export default function Settings() {
 
   const handleTestSmtp = async () => {
     try {
-      const result = await testSmtp.mutateAsync();
+      const result = await testMailConnection.mutateAsync();
       if (result.success) {
         toast.success(result.message);
       } else {
@@ -1578,13 +1581,13 @@ export default function Settings() {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button className="gap-2" onClick={handleSaveEmailSettings} disabled={updateSettings.isPending}>
+                <Button className="gap-2" onClick={handleSaveEmailSettings} disabled={upsertMailAccount.isPending}>
                   <Save className="h-4 w-4" />
-                  {updateSettings.isPending ? "Wird gespeichert..." : "Konfiguration speichern"}
+                  {upsertMailAccount.isPending ? "Wird gespeichert..." : "Konfiguration speichern"}
                 </Button>
-                <Button variant="outline" className="gap-2" onClick={handleTestSmtp} disabled={testSmtp.isPending}>
+                <Button variant="outline" className="gap-2" onClick={handleTestSmtp} disabled={testMailConnection.isPending}>
                   <RefreshCw className="h-4 w-4" />
-                  {testSmtp.isPending ? "Teste..." : "Verbindung testen"}
+                  {testMailConnection.isPending ? "Teste..." : "Verbindung testen"}
                 </Button>
               </div>
             </div>

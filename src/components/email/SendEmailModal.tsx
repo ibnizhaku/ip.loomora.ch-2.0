@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Send, AlertTriangle, Settings } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useEmailAccount } from "@/hooks/use-email-account";
+import { api } from "@/lib/api";
 
 export type DocumentType =
   | "invoice"
@@ -80,10 +82,33 @@ export function SendEmailModal({
     }
   }, [open, defaultRecipient, documentType, documentNumber, companyName]);
 
+  const sendMutation = useMutation({
+    mutationFn: () =>
+      api.post<{ success: boolean; message: string }>('/mail/send', {
+        to: to.trim(),
+        cc: cc.trim() || undefined,
+        bcc: bcc.trim() || undefined,
+        subject,
+        message,
+        documentType,
+        documentId,
+      }),
+    onSuccess: () => {
+      toast.success("E-Mail erfolgreich versendet");
+      onClose();
+    },
+    onError: (err: Error & { statusCode?: number }) => {
+      if (err.statusCode === 403) {
+        toast.error("Keine Berechtigung zum Versenden von E-Mails");
+      } else {
+        toast.error(err.message || "E-Mail konnte nicht versendet werden");
+      }
+    },
+  });
+
   const handleSend = () => {
-    // Phase 1: Dummy handler – Phase 2 will call POST /mail/send
-    toast.success("E-Mail wird gesendet...");
-    onClose();
+    if (!to.trim()) return;
+    sendMutation.mutate();
   };
 
   if (isLoading) return null;
@@ -215,9 +240,9 @@ export function SendEmailModal({
           <Button variant="outline" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button onClick={handleSend} disabled={!to.trim()}>
+          <Button onClick={handleSend} disabled={!to.trim() || sendMutation.isPending}>
             <Send className="h-4 w-4 mr-2" />
-            Senden
+            {sendMutation.isPending ? "Wird gesendet..." : "Senden"}
           </Button>
         </DialogFooter>
       </DialogContent>
