@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { EmailService } from '../../common/services/email.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   async findAll(companyId: string, query: PaginationDto) {
     const { page = 1, pageSize = 10, search, sortBy = 'lastName', sortOrder = 'asc' } = query;
@@ -167,6 +171,8 @@ export class UsersService {
     position?: string;
     departmentId?: string;
     hireDate?: string;
+    password?: string;
+    sendInvite?: boolean;
   }) {
     // Check if email already exists
     const existing = await this.prisma.user.findUnique({
@@ -176,9 +182,18 @@ export class UsersService {
       throw new ConflictException('E-Mail-Adresse ist bereits registriert');
     }
 
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-10) + 'A1!';
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    // Passwort bestimmen: manuell gesetzt, Einladungsflow (temp) oder Fallback (temp)
+    let plainPassword: string;
+    let isTempPassword = false;
+
+    if (dto.password && dto.password.length >= 8) {
+      plainPassword = dto.password;
+    } else {
+      plainPassword = Math.random().toString(36).slice(-10) + 'A1!';
+      isTempPassword = true;
+    }
+
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     // Find role
     const roleName = dto.role || 'user';
@@ -186,7 +201,7 @@ export class UsersService {
       where: { companyId, name: { contains: roleName, mode: 'insensitive' } },
     });
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Create user
       const user = await tx.user.create({
         data: {
@@ -243,6 +258,18 @@ export class UsersService {
 
       return { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName };
     });
+
+    // E-Mail-Einladung senden wenn sendInvite=true oder kein manuelles Passwort gesetzt
+    if (dto.sendInvite && isTempPassword) {
+      await this.emailService.sendUserInvite({
+        email: dto.email.toLowerCase(),
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        tempPassword: plainPassword,
+      });
+    }
+
+    return result;
   }
 
   async update(id: string, companyId: string, dto: {

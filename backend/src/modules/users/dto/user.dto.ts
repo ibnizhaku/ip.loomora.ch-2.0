@@ -43,6 +43,16 @@ export class CreateUserDto {
   @IsDateString()
   @IsOptional()
   hireDate?: string;
+
+  @ApiPropertyOptional({ description: 'Manuell gesetztes Passwort (min. 8 Zeichen)' })
+  @IsString()
+  @IsOptional()
+  password?: string;
+
+  @ApiPropertyOptional({ description: 'Einladungs-E-Mail mit temporärem Passwort senden' })
+  @IsBoolean()
+  @IsOptional()
+  sendInvite?: boolean;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {

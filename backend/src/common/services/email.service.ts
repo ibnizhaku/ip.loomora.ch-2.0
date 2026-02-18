@@ -95,6 +95,42 @@ export class EmailService {
     }
   }
 
+  async sendUserInvite(data: { email: string; firstName: string; lastName: string; tempPassword: string }): Promise<boolean> {
+    const from = this.config.get('SMTP_FROM', 'noreply@loomora.ch');
+    const appUrl = this.config.get('APP_URL', 'https://app.loomora.ch');
+
+    const html = `
+      <h2>Willkommen bei Loomora!</h2>
+      <p>Hallo ${data.firstName} ${data.lastName}</p>
+      <p>Ihr Konto wurde erstellt. Hier sind Ihre Zugangsdaten:</p>
+      <p><strong>E-Mail:</strong> ${data.email}</p>
+      <p><strong>Temporäres Passwort:</strong> <code style="background:#f4f4f4;padding:4px 8px;border-radius:4px;">${data.tempPassword}</code></p>
+      <p>Bitte melden Sie sich an und ändern Sie Ihr Passwort beim ersten Login:</p>
+      <p><a href="${appUrl}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Jetzt anmelden</a></p>
+      <p style="color:#888;font-size:12px;">Dieses Passwort ist temporär. Bitte ändern Sie es nach dem ersten Login.</p>
+      <p>Mit freundlichen Grüssen<br>Ihr Loomora Team</p>
+    `;
+
+    if (!this.transporter) {
+      this.logger.log(`[DEV MODE] Would send invite to ${data.email} with temp password: ${data.tempPassword}`);
+      return true;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: data.email,
+        subject: 'Ihr Loomora-Konto wurde erstellt',
+        html,
+      });
+      this.logger.log(`Invite sent to ${data.email}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send invite to ${data.email}: ${error.message}`);
+      return false;
+    }
+  }
+
   async sendReminder(reminder: any, pdfBuffer: Buffer): Promise<boolean> {
     const from = this.config.get('SMTP_FROM', 'noreply@loomora.ch');
     const to = reminder.invoice?.customer?.email;
