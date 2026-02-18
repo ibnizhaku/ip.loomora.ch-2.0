@@ -97,7 +97,10 @@ function formatTime(seconds: number): string {
 
 export default function TimeTracking() {
   // Auth context for current user info
-  const { user } = useAuth();
+  const { user, activeCompany } = useAuth();
+  const ROLES_CAN_ADD_ENTRY = ['ADMIN', 'OWNER', 'HR', 'PROJECT_MANAGER', 'MANAGER'];
+  const userRole = activeCompany?.role?.toUpperCase() || '';
+  const canAddEntry = activeCompany?.isOwner || ROLES_CAN_ADD_ENTRY.includes(userRole);
   // Fetch real data from API
   const queryClient = useQueryClient();
   // My own entries
@@ -561,6 +564,7 @@ export default function TimeTracking() {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {canAddEntry && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -654,6 +658,7 @@ export default function TimeTracking() {
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
