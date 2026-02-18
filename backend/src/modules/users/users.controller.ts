@@ -63,7 +63,7 @@ export class UsersController {
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.usersService.update(id, user.companyId, dto);
+    return this.usersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Put(':id/password')
@@ -78,9 +78,15 @@ export class UsersController {
     return this.usersService.resetPassword(id, user.companyId, pw);
   }
 
+  @Delete(':id/sessions')
+  @ApiOperation({ summary: 'Invalidate all active sessions for a user' })
+  endSessions(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.endSessions(id, user.companyId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Remove user from company' })
   remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
-    return this.usersService.delete(id, user.companyId);
+    return this.usersService.delete(id, user.companyId, user.userId);
   }
 }

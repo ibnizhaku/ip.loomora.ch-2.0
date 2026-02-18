@@ -60,4 +60,9 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'ID des verknüpften Mitarbeiters' })
+  @IsString()
+  @IsOptional()
+  employeeId?: string;
 }

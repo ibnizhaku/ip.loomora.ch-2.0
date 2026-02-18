@@ -87,6 +87,9 @@ export class EmployeesService {
           orderBy: { createdAt: 'desc' as const },
           take: 20,
         },
+        user: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
       },
     });
 
@@ -142,6 +145,10 @@ export class EmployeesService {
       skills: Array.isArray(emp.skills) ? emp.skills : (emp.skills ? JSON.parse(emp.skills) : []),
       certifications: Array.isArray(emp.certifications) ? emp.certifications : (emp.certifications ? JSON.parse(emp.certifications) : []),
       education: Array.isArray(emp.education) ? emp.education : (emp.education ? JSON.parse(emp.education) : []),
+      // Verknüpfter Benutzer
+      userId: emp.user?.id || null,
+      userName: emp.user ? `${emp.user.firstName} ${emp.user.lastName}`.trim() : null,
+      userEmail: emp.user?.email || null,
     };
   }
 

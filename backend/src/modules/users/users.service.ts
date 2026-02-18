@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { EmailService } from '../../common/services/email.service';
@@ -79,25 +79,30 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    const mappedData = data.map(user => ({
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      phone: user.phone,
-      role: (user.memberships[0]?.role?.name || user.role || 'user').toLowerCase(),
-      status: user.status === 'PENDING' ? 'pending' : user.isActive ? 'active' : 'inactive',
-      lastLogin: user.lastLoginAt
-        ? new Date(user.lastLoginAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        : '',
-      twoFactor: user.twoFactorEnabled,
-      avatar: user.avatarUrl,
-      avatarUrl: user.avatarUrl,
-      isOwner: user.memberships[0]?.isOwner || false,
-      employeeId: user.employeeId,
-      employeeNumber: user.employee?.number,
-    }));
+    const mappedData = data.map(user => {
+      const m = user.memberships[0];
+      return {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone,
+        roleId: m?.roleId || null,
+        role: (m?.role?.name || user.role || 'user').toLowerCase(),
+        roleName: m?.role?.name || user.role || null,
+        status: user.status === 'PENDING' ? 'pending' : user.isActive ? 'active' : 'inactive',
+        lastLogin: user.lastLoginAt
+          ? new Date(user.lastLoginAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '',
+        twoFactor: user.twoFactorEnabled,
+        avatar: user.avatarUrl,
+        avatarUrl: user.avatarUrl,
+        isOwner: m?.isOwner || false,
+        employeeId: user.employeeId,
+        employeeNumber: user.employee?.number,
+      };
+    });
 
     return this.prisma.createPaginatedResponse(mappedData, total, page, pageSize);
   }
@@ -281,13 +286,19 @@ export class UsersService {
     phone?: string;
     role?: string;
     isActive?: boolean;
-  }) {
+    employeeId?: string;
+  }, requestingUserId?: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, memberships: { some: { companyId } } },
     });
 
     if (!user) {
       throw new NotFoundException('Benutzer nicht gefunden');
+    }
+
+    // Schutz: Sich selbst deaktivieren nicht erlaubt
+    if (dto.isActive === false && requestingUserId && id === requestingUserId) {
+      throw new ForbiddenException('Sie können sich nicht selbst deaktivieren');
     }
 
     // Check email uniqueness if changing
@@ -326,11 +337,34 @@ export class UsersService {
       }
     }
 
+    // Mitarbeiter verknüpfen wenn employeeId angegeben
+    if (dto.employeeId !== undefined) {
+      const employee = await this.prisma.employee.findFirst({
+        where: { id: dto.employeeId, companyId },
+      });
+      if (!employee) throw new BadRequestException('Mitarbeiter nicht gefunden');
+
+      // userId auf Employee setzen + employeeId auf User setzen
+      await this.prisma.employee.update({
+        where: { id: dto.employeeId },
+        data: { user: { connect: { id } } } as any,
+      });
+      await this.prisma.user.update({
+        where: { id },
+        data: { employeeId: dto.employeeId },
+      });
+    }
+
     // Return full user detail
     return this.findById(id, companyId);
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, requestingUserId?: string) {
+    // Schutz: Sich selbst nicht löschen
+    if (requestingUserId && id === requestingUserId) {
+      throw new ForbiddenException('Sie können Ihren eigenen Account nicht löschen');
+    }
+
     const user = await this.prisma.user.findFirst({
       where: { id, memberships: { some: { companyId } } },
       include: {
@@ -342,9 +376,14 @@ export class UsersService {
       throw new NotFoundException('Benutzer nicht gefunden');
     }
 
-    // Check if user is owner
+    // Schutz: Letzten Owner nicht löschen
     if (user.memberships[0]?.isOwner) {
-      throw new BadRequestException('Der Company-Eigentümer kann nicht gelöscht werden');
+      const ownerCount = await this.prisma.userCompanyMembership.count({
+        where: { companyId, isOwner: true },
+      });
+      if (ownerCount <= 1) {
+        throw new ForbiddenException('Der letzte Owner kann nicht gelöscht werden');
+      }
     }
 
     // Remove membership (don't delete user - might be in other companies)
@@ -359,6 +398,17 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
+  }
+
+  async endSessions(userId: string, companyId: string) {
+    const membership = await this.prisma.userCompanyMembership.findFirst({
+      where: { userId, companyId },
+    });
+    if (!membership) throw new NotFoundException('Benutzer nicht gefunden');
+
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
+    return { success: true, message: 'Alle Sitzungen wurden beendet' };
   }
 
   async resetPassword(userId: string, companyId: string, newPassword: string) {
@@ -386,7 +436,7 @@ export class UsersService {
       where: {
         userId,
         companyId,
-        action: 'LOGIN' as any,
+        action: { in: ['LOGIN', 'LOGOUT'] as any[] },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -404,8 +454,9 @@ export class UsersService {
       id: log.id,
       datum: log.createdAt.toLocaleString('de-CH'),
       ip: log.ipAddress || 'Unbekannt',
-      gerät: log.userAgent || 'Unbekannt',
-      status: 'erfolgreich',
+      geraet: log.userAgent || 'Unbekannt',
+      ort: (log.metadata as any)?.location || undefined,
+      status: log.action === 'LOGIN' ? 'erfolgreich' : 'abgemeldet',
     }));
   }
 
