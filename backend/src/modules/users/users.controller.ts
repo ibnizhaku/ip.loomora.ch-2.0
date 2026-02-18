@@ -84,6 +84,12 @@ export class UsersController {
     return this.usersService.endSessions(id, user.companyId);
   }
 
+  @Post(':id/revoke-sessions')
+  @ApiOperation({ summary: 'Revoke all active sessions for a user (alias for DELETE /sessions)' })
+  revokeSessions(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.endSessions(id, user.companyId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Remove user from company' })
   remove(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
