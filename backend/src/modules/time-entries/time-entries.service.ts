@@ -182,9 +182,9 @@ export class TimeEntriesService {
       },
       data: {
         approvalStatus: dto.status,
-        approvedBy: dto.status === ApprovalStatus.APPROVED ? adminUserId : undefined,
+        approvedById: dto.status === ApprovalStatus.APPROVED ? adminUserId : undefined,
         approvedAt: dto.status === ApprovalStatus.APPROVED ? new Date() : undefined,
-        rejectionReason: dto.status === ApprovalStatus.REJECTED ? dto.reason : undefined,
+        rejectionReason: dto.status === ApprovalStatus.REJECTED ? (dto.reason ?? null) : undefined,
       } as any,
     });
 
@@ -196,13 +196,12 @@ export class TimeEntriesService {
   }
 
   async getApprovalStats(companyId: string) {
-    // Note: approvalStatus field may not exist in current schema
-    // Return totals as fallback
-    const total = await this.prisma.timeEntry.count({
-      where: { companyId },
-    });
-
-    return { pending: total, approved: 0, rejected: 0 };
+    const [pending, approved, rejected] = await Promise.all([
+      this.prisma.timeEntry.count({ where: { companyId, approvalStatus: 'pending' } }),
+      this.prisma.timeEntry.count({ where: { companyId, approvalStatus: 'approved' } }),
+      this.prisma.timeEntry.count({ where: { companyId, approvalStatus: 'rejected' } }),
+    ]);
+    return { pending, approved, rejected };
   }
 
   // Statistics

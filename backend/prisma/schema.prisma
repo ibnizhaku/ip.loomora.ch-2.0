@@ -1906,9 +1906,10 @@ model TimeEntry {
   hourlyRate  Decimal? @db.Decimal(10, 2)
   
   // Genehmigung
-  approvalStatus String   @default("pending") // pending, approved, rejected
-  approvedById   String?
-  approvedAt     DateTime?
+  approvalStatus  String    @default("pending") // pending, approved, rejected
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectionReason String?
 
   companyId   String
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
