@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,7 @@ type SortOrder = "asc" | "desc";
 
 export default function Leads() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const queryClient = useQueryClient();
 
   // Fetch data from API
@@ -299,10 +301,12 @@ export default function Leads() {
               Pipeline
             </Button>
           </div>
-          <Button onClick={() => navigate("/leads/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Neuer Lead
-          </Button>
+          {canWrite('leads') && (
+            <Button onClick={() => navigate("/leads/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Neuer Lead
+            </Button>
+          )}
         </div>
       </div>
 
@@ -542,19 +546,21 @@ export default function Leads() {
                                 Als verloren markieren
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm(`Möchten Sie "${lead.name}" wirklich löschen?`)) {
-                                  deleteMutation.mutate(lead.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Löschen
-                            </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {canDelete('leads') && (
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Möchten Sie "${lead.name}" wirklich löschen?`)) {
+                                      deleteMutation.mutate(lead.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Löschen
+                                </DropdownMenuItem>
+                              )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -680,18 +686,20 @@ export default function Leads() {
                                     Verloren
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (confirm(`Möchten Sie "${lead.name}" wirklich löschen?`)) {
-                                        deleteMutation.mutate(lead.id);
-                                      }
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Löschen
-                                  </DropdownMenuItem>
+                                  {canDelete('leads') && (
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm(`Möchten Sie "${lead.name}" wirklich löschen?`)) {
+                                          deleteMutation.mutate(lead.id);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Löschen
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>

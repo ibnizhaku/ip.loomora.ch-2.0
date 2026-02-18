@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -93,6 +94,7 @@ const priorityLabels = {
 
 export default function Production() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
 
@@ -208,10 +210,12 @@ export default function Production() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button className="gap-2" onClick={() => navigate("/production/new")}>
-            <Plus className="h-4 w-4" />
-            Werkstattauftrag
-          </Button>
+          {canWrite('production') && (
+            <Button className="gap-2" onClick={() => navigate("/production/new")}>
+              <Plus className="h-4 w-4" />
+              Werkstattauftrag
+            </Button>
+          )}
         </div>
       </div>
 
@@ -393,10 +397,12 @@ export default function Production() {
                       <Clock className="h-4 w-4 mr-2" />
                       Zeit erfassen
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, order.id)}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Löschen
-                    </DropdownMenuItem>
+                    {canDelete('production') && (
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, order.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

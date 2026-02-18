@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Plus, Search, Filter, Package, CheckCircle, Clock, Eye, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ export default function GoodsReceipts() {
   const { data: apiData } = useQuery({ queryKey: ["/goods-receipts"], queryFn: () => api.get<any>("/goods-receipts") });
   const receipts = apiData?.data || [];
   const navigate = useNavigate();
+  const { canWrite } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
@@ -34,10 +36,12 @@ export default function GoodsReceipts() {
           <h1 className="font-display text-3xl font-bold">Wareneingänge</h1>
           <p className="text-muted-foreground">Wareneingangsbelege verwalten</p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/goods-receipts/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Wareneingang
-        </Button>
+        {canWrite('goods-receipts') && (
+          <Button className="gap-2" onClick={() => navigate("/goods-receipts/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Wareneingang
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-4">
