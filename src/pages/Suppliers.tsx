@@ -33,10 +33,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useSuppliers, useSupplierStats, useDeleteSupplier } from "@/hooks/use-suppliers";
 import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
+
+type StatusFilter = "active" | "inactive" | "new";
 
 const statusConfig = {
   active: { label: "Aktiv", color: "bg-success/10 text-success" },
@@ -49,7 +57,9 @@ export default function Suppliers() {
   const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
-  
+  const [statusFilter, setStatusFilter] = useState<StatusFilter[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const { data, isLoading, error } = useSuppliers({ search: searchQuery, pageSize: 100 });
   const stats = useSupplierStats();
   const deleteSupplier = useDeleteSupplier();
@@ -75,6 +85,16 @@ export default function Suppliers() {
     if (created > thirtyDaysAgo) return "new";
     return "active";
   };
+
+  const toggleStatusFilter = (s: StatusFilter) => {
+    setStatusFilter((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
+  };
+
+  const filteredSuppliers = statusFilter.length === 0
+    ? suppliers
+    : suppliers.filter((s) => statusFilter.includes(getSupplierStatus(s)));
 
   return (
     <div className="space-y-6">
@@ -158,9 +178,32 @@ export default function Suppliers() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
-          </Button>
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className={cn(statusFilter.length > 0 && "border-primary text-primary")}>
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-48 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Status filtern</p>
+              <div className="space-y-2">
+                {(["active", "inactive", "new"] as StatusFilter[]).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox
+                      checked={statusFilter.includes(s)}
+                      onCheckedChange={() => toggleStatusFilter(s)}
+                    />
+                    {statusConfig[s].label}
+                  </label>
+                ))}
+              </div>
+              {statusFilter.length > 0 && (
+                <Button variant="ghost" size="sm" className="w-full mt-3 text-xs" onClick={() => setStatusFilter([])}>
+                  Filter zurücksetzen
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
           <div className="flex items-center rounded-lg border border-border bg-card p-1">
             <Button
               variant="ghost"
@@ -202,12 +245,12 @@ export default function Suppliers() {
       {/* Card View */}
       {!isLoading && !error && viewMode === "cards" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {suppliers.length === 0 ? (
+          {filteredSuppliers.length === 0 ? (
             <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
-              {searchQuery ? "Keine Lieferanten gefunden" : "Noch keine Lieferanten vorhanden"}
+              {searchQuery || statusFilter.length > 0 ? "Keine Lieferanten gefunden" : "Noch keine Lieferanten vorhanden"}
             </div>
           ) : (
-            suppliers.map((supplier, index) => {
+            filteredSuppliers.map((supplier, index) => {
               const status = getSupplierStatus(supplier);
               return (
                 <div
@@ -340,14 +383,14 @@ export default function Suppliers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.length === 0 ? (
+              {filteredSuppliers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? "Keine Lieferanten gefunden" : "Noch keine Lieferanten vorhanden"}
+                    {searchQuery || statusFilter.length > 0 ? "Keine Lieferanten gefunden" : "Noch keine Lieferanten vorhanden"}
                   </TableCell>
                 </TableRow>
               ) : (
-                suppliers.map((supplier, index) => {
+                filteredSuppliers.map((supplier, index) => {
                   const status = getSupplierStatus(supplier);
                   return (
                     <TableRow

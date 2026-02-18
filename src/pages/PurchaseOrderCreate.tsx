@@ -71,6 +71,7 @@ interface SupplierData {
   id: string;
   number?: string;
   name: string;
+  companyName?: string;
   city?: string;
   paymentTermDays?: number;
 }
@@ -407,7 +408,7 @@ export default function PurchaseOrderCreate() {
                           <Building2 className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="text-left">
-                          <div className="font-medium">{selectedSupplier.name}</div>
+                          <div className="font-medium">{selectedSupplier.companyName || selectedSupplier.name}</div>
                           <div className="text-sm text-muted-foreground">
                             {selectedSupplier.number} • {selectedSupplier.city}
                           </div>
@@ -428,7 +429,7 @@ export default function PurchaseOrderCreate() {
                         {suppliers.map((supplier) => (
                           <CommandItem
                             key={supplier.id}
-                            value={supplier.name}
+                            value={supplier.companyName || supplier.name}
                             onSelect={() => {
                               setSelectedSupplier(supplier);
                               setSupplierOpen(false);
@@ -443,7 +444,7 @@ export default function PurchaseOrderCreate() {
                                 <Building2 className="h-4 w-4 text-muted-foreground" />
                               </div>
                               <div className="flex-1">
-                                <div className="font-medium">{supplier.name}</div>
+                                <div className="font-medium">{supplier.companyName || supplier.name}</div>
                                 <div className="text-sm text-muted-foreground">
                                   {supplier.number} • {supplier.city}
                                 </div>
