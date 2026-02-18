@@ -157,10 +157,10 @@ export default function RoleEdit() {
                   <div key={mod.key} className="grid grid-cols-6 gap-4 py-3 px-4 border-b last:border-0">
                     <div className="font-medium">{mod.label}</div>
                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.read || false} onCheckedChange={() => togglePerm(mod.key, "read")} disabled={isSystem} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.write || false} onCheckedChange={() => togglePerm(mod.key, "write")} disabled={isSystem} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.write || false} onCheckedChange={() => togglePerm(mod.key, "write")} disabled={isSystem} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.delete || false} onCheckedChange={() => togglePerm(mod.key, "delete")} disabled={isSystem} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.admin || false} onCheckedChange={() => togglePerm(mod.key, "admin")} disabled={isSystem} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.write || false} onCheckedChange={() => togglePerm(mod.key, "write")} disabled={isSystem} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.write || false} onCheckedChange={() => togglePerm(mod.key, "write")} disabled={isSystem} title="Bearbeiten (entspricht Schreiben)" /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.delete || false} onCheckedChange={() => togglePerm(mod.key, "delete")} disabled={isSystem} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.admin || false} onCheckedChange={() => togglePerm(mod.key, "admin")} disabled={isSystem} /></div>
                   </div>
                 ))}
               </div>
