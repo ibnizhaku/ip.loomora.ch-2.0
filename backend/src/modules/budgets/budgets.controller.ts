@@ -2,8 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CompanyGuard } from '../auth/guards/company.guard';
-import { PermissionGuard } from '../../common/guards/permission.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BudgetsService } from './budgets.service';
 import { CreateBudgetDto, UpdateBudgetDto } from './dto/budget.dto';
@@ -94,9 +93,6 @@ export class BudgetsController {
   @RequirePermissions('finance:delete')
   @ApiOperation({ summary: 'Delete budget (draft only)' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.budgetsService.delete(id, user.companyId);
-  }
-}
     return this.budgetsService.delete(id, user.companyId);
   }
 }
