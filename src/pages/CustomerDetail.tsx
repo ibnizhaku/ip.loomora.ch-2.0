@@ -42,7 +42,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCustomer, useDeleteCustomer, useCreateCustomerContact } from "@/hooks/use-customers";
+import { useCustomer, useDeleteCustomer, useCreateCustomerContact, useUpdateCustomer } from "@/hooks/use-customers";
+import { Textarea } from "@/components/ui/textarea";
+import { DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -84,6 +86,11 @@ export default function CustomerDetail() {
   const { data: customer, isLoading, error } = useCustomer(id);
   const deleteCustomer = useDeleteCustomer();
   const createContact = useCreateCustomerContact();
+  const updateCustomer = useUpdateCustomer();
+
+  // Notes dialog state
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
 
   // Contact dialog state
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
@@ -106,6 +113,22 @@ export default function CustomerDetail() {
       } catch (error) {
         toast.error("Fehler beim Löschen. Möglicherweise gibt es verknüpfte Daten.");
       }
+    }
+  };
+
+  const handleOpenNoteDialog = () => {
+    setNoteText(customer?.notes ?? "");
+    setNoteDialogOpen(true);
+  };
+
+  const handleSaveNote = async () => {
+    if (!id) return;
+    try {
+      await updateCustomer.mutateAsync({ id, data: { notes: noteText } });
+      toast.success("Notiz gespeichert");
+      setNoteDialogOpen(false);
+    } catch {
+      toast.error("Fehler beim Speichern der Notiz");
     }
   };
 
@@ -734,9 +757,9 @@ export default function CustomerDetail() {
           <TabsContent value="notes" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Notizen</h3>
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-2" onClick={handleOpenNoteDialog}>
                 <Plus className="h-4 w-4" />
-                Notiz hinzufügen
+                {customer.notes ? "Notiz bearbeiten" : "Notiz hinzufügen"}
               </Button>
             </div>
 
@@ -752,6 +775,33 @@ export default function CustomerDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Note Dialog */}
+      <Dialog open={noteDialogOpen} onOpenChange={(v) => !v && setNoteDialogOpen(false)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Notiz {customer?.notes ? "bearbeiten" : "hinzufügen"}</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Notiz eingeben..."
+              rows={8}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSaveNote} disabled={updateCustomer.isPending}>
+              {updateCustomer.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
