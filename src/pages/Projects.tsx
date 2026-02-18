@@ -250,7 +250,7 @@ export default function Projects() {
             label: "Pausiert",
             value: stats?.paused || 0,
             color: "text-warning",
-            filter: "on-hold",
+            filter: "PAUSED",
           },
         ].map((stat) => (
           <button
