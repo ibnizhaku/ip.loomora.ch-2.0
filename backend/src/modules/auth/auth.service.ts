@@ -430,11 +430,27 @@ export class AuthService {
     // Alten Token revoken
     await this.tokenService.revokeRefreshToken(refreshToken);
 
-    // Primäre/letzte Company laden
-    const primaryCompanyId = await this.membershipService.getPrimaryCompany(user.id);
-    
-    if (!primaryCompanyId) {
+    // Aktive Company aus dem Token-Record bevorzugen.
+    // Fallback auf primäre Company für ältere Token ohne gespeicherte Company.
+    let companyId = tokenData.activeCompanyId;
+    if (!companyId) {
+      companyId = await this.membershipService.getPrimaryCompany(user.id);
+    }
+
+    if (!companyId) {
       throw new ForbiddenException('Keine aktive Company gefunden');
+    }
+
+    // Sicherstellen dass die gespeicherte Company noch aktiv und zugänglich ist.
+    // Falls nicht (z.B. Company deaktiviert), auf primäre Company zurückfallen.
+    try {
+      await this.membershipService.validateMembership(user.id, companyId);
+    } catch {
+      const fallbackCompanyId = await this.membershipService.getPrimaryCompany(user.id);
+      if (!fallbackCompanyId) {
+        throw new ForbiddenException('Keine aktive Company gefunden');
+      }
+      companyId = fallbackCompanyId;
     }
 
     const userInfo = {
@@ -448,7 +464,7 @@ export class AuthService {
 
     return this.generateFullLoginResponse(
       user.id,
-      primaryCompanyId,
+      companyId,
       userInfo,
       deviceInfo,
       ipAddress,
@@ -605,6 +621,7 @@ export class AuthService {
     const accessToken = await this.tokenService.generateAccessToken(jwtPayload);
     const refreshToken = await this.tokenService.generateRefreshToken(
       userId,
+      companyId,   // aktive Company wird im Token-Record gespeichert
       deviceInfo,
       ipAddress,
       userAgent,

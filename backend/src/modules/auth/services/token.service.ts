@@ -32,10 +32,13 @@ export class TokenService {
   }
 
   /**
-   * Generiert Refresh Token und speichert Hash in DB
+   * Generiert Refresh Token und speichert Hash + aktive Company in DB.
+   * activeCompanyId wird beim Refresh genutzt um den Company-Kontext
+   * wiederherzustellen statt auf die primäre Company zurückzufallen.
    */
   async generateRefreshToken(
     userId: string,
+    activeCompanyId?: string,
     deviceInfo?: string,
     ipAddress?: string,
     userAgent?: string,
@@ -59,13 +62,14 @@ export class TokenService {
     const days = parseInt(refreshExpiresIn.replace('d', ''));
     expiresAt.setDate(expiresAt.getDate() + (isNaN(days) ? 7 : days));
 
-    // Hash und speichern
+    // Hash und speichern inkl. aktiver Company
     const tokenHash = await bcrypt.hash(refreshToken, 10);
     
     await this.prisma.refreshToken.create({
       data: {
         userId,
         tokenHash,
+        activeCompanyId: activeCompanyId ?? null,
         deviceInfo,
         ipAddress,
         userAgent,
@@ -77,9 +81,12 @@ export class TokenService {
   }
 
   /**
-   * Validiert Refresh Token und gibt User ID zurück
+   * Validiert Refresh Token und gibt userId + gespeicherte activeCompanyId zurück.
+   * activeCompanyId ist null bei älteren Tokens ohne Company-Kontext.
    */
-  async validateRefreshToken(token: string): Promise<{ userId: string; jti: string } | null> {
+  async validateRefreshToken(
+    token: string,
+  ): Promise<{ userId: string; jti: string; activeCompanyId: string | null } | null> {
     try {
       const payload = this.jwtService.verify<RefreshTokenPayload>(token);
       
@@ -96,11 +103,15 @@ export class TokenService {
         },
       });
 
-      // Prüfen ob einer der Tokens matcht
+      // Prüfen ob einer der Tokens matcht — gibt activeCompanyId zurück
       for (const storedToken of storedTokens) {
         const isValid = await bcrypt.compare(token, storedToken.tokenHash);
         if (isValid) {
-          return { userId: payload.sub, jti: payload.jti };
+          return {
+            userId: payload.sub,
+            jti: payload.jti,
+            activeCompanyId: storedToken.activeCompanyId ?? null,
+          };
         }
       }
 

@@ -534,6 +534,11 @@ model RefreshToken {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   tokenHash   String   @unique
+
+  // Aktive Company zum Zeitpunkt der Token-Ausstellung.
+  // Nullable für Rückwärts-Kompatibilität mit bestehenden Token-Records.
+  // Wird beim Refresh bevorzugt gegenüber der primären Company.
+  activeCompanyId String?
   
   // Device/Session Info
   deviceInfo  String?
