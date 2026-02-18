@@ -163,8 +163,8 @@ export class UsersService {
       avatar: user.avatarUrl,
       isOwner: membership?.isOwner || false,
       createdAt: user.createdAt?.toISOString(),
-      employeeId: user.employeeId,
-      employeeNumber: user.employee?.number,
+      employeeId: user.employee?.id || null,
+      employeeNumber: user.employee?.number || null,
     };
   }
 
