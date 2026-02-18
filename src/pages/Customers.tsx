@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useCustomers, useCustomerStats, useDeleteCustomer } from "@/hooks/use-customers";
+import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 
 const statusConfig = {
@@ -46,6 +47,7 @@ const statusConfig = {
 
 export default function Customers() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   
@@ -83,10 +85,12 @@ export default function Customers() {
             Verwalten Sie Ihre Kundenbeziehungen
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/customers/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Kunde
-        </Button>
+        {canWrite('customers') && (
+          <Button className="gap-2" onClick={() => navigate("/customers/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Kunde
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

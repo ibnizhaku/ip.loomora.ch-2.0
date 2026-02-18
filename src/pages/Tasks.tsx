@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import {
   Plus,
@@ -61,6 +62,7 @@ const defaultPriorityCfg = { label: "Unbekannt", color: "bg-muted text-muted-for
 
 export default function Tasks() {
   const queryClient = useQueryClient();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData } = useQuery({ queryKey: ["/tasks"], queryFn: () => api.get<any>("/tasks") });
   const tasks: any[] = apiData?.data || [];
   const navigate = useNavigate();
@@ -146,10 +148,12 @@ export default function Tasks() {
             Verwalten Sie Ihre Aufgaben und Projekte
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/tasks/new")}>
-          <Plus className="h-4 w-4" />
-          Neue Aufgabe
-        </Button>
+        {canWrite('tasks') && (
+          <Button className="gap-2" onClick={() => navigate("/tasks/new")}>
+            <Plus className="h-4 w-4" />
+            Neue Aufgabe
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

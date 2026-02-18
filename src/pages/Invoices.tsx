@@ -48,6 +48,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useInvoices, type Invoice } from "@/hooks/use-invoices";
+import { usePermissions } from "@/hooks/use-permissions";
 
 // Map backend status to UI status
 type UIStatus = "paid" | "pending" | "overdue" | "draft";
@@ -101,6 +102,7 @@ const formatDate = (dateStr?: string) => {
 export default function Invoices() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
@@ -150,13 +152,15 @@ export default function Invoices() {
             Erstellen und verwalten Sie Ihre Rechnungen
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/invoices/new")}>
-          <Plus className="h-4 w-4" />
-          Neue Rechnung
-        </Button>
+        {canWrite('invoices') && (
+          <Button className="gap-2" onClick={() => navigate("/invoices/new")}>
+            <Plus className="h-4 w-4" />
+            Neue Rechnung
+          </Button>
+        )}
       </div>
 
-      {/* Stats */}
+
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">

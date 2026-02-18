@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -127,6 +128,7 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 
 export default function Orders() {
   const queryClient = useQueryClient();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData, isLoading } = useQuery({ queryKey: ["/orders"], queryFn: () => api.get<any>("/orders") });
   const orders: Order[] = (apiData?.data || []).map(mapOrder);
   const navigate = useNavigate();
@@ -199,10 +201,12 @@ export default function Orders() {
             Verwalten Sie Ihre Kundenaufträge
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/orders/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Auftrag
-        </Button>
+        {canWrite('orders') && (
+          <Button className="gap-2" onClick={() => navigate("/orders/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Auftrag
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

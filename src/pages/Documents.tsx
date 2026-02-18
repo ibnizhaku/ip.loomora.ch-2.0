@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { DocumentUploadDialog } from "@/components/documents/DocumentUploadDialog";
 import { useFolders, useDMSDocuments, useCreateFolder, useDeleteDocument, useDeleteFolder, useDocumentStats } from "@/hooks/use-documents";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const typeConfig: Record<string, { color: string; icon: any }> = {
   pdf: { color: "text-destructive bg-destructive/10", icon: FileText },
@@ -88,6 +89,7 @@ interface DisplayItem {
 
 export default function Documents() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
 
   // API data
   const { data: foldersData, isLoading: foldersLoading } = useFolders();
@@ -210,10 +212,12 @@ export default function Documents() {
             Verwalten Sie Ihre Dateien und Ordner
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <NewFolderDialog onFolderCreated={handleFolderCreated} />
-          <DocumentUploadDialog />
-        </div>
+        {canWrite('documents') && (
+          <div className="flex items-center gap-2">
+            <NewFolderDialog onFolderCreated={handleFolderCreated} />
+            <DocumentUploadDialog />
+          </div>
+        )}
       </div>
 
       {/* Stats */}
