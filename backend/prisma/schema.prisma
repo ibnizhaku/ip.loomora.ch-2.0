@@ -256,6 +256,7 @@ model Company {
   notifications Notification[]
   payrollRuns   PayrollRun[]
   userPermissionOverrides UserPermissionOverride[]
+  mailAccounts  UserMailAccount[]
   
   @@index([status])
   @@index([slug])
@@ -660,7 +661,10 @@ model User {
   // Employee relation (optional link)
   employeeId        String?   @unique
   employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  
+
+  // Mail account relation
+  mailAccount       UserMailAccount?
+
   @@index([companyId])
   @@index([email])
   @@index([status])
@@ -4168,6 +4172,33 @@ model ChatMention {
   @@index([userId])
   @@index([messageId])
   @@map("chat_mentions")
+}
+
+// ============================================
+// MAIL ACCOUNTS (Pro User + Company)
+// ============================================
+
+model UserMailAccount {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  companyId       String
+  smtpHost        String
+  smtpPort        Int      @default(587)
+  smtpUser        String
+  smtpPasswordEnc String
+  fromName        String
+  fromEmail       String
+  smtpSsl         Boolean  @default(true)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@map("user_mail_accounts")
 }
 
 // ============================================

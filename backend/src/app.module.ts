@@ -77,6 +77,8 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { SettingsModule } from './modules/settings/settings.module';
 // Roles
 import { RolesModule } from './modules/roles/roles.module';
+// Mail
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -164,6 +166,8 @@ import { RolesModule } from './modules/roles/roles.module';
     SettingsModule,
     // Roles
     RolesModule,
+    // Mail (Per-User SMTP)
+    MailModule,
   ],
 })
 export class AppModule {}

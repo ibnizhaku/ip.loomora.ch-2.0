@@ -2,6 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { PdfService } from './services/pdf.service';
 import { EmailService } from './services/email.service';
 import { CronService } from './services/cron.service';
+import { CryptoService } from './crypto.service';
 import { CompanyGuard } from '../modules/auth/guards/company.guard';
 import { PermissionGuard } from '../modules/auth/guards/permission.guard';
 
@@ -14,7 +15,7 @@ import { PermissionGuard } from '../modules/auth/guards/permission.guard';
  */
 @Global()
 @Module({
-  providers: [PdfService, EmailService, CronService, CompanyGuard, PermissionGuard],
-  exports: [PdfService, EmailService, CompanyGuard, PermissionGuard],
+  providers: [PdfService, EmailService, CronService, CryptoService, CompanyGuard, PermissionGuard],
+  exports: [PdfService, EmailService, CryptoService, CompanyGuard, PermissionGuard],
 })
 export class CommonModule {}
