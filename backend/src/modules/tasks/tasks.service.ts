@@ -99,10 +99,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    // loggedMinutes: Summe aller (genehmigten) Zeiteinträge
-    const loggedMinutes = (task.timeEntries || []).reduce(
-      (sum: number, te: any) => sum + (te.duration || 0), 0
-    );
+    // loggedMinutes: nur genehmigte Zeiteinträge (approvalStatus === 'approved')
+    const loggedMinutes = (task.timeEntries || [])
+      .filter((te: any) => te.approvalStatus === 'approved')
+      .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
 
     return { ...task, loggedMinutes };
   }
