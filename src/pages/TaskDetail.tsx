@@ -233,7 +233,8 @@ const TaskDetail = () => {
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
   const timeEntries = task.timeEntries || [];
-  const loggedMinutes = timeEntries.reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
+  // loggedMinutes: vom Backend bereits berechnet, sonst lokal summieren
+  const loggedMinutes = task.loggedMinutes ?? timeEntries.reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
   const loggedHours = Math.round((loggedMinutes / 60) * 10) / 10;
   const estimatedHours = task.estimatedHours ? Number(task.estimatedHours) : 0;
   const timePercent = estimatedHours > 0 ? Math.round((loggedHours / estimatedHours) * 100) : 0;

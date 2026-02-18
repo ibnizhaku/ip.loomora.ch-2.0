@@ -87,11 +87,11 @@ export class TasksService {
         },
         timeEntries: {
           orderBy: { date: 'desc' },
-          take: 10,
           include: {
-            user: { select: { firstName: true, lastName: true } },
+            user: { select: { id: true, firstName: true, lastName: true } },
           },
         },
+        _count: { select: { timeEntries: true } },
       },
     });
 
@@ -99,7 +99,12 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    return task;
+    // loggedMinutes: Summe aller (genehmigten) Zeiteinträge
+    const loggedMinutes = (task.timeEntries || []).reduce(
+      (sum: number, te: any) => sum + (te.duration || 0), 0
+    );
+
+    return { ...task, loggedMinutes };
   }
 
   async create(companyId: string, userId: string, dto: CreateTaskDto) {
