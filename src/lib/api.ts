@@ -77,6 +77,22 @@ class ApiClient {
     return this.user;
   }
 
+  /**
+   * Prüft ob ein JWT-Token abgelaufen ist (oder in den nächsten `bufferSeconds` abläuft).
+   * Dekodiert nur den Payload (Base64), keine Signaturprüfung nötig (Sicherheit liegt beim Backend).
+   */
+  private isTokenExpiredOrExpiringSoon(token: string, bufferSeconds = 60): boolean {
+    try {
+      const payloadBase64 = token.split('.')[1];
+      if (!payloadBase64) return true;
+      const payload = JSON.parse(atob(payloadBase64));
+      if (!payload.exp) return true;
+      return Date.now() >= (payload.exp * 1000) - bufferSeconds * 1000;
+    } catch {
+      return true;
+    }
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -84,7 +100,20 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
 
     // Always read the latest token from localStorage (AuthContext may have updated it)
-    const token = this.accessToken || localStorage.getItem('auth_token');
+    let token = this.accessToken || localStorage.getItem('auth_token');
+    const currentRefreshToken = this.refreshToken || localStorage.getItem('refresh_token');
+
+    // Proaktiver Token-Refresh: Token abgelaufen oder läuft in <60s ab → vor dem Request erneuern
+    if (token && currentRefreshToken && endpoint !== '/auth/refresh' && this.isTokenExpiredOrExpiringSoon(token)) {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        token = this.accessToken;
+      } else {
+        this.clearAuth();
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
+    }
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -106,8 +135,7 @@ class ApiClient {
       throw new Error('Backend nicht erreichbar. Bitte prüfen Sie die Verbindung oder versuchen Sie es später erneut.');
     }
 
-    // Handle token refresh on 401
-    const currentRefreshToken = this.refreshToken || localStorage.getItem('refresh_token');
+    // Reaktiver Fallback: Falls trotzdem 401 kommt (Race Condition, etc.)
     if (response.status === 401 && currentRefreshToken && endpoint !== '/auth/refresh') {
       const refreshed = await this.tryRefreshToken();
       if (refreshed) {
