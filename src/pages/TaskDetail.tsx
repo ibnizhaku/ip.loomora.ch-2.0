@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -100,11 +101,16 @@ const approvalStatusLabels: Record<string, { label: string; color: string }> = {
   rejected: { label: "Abgelehnt", color: "bg-destructive/10 text-destructive" },
 };
 
+const ROLES_CAN_BOOK_TIME = ['ADMIN', 'OWNER', 'HR', 'PROJECT_MANAGER', 'MANAGER'];
+
 const TaskDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { activeCompany } = useAuth();
+  const userRole = activeCompany?.role?.toUpperCase() || '';
+  const canBookTime = activeCompany?.isOwner || ROLES_CAN_BOOK_TIME.includes(userRole);
 
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -233,11 +239,16 @@ const TaskDetail = () => {
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
   const timeEntries = task.timeEntries || [];
-  // loggedMinutes: vom Backend berechnet (nur genehmigte), Fallback lokal
-  const loggedMinutes = task.loggedMinutes ?? timeEntries
-    .filter((te: any) => !te.approvalStatus || te.approvalStatus === 'approved')
+  // loggedMinutes: nur genehmigte Einträge (vom Backend oder lokal berechnet)
+  const approvedMinutes = timeEntries
+    .filter((te: any) => te.approvalStatus === 'approved')
     .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
+  const pendingMinutes = timeEntries
+    .filter((te: any) => !te.approvalStatus || te.approvalStatus === 'pending')
+    .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
+  const loggedMinutes = task.loggedMinutes ?? approvedMinutes;
   const loggedHours = Math.round((loggedMinutes / 60) * 10) / 10;
+  const pendingHours = Math.round((pendingMinutes / 60) * 10) / 10;
   const estimatedHours = task.estimatedHours ? Number(task.estimatedHours) : 0;
   const timePercent = estimatedHours > 0 ? Math.round((loggedHours / estimatedHours) * 100) : 0;
 
@@ -613,16 +624,24 @@ const TaskDetail = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Gebucht</span>
-                <span className="font-medium">{loggedHours}h</span>
+                <span className="font-medium text-success">{loggedHours}h</span>
               </div>
+              {pendingHours > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Ausstehend</span>
+                  <span className="font-medium text-warning">{pendingHours}h</span>
+                </div>
+              )}
               <Progress value={timePercent} className="h-2" />
               <p className="text-xs text-muted-foreground text-center">
                 {timePercent}% der geschätzten Zeit
               </p>
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowTimeDialog(true)}>
-                <Clock className="h-4 w-4 mr-2" />
-                Zeit buchen
-              </Button>
+              {canBookTime && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setShowTimeDialog(true)}>
+                  <Clock className="h-4 w-4 mr-2" />
+                  Zeit buchen
+                </Button>
+              )}
             </CardContent>
           </Card>
 
