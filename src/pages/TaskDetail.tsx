@@ -192,6 +192,8 @@ const TaskDetail = () => {
     mutationFn: (data: { duration: number; description?: string }) => api.post(`/tasks/${id}/time-entries`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/tasks", id] });
+      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
       toast.success("Zeit gebucht");
       setTimeMinutes("");
       setTimeDescription("");
@@ -309,8 +311,9 @@ const TaskDetail = () => {
   };
 
   const handleAddTime = () => {
-    const mins = parseInt(timeMinutes);
-    if (!mins || mins <= 0) return;
+    const hours = parseFloat(timeMinutes);
+    if (!hours || hours <= 0) return;
+    const mins = Math.round(hours * 60);
     addTimeMutation.mutate({ duration: mins, description: timeDescription || undefined });
   };
 
@@ -778,13 +781,14 @@ const TaskDetail = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>Dauer (Minuten)</Label>
+              <Label>Dauer (Stunden)</Label>
               <Input 
                 type="number" 
                 value={timeMinutes} 
                 onChange={(e) => setTimeMinutes(e.target.value)} 
-                placeholder="z.B. 30"
-                min="1"
+                placeholder="z.B. 0.5 (= 30 Min.)"
+                min="0.1"
+                step="0.1"
               />
             </div>
             <div>
