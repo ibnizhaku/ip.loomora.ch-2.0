@@ -36,6 +36,8 @@ export interface CreateUserDto {
   position?: string;
   departmentId?: string;
   hireDate?: string;
+  password?: string;
+  sendInvite?: boolean;
 }
 
 export interface UpdateUserDto {

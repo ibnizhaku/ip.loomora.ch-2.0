@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save, UserPlus } from "lucide-react";
+import { ArrowLeft, Save, Eye, EyeOff, Mail, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateUser } from "@/hooks/use-users";
+
+type PasswordMode = "manual" | "email";
 
 export default function UserCreate() {
   const navigate = useNavigate();
@@ -25,8 +27,18 @@ export default function UserCreate() {
     hireDate: "",
   });
 
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>("manual");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const passwordValid =
+    passwordMode === "email" ||
+    (password.length >= 8 && password === passwordConfirm);
+
   const handleSubmit = () => {
     if (!form.firstName || !form.lastName || !form.email) return;
+    if (!passwordValid) return;
 
     createUser.mutate(
       {
@@ -39,6 +51,7 @@ export default function UserCreate() {
         position: form.createEmployee ? form.position || undefined : undefined,
         departmentId: form.createEmployee ? form.departmentId || undefined : undefined,
         hireDate: form.createEmployee ? form.hireDate || undefined : undefined,
+        ...(passwordMode === "manual" ? { password } : { sendInvite: true }),
       },
       { onSuccess: () => navigate("/users") }
     );
@@ -56,7 +69,16 @@ export default function UserCreate() {
           <h1 className="font-display text-2xl font-bold">Neuer Benutzer</h1>
           <p className="text-muted-foreground">Erstellen Sie einen neuen Benutzer</p>
         </div>
-        <Button onClick={handleSubmit} disabled={createUser.isPending || !form.firstName || !form.lastName || !form.email}>
+        <Button
+          onClick={handleSubmit}
+          disabled={
+            createUser.isPending ||
+            !form.firstName ||
+            !form.lastName ||
+            !form.email ||
+            !passwordValid
+          }
+        >
           <Save className="mr-2 h-4 w-4" />
           {createUser.isPending ? "Wird erstellt..." : "Erstellen"}
         </Button>
@@ -125,47 +147,132 @@ export default function UserCreate() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Mitarbeiter-Verknüpfung</CardTitle>
-            <CardDescription>Optional einen Mitarbeiterdatensatz gleichzeitig anlegen</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div>
-                <p className="font-medium">Mitarbeiter anlegen</p>
-                <p className="text-sm text-muted-foreground">Erstellt gleichzeitig einen HR-Eintrag</p>
+        <div className="space-y-6">
+          {/* Passwort-Strategie */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Passwort-Vergabe</CardTitle>
+              <CardDescription>Wie soll das initiale Passwort gesetzt werden?</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Toggle */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordMode("manual")}
+                  className={`flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                    passwordMode === "manual"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <KeyRound className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">Passwort setzen</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPasswordMode("email")}
+                  className={`flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                    passwordMode === "email"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">E-Mail-Einladung</span>
+                </button>
               </div>
-              <Switch
-                checked={form.createEmployee}
-                onCheckedChange={(v) => setForm((p) => ({ ...p, createEmployee: v }))}
-              />
-            </div>
 
-            {form.createEmployee && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
-                  <Input
-                    id="position"
-                    placeholder="z.B. Projektleiter"
-                    value={form.position}
-                    onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
-                  />
+              {passwordMode === "manual" ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Passwort *</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Mindestens 8 Zeichen"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="passwordConfirm">Passwort bestätigen *</Label>
+                    <Input
+                      id="passwordConfirm"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Passwort wiederholen"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                    />
+                  </div>
+                  {passwordConfirm && password !== passwordConfirm && (
+                    <p className="text-xs text-destructive">Passwörter stimmen nicht überein</p>
+                  )}
+                  {password && password.length < 8 && (
+                    <p className="text-xs text-destructive">Mindestens 8 Zeichen erforderlich</p>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                  <p>Der Benutzer erhält eine E-Mail mit einem temporären Passwort und wird aufgefordert, dieses beim ersten Login zu ändern.</p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hireDate">Eintrittsdatum</Label>
-                  <Input
-                    id="hireDate"
-                    type="date"
-                    value={form.hireDate}
-                    onChange={(e) => setForm((p) => ({ ...p, hireDate: e.target.value }))}
-                  />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Mitarbeiter-Verknüpfung */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Mitarbeiter-Verknüpfung</CardTitle>
+              <CardDescription>Optional einen Mitarbeiterdatensatz gleichzeitig anlegen</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <p className="font-medium">Mitarbeiter anlegen</p>
+                  <p className="text-sm text-muted-foreground">Erstellt gleichzeitig einen HR-Eintrag</p>
                 </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                <Switch
+                  checked={form.createEmployee}
+                  onCheckedChange={(v) => setForm((p) => ({ ...p, createEmployee: v }))}
+                />
+              </div>
+
+              {form.createEmployee && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Position</Label>
+                    <Input
+                      id="position"
+                      placeholder="z.B. Projektleiter"
+                      value={form.position}
+                      onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hireDate">Eintrittsdatum</Label>
+                    <Input
+                      id="hireDate"
+                      type="date"
+                      value={form.hireDate}
+                      onChange={(e) => setForm((p) => ({ ...p, hireDate: e.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
