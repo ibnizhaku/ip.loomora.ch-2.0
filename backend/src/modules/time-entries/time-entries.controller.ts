@@ -8,6 +8,8 @@ import {
   Param,
   Query,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TimeEntriesService } from './time-entries.service';
@@ -54,14 +56,8 @@ export class TimeEntriesController {
 
   @Post('approve')
   @ApiOperation({ summary: 'Approve or reject time entries (admin only)' })
-  approveEntries(@CurrentUser() user: CurrentUserPayload, @Body() body: any) {
-    console.log('APPROVE RAW BODY:', JSON.stringify(body));
-    // Manuell aus body extrahieren um DTO-Validierungsfehler zu umgehen
-    const dto: ApproveTimeEntriesDto = {
-      ids: Array.isArray(body.ids) ? body.ids : [body.ids].filter(Boolean),
-      status: body.status,
-      reason: body.reason,
-    };
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: false }))
+  approveEntries(@CurrentUser() user: CurrentUserPayload, @Body() dto: ApproveTimeEntriesDto) {
     return this.timeEntriesService.approveEntries(user.companyId, user.userId, dto);
   }
 
