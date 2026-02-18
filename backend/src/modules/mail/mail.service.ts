@@ -126,9 +126,9 @@ export class MailService {
         companyId,
         userId,
         action: AuditAction.SEND,
-        module: this.mapDocumentTypeToModule(dto.documentType),
-        entityId: dto.documentId,
-        entityType: dto.documentType,
+        module: this.mapDocumentTypeToModule(dto.documentType ?? 'system'),
+        entityId: dto.documentId ?? null,
+        entityType: dto.documentType ?? 'system',
         retentionUntil: new Date(Date.now() + 10 * 365.25 * 24 * 60 * 60 * 1000),
       },
     });

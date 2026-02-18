@@ -57,14 +57,16 @@ export class SendMailDto {
   @IsString()
   message: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'invoice',
-    description: 'invoice | quote | order | delivery-note | reminder | credit-note',
+    description: 'invoice | quote | order | delivery-note | reminder | credit-note | customer',
   })
+  @IsOptional()
   @IsString()
-  documentType: string;
+  documentType?: string;
 
-  @ApiProperty({ example: 'clxyz123...' })
+  @ApiPropertyOptional({ example: 'clxyz123...' })
+  @IsOptional()
   @IsString()
-  documentId: string;
+  documentId?: string;
 }

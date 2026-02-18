@@ -13,8 +13,10 @@ import {
   Loader2,
   LayoutGrid,
   List,
-  Euro,
   FolderKanban,
+  Send,
+  AlertTriangle,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +36,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useCustomers, useCustomerStats, useDeleteCustomer } from "@/hooks/use-customers";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useEmailAccount } from "@/hooks/use-email-account";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 const statusConfig = {
@@ -45,12 +65,107 @@ const statusConfig = {
   prospect: { label: "Interessent", color: "bg-info/10 text-info" },
 };
 
+type StatusFilter = "active" | "inactive" | "prospect";
+
+interface EmailModalState {
+  open: boolean;
+  email: string;
+  customerName: string;
+}
+
+function CustomerEmailModal({ state, onClose }: { state: EmailModalState; onClose: () => void }) {
+  const navigate = useNavigate();
+  const { hasEmailAccount, fromEmail, fromName, isLoading } = useEmailAccount();
+  const [to, setTo] = useState(state.email);
+  const [subject, setSubject] = useState(`Kontaktaufnahme – ${state.customerName}`);
+  const [message, setMessage] = useState(`Sehr geehrte Damen und Herren,\n\n\n\nMit freundlichen Grüssen\n${fromName ?? ""}`);
+
+  const sendMutation = useMutation({
+    mutationFn: () =>
+      api.post<{ success: boolean }>("/mail/send", { to: to.trim(), subject, message, documentType: "customer" }),
+    onSuccess: () => {
+      toast.success("E-Mail erfolgreich versendet");
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "E-Mail konnte nicht versendet werden");
+    },
+  });
+
+  if (isLoading) return null;
+
+  if (!hasEmailAccount) {
+    return (
+      <Dialog open={state.open} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Kein E-Mail-Konto konfiguriert
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-4">
+            Bitte konfigurieren Sie unter <strong>Einstellungen → E-Mail</strong> ein SMTP-Konto.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+            <Button onClick={() => { onClose(); navigate("/settings"); }}>
+              <Settings className="h-4 w-4 mr-2" /> Zu Einstellungen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={state.open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" /> E-Mail senden
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {fromEmail && (
+            <div className="text-xs text-muted-foreground rounded-md bg-muted px-3 py-2">
+              Von: {fromName} &lt;{fromEmail}&gt;
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label>An</Label>
+            <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="empfaenger@example.ch" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Betreff</Label>
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nachricht</Label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={7} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+          <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending || !to.trim()}>
+            {sendMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+            Senden
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Customers() {
   const navigate = useNavigate();
   const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
-  
+  const [statusFilter, setStatusFilter] = useState<StatusFilter[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [emailModal, setEmailModal] = useState<EmailModalState>({ open: false, email: "", customerName: "" });
+
   const { data, isLoading, error } = useCustomers({ search: searchQuery, pageSize: 100 });
   const stats = useCustomerStats();
   const deleteCustomer = useDeleteCustomer();
@@ -68,10 +183,25 @@ export default function Customers() {
     }
   };
 
-  const getCustomerStatus = (customer: any): "active" | "inactive" => {
+  const openEmailModal = (email: string, customerName: string) => {
+    setEmailModal({ open: true, email, customerName });
+  };
+
+  const getCustomerStatus = (customer: any): "active" | "inactive" | "prospect" => {
+    if (customer.isProspect || customer.status === "prospect") return "prospect";
     if (!customer.isActive) return "inactive";
     return "active";
   };
+
+  const toggleStatusFilter = (s: StatusFilter) => {
+    setStatusFilter((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
+  };
+
+  const filteredCustomers = statusFilter.length === 0
+    ? customers
+    : customers.filter((c) => statusFilter.includes(getCustomerStatus(c)));
 
   return (
     <div className="space-y-6">
@@ -155,9 +285,32 @@ export default function Customers() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
-          </Button>
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className={cn(statusFilter.length > 0 && "border-primary text-primary")}>
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-48 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Status filtern</p>
+              <div className="space-y-2">
+                {(["active", "inactive", "prospect"] as StatusFilter[]).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox
+                      checked={statusFilter.includes(s)}
+                      onCheckedChange={() => toggleStatusFilter(s)}
+                    />
+                    {statusConfig[s].label}
+                  </label>
+                ))}
+              </div>
+              {statusFilter.length > 0 && (
+                <Button variant="ghost" size="sm" className="w-full mt-3 text-xs" onClick={() => setStatusFilter([])}>
+                  Filter zurücksetzen
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
           <div className="flex items-center rounded-lg border border-border bg-card p-1">
             <Button
               variant="ghost"
@@ -196,15 +349,17 @@ export default function Customers() {
         </div>
       )}
 
+      <CustomerEmailModal state={emailModal} onClose={() => setEmailModal({ open: false, email: "", customerName: "" })} />
+
       {/* Card View */}
       {!isLoading && !error && viewMode === "cards" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {customers.length === 0 ? (
+          {filteredCustomers.length === 0 ? (
             <div className="col-span-full text-center py-8 text-muted-foreground rounded-xl border border-dashed">
-              {searchQuery ? "Keine Kunden gefunden" : "Noch keine Kunden vorhanden"}
+              {searchQuery || statusFilter.length > 0 ? "Keine Kunden gefunden" : "Noch keine Kunden vorhanden"}
             </div>
           ) : (
-            customers.map((customer, index) => {
+            filteredCustomers.map((customer, index) => {
               const status = getCustomerStatus(customer);
               return (
                 <div
@@ -294,7 +449,7 @@ export default function Customers() {
                           Bearbeiten
                         </DropdownMenuItem>
                         {customer.email && (
-                          <DropdownMenuItem onSelect={() => window.location.href = `mailto:${customer.email}`}>
+                          <DropdownMenuItem onSelect={() => openEmailModal(customer.email, customer.companyName || customer.name)}>
                             E-Mail senden
                           </DropdownMenuItem>
                         )}
@@ -332,14 +487,14 @@ export default function Customers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.length === 0 ? (
+              {filteredCustomers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? "Keine Kunden gefunden" : "Noch keine Kunden vorhanden"}
+                    {searchQuery || statusFilter.length > 0 ? "Keine Kunden gefunden" : "Noch keine Kunden vorhanden"}
                   </TableCell>
                 </TableRow>
               ) : (
-                customers.map((customer, index) => {
+                filteredCustomers.map((customer, index) => {
                   const status = getCustomerStatus(customer);
                   return (
                     <TableRow
@@ -416,13 +571,8 @@ export default function Customers() {
                               Bearbeiten
                             </DropdownMenuItem>
                             {customer.email && (
-                              <DropdownMenuItem onSelect={() => window.location.href = `mailto:${customer.email}`}>
+                              <DropdownMenuItem onSelect={() => openEmailModal(customer.email, customer.companyName || customer.name)}>
                                 E-Mail senden
-                              </DropdownMenuItem>
-                            )}
-                            {customer.phone && (
-                              <DropdownMenuItem onSelect={() => window.location.href = `tel:${customer.phone}`}>
-                                Anrufen
                               </DropdownMenuItem>
                             )}
                             {canDelete('customers') && (
