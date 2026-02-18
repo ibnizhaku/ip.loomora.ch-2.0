@@ -67,7 +67,7 @@ export default function TaskCreate() {
   const [subtasks, setSubtasks] = useState<{ id: number; title: string }[]>([]);
   const [newSubtask, setNewSubtask] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [attachments, setAttachments] = useState<{ name: string; size: string; type: string }[]>([]);
+  const [attachments, setAttachments] = useState<{ file: File; name: string; size: string; type: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load projects and users from API
@@ -93,7 +93,23 @@ export default function TaskCreate() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post<any>("/tasks", data),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      try {
+        // Unteraufgaben erstellen
+        for (const subtask of subtasks) {
+          await api.post(`/tasks/${result.id}/subtasks`, { title: subtask.title });
+        }
+        // Dateien hochladen
+        for (const attachment of attachments) {
+          const formData = new FormData();
+          formData.append("file", attachment.file);
+          await api.upload(`/tasks/${result.id}/attachments`, formData);
+        }
+      } catch {
+        toast.warning("Aufgabe erstellt, aber Fehler beim Speichern von Unteraufgaben/Dateien");
+        navigate(`/tasks/${result.id}`);
+        return;
+      }
       toast.success("Aufgabe erfolgreich erstellt");
       navigate(`/tasks/${result.id}`);
     },
@@ -118,12 +134,12 @@ export default function TaskCreate() {
     const files = e.target.files;
     if (files) {
       const newAttachments = Array.from(files).map(file => ({
+        file,
         name: file.name,
         size: formatFileSize(file.size),
         type: file.type,
       }));
       setAttachments(prev => [...prev, ...newAttachments]);
-      toast.info(`${files.length} Datei(en) hinzugefügt (nur lokal – Datei-Upload wird noch nicht unterstützt)`);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -135,12 +151,12 @@ export default function TaskCreate() {
     const files = e.dataTransfer.files;
     if (files) {
       const newAttachments = Array.from(files).map(file => ({
+        file,
         name: file.name,
         size: formatFileSize(file.size),
         type: file.type,
       }));
       setAttachments(prev => [...prev, ...newAttachments]);
-      toast.info(`${files.length} Datei(en) hinzugefügt (nur lokal – Datei-Upload wird noch nicht unterstützt)`);
     }
   };
 
