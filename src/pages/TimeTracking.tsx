@@ -63,6 +63,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useProjects } from "@/hooks/use-projects";
 import { useTasks } from "@/hooks/use-tasks";
 import { useEmployees } from "@/hooks/use-employees";
+import { useCreateTimeEntry } from "@/hooks/use-time-entries";
 import { api } from "@/lib/api";
 
 interface TimeEntry {
@@ -101,6 +102,7 @@ export default function TimeTracking() {
   });
   const { data: projectsData } = useProjects({ pageSize: 100 });
   const { data: employeesData } = useEmployees({ pageSize: 100, status: 'ACTIVE' });
+  const createTimeEntry = useCreateTimeEntry();
 
   const projects = (projectsData?.data || []).map((p: any) => ({ id: p.id, name: p.name }));
   const employees = (employeesData?.data || []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
@@ -187,22 +189,19 @@ export default function TimeTracking() {
   const handleStartStop = () => {
     if (isTracking) {
       if (elapsedSeconds >= 60 && currentTask && currentProject) {
-        const projectName = projects.find((p) => p.id === currentProject)?.name || currentProject;
-        const currentEmployee = employees.find(e => e.id === currentUserId);
-        const newEntry: TimeEntry = {
-          id: Date.now().toString(),
-          project: projectName,
-          task: timerTasks.find((t: any) => t.id === currentTask)?.title || currentTask,
-          duration: Math.floor(elapsedSeconds / 60),
+        const taskTitle = timerTasks.find((t: any) => t.id === currentTask)?.title || currentTask;
+        const durationMinutes = Math.floor(elapsedSeconds / 60);
+        // API-Call: Zeiteintrag mit taskId und projectId speichern
+        createTimeEntry.mutate({
+          projectId: currentProject,
+          taskId: currentTask,
+          description: taskTitle,
+          duration: durationMinutes,
           date: format(new Date(), "yyyy-MM-dd"),
-          status: "completed",
-          approvalStatus: "pending",
-          employeeName: currentEmployee?.name,
-          employeeId: currentUserId,
-        };
-        setEntries((prev) => [newEntry, ...prev]);
+          isBillable: true,
+        } as any);
         toast.success("Zeiteintrag gespeichert", {
-          description: `${timerTasks.find((t: any) => t.id === currentTask)?.title || currentTask} - ${formatDuration(Math.floor(elapsedSeconds / 60))} (Genehmigung ausstehend)`,
+          description: `${taskTitle} - ${formatDuration(durationMinutes)} (Genehmigung ausstehend)`,
         });
         setCurrentTask("");
         setCurrentProject("");
@@ -237,26 +236,19 @@ export default function TimeTracking() {
       return;
     }
 
-    const projectName = projects.find((p) => p.id === manualEntry.project)?.name || manualEntry.project;
-    const currentEmployee = employees.find(e => e.id === currentUserId);
-    const newEntry: TimeEntry = {
-      id: Date.now().toString(),
-      project: projectName,
-      task: manualTasks.find((t: any) => t.id === manualEntry.task)?.title || manualEntry.task,
+    const taskTitle = manualTasks.find((t: any) => t.id === manualEntry.task)?.title || manualEntry.task;
+    // API-Call: Manueller Zeiteintrag mit taskId und projectId speichern
+    createTimeEntry.mutate({
+      projectId: manualEntry.project,
+      taskId: manualEntry.task,
+      description: taskTitle,
       duration: totalMinutes,
       date: manualEntry.date,
-      status: "completed",
-      approvalStatus: "pending",
-      employeeName: currentEmployee?.name,
-      employeeId: currentUserId,
-    };
-
-    setEntries((prev) => [newEntry, ...prev.filter((e) => e.id !== newEntry.id)].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    ));
+      isBillable: true,
+    } as any);
 
     toast.success("Eintrag hinzugefügt", {
-      description: `${manualTasks.find((t: any) => t.id === manualEntry.task)?.title || manualEntry.task} - ${formatDuration(totalMinutes)} (Genehmigung ausstehend)`,
+      description: `${taskTitle} - ${formatDuration(totalMinutes)} (Genehmigung ausstehend)`,
     });
 
     setManualEntry({
