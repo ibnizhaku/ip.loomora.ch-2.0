@@ -31,10 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 
-const availableTags = [
-  "Frontend", "Backend", "Design", "Testing", "Dokumentation", 
-  "Performance", "Security", "UX", "Database", "API"
-];
+import { TagInput } from "@/components/tasks/TagInput";
 
 const statusToBackend: Record<string, string> = {
   "todo": "TODO",
@@ -175,14 +172,6 @@ export default function TaskCreate() {
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
-  };
-
   const handleSubmit = () => {
     if (!title.trim()) {
       toast.error("Bitte geben Sie einen Titel ein");
@@ -320,21 +309,10 @@ export default function TaskCreate() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant={selectedTags.includes(tag) ? "default" : "outline"}
-                    className="cursor-pointer transition-all hover:scale-105"
-                    onClick={() => toggleTag(tag)}
-                  >
-                    {tag}
-                    {selectedTags.includes(tag) && (
-                      <X className="h-3 w-3 ml-1" />
-                    )}
-                  </Badge>
-                ))}
-              </div>
+              <TagInput
+                tags={selectedTags}
+                onChange={setSelectedTags}
+              />
             </CardContent>
           </Card>
 

@@ -146,7 +146,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
       return;
     }
 
-    const projectData = {
+    const projectData: any = {
       name: formData.name,
       description: formData.description || undefined,
       customerId: formData.customerId || undefined,
