@@ -101,4 +101,47 @@ export class ProjectsController {
   ) {
     return this.projectsService.removeMember(id, user.companyId, memberId);
   }
+
+  // --- Milestones ---
+
+  @Get(':id/milestones')
+  @RequirePermissions('projects:read')
+  @ApiOperation({ summary: 'Get project milestones' })
+  getMilestones(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+    return this.projectsService.getMilestones(id, user.companyId);
+  }
+
+  @Post(':id/milestones')
+  @RequirePermissions('projects:write')
+  @ApiOperation({ summary: 'Add milestone to project' })
+  addMilestone(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body() dto: { title: string; dueDate?: string },
+  ) {
+    return this.projectsService.addMilestone(id, user.companyId, dto);
+  }
+
+  @Put(':id/milestones/:milestoneId')
+  @RequirePermissions('projects:write')
+  @ApiOperation({ summary: 'Update milestone' })
+  updateMilestone(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Param('milestoneId') milestoneId: string,
+    @Body() dto: { title?: string; dueDate?: string; completed?: boolean },
+  ) {
+    return this.projectsService.updateMilestone(id, milestoneId, user.companyId, dto);
+  }
+
+  @Delete(':id/milestones/:milestoneId')
+  @RequirePermissions('projects:write')
+  @ApiOperation({ summary: 'Remove milestone from project' })
+  removeMilestone(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Param('milestoneId') milestoneId: string,
+  ) {
+    return this.projectsService.removeMilestone(id, milestoneId, user.companyId);
+  }
 }

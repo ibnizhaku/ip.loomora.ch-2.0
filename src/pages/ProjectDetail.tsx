@@ -25,6 +25,7 @@ import {
   FileType,
   Loader2,
   Banknote,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ProjectChat } from "@/components/project/ProjectChat";
-import { useProject, useDeleteProject, useUpdateProject, useAddProjectMember, useRemoveProjectMember } from "@/hooks/use-projects";
+import { useProject, useDeleteProject, useUpdateProject, useAddProjectMember, useRemoveProjectMember, useAddProjectMilestone, useUpdateProjectMilestone, useRemoveProjectMilestone, ProjectMilestone } from "@/hooks/use-projects";
 import { useEmployees } from "@/hooks/use-employees";
 import { toast } from "sonner";
 import {
@@ -91,9 +92,14 @@ export default function ProjectDetail() {
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+  const [showAddMilestoneDialog, setShowAddMilestoneDialog] = useState(false);
+  const [newMilestone, setNewMilestone] = useState({ title: '', dueDate: '' });
   const [memberSearch, setMemberSearch] = useState('');
   const addMember = useAddProjectMember();
   const removeMember = useRemoveProjectMember();
+  const addMilestoneMutation = useAddProjectMilestone();
+  const updateMilestoneMutation = useUpdateProjectMilestone();
+  const removeMilestoneMutation = useRemoveProjectMilestone();
   const { data: employeesData } = useEmployees({ search: memberSearch, pageSize: 20 });
 
   // Load project documents from backend
@@ -224,12 +230,7 @@ export default function ProjectDetail() {
   })) || [];
 
   const tasks = project.tasks || [];
-
-  const milestones = [
-    { id: "1", title: "Phase 1: Grundfunktionen", date: formatDate(project.startDate), completed: progress >= 33 },
-    { id: "2", title: "Phase 2: Kernfunktionen", date: formatDate(project.endDate), completed: progress >= 66 },
-    { id: "3", title: "Phase 3: Launch", date: formatDate(project.endDate), completed: progress >= 100 },
-  ];
+  const milestones: ProjectMilestone[] = project.milestones || [];
 
   return (
     <div className="space-y-6">
@@ -366,39 +367,48 @@ export default function ProjectDetail() {
         </div>
         <Progress value={progress} className="h-3" />
 
-        <div className="flex justify-between mt-6">
-          {milestones.map((milestone, index) => (
-            <div
-              key={milestone.id}
-              className={cn(
-                "text-center",
-                index === 0 && "text-left",
-                index === milestones.length - 1 && "text-right"
-              )}
-            >
+        {milestones.length > 0 && (
+          <div className="flex justify-between mt-6 flex-wrap gap-4">
+            {milestones.map((milestone, index) => (
               <div
+                key={milestone.id}
                 className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-full mb-2",
-                  milestone.completed ? "bg-success text-success-foreground" : "bg-muted"
+                  "text-center cursor-pointer group",
+                  index === 0 && "text-left",
+                  index === milestones.length - 1 && "text-right"
                 )}
+                onClick={() => updateMilestoneMutation.mutate({ projectId: id!, milestoneId: milestone.id, completed: !milestone.completed })}
               >
-                {milestone.completed ? (
-                  <CheckCircle className="h-4 w-4" />
-                ) : (
-                  <span className="text-sm font-medium">{index + 1}</span>
-                )}
+                <div
+                  className={cn(
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full mb-2 transition-colors group-hover:ring-2 ring-primary",
+                    milestone.completed ? "bg-success text-success-foreground" : "bg-muted"
+                  )}
+                >
+                  {milestone.completed ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <span className="text-sm font-medium">{index + 1}</span>
+                  )}
+                </div>
+                <p className="text-sm font-medium">{milestone.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {milestone.dueDate ? formatDate(milestone.dueDate) : '–'}
+                </p>
               </div>
-              <p className="text-sm font-medium">{milestone.title}</p>
-              <p className="text-xs text-muted-foreground">{milestone.date}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+        {milestones.length === 0 && (
+          <p className="text-sm text-muted-foreground mt-4">Noch keine Meilensteine. Füge sie über den Tab hinzu.</p>
+        )}
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
           <TabsTrigger value="tasks">Aufgaben</TabsTrigger>
+          <TabsTrigger value="milestones">Meilensteine</TabsTrigger>
           <TabsTrigger value="chat" className="gap-2">
             <MessageSquare className="h-4 w-4" />
             Chat
@@ -469,6 +479,60 @@ export default function ProjectDetail() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="milestones" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Meilensteine ({milestones.length})</h3>
+            <Button size="sm" className="gap-2" onClick={() => setShowAddMilestoneDialog(true)}>
+              <Plus className="h-4 w-4" />
+              Meilenstein hinzufügen
+            </Button>
+          </div>
+          {milestones.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center">
+              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Noch keine Meilensteine</p>
+              <Button variant="link" onClick={() => setShowAddMilestoneDialog(true)} className="mt-2">
+                Ersten Meilenstein hinzufügen
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {milestones.map((milestone, index) => (
+                <div
+                  key={milestone.id}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card group"
+                >
+                  <div
+                    className={cn(
+                      "inline-flex h-8 w-8 items-center justify-center rounded-full cursor-pointer transition-colors shrink-0",
+                      milestone.completed ? "bg-success text-success-foreground" : "bg-muted hover:bg-primary/20"
+                    )}
+                    onClick={() => updateMilestoneMutation.mutate({ projectId: id!, milestoneId: milestone.id, completed: !milestone.completed })}
+                  >
+                    {milestone.completed ? <CheckCircle className="h-4 w-4" /> : <span className="text-sm font-medium">{index + 1}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("font-medium", milestone.completed && "line-through text-muted-foreground")}>
+                      {milestone.title}
+                    </p>
+                    {milestone.dueDate && (
+                      <p className="text-sm text-muted-foreground">{formatDate(milestone.dueDate)}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 h-7 w-7 text-destructive"
+                    onClick={() => removeMilestoneMutation.mutate({ projectId: id!, milestoneId: milestone.id })}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
         </TabsContent>
@@ -713,6 +777,58 @@ export default function ProjectDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAddMemberDialog(false); setMemberSearch(''); }}>
               Abbrechen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Milestone Dialog */}
+      <Dialog open={showAddMilestoneDialog} onOpenChange={setShowAddMilestoneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Meilenstein hinzufügen</DialogTitle>
+            <DialogDescription>Fügen Sie einen neuen Meilenstein zu diesem Projekt hinzu.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Titel *</label>
+              <Input
+                placeholder="z.B. Phase 1 abgeschlossen"
+                value={newMilestone.title}
+                onChange={(e) => setNewMilestone((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fälligkeitsdatum</label>
+              <Input
+                type="date"
+                value={newMilestone.dueDate}
+                onChange={(e) => setNewMilestone((prev) => ({ ...prev, dueDate: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAddMilestoneDialog(false); setNewMilestone({ title: '', dueDate: '' }); }}>
+              Abbrechen
+            </Button>
+            <Button
+              disabled={!newMilestone.title.trim() || addMilestoneMutation.isPending}
+              onClick={() => {
+                if (!id || !newMilestone.title.trim()) return;
+                addMilestoneMutation.mutate(
+                  { projectId: id, title: newMilestone.title, dueDate: newMilestone.dueDate || undefined },
+                  {
+                    onSuccess: () => {
+                      toast.success('Meilenstein hinzugefügt');
+                      setShowAddMilestoneDialog(false);
+                      setNewMilestone({ title: '', dueDate: '' });
+                    },
+                    onError: () => toast.error('Fehler beim Hinzufügen'),
+                  }
+                );
+              }}
+            >
+              {addMilestoneMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Hinzufügen'}
             </Button>
           </DialogFooter>
         </DialogContent>

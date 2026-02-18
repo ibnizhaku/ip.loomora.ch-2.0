@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCustomers } from "@/hooks/use-customers";
 import { useEmployees } from "@/hooks/use-employees";
-import { useCreateProject, useUpdateProject } from "@/hooks/use-projects";
+import { useCreateProject, useUpdateProject, useAddProjectMilestone } from "@/hooks/use-projects";
 
 interface Milestone {
   id: number | string;
@@ -70,6 +70,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
   const navigate = useNavigate();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
+  const addMilestone = useAddProjectMilestone();
 
   const { data: customersData } = useCustomers({ pageSize: 100 });
   const { data: employeesData } = useEmployees({ pageSize: 100 });
@@ -155,6 +156,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
       endDate: formData.endDate || undefined,
       budget: formData.budget || undefined,
       managerId: formData.managerId || undefined,
+      members: selectedTeam.length > 0 ? selectedTeam : undefined,
     };
 
     try {
@@ -164,15 +166,23 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
         navigate(`/projects/${initialData.id}`);
       } else {
         const result = await createProject.mutateAsync(projectData);
+        // Save milestones after project creation
+        if (milestones.length > 0) {
+          await Promise.all(
+            milestones.map((m) =>
+              addMilestone.mutateAsync({ projectId: result.id, title: m.title, dueDate: m.date || undefined })
+            )
+          );
+        }
         toast.success('Projekt erfolgreich erstellt');
-        navigate('/projects');
+        navigate(`/projects/${result.id}`);
       }
     } catch (error) {
       toast.error(mode === 'edit' ? 'Fehler beim Aktualisieren' : 'Fehler beim Erstellen');
     }
   };
 
-  const isLoading = createProject.isPending || updateProject.isPending;
+  const isLoading = createProject.isPending || updateProject.isPending || addMilestone.isPending;
 
   return (
     <div className="space-y-6">

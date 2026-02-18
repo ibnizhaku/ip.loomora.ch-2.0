@@ -1758,6 +1758,7 @@ model Project {
   invoices        Invoice[]
   purchaseOrders  PurchaseOrder[]
   members         ProjectMember[]
+  milestones      ProjectMilestone[]
   boms            BillOfMaterial[]
   productionOrders ProductionOrder[]
   calculations    Calculation[]
@@ -1776,6 +1777,21 @@ model Project {
   @@index([customerId])
   @@index([status])
   @@map("projects")
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  dueDate     DateTime?
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_milestones")
 }
 
 model ProjectMember {

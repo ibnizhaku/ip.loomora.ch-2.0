@@ -161,3 +161,45 @@ export function useRemoveProjectMember() {
     },
   });
 }
+
+export interface ProjectMilestone {
+  id: string;
+  projectId: string;
+  title: string;
+  dueDate?: string;
+  completed: boolean;
+  createdAt: string;
+}
+
+export function useAddProjectMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, title, dueDate }: { projectId: string; title: string; dueDate?: string }) =>
+      api.post<ProjectMilestone>(`/projects/${projectId}/milestones`, { title, dueDate }),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, projectId] });
+    },
+  });
+}
+
+export function useUpdateProjectMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, milestoneId, ...data }: { projectId: string; milestoneId: string; title?: string; dueDate?: string; completed?: boolean }) =>
+      api.put<ProjectMilestone>(`/projects/${projectId}/milestones/${milestoneId}`, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, projectId] });
+    },
+  });
+}
+
+export function useRemoveProjectMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, milestoneId }: { projectId: string; milestoneId: string }) =>
+      api.delete(`/projects/${projectId}/milestones/${milestoneId}`),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, projectId] });
+    },
+  });
+}

@@ -120,6 +120,9 @@ export class ProjectsService {
           orderBy: { createdAt: 'desc' },
           take: 10,
         },
+        milestones: {
+          orderBy: { dueDate: 'asc' },
+        },
       },
     });
 
@@ -376,6 +379,44 @@ export class ProjectsService {
     await this.findById(projectId, companyId);
 
     return this.prisma.projectMember.delete({ where: { id: memberId } });
+  }
+
+  // --- Milestones ---
+
+  async getMilestones(projectId: string, companyId: string) {
+    await this.findById(projectId, companyId);
+    return this.prisma.projectMilestone.findMany({
+      where: { projectId },
+      orderBy: { dueDate: 'asc' },
+    });
+  }
+
+  async addMilestone(projectId: string, companyId: string, data: { title: string; dueDate?: string }) {
+    await this.findById(projectId, companyId);
+    return this.prisma.projectMilestone.create({
+      data: {
+        projectId,
+        title: data.title,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      },
+    });
+  }
+
+  async updateMilestone(projectId: string, milestoneId: string, companyId: string, data: { title?: string; dueDate?: string; completed?: boolean }) {
+    await this.findById(projectId, companyId);
+    return this.prisma.projectMilestone.update({
+      where: { id: milestoneId },
+      data: {
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
+        ...(data.completed !== undefined && { completed: data.completed }),
+      },
+    });
+  }
+
+  async removeMilestone(projectId: string, milestoneId: string, companyId: string) {
+    await this.findById(projectId, companyId);
+    return this.prisma.projectMilestone.delete({ where: { id: milestoneId } });
   }
 
   // Statistics for dashboard
