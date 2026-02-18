@@ -20,6 +20,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagg
 import { TasksService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskQueryDto } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
 const TASK_ATTACHMENTS_DIR = join(process.cwd(), 'uploads', 'task-attachments');
@@ -29,36 +31,41 @@ if (!existsSync(TASK_ATTACHMENTS_DIR)) {
 
 @ApiTags('Tasks')
 @Controller('tasks')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @ApiBearerAuth()
 export class TasksController {
   constructor(private tasksService: TasksService) {}
 
   @Get()
+  @RequirePermissions('tasks:read')
   @ApiOperation({ summary: 'Get all tasks' })
   findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: TaskQueryDto) {
     return this.tasksService.findAll(user.companyId, query);
   }
 
   @Get('stats')
+  @RequirePermissions('tasks:read')
   @ApiOperation({ summary: 'Get task statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.tasksService.getStats(user.companyId);
   }
 
   @Get(':id')
+  @RequirePermissions('tasks:read')
   @ApiOperation({ summary: 'Get task by ID' })
   findOne(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.tasksService.findById(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Create new task' })
   create(@CurrentUser() user: CurrentUserPayload, @Body() dto: CreateTaskDto) {
     return this.tasksService.create(user.companyId, user.userId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Update task' })
   update(
     @CurrentUser() user: CurrentUserPayload,
@@ -69,6 +76,7 @@ export class TasksController {
   }
 
   @Delete(':id')
+  @RequirePermissions('tasks:delete')
   @ApiOperation({ summary: 'Delete task' })
   delete(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.tasksService.delete(id, user.companyId);
@@ -79,12 +87,14 @@ export class TasksController {
   // ========================
 
   @Get(':id/subtasks')
+  @RequirePermissions('tasks:read')
   @ApiOperation({ summary: 'Get subtasks for a task' })
   getSubtasks(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.tasksService.getSubtasks(id, user.companyId);
   }
 
   @Post(':id/subtasks')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Create a subtask' })
   createSubtask(
     @CurrentUser() user: CurrentUserPayload,
@@ -95,6 +105,7 @@ export class TasksController {
   }
 
   @Patch(':id/subtasks/:subtaskId')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Update a subtask (PATCH)' })
   updateSubtask(
     @CurrentUser() user: CurrentUserPayload,
@@ -106,6 +117,7 @@ export class TasksController {
   }
 
   @Put(':id/subtasks/:subtaskId')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Update a subtask (PUT)' })
   updateSubtaskPut(
     @CurrentUser() user: CurrentUserPayload,
@@ -117,6 +129,7 @@ export class TasksController {
   }
 
   @Delete(':id/subtasks/:subtaskId')
+  @RequirePermissions('tasks:delete')
   @ApiOperation({ summary: 'Delete a subtask' })
   deleteSubtask(
     @CurrentUser() user: CurrentUserPayload,
@@ -131,12 +144,14 @@ export class TasksController {
   // ========================
 
   @Get(':id/comments')
+  @RequirePermissions('tasks:read')
   @ApiOperation({ summary: 'Get comments for a task' })
   getComments(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.tasksService.getComments(id, user.companyId);
   }
 
   @Post(':id/comments')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Create a comment' })
   createComment(
     @CurrentUser() user: CurrentUserPayload,
@@ -147,6 +162,7 @@ export class TasksController {
   }
 
   @Delete(':id/comments/:commentId')
+  @RequirePermissions('tasks:delete')
   @ApiOperation({ summary: 'Delete a comment' })
   deleteComment(
     @CurrentUser() user: CurrentUserPayload,
@@ -161,6 +177,7 @@ export class TasksController {
   // ========================
 
   @Post(':id/time-entries')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Create a time entry for a task' })
   createTimeEntry(
     @CurrentUser() user: CurrentUserPayload,
@@ -175,12 +192,14 @@ export class TasksController {
   // ========================
 
   @Get(':id/attachments')
+  @RequirePermissions('tasks:read')
   @ApiOperation({ summary: 'Get attachments for a task' })
   getAttachments(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.tasksService.getAttachments(id, user.companyId);
   }
 
   @Post(':id/attachments')
+  @RequirePermissions('tasks:write')
   @ApiOperation({ summary: 'Upload an attachment' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
@@ -204,6 +223,7 @@ export class TasksController {
   }
 
   @Delete(':id/attachments/:attachmentId')
+  @RequirePermissions('tasks:delete')
   @ApiOperation({ summary: 'Delete an attachment' })
   deleteAttachment(
     @CurrentUser() user: CurrentUserPayload,

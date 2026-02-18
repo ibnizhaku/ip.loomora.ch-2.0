@@ -1,21 +1,30 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Res } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ReportsService } from './reports.service';
 import { GenerateReportDto, ReportFormat } from './dto/report.dto';
 
+@ApiTags('Reports')
+@ApiBearerAuth()
 @Controller('reports')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('available')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get available report types' })
   getAvailableReports() {
     return this.reportsService.getAvailableReports();
   }
 
   @Post('generate')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Generate a report' })
   async generateReport(
     @CurrentUser() user: any,
     @Body() dto: GenerateReportDto,
@@ -24,8 +33,6 @@ export class ReportsController {
     const report = await this.reportsService.generateReport(user.companyId, dto);
 
     if (dto.format === ReportFormat.PDF) {
-      // Return PDF-ready JSON structure
-      // Frontend will handle PDF generation with jsPDF
       return {
         ...report,
         _format: 'pdf',
@@ -43,6 +50,8 @@ export class ReportsController {
   }
 
   @Get('profit-loss')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get profit & loss report' })
   async getProfitLoss(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -56,6 +65,8 @@ export class ReportsController {
   }
 
   @Get('balance-sheet')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get balance sheet report' })
   async getBalanceSheet(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -67,6 +78,8 @@ export class ReportsController {
   }
 
   @Get('payroll-summary')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get payroll summary report' })
   async getPayrollSummary(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -80,6 +93,8 @@ export class ReportsController {
   }
 
   @Get('gav-compliance')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get GAV compliance report' })
   async getGavCompliance(@CurrentUser() user: any) {
     return this.reportsService.generateReport(user.companyId, {
       type: 'GAV_COMPLIANCE' as any,
@@ -88,6 +103,8 @@ export class ReportsController {
   }
 
   @Get('withholding-tax')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get withholding tax report' })
   async getWithholdingTax(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -101,6 +118,8 @@ export class ReportsController {
   }
 
   @Get('project-profitability')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get project profitability report' })
   async getProjectProfitability(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -112,6 +131,8 @@ export class ReportsController {
   }
 
   @Get('open-items')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get open items report' })
   async getOpenItems(@CurrentUser() user: any) {
     return this.reportsService.generateReport(user.companyId, {
       type: 'OPEN_ITEMS' as any,
@@ -120,6 +141,8 @@ export class ReportsController {
   }
 
   @Get('sales-analysis')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get sales analysis report' })
   async getSalesAnalysis(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -131,6 +154,8 @@ export class ReportsController {
   }
 
   @Get('budget-comparison')
+  @RequirePermissions('reports:read')
+  @ApiOperation({ summary: 'Get budget comparison report' })
   async getBudgetComparison(
     @CurrentUser() user: any,
     @Query('year') year: string,
@@ -142,7 +167,6 @@ export class ReportsController {
   }
 
   private convertToCSV(data: any): string {
-    // Simple CSV conversion for flat data structures
     if (Array.isArray(data)) {
       if (data.length === 0) return '';
       const headers = Object.keys(data[0]);
@@ -150,7 +174,6 @@ export class ReportsController {
       return [headers.join(';'), ...rows].join('\n');
     }
     
-    // For nested structures, flatten first level
     const rows: string[] = [];
     Object.entries(data).forEach(([key, value]) => {
       if (typeof value === 'object' && value !== null) {

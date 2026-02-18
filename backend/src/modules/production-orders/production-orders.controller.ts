@@ -1,18 +1,21 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ProductionOrdersService } from './production-orders.service';
 import { CreateProductionOrderDto, UpdateProductionOrderDto, TimeBookingDto } from './dto/production-order.dto';
 
 @ApiTags('Production Orders')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('production-orders')
 export class ProductionOrdersController {
   constructor(private readonly productionOrdersService: ProductionOrdersService) {}
 
   @Get()
+  @RequirePermissions('production-orders:read')
   @ApiOperation({ summary: 'List all production orders' })
   findAll(
     @CurrentUser() user: any,
@@ -34,18 +37,21 @@ export class ProductionOrdersController {
   }
 
   @Get('stats')
+  @RequirePermissions('production-orders:read')
   @ApiOperation({ summary: 'Get production stats' })
   getStats(@CurrentUser() user: any) {
     return this.productionOrdersService.getStatistics(user.companyId);
   }
 
   @Get('statistics')
+  @RequirePermissions('production-orders:read')
   @ApiOperation({ summary: 'Get production statistics' })
   getStatistics(@CurrentUser() user: any) {
     return this.productionOrdersService.getStatistics(user.companyId);
   }
 
   @Get('capacity')
+  @RequirePermissions('production-orders:read')
   @ApiOperation({ summary: 'Get capacity overview by workstation' })
   getCapacityOverview(
     @CurrentUser() user: any,
@@ -56,18 +62,21 @@ export class ProductionOrdersController {
   }
 
   @Get(':id')
+  @RequirePermissions('production-orders:read')
   @ApiOperation({ summary: 'Get production order by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.productionOrdersService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('production-orders:write')
   @ApiOperation({ summary: 'Create new production order' })
   create(@Body() dto: CreateProductionOrderDto, @CurrentUser() user: any) {
     return this.productionOrdersService.create(user.companyId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('production-orders:write')
   @ApiOperation({ summary: 'Update production order' })
   update(
     @Param('id') id: string,
@@ -78,6 +87,7 @@ export class ProductionOrdersController {
   }
 
   @Post(':id/book-time')
+  @RequirePermissions('production-orders:write')
   @ApiOperation({ summary: 'Book time to an operation' })
   bookTime(
     @Param('id') id: string,
@@ -88,6 +98,7 @@ export class ProductionOrdersController {
   }
 
   @Post(':id/complete')
+  @RequirePermissions('production-orders:write')
   @ApiOperation({ summary: 'Mark entire production order as completed' })
   complete(
     @Param('id') id: string,
@@ -97,6 +108,7 @@ export class ProductionOrdersController {
   }
 
   @Post(':id/operations/:operationId/complete')
+  @RequirePermissions('production-orders:write')
   @ApiOperation({ summary: 'Mark an operation as completed' })
   completeOperation(
     @Param('id') id: string,
@@ -107,6 +119,7 @@ export class ProductionOrdersController {
   }
 
   @Delete(':id')
+  @RequirePermissions('production-orders:delete')
   @ApiOperation({ summary: 'Delete production order' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
     return this.productionOrdersService.delete(id, user.companyId);
