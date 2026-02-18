@@ -121,7 +121,7 @@ export default function RoleDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate(`/roles/new`)}>
+          <Button variant="outline" onClick={() => navigate(`/roles/new?copyFrom=${id}`)}>
             <Copy className="h-4 w-4 mr-2" />
             Duplizieren
           </Button>
@@ -131,7 +131,7 @@ export default function RoleDetail() {
                 <Edit className="h-4 w-4 mr-2" />
                 Bearbeiten
               </Button>
-              <Button variant="outline" className="text-red-600" onClick={() => setShowDeleteDialog(true)}>
+              <Button variant="outline" className="text-destructive" onClick={() => setShowDeleteDialog(true)}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Löschen
               </Button>

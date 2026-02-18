@@ -398,15 +398,15 @@ export default function Users() {
                         <DropdownMenuItem onClick={() => navigate(`/users/${user.id}`)}>
                           Profil anzeigen
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast.info("Rolle ändern - Dialog öffnen")}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/users/${user.id}/edit`); }}>
                           Rolle ändern
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast.success("Passwort-Reset E-Mail gesendet")}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/users/${user.id}/edit`); }}>
                           Passwort zurücksetzen
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-destructive"
-                          onClick={() => toast.warning(`${user.name} deaktiviert`)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/users/${user.id}/edit`); }}
                         >
                           Deaktivieren
                         </DropdownMenuItem>

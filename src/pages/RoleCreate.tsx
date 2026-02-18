@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Shield, Save, Eye, Plus, Pencil, Trash2 } from "lucide-react";
-import { useCreateRole } from "@/hooks/use-roles";
+import { useCreateRole, useRole } from "@/hooks/use-roles";
 
 const permissionModules = [
   { key: "customers", label: "Kunden" },
@@ -36,6 +36,19 @@ function buildInitialPerms(): PermState {
   return perms;
 }
 
+function arrayToPerms(permsArray: string[]): PermState {
+  const perms: PermState = {};
+  permissionModules.forEach((m) => {
+    perms[m.key] = {
+      read: permsArray.includes(`${m.key}:read`) || permsArray.includes(`${m.key}:admin`),
+      write: permsArray.includes(`${m.key}:write`) || permsArray.includes(`${m.key}:admin`),
+      delete: permsArray.includes(`${m.key}:delete`) || permsArray.includes(`${m.key}:admin`),
+      admin: permsArray.includes(`${m.key}:admin`),
+    };
+  });
+  return perms;
+}
+
 function permsToArray(perms: PermState): string[] {
   const result: string[] = [];
   Object.entries(perms).forEach(([mod, p]) => {
@@ -52,10 +65,24 @@ function permsToArray(perms: PermState): string[] {
 
 export default function RoleCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const copyFromId = searchParams.get("copyFrom");
+
   const createRole = useCreateRole();
+  const { data: sourceRole } = useRole(copyFromId || "");
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [permissions, setPermissions] = useState<PermState>(buildInitialPerms);
+
+  // Wenn copyFrom vorhanden: Quelldaten laden und vorbefüllen
+  useEffect(() => {
+    if (sourceRole) {
+      setName(`Kopie von ${sourceRole.name}`);
+      setDescription(sourceRole.description || "");
+      setPermissions(arrayToPerms(sourceRole.permissions || []));
+    }
+  }, [sourceRole]);
 
   const togglePerm = (mod: string, type: "read" | "write" | "delete" | "admin") => {
     setPermissions((prev) => {
@@ -135,11 +162,11 @@ export default function RoleCreate() {
                 {permissionModules.map((mod) => (
                   <div key={mod.key} className="grid grid-cols-6 gap-4 py-3 px-4 border-b last:border-0">
                     <div className="font-medium">{mod.label}</div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key].read} onCheckedChange={() => togglePerm(mod.key, "read")} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key].write} onCheckedChange={() => togglePerm(mod.key, "write")} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key].write} onCheckedChange={() => togglePerm(mod.key, "write")} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key].delete} onCheckedChange={() => togglePerm(mod.key, "delete")} /></div>
-                    <div className="flex justify-center"><Checkbox checked={permissions[mod.key].admin} onCheckedChange={() => togglePerm(mod.key, "admin")} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.read || false} onCheckedChange={() => togglePerm(mod.key, "read")} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.write || false} onCheckedChange={() => togglePerm(mod.key, "write")} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.write || false} onCheckedChange={() => togglePerm(mod.key, "write")} title="Bearbeiten (entspricht Schreiben)" /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.delete || false} onCheckedChange={() => togglePerm(mod.key, "delete")} /></div>
+                     <div className="flex justify-center"><Checkbox checked={permissions[mod.key]?.admin || false} onCheckedChange={() => togglePerm(mod.key, "admin")} /></div>
                   </div>
                 ))}
               </div>
