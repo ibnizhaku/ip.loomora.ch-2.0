@@ -1,16 +1,19 @@
 import { Controller, Get, Post, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { AuditLogService } from './audit-log.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuditLogQueryDto, AuditLogExportDto, AuditAction, AuditModule } from './dto/audit-log.dto';
 import { Request } from 'express';
 
 @Controller('audit-log')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
+  @RequirePermissions('settings:read')
   async findAll(
     @CurrentUser() user: any,
     @Query('action') action?: AuditAction,
@@ -39,6 +42,7 @@ export class AuditLogController {
   }
 
   @Get('statistics')
+  @RequirePermissions('settings:read')
   async getStatistics(
     @CurrentUser() user: any,
     @Query('days') days?: string,
@@ -47,6 +51,7 @@ export class AuditLogController {
   }
 
   @Get('export')
+  @RequirePermissions('settings:read')
   async export(
     @CurrentUser() user: any,
     @Query('startDate') startDate: string,
@@ -63,6 +68,7 @@ export class AuditLogController {
   }
 
   @Get('entity/:entityType/:entityId')
+  @RequirePermissions('settings:read')
   async getEntityHistory(
     @CurrentUser() user: any,
     @Param('entityType') entityType: string,
@@ -72,6 +78,7 @@ export class AuditLogController {
   }
 
   @Get(':id')
+  @RequirePermissions('settings:read')
   async findOne(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -79,10 +86,9 @@ export class AuditLogController {
     return this.auditLogService.findOne(id, user.companyId);
   }
 
-  // Cleanup endpoint (admin only, should be called by cron)
   @Post('cleanup')
+  @RequirePermissions('settings:admin')
   async cleanupExpiredLogs(@CurrentUser() user: any) {
-    // TODO: Add admin role check
     return this.auditLogService.cleanupExpiredLogs();
   }
 }

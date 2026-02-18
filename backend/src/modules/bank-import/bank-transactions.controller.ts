@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BankImportService } from './bank-import.service';
 
@@ -11,12 +13,13 @@ import { BankImportService } from './bank-import.service';
  */
 @ApiTags('Bank Transactions')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('bank-transactions')
 export class BankTransactionsController {
   constructor(private readonly bankImportService: BankImportService) {}
 
   @Get()
+  @RequirePermissions('bank-accounts:read')
   @ApiOperation({ summary: 'Get paginated bank transactions (mapped for frontend)' })
   async findAll(
     @CurrentUser() user: any,
@@ -55,6 +58,7 @@ export class BankTransactionsController {
   }
 
   @Get(':id')
+  @RequirePermissions('bank-accounts:read')
   @ApiOperation({ summary: 'Get single bank transaction' })
   async findOne(@Param('id') id: string, @CurrentUser() user: any) {
     const tx: any = await this.bankImportService.findOne(id, user.companyId);

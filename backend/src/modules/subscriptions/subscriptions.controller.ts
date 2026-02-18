@@ -80,7 +80,8 @@ export class SubscriptionsController {
   }
 
   @Post('checkout')
-  @UseGuards(JwtAuthGuard, CompanyGuard)
+  @UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
+  @RequirePermissions('settings:admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Checkout-Session erstellen' })
   @ApiResponse({ status: 200, description: 'Checkout URL generiert' })
@@ -116,7 +117,8 @@ export class SubscriptionsController {
   }
 
   @Post('reactivate')
-  @UseGuards(JwtAuthGuard, CompanyGuard)
+  @UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
+  @RequirePermissions('settings:admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Gekündigtes Abo reaktivieren' })
   async reactivateSubscription(@CurrentUser() user: CurrentUserPayload) {
