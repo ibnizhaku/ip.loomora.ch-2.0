@@ -660,16 +660,26 @@ export class AuthService {
     tx: any,
     companyId: string,
   ): Promise<{ ownerId: string; adminId: string; memberId: string }> {
-    const allPermissions = [
+    // Broad-key Module — PARENT_MAP in membership.service.ts expandiert diese
+    // zur Laufzeit auf alle granularen Sub-Module.
+    const ownerPermissions = [
       'customers', 'suppliers', 'products', 'quotes', 'orders',
       'invoices', 'payments', 'employees', 'projects', 'finance',
-      'documents', 'contracts', 'settings', 'users',
+      'documents', 'contracts', 'settings', 'marketing', 'ecommerce',
+      'calendar', 'messages', 'notifications', 'service-tickets',
+      'reports', 'dashboard',
     ];
+
+    const adminPermissions = ownerPermissions.filter((m) => m !== 'settings');
+
+    const memberPermissions = ownerPermissions.filter(
+      (m) => !['settings', 'finance', 'reports'].includes(m),
+    );
 
     const allPerms = ['read', 'write', 'delete', 'admin'];
     const writePerms = ['read', 'write'];
 
-    // Owner Role
+    // Owner Role — Vollzugriff
     const ownerRole = await tx.role.create({
       data: {
         companyId,
@@ -677,43 +687,43 @@ export class AuthService {
         description: 'Firmeneigentümer mit Vollzugriff',
         isSystemRole: true,
         permissions: {
-          create: allPermissions.flatMap((module) =>
+          create: ownerPermissions.flatMap((module) =>
             allPerms.map((permission) => ({ module, permission })),
           ),
         },
       },
     });
 
-    // Admin Role
+    // Admin Role — Vollzugriff ohne Settings
     const adminRole = await tx.role.create({
       data: {
         companyId,
         name: 'Admin',
-        description: 'Administrator mit Vollzugriff',
+        description: 'Administrator mit Vollzugriff (ohne Abonnement-Verwaltung)',
         isSystemRole: true,
         permissions: {
-          create: allPermissions
-            .filter((m) => m !== 'settings')
-            .flatMap((module) =>
-              allPerms.map((permission) => ({ module, permission })),
-            ),
+          create: adminPermissions.flatMap((module) =>
+            allPerms.map((permission) => ({ module, permission })),
+          ),
         },
       },
     });
 
-    // Member Role
+    // Member Role — operative Module read/write
     const memberRole = await tx.role.create({
       data: {
         companyId,
         name: 'Member',
-        description: 'Standard-Mitarbeiter',
+        description: 'Standard-Mitarbeiter mit Lese- und Schreibzugriff auf operative Module',
         isSystemRole: true,
         permissions: {
-          create: allPermissions
-            .filter((m) => !['settings', 'users', 'finance'].includes(m))
-            .flatMap((module) =>
+          create: [
+            ...memberPermissions.flatMap((module) =>
               writePerms.map((permission) => ({ module, permission })),
             ),
+            { module: 'reports', permission: 'read' },
+            { module: 'dashboard', permission: 'read' },
+          ],
         },
       },
     });

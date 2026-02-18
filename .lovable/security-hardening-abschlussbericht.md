@@ -5,16 +5,18 @@
 
 ---
 
-## ✅ ABSCHLUSSKONTROLLE — 6 Prüfpunkte
+## ✅ ABSCHLUSSKONTROLLE — 8 Prüfpunkte
 
 | # | Prüfpunkt | Status |
 |---|---|---|
 | 1 | Kein Endpoint ohne PermissionGuard | ✅ Alle ~53 Business-Controller gehärtet |
-| 2 | Kein Legacy-Feld aktiv (isActive-Fix) | ✅ jwt.strategy.ts prüft status UND isActive |
+| 2 | Kein Legacy-Feld aktiv (isActive-Fix) | ✅ jwt.strategy.ts prüft `status` UND `isActive` |
 | 3 | Kein Service ohne companyId-Filter | ✅ Services nutzen companyId aus JWT (bereits korrekt) |
-| 4 | Kein Rollennamen-Check im Code | ✅ Kein hardcoded ['ADMIN', 'OWNER'] — nur Permission-Checks |
+| 4 | Kein Rollennamen-Check im Code | ✅ Kein hardcoded `['ADMIN', 'OWNER']` — nur Permission-Checks |
 | 5 | Kein UI-Only-Schutz ohne Backend-Schutz | ✅ Jeder Endpoint serverseitig geschützt |
-| 6 | /auth/companies implementiert | ✅ GET /auth/companies → membershipService.getActiveCompaniesForUser() |
+| 6 | /auth/companies implementiert | ✅ `GET /auth/companies` → `membershipService.getActiveCompaniesForUser()` |
+| 7 | Guards als globale DI-Provider verfügbar | ✅ `CompanyGuard` + `PermissionGuard` in `CommonModule (@Global)` registriert — kein Import pro Modul nötig |
+| 8 | PARENT_MAP vollständig (55 Module) | ✅ Alle granularen Module expandiert; System-Rollen decken Owner/Admin/Member vollständig ab |
 
 ---
 
