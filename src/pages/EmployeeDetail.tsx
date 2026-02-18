@@ -417,29 +417,65 @@ const EmployeeDetail = () => {
             </Card>
 
             {/* Employment Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Anstellung</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Beschäftigungsart</span>
-                  <Badge variant="outline">{employeeData.employmentType}</Badge>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Wochenstunden</span>
-                  <span className="font-medium">{employeeData.workingHours.weekly}h</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Abteilung</span>
-                  <span className="font-medium">{employeeData.department}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Position</span>
-                  <span className="font-medium">{employeeData.position}</span>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Anstellung</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Beschäftigungsart</span>
+                    <Badge variant="outline">{employeeData.employmentType}</Badge>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Wochenstunden</span>
+                    <span className="font-medium">{employeeData.workingHours.weekly}h</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Abteilung</span>
+                    <span className="font-medium">{employeeData.department}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Position</span>
+                    <span className="font-medium">{employeeData.position}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Linked User Account */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Benutzerkonto
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {employee.userId ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{employee.userName || '–'}</span>
+                      </div>
+                      {employee.userEmail && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">{employee.userEmail}</span>
+                        </div>
+                      )}
+                      <Link to={`/users/${employee.userId}`}>
+                        <Button variant="outline" size="sm" className="w-full mt-2 gap-2">
+                          <Users className="h-4 w-4" />
+                          Benutzerprofil öffnen
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Kein Benutzerkonto verknüpft</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Skills */}
