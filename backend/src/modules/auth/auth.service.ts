@@ -471,6 +471,14 @@ export class AuthService {
   }
 
   /**
+   * Gibt alle aktiven Companies des eingeloggten Users zurück
+   * Wird von GET /auth/companies verwendet
+   */
+  async getMyCompanies(userId: string) {
+    return this.membershipService.getActiveCompaniesForUser(userId);
+  }
+
+  /**
    * Lädt Permissions frisch aus DB (Rolle + Overrides) — nicht aus JWT-Cache.
    * Wird von /auth/me verwendet, damit Widget-Änderungen sofort sichtbar sind.
    */
@@ -478,6 +486,7 @@ export class AuthService {
     const { permissions } = await this.membershipService.validateMembership(userId, companyId);
     return { permissions };
   }
+
 
   /**
    * Verifiziert einen temporären 2FA-Token und gibt den Payload zurück
@@ -554,6 +563,10 @@ export class AuthService {
   // PRIVATE HELPERS
   // ==========================================
 
+  // ==========================================
+  // PRIVATE HELPERS
+  // ==========================================
+
   private async generateFullLoginResponse(
     userId: string,
     companyId: string,
@@ -596,6 +609,25 @@ export class AuthService {
       ipAddress,
       userAgent,
     );
+
+    // AuditLog: Login-Ereignis persistieren
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId,
+          companyId,
+          action: 'LOGIN_SUCCESS',
+          module: 'auth',
+          metadata: {
+            ip: ipAddress ?? null,
+            device: deviceInfo ?? null,
+            userAgent: userAgent ?? null,
+          },
+        },
+      });
+    } catch {
+      // AuditLog-Fehler dürfen Login nicht blockieren
+    }
 
     return {
       accessToken,
