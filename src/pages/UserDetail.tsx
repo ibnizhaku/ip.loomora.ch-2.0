@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, ShieldOff, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Shield, Key, Clock, CheckCircle2, XCircle, Mail, Smartphone, Settings, ShieldOff, Loader2, LogOut } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,7 +71,23 @@ export default function UserDetail() {
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [show2FADialog, setShow2FADialog] = useState(false);
+  const [showEndSessionsDialog, setShowEndSessionsDialog] = useState(false);
   const adminResetMutation = use2FAAdminReset();
+
+  const endSessionsMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return api.post(`/users/${userId}/revoke-sessions`, {});
+    },
+    onSuccess: () => {
+      toast.success("Alle Sitzungen beendet", {
+        description: "Der Benutzer wurde aus allen aktiven Sitzungen abgemeldet."
+      });
+      setShowEndSessionsDialog(false);
+    },
+    onError: () => {
+      toast.error("Fehler beim Beenden der Sitzungen");
+    },
+  });
 
   // Sync twoFactor state when userData loads
   useEffect(() => {
@@ -113,9 +140,7 @@ export default function UserDetail() {
   };
 
   const handleEndSessions = () => {
-    toast.info("Sitzungen beenden", {
-      description: "Diese Funktion erfordert einen Backend-Endpoint (Cursor-Prompt #5)"
-    });
+    setShowEndSessionsDialog(true);
   };
 
   return (
@@ -254,7 +279,17 @@ export default function UserDetail() {
                   2FA zurücksetzen
                 </Button>
               )}
-              <Button variant="outline" className="flex-1 text-destructive" onClick={handleEndSessions}>
+              <Button
+                variant="outline"
+                className="flex-1 text-destructive"
+                onClick={handleEndSessions}
+                disabled={endSessionsMutation.isPending}
+              >
+                {endSessionsMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 h-4 w-4" />
+                )}
                 Sitzungen beenden
               </Button>
             </div>
@@ -267,6 +302,31 @@ export default function UserDetail() {
         onOpenChange={setShow2FADialog}
         isEnabled={twoFactorEnabled}
       />
+
+      {/* Sitzungen beenden – Bestätigungsdialog */}
+      <AlertDialog open={showEndSessionsDialog} onOpenChange={setShowEndSessionsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alle Sitzungen beenden?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Der Benutzer <strong>{userName}</strong> wird sofort aus allen aktiven Sitzungen abgemeldet und muss sich erneut anmelden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => id && endSessionsMutation.mutate(id)}
+              disabled={endSessionsMutation.isPending}
+            >
+              {endSessionsMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Sitzungen beenden
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Berechtigungen */}
       <UserPermissionsWidget userId={id || ""} userName={userName} />

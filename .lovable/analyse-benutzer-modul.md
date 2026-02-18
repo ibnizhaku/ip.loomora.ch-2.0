@@ -159,7 +159,7 @@ Die rohe UUID (z.B. `cmls3jjxl...`) wird direkt unter dem Namen angezeigt. Das i
   ├── [Passwort zurücksetzen]→ /users/:id/edit ✅ (vorher: Toast only)
   ├── [2FA Toggle]           → TwoFactorSetupDialog ✅
   ├── [2FA zurücksetzen]     → DELETE /users/:id/2fa ✅
-  ├── [Sitzungen beenden]    → Toast only ⚠️ (kein Backend-Endpoint)
+  ├── [Sitzungen beenden]    → POST /users/:id/revoke-sessions ✅ FIXED (AlertDialog + API-Call)
   ├── [HR-Mitarbeiter Link]  → /hr/employees/:id ✅
   ├── Login-Historie         → statisch ❌ FIXED → GET /users/:id/login-history
   └── [Berechtigungen]       → UserPermissionsWidget (55 Module) ✅
@@ -188,7 +188,7 @@ Die rohe UUID (z.B. `cmls3jjxl...`) wird direkt unter dem Namen angezeigt. Das i
 | Benutzer → Mitarbeiter (zuweisen) | UserEdit: Select OHNE onValueChange | `PUT /users/:id {employeeId}` | ❌ FIXED |
 | Mitarbeiter → Benutzer | EmployeeDetail: kein Link zu `/users/:id` | `userId` nicht im Employee-Response | ❌ Backend |
 | 2FA Admin-Reset | UserDetail: Button → DELETE /users/:id/2fa | Endpoint vorhanden | ✅ |
-| Sitzungen beenden | UserDetail: Button → Toast only | Kein Endpoint | ⚠️ |
+| Sitzungen beenden | UserDetail: Button → POST /users/:id/revoke-sessions | AlertDialog + Mutation ✅ FIXED | ✅ Frontend done, Backend needed |
 
 ---
 
@@ -397,36 +397,50 @@ remove(@CurrentUser() user: CurrentUserPayload, ...) {
 
 ---
 
-### 🔧 Cursor-Prompt #5: POST/DELETE /users/:id/sessions – Sitzungen beenden
+### 🔧 Cursor-Prompt #5: POST /users/:id/revoke-sessions – Sitzungen beenden
+
+> **Status Frontend**: ✅ ERLEDIGT – AlertDialog + useMutation → POST `/users/:id/revoke-sessions`
+> **Status Backend**: ❌ Endpoint fehlt – bitte implementieren!
 
 ```
 Add a new endpoint to invalidate all active sessions for a user.
 
+Frontend calls: POST /api/users/:id/revoke-sessions
+
 In backend/src/modules/users/users.controller.ts:
 
-@Delete(':id/sessions')
+@Post(':id/revoke-sessions')
 @ApiOperation({ summary: 'Invalidate all active sessions for a user' })
-endSessions(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-  return this.usersService.endSessions(id, user.companyId);
+revokeSessions(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+  return this.usersService.revokeSessions(id, user.companyId);
 }
 
 In backend/src/modules/users/users.service.ts:
 
-async endSessions(userId: string, companyId: string) {
-  // Option A: If using JWT with refresh tokens stored in DB:
-  await this.prisma.refreshToken.deleteMany({
-    where: { userId }
+async revokeSessions(userId: string, companyId: string) {
+  // Verify user belongs to company
+  const targetUser = await this.prisma.user.findFirst({
+    where: { id: userId, companyMemberships: { some: { companyId } } },
   });
-  
-  // Option B: If using a session blacklist / token version:
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: { tokenVersion: { increment: 1 } }  // Increment invalidates all existing JWTs
+  if (!targetUser) throw new NotFoundException('User not found');
+
+  // Delete all refresh tokens → forces re-login on all devices
+  await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
+  // Optional: Write audit log entry
+  await this.prisma.auditLog.create({
+    data: {
+      action: 'USER_SESSIONS_REVOKED',
+      entityType: 'USER',
+      entityId: userId,
+      companyId,
+      details: { revokedAt: new Date().toISOString() },
+    },
   });
-  
+
   return { success: true, message: 'Alle Sitzungen wurden beendet' };
 }
-
+```
 Also add tokenVersion to JWT payload validation in the JWT strategy:
 In backend/src/modules/auth/strategies/jwt.strategy.ts, validate tokenVersion matches.
 ```
