@@ -252,10 +252,16 @@ const TaskDetail = () => {
   const totalMinutes = timeEntries
     .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
   const loggedMinutes = task.loggedMinutes ?? totalMinutes;
-  const loggedHours = Math.round((loggedMinutes / 60) * 10) / 10;
-  const pendingHours = Math.round((pendingMinutes / 60) * 10) / 10;
   const estimatedHours = task.estimatedHours ? Number(task.estimatedHours) : 0;
-  const timePercent = estimatedHours > 0 ? Math.round((loggedHours / estimatedHours) * 100) : 0;
+  const timePercent = estimatedHours > 0
+    ? Math.round((loggedMinutes / (estimatedHours * 60)) * 100)
+    : 0;
+
+  const formatMinutes = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${String(m).padStart(2, '0')}min`;
+  };
 
   const comments = task.comments || [];
   const attachments = task.attachments || [];
@@ -587,16 +593,16 @@ const TaskDetail = () => {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Geschätzt</span>
-                <span className="font-medium">{estimatedHours}h</span>
+                <span className="font-medium">{formatMinutes(estimatedHours * 60)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Gebucht</span>
-                <span className="font-medium text-success">{loggedHours}h</span>
+                <span className="font-medium text-success">{formatMinutes(loggedMinutes)}</span>
               </div>
-              {pendingHours > 0 && (
+              {pendingMinutes > 0 && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Ausstehend</span>
-                  <span className="font-medium text-warning">{pendingHours}h</span>
+                  <span className="font-medium text-warning">{formatMinutes(pendingMinutes)}</span>
                 </div>
               )}
               <Progress value={timePercent} className="h-2" />
