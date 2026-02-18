@@ -133,9 +133,6 @@ export class TasksService {
         assigneeId: dto.assigneeId,
         createdById: userId,
         companyId,
-        tags: dto.tags ? {
-          create: dto.tags.map((name) => ({ name })),
-        } : undefined,
       },
       include: {
         project: { select: { id: true, name: true } },
@@ -143,6 +140,15 @@ export class TasksService {
         tags: true,
       },
     });
+
+    // Tags nach Task-Erstellung mit upsert (skipDuplicates)
+    if (dto.tags && dto.tags.length > 0) {
+      const uniqueTags = [...new Set(dto.tags.map((t) => t.trim()).filter(Boolean))];
+      await this.prisma.taskTag.createMany({
+        data: uniqueTags.map((name) => ({ taskId: task.id, companyId, name })),
+        skipDuplicates: true,
+      });
+    }
 
     // Send notification if task is assigned
     if (dto.assigneeId && dto.assigneeId !== userId) {
@@ -170,12 +176,14 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    // Handle tags update
+    // Handle tags update: löschen und neu erstellen (upsert via skipDuplicates)
     if (dto.tags !== undefined) {
       await this.prisma.taskTag.deleteMany({ where: { taskId: id } });
       if (dto.tags.length > 0) {
+        const uniqueTags = [...new Set(dto.tags.map((t) => t.trim()).filter(Boolean))];
         await this.prisma.taskTag.createMany({
-          data: dto.tags.map((name) => ({ taskId: id, name })),
+          data: uniqueTags.map((name) => ({ taskId: id, companyId, name })),
+          skipDuplicates: true,
         });
       }
     }

@@ -248,6 +248,7 @@ model Company {
   timeEntries   TimeEntry[]
   calendarEvents CalendarEvent[]
   tasks         Task[]
+  taskTags      TaskTag[]  @relation("CompanyTaskTags")
   leads         Lead[]
   campaigns     Campaign[]
   
@@ -1860,13 +1861,19 @@ model Task {
 }
 
 model TaskTag {
-  id      String @id @default(cuid())
-  taskId  String
-  task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  
-  name    String
-  
+  id        String  @id @default(cuid())
+  taskId    String
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation("CompanyTaskTags", fields: [companyId], references: [id], onDelete: Cascade)
+
+  name      String
+
+  @@unique([taskId, name])
   @@index([taskId])
+  @@index([companyId])
+  @@index([name, companyId])
   @@map("task_tags")
 }
 
