@@ -472,10 +472,12 @@ export default function Documents() {
                       <Share className="h-4 w-4 mr-2" />
                       Teilen
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, folder.id, true)}>
-                      <Trash className="h-4 w-4 mr-2" />
-                      Löschen
-                    </DropdownMenuItem>
+                    {canDelete('documents') && (
+                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, folder.id, true)}>
+                        <Trash className="h-4 w-4 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -561,10 +563,12 @@ export default function Documents() {
                         <Share className="h-4 w-4 mr-2" />
                         Teilen
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id, false)}>
-                        <Trash className="h-4 w-4 mr-2" />
-                        Löschen
-                      </DropdownMenuItem>
+                      {canDelete('documents') && (
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, file.id, false)}>
+                          <Trash className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

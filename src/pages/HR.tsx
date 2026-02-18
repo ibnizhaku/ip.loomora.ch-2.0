@@ -287,18 +287,22 @@ export default function HR() {
                   >
                     Deaktivieren
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("Mitarbeiter wirklich löschen?")) {
-                        deleteMutation.mutate(employee.id);
-                      }
-                    }}
-                  >
-                    Löschen
-                  </DropdownMenuItem>
+                  {canDelete('employees') && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Mitarbeiter wirklich löschen?")) {
+                            deleteMutation.mutate(employee.id);
+                          }
+                        }}
+                      >
+                        Löschen
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

@@ -298,12 +298,14 @@ export default function Customers() {
                             E-Mail senden
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onSelect={() => handleDelete(customer.id, customer.name)}
-                        >
-                          Löschen
-                        </DropdownMenuItem>
+                        {canDelete('customers') && (
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onSelect={() => handleDelete(customer.id, customer.name)}
+                          >
+                            Löschen
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -423,12 +425,14 @@ export default function Customers() {
                                 Anrufen
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onSelect={() => handleDelete(customer.id, customer.name)}
-                            >
-                              Löschen
-                            </DropdownMenuItem>
+                            {canDelete('customers') && (
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onSelect={() => handleDelete(customer.id, customer.name)}
+                              >
+                                Löschen
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

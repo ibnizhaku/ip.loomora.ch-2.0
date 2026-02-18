@@ -414,19 +414,23 @@ export default function Users() {
                         >
                           Deaktivieren
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Möchten Sie "${user.name}" wirklich löschen?`)) {
-                              deleteMutation.mutate(user.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Löschen
-                        </DropdownMenuItem>
+                        {canDelete('users') && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Möchten Sie "${user.name}" wirklich löschen?`)) {
+                                  deleteMutation.mutate(user.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Löschen
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
