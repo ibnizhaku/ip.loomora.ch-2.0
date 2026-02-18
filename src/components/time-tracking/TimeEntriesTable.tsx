@@ -127,7 +127,6 @@ export function TimeEntriesTable({
     if (onApprove && selectedIds.length > 0) {
       onApprove(selectedIds);
       setSelectedIds([]);
-      toast.success(`${selectedIds.length} Eintrag/Einträge genehmigt`);
     }
   };
 
@@ -135,7 +134,6 @@ export function TimeEntriesTable({
     if (onReject && selectedIds.length > 0) {
       onReject(selectedIds);
       setSelectedIds([]);
-      toast.success(`${selectedIds.length} Eintrag/Einträge abgelehnt`);
     }
   };
 

@@ -63,8 +63,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProjects } from "@/hooks/use-projects";
 import { useTasks } from "@/hooks/use-tasks";
 import { useEmployees } from "@/hooks/use-employees";
-import { useCreateTimeEntry, useApproveTimeEntries, useDeleteTimeEntry } from "@/hooks/use-time-entries";
+import { useCreateTimeEntry, useApproveTimeEntries, useDeleteTimeEntry, useAllTimeEntries } from "@/hooks/use-time-entries";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TimeEntry {
   id: string;
@@ -95,12 +96,18 @@ function formatTime(seconds: number): string {
 }
 
 export default function TimeTracking() {
+  // Auth context for current user info
+  const { user } = useAuth();
   // Fetch real data from API
   const queryClient = useQueryClient();
-  const { data: apiData } = useQuery({
-    queryKey: ["/time-entries"],
+  // My own entries
+  const { data: myApiData, refetch: refetchMine } = useQuery({
+    queryKey: ["time-entries-mine"],
     queryFn: () => api.get<any>("/time-entries"),
   });
+  // All employees' entries (admin)
+  const { data: allApiData, refetch: refetchAll } = useAllTimeEntries({ pageSize: 100 });
+
   const { data: projectsData } = useProjects({ pageSize: 100 });
   const { data: employeesData } = useEmployees({ pageSize: 100, status: 'ACTIVE' });
   const createTimeEntry = useCreateTimeEntry();
@@ -110,14 +117,22 @@ export default function TimeTracking() {
   const projects = (projectsData?.data || []).map((p: any) => ({ id: p.id, name: p.name }));
   const employees = (employeesData?.data || []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
 
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [myEntryState, setMyEntryState] = useState<TimeEntry[]>([]);
+  const [allEntryState, setAllEntryState] = useState<TimeEntry[]>([]);
 
-  // Sync entries when API data arrives
+  // Sync my entries - map API response to local TimeEntry type
   useEffect(() => {
-    if (apiData?.data) {
-      setEntries(apiData.data);
+    if (myApiData?.data) {
+      setMyEntryState(myApiData.data.map((e: any) => ({ ...e, status: e.status || 'completed' })));
     }
-  }, [apiData]);
+  }, [myApiData]);
+
+  // Sync all entries - map API response to local TimeEntry type
+  useEffect(() => {
+    if (allApiData?.data) {
+      setAllEntryState(allApiData.data.map((e: any) => ({ ...e, status: e.status || 'completed' })));
+    }
+  }, [allApiData]);
   const [isTracking, setIsTracking] = useState(false);
   const [currentTask, setCurrentTask] = useState("");
   const [currentProject, setCurrentProject] = useState("");
@@ -147,13 +162,13 @@ export default function TimeTracking() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
-  // Simulated current user (would come from auth context)
-  const currentUserId = "1";
+  // Real current user from auth context
+  const currentUserId = user?.id || "";
   const isAdmin = true; // Would be determined by user role
 
   // Filter entries
-  const myEntries = entries.filter(e => e.employeeId === currentUserId);
-  const allEntries = entries;
+  const myEntries = myEntryState;
+  const allEntries = allEntryState;
 
   const getFilteredEntries = (entriesList: TimeEntry[], forEmployeeId?: string | null) => {
     let filtered = entriesList;
@@ -273,8 +288,9 @@ export default function TimeTracking() {
   const handleDeleteEntry = async (id: string) => {
     try {
       await deleteTimeEntry.mutateAsync(id);
-      setEntries((prev) => prev.filter((e) => e.id !== id));
-      queryClient.invalidateQueries({ queryKey: ["/time-entries"] });
+      setMyEntryState((prev) => prev.filter((e) => e.id !== id));
+      setAllEntryState((prev) => prev.filter((e) => e.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["time-entries-mine"] });
       toast.success("Zeiteintrag gelöscht");
     } catch {
       toast.error("Fehler beim Löschen des Zeiteintrags");
@@ -285,15 +301,15 @@ export default function TimeTracking() {
     try {
       await approveTimeEntries.mutateAsync({ ids, status: 'approved' });
       // Optimistic update im lokalen State
-      setEntries(prev => prev.map(e => 
-        ids.includes(e.id) ? { ...e, approvalStatus: 'approved' as ApprovalStatus } : e
-      ));
+      setMyEntryState(prev => prev.map(e => ids.includes(e.id) ? { ...e, approvalStatus: 'approved' as ApprovalStatus } : e));
+      setAllEntryState(prev => prev.map(e => ids.includes(e.id) ? { ...e, approvalStatus: 'approved' as ApprovalStatus } : e));
       // Query-Cache invalidieren damit TaskDetail auch aktuell wird
-      queryClient.invalidateQueries({ queryKey: ["/time-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["time-entries-mine"] });
+      queryClient.invalidateQueries({ queryKey: ["time-entries", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(`${ids.length} Eintrag/Einträge genehmigt`);
-    } catch {
-      toast.error("Fehler beim Genehmigen der Einträge");
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Genehmigen der Einträge");
     }
   };
 
@@ -301,14 +317,14 @@ export default function TimeTracking() {
     try {
       await approveTimeEntries.mutateAsync({ ids, status: 'rejected' });
       // Optimistic update im lokalen State
-      setEntries(prev => prev.map(e => 
-        ids.includes(e.id) ? { ...e, approvalStatus: 'rejected' as ApprovalStatus } : e
-      ));
-      queryClient.invalidateQueries({ queryKey: ["/time-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["/tasks"] });
+      setMyEntryState(prev => prev.map(e => ids.includes(e.id) ? { ...e, approvalStatus: 'rejected' as ApprovalStatus } : e));
+      setAllEntryState(prev => prev.map(e => ids.includes(e.id) ? { ...e, approvalStatus: 'rejected' as ApprovalStatus } : e));
+      queryClient.invalidateQueries({ queryKey: ["time-entries-mine"] });
+      queryClient.invalidateQueries({ queryKey: ["time-entries", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(`${ids.length} Eintrag/Einträge abgelehnt`);
-    } catch {
-      toast.error("Fehler beim Ablehnen der Einträge");
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Ablehnen der Einträge");
     }
   };
 
@@ -842,9 +858,9 @@ export default function TimeTracking() {
                   <Users className="h-4 w-4" />
                   Alle Mitarbeiter
                   {pendingCount > 0 && (
-                    <Badge variant="secondary" className="ml-1 bg-warning/20 text-warning">
+                    <span className="ml-1 inline-flex items-center justify-center rounded-full bg-warning/20 text-warning text-xs font-medium px-1.5 py-0.5 min-w-[1.25rem]">
                       {pendingCount}
-                    </Badge>
+                    </span>
                   )}
                 </TabsTrigger>
               )}
