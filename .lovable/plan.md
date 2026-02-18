@@ -1,216 +1,289 @@
 
-# Vollständige technische Analyse: Loomora IST-Zustand
+# Multi-Tenant Security Hardening — Loomora
 
-## Was geplant ist
+## Ausgangslage (IST-Zustand)
 
-Erstellen der Datei `.lovable/system-analyse-ist-zustand.md` — eine vollständige, technische IST-Zustand-Analyse aller implementierten Systeme: Datenmodelle, Auth, Guards, Permissions, Frontend-Logik, Sicherheit, Skalierung.
+Nach Analyse aller 43+ Controller zeigt sich ein klares Bild:
 
----
-
-## Technische Details
-
-### Vorgehensweise
-
-Ich schreibe eine einzige vollständige `.md`-Datei mit allen 10 Analysebereichen, basierend auf dem tatsächlich gelesenen Code:
-
-- `backend/prisma/schema.prisma` (alle Modelle und Relationen)
-- `backend/src/modules/auth/auth.service.ts` (Login-Flow)
-- `backend/src/modules/auth/services/membership.service.ts` (Permission-Auflösung)
-- `backend/src/modules/auth/services/token.service.ts` (JWT-Generierung)
-- `backend/src/modules/auth/strategies/jwt.strategy.ts` (Token-Validierung)
-- `backend/src/modules/auth/guards/*.ts` (alle 5 Guards)
-- `backend/src/modules/users/users.service.ts` (User-Management, Permission-Overrides)
-- `backend/src/modules/users/users.controller.ts` (Endpoints)
-- `src/contexts/AuthContext.tsx` (Frontend Auth-State)
-- `src/hooks/use-permissions.ts` (Frontend Permission-Prüfung)
-- `src/components/auth/PermissionGuard.tsx` (Frontend Guard-Komponente)
+- **Nur 2 von ~43 Business-Controllern** nutzen den vollständigen Guard-Stack
+- **Invitations** und **Subscriptions (change-plan/cancel)** sind korrekt geschützt
+- **Alle anderen**: nur `JwtAuthGuard` — kein CompanyGuard, kein PermissionGuard
+- `/auth/getMyCompanies` gibt `[]` zurück (TODO-Kommentar)
+- `jwt.strategy.ts` prüft nur `user.status`, nicht `user.isActive`
 
 ---
 
-### Inhalt der Analyse-Datei (alle 10 Bereiche)
+## Umfang der Änderungen
 
-**1. Grundstruktur – Alle beteiligten Entitäten (IST)**
+Das Hardening gliedert sich in 6 Phasen, die alle im **Backend** (`/backend`) umgesetzt werden. Kein Frontend-Code wird verändert.
 
-Folgende Modelle existieren:
+### Betroffene Dateien
 
-| Modell | Schlüsselfelder |
-|---|---|
-| `User` | id, email, passwordHash, firstName, lastName, status (UserStatus), role (UserRole — Legacy-Enum), isActive (Legacy-Bool), twoFactorEnabled, companyId (Legacy-FK), employeeId (optional 1:1 zu Employee) |
-| `Company` | id, name, slug (unique), status (CompanyStatus), createdById |
-| `Role` | id, companyId (FK), name, isSystemRole, createdByUserId |
-| `RolePermission` | id, roleId (FK Cascade), module (string), permission (string: read/write/delete/admin) |
-| `UserCompanyMembership` | id, userId (FK Cascade), companyId (FK Cascade), roleId (FK), isOwner (bool), isPrimary (bool) — Unique: [userId, companyId] |
-| `UserPermissionOverride` | id, userId, companyId, module, canRead, canWrite, canDelete — Unique: [userId, companyId, module] |
-| `Subscription` | id, companyId, planId, status (SubscriptionStatus), billingCycle |
-| `SubscriptionPlan` | id, name, priceMonthly, priceYearly, features (Json), limits (Json) |
-| `RefreshToken` | id, userId (FK Cascade), tokenHash (unique), deviceInfo, ipAddress, expiresAt, revokedAt |
-| `Invitation` | id, companyId, email, roleId, token (unique), status (InvitationStatus), expiresAt |
-| `Employee` | eigenständiges Modell, via `User.employeeId` optional verknüpft |
-| `AuditLog` | userId, action, module, companyId — verwendet für Login-Historie |
-| `WebhookEvent` | externalEventId (unique), für Zahls.ch Idempotenz |
+**Phase 1 — Controller-Sicherheit (41 Controller-Dateien):**
 
-Doppel-Konzept: `User.role (UserRole Enum: ADMIN/MANAGER/EMPLOYEE/READONLY)` ist ein Legacy-Feld. Das echte Rollenmodell läuft über `UserCompanyMembership → Role`. Beide koexistieren im Code.
+Alle Controller erhalten den vollständigen Guard-Stack und `@RequirePermissions()` pro Route.
 
-Ebenfalls doppelt: `User.isActive (bool)` und `User.status (UserStatus Enum)`. Der Service mappt beide: `status === 'PENDING' ? 'pending' : isActive ? 'active' : 'inactive'`.
+| Controller | Modul-Prefix | GET | POST | PUT/PATCH | DELETE |
+|---|---|---|---|---|---|
+| `customers.controller.ts` | `customers` | `:read` | `:write` | `:write` | `:delete` |
+| `invoices.controller.ts` | `invoices` | `:read` | `:write` | `:write` | `:delete` |
+| `quotes.controller.ts` | `quotes` | `:read` | `:write` | `:write` | `:delete` |
+| `orders.controller.ts` | `orders` | `:read` | `:write` | `:write` | `:delete` |
+| `delivery-notes.controller.ts` | `delivery-notes` | `:read` | `:write` | `:write` | `:delete` |
+| `credit-notes.controller.ts` | `credit-notes` | `:read` | `:write` | `:write` | `:delete` |
+| `reminders.controller.ts` | `reminders` | `:read` | `:write` | `:write` | `:delete` |
+| `suppliers.controller.ts` | `suppliers` | `:read` | `:write` | `:write` | `:delete` |
+| `products.controller.ts` | `products` | `:read` | `:write` | `:write` | `:delete` |
+| `purchase-orders.controller.ts` | `purchase-orders` | `:read` | `:write` | `:write` | `:delete` |
+| `purchase-invoices.controller.ts` | `purchase-invoices` | `:read` | `:write` | `:write` | `:delete` |
+| `goods-receipts.controller.ts` | `goods-receipts` | `:read` | `:write` | `:write` | `:delete` |
+| `employees.controller.ts` | `employees` | `:read` | `:write` | `:write` | `:delete` |
+| `employee-contracts.controller.ts` | `employee-contracts` | `:read` | `:write` | `:write` | `:delete` |
+| `absences.controller.ts` | `absences` | `:read` | `:write` | `:write` | `:delete` |
+| `payroll.controller.ts` | `payroll` | `:read` | `:write` | `:write` | `:delete` |
+| `travel-expenses.controller.ts` | `travel-expenses` | `:read` | `:write` | `:write` | `:delete` |
+| `recruiting.controller.ts` | `recruiting` | `:read` | `:write` | `:write` | `:delete` |
+| `training.controller.ts` | `training` | `:read` | `:write` | `:write` | `:delete` |
+| `departments.controller.ts` | `departments` | `:read` | `:write` | `:write` | `:delete` |
+| `withholding-tax.controller.ts` | `payroll` | `:read` | `:write` | `:write` | — |
+| `swissdec.controller.ts` | `payroll` | `:read` | `:write` | — | — |
+| `finance.controller.ts` | `finance` | `:read` | `:write` | `:write` | — |
+| `journal-entries.controller.ts` | `journal-entries` | `:read` | `:write` | `:write` | `:delete` |
+| `payments.controller.ts` | `payments` | `:read` | `:write` | `:write` | `:delete` |
+| `bank-import.controller.ts` | `bank-accounts` | `:read` | `:write` | `:write` | `:delete` |
+| `vat-returns.controller.ts` | `vat-returns` | `:read` | `:write` | `:write` | `:delete` |
+| `budgets.controller.ts` | `budgets` | `:read` | `:write` | `:write` | `:delete` |
+| `cost-centers.controller.ts` | `cost-centers` | `:read` | `:write` | `:write` | `:delete` |
+| `cash-book.controller.ts` | `cash-book` | `:read` | `:write` | `:write` | `:delete` |
+| `fixed-assets.controller.ts` | `fixed-assets` | `:read` | `:write` | `:write` | `:delete` |
+| `projects.controller.ts` | `projects` | `:read` | `:write` | `:write` | `:delete` |
+| `tasks.controller.ts` | `tasks` | `:read` | `:write` | `:write` | `:delete` |
+| `time-entries.controller.ts` | `time-entries` | `:read` | `:write` | `:write` | `:delete` |
+| `calendar.controller.ts` | `calendar` | `:read` | `:write` | `:write` | `:delete` |
+| `roles.controller.ts` | `roles` | `:read` | `:admin` | `:admin` | `:admin` |
+| `users.controller.ts` | `users` | `:read` | `:write` | `:write` | `:delete` |
+| `company.controller.ts` | `company` | `:read` | `:write` | `:write` | — |
+| `reports.controller.ts` | `reports` | `:read` | — | — | — |
+| `documents.controller.ts` | `documents` | `:read` | `:write` | `:write` | `:delete` |
+| `service-tickets.controller.ts` | `service-tickets` | `:read` | `:write` | `:write` | `:delete` |
+| `dashboard.controller.ts` | `dashboard` | `:read` | — | — | — |
+| `messages.controller.ts` | `messages` | `:read` | `:write` | — | `:delete` |
+| `notifications.controller.ts` | `notifications` | `:read` | — | `:write` | `:delete` |
+| `settings.controller.ts` | `settings` | `:read` | `:write` | `:write` | — |
+| `marketing.controller.ts` | `marketing` | `:read` | `:write` | `:write` | `:delete` |
+| `ecommerce.controller.ts` | `ecommerce` | `:read` | `:write` | `:write` | `:delete` |
+| `bom.controller.ts` | `products` | `:read` | `:write` | `:write` | `:delete` |
+| `calculations.controller.ts` | `quotes` | `:read` | `:write` | `:write` | `:delete` |
+| `production-orders.controller.ts` | `production-orders` | `:read` | `:write` | `:write` | `:delete` |
+| `quality-control.controller.ts` | `quality-control` | `:read` | `:write` | `:write` | `:delete` |
+| `gav-metallbau.controller.ts` | `settings` | `:read` | `:write` | `:write` | — |
+| `contracts.controller.ts` | `contracts` | `:read` | `:write` | `:write` | `:delete` |
+| `recruiting.controller.ts` | `recruiting` | `:read` | `:write` | `:write` | `:delete` |
 
-**2. Beziehungen & Hierarchie (IST)**
+**Muster für jeden Controller:**
+```typescript
+// Vorher:
+@UseGuards(JwtAuthGuard)
+@Controller('customers')
 
+// Nachher:
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
+@Controller('customers')
+
+// Und pro Route:
+@Get()
+@RequirePermissions('customers:read')
+findAll(...)
+
+@Post()
+@RequirePermissions('customers:write')
+create(...)
+
+@Put(':id')
+@RequirePermissions('customers:write')
+update(...)
+
+@Delete(':id')
+@RequirePermissions('customers:delete')
+remove(...)
 ```
-Company (1)
-├── UserCompanyMembership (N) ← Verbindungstabelle
-│   ├── User (1) [global, nicht firmengebunden]
-│   │   └── UserPermissionOverride (N) [pro User+Company+Module]
-│   └── Role (1) [firmengebunden]
-│       └── RolePermission (N) [module:permission Strings]
-├── Subscription (N)
-│   └── SubscriptionPlan (1)
-├── Role (N) [alle Rollen der Company]
-└── Invitation (N)
 
-User (global)
-├── companyId (Legacy-FK, optional, direkte Relation)
-├── employeeId (optional 1:1 → Employee)
-├── memberships (N:M → Companies via UserCompanyMembership)
-└── refreshTokens (N)
+**Sonderregeln:**
+- Spezial-Aktionen (send, cancel, approve, convert, duplicate) → `:write`
+- Admin-Operationen (Rollen-CRUD, Permission-Overrides) → `:admin`
+- Stats/Reports (schreibgeschützt) → `:read`
+- Public Endpoints (Einladungs-Validierung, Webhook) → kein Guard (bleiben public)
+
+---
+
+**Phase 2 — jwt.strategy.ts — User-Deaktivierungs-Bug**
+
+**Datei:** `backend/src/modules/auth/strategies/jwt.strategy.ts`
+
+**Problem:** `isActive=false` blockiert JWT nicht. Der Guard prüft nur `user.status !== 'ACTIVE'`.
+
+**Fix:**
+```typescript
+// Vorher (Zeile 28):
+if (!user || user.status !== 'ACTIVE') {
+
+// Nachher:
+if (!user || user.status !== 'ACTIVE' || !user.isActive) {
 ```
 
-- User ist **global** (nicht firmengebunden). Ein User kann n Companies angehören.
-- Firmenzuordnung via `UserCompanyMembership`, Unique Constraint [userId, companyId].
-- Ein User hat **eine Rolle pro Company** (nicht mehrere — Unique Constraint erzwingt das).
-- Rollen sind **firmengebunden** (`companyId` FK in Role).
-- Permissions sind **rollengebunden** (RolePermission) + **user-individual** (UserPermissionOverride).
+Dies stellt sicher, dass `users.service.update()` mit `isActive: false` sofort einen Sperreffekt hat — der JwtStrategy-Check greift bei jeder Anfrage.
 
-**3. Authentifizierung — vollständiger Login-Flow (IST)**
+---
 
-Ablauf in `auth.service.ts`:
+**Phase 3 — auth.controller.ts — /auth/companies implementieren**
 
-1. User per Email suchen → bcrypt.compare(password, passwordHash)
-2. `user.status` prüfen: SUSPENDED → 403, DELETED → 401, PENDING → 403
-3. 2FA aktiv? → TempToken (type: `two_factor_pending`) zurückgeben
-4. `membershipService.getActiveCompaniesForUser()` — nur Companies mit `status: ACTIVE` + Subscription in `[ACTIVE, PAST_DUE]`
-5. `user.lastLoginAt` aktualisieren
-6. Fallunterscheidung:
-   - 0 aktive Companies → ForbiddenException
-   - 1 aktive Company → `generateFullLoginResponse()`
-   - N Companies + isPrimary gesetzt → automatisch primäre Company
-   - N Companies ohne Primary → TempToken (type: `company_selection`)
+**Datei:** `backend/src/modules/auth/auth.controller.ts`
 
-In `generateFullLoginResponse()`:
-- `membershipService.validateMembership()` — lädt Rolle + Permissions + UserPermissionOverrides
-- Permission-Expansion: broad Keys (`invoices`, `finance`, `employees`, `settings`) → granulare Kinder-Module
-- Override-Anwendung: UserPermissionOverride ersetzt Rollen-Permission für das betreffende Modul
-- JWT-Payload: `{sub, email, activeCompanyId, roleId, permissions[], isOwner}`
-- Access Token (15min), Refresh Token (7d, Hash in DB gespeichert)
+**Problem:** `GET /auth/companies` gibt `[]` zurück mit TODO-Kommentar.
 
-**JWT enthält:**
-- userId, email, activeCompanyId, roleId
-- vollständiges `permissions[]`-Array (alle erweiterten String-Permissions: z.B. `["invoices:read", "invoices:write", "customers:read", ...]`)
-- `isOwner: boolean`
+**Fix:**
+```typescript
+@Get('companies')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+async getMyCompanies(@CurrentUser() user: CurrentUserPayload) {
+  return this.authService.getMyCompanies(user.userId);
+}
+```
 
-Permissions werden **beim Login** vollständig berechnet und **in den Token eingebettet**. Bei jeder Anfrage werden sie aus dem Token gelesen — nicht erneut aus DB geladen (Ausnahme: `/auth/me` lädt sie frisch via `getFreshPermissions()`).
+**Datei:** `backend/src/modules/auth/auth.service.ts`
 
-**4. Autorisierung — Zugriffskontrolle (IST)**
+**Neues Method:**
+```typescript
+async getMyCompanies(userId: string): Promise<CompanySummary[]> {
+  return this.membershipService.getActiveCompaniesForUser(userId);
+}
+```
 
-**Guard-Stack** (in Reihenfolge, manuell pro Endpoint konfiguriert):
+---
 
-| Guard | Was geprüft wird | DB-Zugriff |
+**Phase 4 — AuditLog bei Login schreiben**
+
+**Datei:** `backend/src/modules/auth/auth.service.ts`
+
+In der `generateFullLoginResponse()`-Methode wird nach dem Token-Generating ein AuditLog-Eintrag geschrieben:
+
+```typescript
+await this.prisma.auditLog.create({
+  data: {
+    userId,
+    action: 'LOGIN_SUCCESS',
+    module: 'auth',
+    companyId,
+    metadata: { ip: ipAddress, device: deviceInfo },
+  }
+});
+```
+
+---
+
+**Phase 5 — Abschlussbericht-Datei**
+
+**Datei:** `.lovable/security-hardening-abschlussbericht.md`
+
+Enthält:
+- Liste aller Controller mit Guards nach dem Fix
+- Liste aller Endpoints mit zugehörigen Permissions
+- Bestätigung der 6 Prüfpunkte:
+  1. Kein Endpoint ohne PermissionGuard
+  2. Kein Legacy-Feld aktiv (Status-Fix)
+  3. Kein Service ohne companyId-Filter (bereits korrekt)
+  4. Kein Rollennamen-Check im Code
+  5. Kein UI-Only-Schutz ohne Backend-Schutz
+  6. /auth/companies implementiert
+
+---
+
+## Was NICHT geändert wird (bewusste Entscheidungen)
+
+| Thema | Entscheidung | Begründung |
 |---|---|---|
-| `JwtAuthGuard` | JWT-Signatur + Ablauf, User-Status (ACTIVE), activeCompanyId vorhanden | Ja (User + Role) |
-| `CompanyGuard` | Company.status === 'ACTIVE', UserCompanyMembership vorhanden | Ja (2 Queries) |
-| `SubscriptionGuard` | Subscription.status in [ACTIVE, PAST_DUE, CANCELLED] | Ja |
-| `PermissionGuard` | `user.permissions[]` aus JWT enthält required Permission; isOwner bypass | Nein (nur JWT) |
-| `PlanLimitsGuard` | Count-Query gegen Plan-Limits (max_users, max_projects etc.) | Ja |
-
-**Kritisch:** `PermissionGuard` prüft Permissions **nur aus dem JWT**, nicht frisch aus der DB.
-
-**Verwendung in Controllern:**
-- `UsersController`: Nur `JwtAuthGuard` — kein CompanyGuard, kein SubscriptionGuard, kein PermissionGuard auf Controller-Ebene
-- `InvitationsController`: Voller Stack `JwtAuthGuard, CompanyGuard, SubscriptionGuard, PermissionGuard, PlanLimitsGuard`
-- `SubscriptionsController`: Mixed — einige Endpoints ohne SubscriptionGuard
-- Die meisten Business-Controller (`customers`, `invoices`, `employees` etc.): Nur `JwtAuthGuard`
-
-**Inkonsistenz:** Die meisten der ~60 Controller verwenden **nur JwtAuthGuard**. CompanyGuard + SubscriptionGuard + PermissionGuard werden nur bei Invitations und Subscriptions konsequent eingesetzt.
-
-**Frontend-Seite:**
-- `usePermissions()` Hook liest `activeCompany.permissions[]` aus dem in-memory AuthContext-State (der beim Login befüllt wurde)
-- `<PermissionGuard module="..." action="...">` rendert entweder Inhalt oder "Zugriff verweigert"-UI
-- `AppSidebar` filtert Navigationspunkte via `canAccessModule()` — nur UI-Hiding, kein serverseitiger Schutz dahinter für die meisten Module
-
-**5. Verhalten bei Entzug von Berechtigungen (IST)**
-
-| Szenario | Was technisch passiert |
-|---|---|
-| Rolle wird geändert | Neue Permissions gelten erst beim nächsten Login (neues JWT) oder bei `switchCompany`/`selectCompany` |
-| Permission-Override gesetzt | Gleich — JWT ist veraltet, erst nach Re-Auth wirksam. `/auth/me` lädt frische Permissions für UI, aber nicht für Backend-Checks |
-| Membership gelöscht | Wirkt sofort bei nächster Anfrage durch `CompanyGuard` (DB-Check) — aber nur wo CompanyGuard gesetzt ist |
-| User deaktiviert (`isActive=false`) | `JwtAuthGuard → jwt.strategy.ts` prüft `user.status === 'ACTIVE'`. ABER: `isActive=false` ändert nicht `user.status`. Das Mapping im Service gibt `isActive=false` als `'inactive'` zurück, aber die DB hat `status=ACTIVE`. Token bleibt gültig bis Ablauf. |
-| User gesperrt (`status=SUSPENDED`) | `JwtStrategy.validate()` prüft `user.status !== 'ACTIVE'` → UnauthorizedException sofort |
-| Sitzungen beendet (revoke-sessions) | RefreshTokens werden gelöscht → kein Token-Renewal möglich. Aktives Access Token (max. 15min) bleibt noch gültig |
-
-**Kategorisierung:**
-- **UI-Hide:** Sidebar-Filtering via `canAccessModule()` — nur clientseitig, kein Backend-Schutz
-- **Client-Side-Condition:** `<PermissionGuard>` — rendert Fehlermeldung, keine echte Sperre
-- **Token-basierte Validierung (veraltet):** `PermissionGuard` prüft JWT-Permissions — max. 15min veraltet
-- **Server-Side-Validation (sofort):** `JwtAuthGuard` (User-Status), `CompanyGuard` (Membership) — aber nur dort wo eingesetzt
-
-**6. Konsistenzanalyse (IST)**
-
-**Inkonsistenzen:**
-1. **Doppeltes Rollenmodell:** `User.role (UserRole Enum)` und `UserCompanyMembership → Role`. Service mappt beide fallback-mäßig.
-2. **Doppeltes Status-Feld:** `User.isActive (bool)` + `User.status (UserStatus Enum)`. Deaktivierung via `isActive=false` blockiert JWT nicht sofort.
-3. **Guard-Anwendung inconsistent:** ~60 Controller, aber nur ~2 nutzen den vollen Guard-Stack. Die meisten prüfen nur JWT.
-4. **Permission-Prüfung im Backend:** Nur `invitations`, `subscriptions` (change-plan, cancel) nutzen `@RequirePermissions()`. Alle anderen Business-Endpoints (Rechnungen erstellen, Kunden löschen etc.) haben **keine Backend-Permission-Prüfung**.
-5. **User↔Employee Dopplung:** Ein Benutzer kann als `User` und separat als `Employee` existieren ohne Verknüpfung. Verknüpfung ist optional und manuell.
-6. **Legacy companyId auf User:** `User.companyId` ist ein direkter FK auf Company (Legacy), der beim Erstellen neuer User nicht mehr gesetzt wird. Bei Registrierung wird er noch gesetzt.
-7. **`/auth/me` Permission-Refresh:** Diese Endpoint lädt frische Permissions und gibt sie zurück — aber das Frontend speichert sie im AuthContext-State, nicht als neues JWT. Dadurch divergieren JWT-Permissions und UI-State potenziell.
-
-**7. Sicherheitsanalyse (IST)**
-
-**Stärken:**
-- Refresh Token: bcrypt-gehashed in DB gespeichert, Revocation implementiert
-- Rate-Limiting: Login (5/15min), Register (3/h) via `@nestjs/throttler`
-- Token-Rotation bei Refresh: alter Token wird revoked
-- isOwner-Bypass in PermissionGuard korrekt implementiert
-- Self-Deletion-Protection und Owner-Deletion-Protection implementiert
-
-**Schwachstellen:**
-1. **Kritisch: Fehlende Backend-Permission-Prüfung auf ~58 von ~60 Controllern.** Jeder authentifizierte User kann (mit gültigem JWT + Membership) alle Business-Endpoints aufrufen, unabhängig von seiner Rolle/Permission. Beispiel: Ein `Member` ohne invoice:write kann via Postman/API dennoch Rechnungen erstellen.
-2. **User-Deaktivierung via `isActive=false` blockiert nicht sofort.** `jwt.strategy.ts` prüft nur `user.status !== 'ACTIVE'`, nicht `user.isActive`. Ein deaktivierter User (isActive=false, status=ACTIVE) kann bis zum Token-Ablauf (15min) weiter agieren.
-3. **Active Access Token nicht invalidierbar.** `revokeSessions()` löscht nur RefreshTokens. Das aktive 15-Minuten Access Token kann nicht zurückgerufen werden.
-4. **CompanyGuard ist in den meisten Controllern nicht eingesetzt.** Ein User könnte über den companyId im JWT-Claim auf Daten anderer Companies zugreifen, sofern die Services nicht selbst mit companyId filtern. Die Services filtern zwar mit `companyId` aus `user.companyId` — aber das Vertrauen liegt am JWT-Claim, nicht am DB-verifizierten Membership.
-5. **`/auth/getMyCompanies`-Endpoint ist nicht implementiert** (gibt leeres Array zurück — `// TODO: Implement`).
-6. **AuditLog-basierte Login-Historie schreibt nur bei explizitem Audit-Log-Eintrag.** Der Login-Flow selbst schreibt keinen AuditLog — nur `lastLoginAt`.
-
-**8. Skalierungsanalyse (IST)**
-
-- **1 Company:** Reibungslos. Alle Queries sind nach `companyId` gefiltert und indexiert.
-- **50 Companies:** Kein Problem. Alle relevanten Felder sind per `@@index` abgedeckt (userId, companyId, status, roleId).
-- **500 Companies:** Risiken:
-  - `validateMembership()` lädt Subscription + Role + alle RolePermissions + alle UserPermissionOverrides. Bei breiten Rollen und vielen Overrides: mehrere DB-Roundtrips pro Request.
-  - `getActiveCompaniesForUser()` lädt für jeden Login alle Memberships eines Users mit nested Company + Subscriptions — bei 500 Companies pro User problematisch.
-  - `CompanyGuard` macht 2 separate DB-Queries pro Request (company lookup + membership lookup) wo es eingesetzt wird.
-
-**N+1 Risiken:**
-- Permission-Expansion via PARENT_MAP: In-Memory, kein N+1.
-- `validateMembership()`: 1 Query (Prisma-Include), aber mit tiefen Nested-Includes.
-- `getLoginHistory()`: Einfache AuditLog-Query, begrenzt auf 20 Einträge — unkritisch.
-
-**9. Tatsächlich implementiertes Zugriffskonzept**
-
-Das System ist konzeptionell als **Multi-Tenant RBAC mit individuellem Permission-Override** designed, aber in der Praxis nur **teilweise als RBAC** implementiert:
-
-- **Vollständig RBAC:** Frontend-Sichtbarkeit (Sidebar, PermissionGuard-Komponente)
-- **Teilweise RBAC:** Token-Inhalt (Permissions im JWT), `/auth/me` Refresh
-- **Nicht RBAC:** ~58 Business-Controller haben keine Backend-Permission-Prüfung
-- **Hybrid-Element:** UserPermissionOverride erlaubt individuelle Abweichungen von der Rollen-Matrix
-- **Kein Policy-basiertes System:** Es gibt keine Objekt-Ownership-Prüfung (z.B. "nur eigene Dokumente bearbeiten")
+| Legacy `User.role` Enum | Kein DB-Schema-Removal | Prisma-Migration erfordert Deployment-Absprache; Enum wird ignoriert aber nicht gelöscht |
+| Legacy `User.companyId` | Kein DB-Schema-Removal | Gleicher Grund; Services nutzen bereits `user.companyId` aus JWT |
+| Token-Lifetime (15min) | Bleibt unverändert | 15min ist akzeptabel mit dem isActive-Fix; Redis-Blacklist ist Out-of-Scope |
+| SubscriptionGuard | Optional, nicht überall | Business-Controller bekommen `JwtAuthGuard, CompanyGuard, PermissionGuard` — SubscriptionGuard wird nicht pauschal hinzugefügt da CompanyGuard die Membership validiert und der SubscriptionGuard nur for Plan-gated Features sinnvoll ist |
 
 ---
 
-## Dateien, die geändert/erstellt werden
+## Technische Risiken & Mitigation
 
-| Datei | Aktion |
+| Risiko | Mitigation |
 |---|---|
-| `.lovable/system-analyse-ist-zustand.md` | Neu erstellen — vollständige IST-Analyse |
+| Bestehende User mit Rolle "ohne :read-Permission" werden ausgesperrt | isOwner-Bypass in PermissionGuard schützt Owner. System-Rollen (ADMIN, MEMBER etc.) haben standardmäßig breite Permissions via PARENT_MAP-Expansion |
+| Dashboard/Reports werden für eingeschränkte Rollen blockiert | Dashboard bekommt `dashboard:read`, Reports bekommt `reports:read` — Rollen müssen diese Permissions haben |
+| Public Endpoints wie Webhook, Einladungs-Validierung werden nicht beeinträchtigt | Diese Endpoints bleiben explizit ohne Guard |
 
-Keine Änderungen am produktiven Code.
+---
+
+## Dateiliste (vollständig)
+
+Alle Dateien liegen in `/backend/src/modules/`:
+
+```
+auth/auth.controller.ts          — /auth/companies implementieren
+auth/auth.service.ts             — getMyCompanies(), AuditLog bei Login
+auth/strategies/jwt.strategy.ts  — isActive-Fix
+
+customers/customers.controller.ts
+invoices/invoices.controller.ts
+quotes/quotes.controller.ts
+orders/orders.controller.ts
+suppliers/suppliers.controller.ts
+products/products.controller.ts
+employees/employees.controller.ts
+employee-contracts/...
+absences/...
+payroll/...
+travel-expenses/...
+departments/...
+withholding-tax/...
+swissdec/...
+finance/...
+journal-entries/...
+payments/...
+bank-import/...
+vat-returns/...
+budgets/...
+cost-centers/...
+cash-book/...
+fixed-assets/...
+projects/...
+tasks/...
+time-entries/...
+calendar/...
+roles/...
+users/...
+company/...
+reports/...
+documents/...
+service-tickets/...
+dashboard/...
+messages/...
+notifications/...
+settings/...
+marketing/...
+ecommerce/...
+bom/...
+calculations/...
+production-orders/...
+quality-control/...
+purchase-orders/...
+purchase-invoices/...
+goods-receipts/...
+contracts/...
+recruiting/...
+training/...
+delivery-notes/...
+credit-notes/...
+reminders/...
+gav-metallbau/...
+
+.lovable/security-hardening-abschlussbericht.md
+```
+
+**Gesamtzahl betroffener Dateien: ~53**
