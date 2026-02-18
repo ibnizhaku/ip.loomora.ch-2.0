@@ -122,14 +122,64 @@ export class MembershipService {
     // ─── Granulare Permission-Auflösung ───────────────────────
 
     // Old broad keys → new granular keys (for backward-compatible expansion)
+    // Each parent key expands to all its granular child modules.
+    // This ensures that existing roles (Owner/Admin/Member) with broad permissions
+    // automatically gain access to all new granular modules without a DB migration.
     const PARENT_MAP: Record<string, string[]> = {
-      'invoices': ['quotes', 'orders', 'delivery-notes', 'invoices', 'credit-notes', 'reminders'],
-      'finance': ['finance', 'cash-book', 'cost-centers', 'budgets', 'debtors', 'creditors',
-        'bank-accounts', 'chart-of-accounts', 'journal-entries', 'general-ledger',
-        'balance-sheet', 'vat-returns', 'fixed-assets'],
-      'employees': ['employees', 'employee-contracts', 'payroll', 'absences', 'travel-expenses',
-        'recruiting', 'training', 'departments', 'orgchart'],
-      'settings': ['users', 'roles', 'company', 'settings'],
+      // Sales & CRM
+      'customers': ['customers'],
+      'quotes': ['quotes', 'calculations'],
+      'orders': ['orders', 'delivery-notes'],
+      'invoices': ['invoices', 'credit-notes', 'reminders'],
+      'payments': ['payments'],
+      'contracts': ['contracts'],
+
+      // Procurement
+      'suppliers': ['suppliers', 'purchase-orders', 'purchase-invoices', 'goods-receipts'],
+
+      // Products & Manufacturing
+      'products': ['products', 'bom', 'production-orders', 'quality-control'],
+
+      // Finance & Accounting (broad key expands to all sub-modules)
+      'finance': [
+        'finance', 'cash-book', 'cost-centers', 'budgets',
+        'bank-accounts', 'bank-import', 'journal-entries', 'vat-returns', 'fixed-assets',
+        'chart-of-accounts', 'general-ledger', 'balance-sheet', 'debtors', 'creditors',
+      ],
+
+      // HR & People
+      'employees': [
+        'employees', 'employee-contracts', 'payroll', 'absences', 'travel-expenses',
+        'withholding-tax', 'swissdec', 'gav-metallbau', 'recruiting', 'training',
+        'departments', 'orgchart',
+      ],
+
+      // Projects & Time
+      'projects': ['projects', 'tasks', 'time-entries'],
+
+      // Documents & Communication
+      'documents': ['documents'],
+      'messages': ['messages'],
+      'notifications': ['notifications'],
+
+      // CRM / Service
+      'service-tickets': ['service-tickets'],
+
+      // Marketing & E-Commerce
+      'marketing': ['marketing'],
+      'ecommerce': ['ecommerce'],
+
+      // Calendar
+      'calendar': ['calendar'],
+
+      // Reports
+      'reports': ['reports'],
+
+      // Settings & Admin (broad key)
+      'settings': ['settings', 'users', 'roles', 'company'],
+
+      // Dashboard
+      'dashboard': ['dashboard'],
     };
 
     // 1. Expand role permissions into granular module:action pairs
@@ -259,17 +309,30 @@ export class MembershipService {
     adminId: string;
     memberId: string;
   }> {
-    const allPermissions = [
-      'customers', 'suppliers', 'products', 'quotes', 'orders', 
+    // Alle broad keys — die PARENT_MAP im validateMembership expandiert diese zur Laufzeit
+    // auf alle granularen Sub-Module. Dadurch werden neue Module automatisch abgedeckt
+    // ohne DB-Migration bestehender Rollen.
+    const ownerPermissions = [
+      'customers', 'suppliers', 'products', 'quotes', 'orders',
       'invoices', 'payments', 'employees', 'projects', 'finance',
-      'documents', 'contracts', 'settings', 'users',
+      'documents', 'contracts', 'settings', 'marketing', 'ecommerce',
+      'calendar', 'messages', 'notifications', 'service-tickets',
+      'reports', 'dashboard',
     ];
+
+    // Admin: kein 'settings' (keine Abo-Verwaltung / User-Verwaltung)
+    const adminPermissions = ownerPermissions.filter((m) => m !== 'settings');
+
+    // Member: kein Finance, kein Settings, kein Reports-Admin
+    const memberPermissions = ownerPermissions.filter(
+      (m) => !['settings', 'finance', 'reports'].includes(m),
+    );
 
     const allPerms = ['read', 'write', 'delete', 'admin'];
     const writePerms = ['read', 'write'];
-    const readPerms = ['read'];
+    const readOnlyPerms = ['read'];
 
-    // Owner Role
+    // Owner Role — Vollzugriff auf alles
     const ownerRole = await this.prisma.role.create({
       data: {
         companyId,
@@ -277,14 +340,14 @@ export class MembershipService {
         description: 'Firmeneigentümer mit Vollzugriff',
         isSystemRole: true,
         permissions: {
-          create: allPermissions.flatMap((module) =>
+          create: ownerPermissions.flatMap((module) =>
             allPerms.map((permission) => ({ module, permission })),
           ),
         },
       },
     });
 
-    // Admin Role
+    // Admin Role — Vollzugriff ohne Settings/Subscription
     const adminRole = await this.prisma.role.create({
       data: {
         companyId,
@@ -292,28 +355,30 @@ export class MembershipService {
         description: 'Administrator mit Vollzugriff (ohne Abonnement-Verwaltung)',
         isSystemRole: true,
         permissions: {
-          create: allPermissions
-            .filter((m) => m !== 'settings')
-            .flatMap((module) =>
-              allPerms.map((permission) => ({ module, permission })),
-            ),
+          create: adminPermissions.flatMap((module) =>
+            allPerms.map((permission) => ({ module, permission })),
+          ),
         },
       },
     });
 
-    // Member Role
+    // Member Role — Read/Write auf operative Module, kein Finance/Settings
     const memberRole = await this.prisma.role.create({
       data: {
         companyId,
         name: 'Member',
-        description: 'Standard-Mitarbeiter',
+        description: 'Standard-Mitarbeiter mit Lese- und Schreibzugriff auf operative Module',
         isSystemRole: true,
         permissions: {
-          create: allPermissions
-            .filter((m) => !['settings', 'users', 'finance'].includes(m))
-            .flatMap((module) =>
+          create: [
+            // Operative Module: read + write
+            ...memberPermissions.flatMap((module) =>
               writePerms.map((permission) => ({ module, permission })),
             ),
+            // Reports: nur read
+            { module: 'reports', permission: 'read' },
+            { module: 'dashboard', permission: 'read' },
+          ],
         },
       },
     });
