@@ -54,6 +54,7 @@ import { useInvoice } from "@/hooks/use-invoices";
 import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
 import { downloadPdf, sendEmail } from "@/lib/api";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 
 // Status mapping from backend enum to German display labels
 const invoiceStatusMap: Record<string, string> = {
@@ -143,6 +144,7 @@ const InvoiceDetail = () => {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentReference, setPaymentReference] = useState("");
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -224,13 +226,8 @@ const InvoiceDetail = () => {
     toast.success("PDF wird heruntergeladen");
   };
 
-  const handleSendEmail = async () => {
-    try {
-      await sendEmail('invoices', id || '');
-      toast.success("Rechnung per E-Mail versendet");
-    } catch {
-      toast.error("Fehler beim Versenden");
-    }
+  const handleSendEmail = () => {
+    setEmailModalOpen(true);
   };
 
   const handleSendInvoice = async () => {
@@ -636,6 +633,15 @@ const InvoiceDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        documentType="invoice"
+        documentId={id || ''}
+        documentNumber={invoiceData.id}
+        defaultRecipient={invoiceData.customer.email}
+      />
     </div>
   );
 };

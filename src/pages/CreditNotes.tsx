@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { usePermissions } from "@/hooks/use-permissions";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { 
   Plus, 
   Search, 
@@ -113,6 +114,7 @@ const CreditNotes = () => {
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [emailModal, setEmailModal] = useState<{ id: string; number: string } | null>(null);
 
   const toggleStatusFilter = (status: string) => {
     setStatusFilters((prev) =>
@@ -147,7 +149,7 @@ const CreditNotes = () => {
   };
 
   const handleSendEmail = (note: typeof creditNotes[0]) => {
-    toast.success(`${note.id} wird per E-Mail an ${note.customer} gesendet...`);
+    setEmailModal({ id: note.id, number: note.number });
   };
 
   const handleCancel = (note: typeof creditNotes[0]) => {
@@ -456,6 +458,16 @@ const CreditNotes = () => {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {emailModal && (
+        <SendEmailModal
+          open={true}
+          onClose={() => setEmailModal(null)}
+          documentType="credit-note"
+          documentId={emailModal.id}
+          documentNumber={emailModal.number}
+        />
       )}
     </div>
   );
