@@ -616,13 +616,14 @@ export class AuthService {
         data: {
           userId,
           companyId,
-          action: 'LOGIN_SUCCESS',
-          module: 'auth',
+          action: 'LOGIN',
+          module: 'AUTH',
           metadata: {
             ip: ipAddress ?? null,
             device: deviceInfo ?? null,
             userAgent: userAgent ?? null,
           },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
         },
       });
     } catch {
