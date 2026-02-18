@@ -15,6 +15,7 @@ import { useRoles } from "@/hooks/use-roles";
 import { useEmployees } from "@/hooks/use-employees";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Vorname ist erforderlich"),
@@ -216,7 +217,7 @@ export default function UserEdit() {
           </Card>
 
           {/* Mitarbeiter-Verknüpfung */}
-          <EmployeeLinkCard user={user} />
+          <EmployeeLinkCard user={user} userId={id || ""} />
 
           <div className="flex justify-end gap-3">
             <Button variant="outline" type="button" asChild>
@@ -242,12 +243,27 @@ interface UserData {
   employeeNumber?: string;
 }
 
-function EmployeeLinkCard({ user }: { user: UserData }) {
-  const { data: employeesData } = useEmployees({ pageSize: 200 });
-  const employees = employeesData?.data || [];
+interface EmployeeLinkCardProps {
+  user: UserData;
+  userId: string;
+}
 
-  // Filter: nur Mitarbeiter die noch keinem User zugeordnet sind (oder der aktuelle)
+function EmployeeLinkCard({ user, userId }: EmployeeLinkCardProps) {
+  const { data: employeesData } = useEmployees({ pageSize: 200 });
+  const updateUser = useUpdateUser();
+  const employees = employeesData?.data || [];
   const hasLink = !!user.employeeId;
+
+  const handleLinkEmployee = (employeeId: string) => {
+    updateUser.mutate(
+      { id: userId, data: { employeeId } as any },
+      {
+        onSuccess: () => {
+          toast.success('Mitarbeiter verknüpft');
+        },
+      }
+    );
+  };
 
   return (
     <Card>
@@ -282,7 +298,7 @@ function EmployeeLinkCard({ user }: { user: UserData }) {
               <Unlink className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Kein Mitarbeiter verknüpft</span>
             </div>
-            <Select>
+            <Select onValueChange={handleLinkEmployee} disabled={updateUser.isPending}>
               <SelectTrigger className="w-[250px]">
                 <SelectValue placeholder="Mitarbeiter zuweisen..." />
               </SelectTrigger>
