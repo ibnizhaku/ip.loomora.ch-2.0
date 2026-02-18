@@ -31,6 +31,11 @@ export class RolesService {
               user: {
                 select: {
                   id: true, firstName: true, lastName: true, email: true,
+                  employee: {
+                    select: {
+                      department: { select: { name: true } },
+                    },
+                  },
                 },
               },
             },
@@ -56,6 +61,11 @@ export class RolesService {
             user: {
               select: {
                 id: true, firstName: true, lastName: true, email: true,
+                employee: {
+                  select: {
+                    department: { select: { name: true } },
+                  },
+                },
               },
             },
           },
@@ -181,6 +191,7 @@ export class RolesService {
       id: m.user.id,
       name: `${m.user.firstName || ''} ${m.user.lastName || ''}`.trim(),
       email: m.user.email || '',
+      department: m.user.employee?.department?.name || undefined,
     }));
 
     return {

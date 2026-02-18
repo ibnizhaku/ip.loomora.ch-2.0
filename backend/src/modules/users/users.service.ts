@@ -139,6 +139,7 @@ export class UsersService {
       throw new NotFoundException('Benutzer nicht gefunden');
     }
 
+    const membership = user.memberships[0];
     return {
       id: user.id,
       name: `${user.firstName} ${user.lastName}`,
@@ -146,15 +147,16 @@ export class UsersService {
       lastName: user.lastName,
       email: user.email,
       phone: user.phone,
-      role: user.memberships[0]?.role?.id || '',
-      roleName: (user.memberships[0]?.role?.name || user.role || 'user'),
+      roleId: membership?.roleId || '',
+      role: membership?.role?.name?.toLowerCase() || user.role?.toLowerCase() || 'user',
+      roleName: membership?.role?.name || user.role || 'user',
       status: user.status === 'PENDING' ? 'pending' : user.isActive ? 'active' : 'inactive',
       lastLogin: user.lastLoginAt
         ? new Date(user.lastLoginAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
         : '',
       twoFactor: user.twoFactorEnabled,
       avatar: user.avatarUrl,
-      isOwner: user.memberships[0]?.isOwner || false,
+      isOwner: membership?.isOwner || false,
       createdAt: user.createdAt?.toISOString(),
       employeeId: user.employeeId,
       employeeNumber: user.employee?.number,
@@ -357,6 +359,54 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
+  }
+
+  async resetPassword(userId: string, companyId: string, newPassword: string) {
+    const membership = await this.prisma.userCompanyMembership.findFirst({
+      where: { userId, companyId },
+    });
+    if (!membership) throw new NotFoundException('Benutzer nicht gefunden');
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: hashed },
+    });
+
+    return { success: true };
+  }
+
+  async getLoginHistory(userId: string, companyId: string) {
+    const membership = await this.prisma.userCompanyMembership.findFirst({
+      where: { userId, companyId },
+    });
+    if (!membership) throw new NotFoundException('Benutzer nicht gefunden');
+
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        userId,
+        companyId,
+        action: 'LOGIN' as any,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        action: true,
+        createdAt: true,
+        ipAddress: true,
+        userAgent: true,
+        metadata: true,
+      },
+    });
+
+    return logs.map(log => ({
+      id: log.id,
+      datum: log.createdAt.toLocaleString('de-CH'),
+      ip: log.ipAddress || 'Unbekannt',
+      gerät: log.userAgent || 'Unbekannt',
+      status: 'erfolgreich',
+    }));
   }
 
   // ─── PERMISSIONS ─────────────────────────────────────────

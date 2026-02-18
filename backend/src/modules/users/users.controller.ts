@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
@@ -17,6 +17,12 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all users in company' })
   findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: PaginationDto) {
     return this.usersService.findAll(user.companyId, query);
+  }
+
+  @Get(':id/login-history')
+  @ApiOperation({ summary: 'Get login history for user' })
+  getLoginHistory(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.usersService.getLoginHistory(id, user.companyId);
   }
 
   @Get(':id/permissions')
@@ -58,6 +64,18 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.usersService.update(id, user.companyId, dto);
+  }
+
+  @Put(':id/password')
+  @ApiOperation({ summary: 'Reset user password (admin only)' })
+  resetPassword(
+    @Param('id') id: string,
+    @Body() body: { newPassword?: string; password?: string },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    const pw = body.newPassword || body.password;
+    if (!pw) throw new BadRequestException('Passwort ist erforderlich');
+    return this.usersService.resetPassword(id, user.companyId, pw);
   }
 
   @Delete(':id')
