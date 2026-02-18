@@ -159,12 +159,12 @@ export class EmployeesService {
         where: { id: dto.departmentId, companyId },
       });
       if (!department) {
-        // Department doesn't exist - set to null instead of throwing error
-        dto.departmentId = null;
+        // Department doesn't exist - clear it
+        dto.departmentId = undefined;
       }
     } else {
-      // Empty or null - set to null
-      dto.departmentId = null;
+      // Empty or null - clear it
+      dto.departmentId = undefined;
     }
 
     // Generate employee number
@@ -227,12 +227,12 @@ export class EmployeesService {
         where: { id: dto.departmentId, companyId },
       });
       if (!department) {
-        // Department doesn't exist - set to null
-        dto.departmentId = null;
+        // Department doesn't exist - clear it
+        dto.departmentId = undefined;
       }
     } else if (dto.departmentId === '' || dto.departmentId === null) {
       // Explicitly clearing department
-      dto.departmentId = null;
+      dto.departmentId = undefined;
     }
 
     return this.prisma.employee.update({

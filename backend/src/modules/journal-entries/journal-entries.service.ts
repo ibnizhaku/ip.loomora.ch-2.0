@@ -291,7 +291,7 @@ export class JournalEntriesService {
         postedAt: new Date(),
         totalAmount: entry.totalAmount,
         lines: {
-          create: entry.lines.map((line, idx) => ({
+          create: entry.lines.map((line: any, idx: number) => ({
             accountId: line.accountId,
             debit: line.credit, // Swap debit/credit for reversal
             credit: line.debit,
