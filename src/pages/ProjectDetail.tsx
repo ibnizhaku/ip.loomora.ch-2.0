@@ -15,7 +15,6 @@ import {
   Eye,
   Download,
   Trash2,
-  Copy,
   Pause,
   Play,
   Archive,
@@ -153,9 +152,6 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleDuplicate = () => {
-    toast.info('Projekt duplizieren wird implementiert');
-  };
 
   const removeFile = (fileId: string) => {
     deleteDocumentMutation.mutate(fileId, {
@@ -264,10 +260,6 @@ export default function ProjectDetail() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={handleDuplicate}>
-              <Copy className="h-4 w-4 mr-2" />
-              Duplizieren
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             {status !== 'ACTIVE' && (
               <DropdownMenuItem onClick={() => handleStatusChange('ACTIVE')}>
