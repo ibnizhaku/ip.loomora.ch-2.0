@@ -70,7 +70,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
   const navigate = useNavigate();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
-  const addMilestone = useAddProjectMilestone();
+  const addMilestoneMutation = useAddProjectMilestone();
 
   const { data: customersData } = useCustomers({ pageSize: 100 });
   const { data: employeesData } = useEmployees({ pageSize: 100 });
@@ -170,7 +170,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
         if (milestones.length > 0) {
           await Promise.all(
             milestones.map((m) =>
-              addMilestone.mutateAsync({ projectId: result.id, title: m.title, dueDate: m.date || undefined })
+              addMilestoneMutation.mutateAsync({ projectId: result.id, title: m.title, dueDate: m.date || undefined })
             )
           );
         }
@@ -182,7 +182,7 @@ export function ProjectForm({ mode, initialData, defaultCustomerId }: ProjectFor
     }
   };
 
-  const isLoading = createProject.isPending || updateProject.isPending || addMilestone.isPending;
+  const isLoading = createProject.isPending || updateProject.isPending || addMilestoneMutation.isPending;
 
   return (
     <div className="space-y-6">
