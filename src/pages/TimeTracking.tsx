@@ -63,7 +63,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProjects } from "@/hooks/use-projects";
 import { useTasks } from "@/hooks/use-tasks";
 import { useEmployees } from "@/hooks/use-employees";
-import { useCreateTimeEntry, useApproveTimeEntries } from "@/hooks/use-time-entries";
+import { useCreateTimeEntry, useApproveTimeEntries, useDeleteTimeEntry } from "@/hooks/use-time-entries";
 import { api } from "@/lib/api";
 
 interface TimeEntry {
@@ -105,6 +105,7 @@ export default function TimeTracking() {
   const { data: employeesData } = useEmployees({ pageSize: 100, status: 'ACTIVE' });
   const createTimeEntry = useCreateTimeEntry();
   const approveTimeEntries = useApproveTimeEntries();
+  const deleteTimeEntry = useDeleteTimeEntry();
 
   const projects = (projectsData?.data || []).map((p: any) => ({ id: p.id, name: p.name }));
   const employees = (employeesData?.data || []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
@@ -269,8 +270,15 @@ export default function TimeTracking() {
     setDialogOpen(false);
   };
 
-  const handleDeleteEntry = (id: string) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      await deleteTimeEntry.mutateAsync(id);
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["/time-entries"] });
+      toast.success("Zeiteintrag gelöscht");
+    } catch {
+      toast.error("Fehler beim Löschen des Zeiteintrags");
+    }
   };
 
   const handleApproveEntries = async (ids: string[]) => {
