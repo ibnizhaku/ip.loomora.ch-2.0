@@ -341,7 +341,7 @@ export default function Service() {
         </div>
         <div className="flex gap-2">
           <UpcomingMaintenanceDialog />
-          {canWrite('service') && (
+          {canWrite('service-tickets') && (
             <Button className="gap-2" onClick={() => navigate("/service/new")}>
               <Plus className="h-4 w-4" />
               Service-Ticket
@@ -555,7 +555,7 @@ export default function Service() {
                       <Printer className="h-4 w-4 mr-2" />
                       Drucken
                     </DropdownMenuItem>
-                    {canDelete('service') && (
+                    {canDelete('service-tickets') && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 

@@ -301,7 +301,7 @@ export default function Leads() {
               Pipeline
             </Button>
           </div>
-          {canWrite('leads') && (
+          {canWrite('marketing') && (
             <Button onClick={() => navigate("/leads/new")}>
               <Plus className="mr-2 h-4 w-4" />
               Neuer Lead
@@ -547,7 +547,7 @@ export default function Leads() {
                               </DropdownMenuItem>
                             )}
                               <DropdownMenuSeparator />
-                              {canDelete('leads') && (
+                              {canDelete('marketing') && (
                                 <DropdownMenuItem
                                   className="text-destructive"
                                   onClick={(e) => {
@@ -686,7 +686,7 @@ export default function Leads() {
                                     Verloren
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  {canDelete('leads') && (
+                                  {canDelete('marketing') && (
                                     <DropdownMenuItem
                                       className="text-destructive"
                                       onClick={(e) => {

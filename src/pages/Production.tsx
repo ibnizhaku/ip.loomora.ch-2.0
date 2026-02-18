@@ -210,7 +210,7 @@ export default function Production() {
           </p>
         </div>
         <div className="flex gap-2">
-          {canWrite('production') && (
+          {canWrite('production-orders') && (
             <Button className="gap-2" onClick={() => navigate("/production/new")}>
               <Plus className="h-4 w-4" />
               Werkstattauftrag
@@ -397,7 +397,7 @@ export default function Production() {
                       <Clock className="h-4 w-4 mr-2" />
                       Zeit erfassen
                     </DropdownMenuItem>
-                    {canDelete('production') && (
+                    {canDelete('production-orders') && (
                       <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, order.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Löschen

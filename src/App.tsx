@@ -416,10 +416,10 @@ const App = () => (
               <Route path="/campaigns" element={<ProtectedLayout><PermissionGuard module="marketing"><Campaigns /></PermissionGuard></ProtectedLayout>} />
               <Route path="/campaigns/new" element={<ProtectedLayout><CampaignCreate /></ProtectedLayout>} />
               <Route path="/campaigns/:id" element={<ProtectedLayout><CampaignDetail /></ProtectedLayout>} />
-              <Route path="/leads" element={<ProtectedLayout><PermissionGuard module="leads"><Leads /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/leads" element={<ProtectedLayout><PermissionGuard module="marketing"><Leads /></PermissionGuard></ProtectedLayout>} />
               <Route path="/leads/new" element={<ProtectedLayout><LeadCreate /></ProtectedLayout>} />
               <Route path="/leads/:id" element={<ProtectedLayout><LeadDetail /></ProtectedLayout>} />
-              <Route path="/email-marketing" element={<ProtectedLayout><PermissionGuard module="email-marketing"><EmailMarketing /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/email-marketing" element={<ProtectedLayout><PermissionGuard module="marketing"><EmailMarketing /></PermissionGuard></ProtectedLayout>} />
               <Route path="/email-marketing/new" element={<ProtectedLayout><EmailCreate /></ProtectedLayout>} />
               
               {/* E-Commerce */}
@@ -486,26 +486,26 @@ const App = () => (
               <Route path="/help" element={<ProtectedLayout><Help /></ProtectedLayout>} />
               
               {/* Produktion */}
-              <Route path="/bom" element={<ProtectedLayout><PermissionGuard module="production"><BillOfMaterials /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/bom/new" element={<ProtectedLayout><PermissionGuard module="production" action="write"><BOMCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/bom" element={<ProtectedLayout><PermissionGuard module="products"><BillOfMaterials /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/bom/new" element={<ProtectedLayout><PermissionGuard module="products" action="write"><BOMCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/bom/:id" element={<ProtectedLayout><BOMDetail /></ProtectedLayout>} />
-              <Route path="/calculation" element={<ProtectedLayout><PermissionGuard module="production"><Calculation /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/calculation/new" element={<ProtectedLayout><PermissionGuard module="production" action="write"><CalculationCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/calculation" element={<ProtectedLayout><PermissionGuard module="quotes"><Calculation /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/calculation/new" element={<ProtectedLayout><PermissionGuard module="quotes" action="write"><CalculationCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/calculation/:id" element={<ProtectedLayout><CalculationDetail /></ProtectedLayout>} />
-              <Route path="/production" element={<ProtectedLayout><PermissionGuard module="production"><Production /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/production/new" element={<ProtectedLayout><PermissionGuard module="production" action="write"><ProductionCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/production" element={<ProtectedLayout><PermissionGuard module="production-orders"><Production /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/production/new" element={<ProtectedLayout><PermissionGuard module="production-orders" action="write"><ProductionCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/production/:id" element={<ProtectedLayout><ProductionDetail /></ProtectedLayout>} />
-              <Route path="/qr-invoice" element={<ProtectedLayout><PermissionGuard module="accounting"><QRInvoice /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/bank-import" element={<ProtectedLayout><PermissionGuard module="accounting"><BankImport /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/qr-invoice" element={<ProtectedLayout><PermissionGuard module="invoices"><QRInvoice /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/bank-import" element={<ProtectedLayout><PermissionGuard module="bank-accounts"><BankImport /></PermissionGuard></ProtectedLayout>} />
               <Route path="/swissdec" element={<ProtectedLayout><PermissionGuard module="payroll"><Swissdec /></PermissionGuard></ProtectedLayout>} />
               <Route path="/withholding-tax" element={<ProtectedLayout><PermissionGuard module="finance"><WithholdingTax /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/service" element={<ProtectedLayout><PermissionGuard module="service"><Service /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/service/new" element={<ProtectedLayout><PermissionGuard module="service" action="write"><ServiceCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/service" element={<ProtectedLayout><PermissionGuard module="service-tickets"><Service /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/service/new" element={<ProtectedLayout><PermissionGuard module="service-tickets" action="write"><ServiceCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/service/:id" element={<ProtectedLayout><ServiceDetail /></ProtectedLayout>} />
-              <Route path="/quality" element={<ProtectedLayout><PermissionGuard module="quality"><QualityControl /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/quality/new" element={<ProtectedLayout><PermissionGuard module="quality" action="write"><QualityCheckCreate /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/quality/checklists" element={<ProtectedLayout><PermissionGuard module="quality"><QualityChecklists /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/quality/checklists/new" element={<ProtectedLayout><PermissionGuard module="quality" action="write"><QualityChecklistCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality" element={<ProtectedLayout><PermissionGuard module="quality-control"><QualityControl /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality/new" element={<ProtectedLayout><PermissionGuard module="quality-control" action="write"><QualityCheckCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality/checklists" element={<ProtectedLayout><PermissionGuard module="quality-control"><QualityChecklists /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality/checklists/new" element={<ProtectedLayout><PermissionGuard module="quality-control" action="write"><QualityChecklistCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/quality/checklists/:id" element={<ProtectedLayout><QualityChecklistDetail /></ProtectedLayout>} />
               <Route path="/quality/:id" element={<ProtectedLayout><QualityCheckDetail /></ProtectedLayout>} />
               
