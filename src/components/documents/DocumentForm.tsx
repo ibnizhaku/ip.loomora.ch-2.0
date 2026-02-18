@@ -127,6 +127,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const [qrReference, setQrReference] = useState("");
   const [esrParticipant, setEsrParticipant] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [documentDate, setDocumentDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
 
   // Read query params for context-sensitive creation
@@ -215,6 +216,9 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     if (raw.validDays) setValidDays(String(raw.validDays));
     if (raw.paymentTermDays) setPaymentDays(String(raw.paymentTermDays));
     if (raw.projectId) setSelectedProjectId(raw.projectId);
+    // Pre-fill document date
+    const rawDate = raw.issueDate || raw.date || raw.orderDate || raw.deliveryDate;
+    if (rawDate) setDocumentDate(rawDate.split("T")[0]);
 
     setEditApplied(true);
   }, [editMode, editApplied, initialData, selectedCustomer, positions.length]);
@@ -370,7 +374,10 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       return;
     }
 
-    const documentDate = (document.querySelector('input[type="date"]') as HTMLInputElement)?.value || new Date().toISOString().split("T")[0];
+    if (!documentDate) {
+      toast.error("Bitte wählen Sie ein Datum aus");
+      return;
+    }
 
     const isDeliveryNote = type === "delivery-note";
     const payload: any = {
@@ -949,10 +956,15 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Dokumentdatum</Label>
+                <Label>Dokumentdatum *</Label>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <Input type="date" defaultValue={new Date().toISOString().split("T")[0]} />
+                  <Input
+                    type="date"
+                    value={documentDate}
+                    onChange={(e) => setDocumentDate(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
 

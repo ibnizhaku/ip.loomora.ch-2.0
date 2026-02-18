@@ -15,15 +15,24 @@ export class PdfService {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
-      // Header
-      doc.fontSize(20).text('RECHNUNG', { align: 'right' });
+      // Header – title wird dynamisch gesetzt (RECHNUNG, OFFERTE, LIEFERSCHEIN, etc.)
+      const docTitle = invoice.title || 'RECHNUNG';
+      doc.fontSize(20).text(docTitle, { align: 'right' });
       doc.moveDown();
 
-      // Invoice details
+      // Document details
+      const docDate = invoice.issueDate || invoice.date || invoice.orderDate || invoice.deliveryDate;
       doc.fontSize(10);
-      doc.text(`Rechnungsnummer: ${invoice.number}`, { align: 'right' });
-      doc.text(`Datum: ${new Date(invoice.date).toLocaleDateString('de-CH')}`, { align: 'right' });
-      doc.text(`Fälligkeitsdatum: ${new Date(invoice.dueDate).toLocaleDateString('de-CH')}`, { align: 'right' });
+      doc.text(`Nummer: ${invoice.number}`, { align: 'right' });
+      if (docDate) {
+        doc.text(`Datum: ${new Date(docDate).toLocaleDateString('de-CH')}`, { align: 'right' });
+      }
+      if (invoice.validUntil) {
+        doc.text(`Gültig bis: ${new Date(invoice.validUntil).toLocaleDateString('de-CH')}`, { align: 'right' });
+      }
+      if (invoice.dueDate) {
+        doc.text(`Fälligkeitsdatum: ${new Date(invoice.dueDate).toLocaleDateString('de-CH')}`, { align: 'right' });
+      }
       doc.moveDown(2);
 
       // Customer address

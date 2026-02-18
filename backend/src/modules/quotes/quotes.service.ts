@@ -247,8 +247,8 @@ export class QuotesService {
         throw new NotFoundException('Quote not found');
       }
 
-      if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.CONFIRMED) {
-        throw new BadRequestException('Quote must be sent or confirmed to convert to order');
+      if (quote.status === DocumentStatus.CANCELLED) {
+        throw new BadRequestException('Ein abgelehntes Angebot kann nicht in einen Auftrag umgewandelt werden');
       }
 
       // Check if already converted
@@ -341,8 +341,8 @@ export class QuotesService {
 
       if (!quote) throw new NotFoundException('Quote not found');
 
-      if (quote.status !== DocumentStatus.SENT && quote.status !== DocumentStatus.CONFIRMED) {
-        throw new BadRequestException('Quote must be sent or confirmed to convert to invoice');
+      if (quote.status === DocumentStatus.CANCELLED) {
+        throw new BadRequestException('Ein abgelehntes Angebot kann nicht in eine Rechnung umgewandelt werden');
       }
 
       // Generate invoice number
