@@ -55,6 +55,7 @@ export class CreateProjectDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(9999999999999)
   budget?: number;
 
   @ApiPropertyOptional()
@@ -72,6 +73,7 @@ export class CreateProjectDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(99999999999)
   hourlyRate?: number;
 }
 

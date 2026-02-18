@@ -411,7 +411,7 @@ export default function ProjectDetail() {
         <TabsContent value="tasks" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Aufgaben ({tasks.length})</h3>
-            <Button size="sm" className="gap-2" onClick={() => navigate('/tasks/new')}>
+            <Button size="sm" className="gap-2" onClick={() => navigate(`/tasks/new?projectId=${id}`)}>
               <Plus className="h-4 w-4" />
               Neue Aufgabe
             </Button>
@@ -423,7 +423,7 @@ export default function ProjectDetail() {
               <p className="text-muted-foreground">Keine Aufgaben vorhanden</p>
               <Button 
                 variant="link" 
-                onClick={() => navigate('/tasks/new')}
+                onClick={() => navigate(`/tasks/new?projectId=${id}`)}
                 className="mt-2"
               >
                 Erste Aufgabe erstellen
