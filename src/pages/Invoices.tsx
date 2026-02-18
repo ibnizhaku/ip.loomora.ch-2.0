@@ -324,17 +324,21 @@ export default function Invoices() {
                           <Send className="h-4 w-4" />
                           Per E-Mail senden
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onSelect={() => {
-                            if (confirm("Rechnung wirklich löschen?")) {
-                              deleteMutation.mutate(invoice.id);
-                            }
-                          }}
-                        >
-                          Löschen
-                        </DropdownMenuItem>
+                        {canDelete('invoices') && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={() => {
+                                if (confirm("Rechnung wirklich löschen?")) {
+                                  deleteMutation.mutate(invoice.id);
+                                }
+                              }}
+                            >
+                              Löschen
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -458,17 +462,21 @@ export default function Invoices() {
                             <Send className="h-4 w-4" />
                             Per E-Mail senden
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onSelect={() => {
-                              if (confirm("Rechnung wirklich löschen?")) {
-                                deleteMutation.mutate(invoice.id);
-                              }
-                            }}
-                          >
-                            Löschen
-                          </DropdownMenuItem>
+                           {canDelete('invoices') && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onSelect={() => {
+                                  if (confirm("Rechnung wirklich löschen?")) {
+                                    deleteMutation.mutate(invoice.id);
+                                  }
+                                }}
+                              >
+                                Löschen
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

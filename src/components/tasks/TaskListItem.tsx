@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface TaskListItemProps {
   task: any;
@@ -41,6 +42,7 @@ export function TaskListItem({
   onToggleStatus,
   onDelete,
 }: TaskListItemProps) {
+  const { canDelete } = usePermissions();
   const sc = statusConfig[task.status] || defaultStatusCfg;
   const StatusIcon = sc.icon;
   const isDone = task.status === "done" || task.status === "DONE";
@@ -94,15 +96,17 @@ export function TaskListItem({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onNavigate(task.id)}>Details anzeigen</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onNavigate(task.id)}>Bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(task.id);
-                }}
-              >
-                Löschen
-              </DropdownMenuItem>
+              {canDelete('tasks') && (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(task.id);
+                  }}
+                >
+                  Löschen
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

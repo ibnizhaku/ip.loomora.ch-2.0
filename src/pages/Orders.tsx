@@ -393,17 +393,21 @@ export default function Orders() {
                           <FileText className="h-4 w-4 mr-2" />
                           Rechnung erstellen
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onSelect={() => {
-                            if (confirm("Auftrag wirklich löschen?")) {
-                              deleteMutation.mutate(order.id);
-                            }
-                          }}
-                        >
-                          Löschen
-                        </DropdownMenuItem>
+                        {canDelete('orders') && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={() => {
+                                if (confirm("Auftrag wirklich löschen?")) {
+                                  deleteMutation.mutate(order.id);
+                                }
+                              }}
+                            >
+                              Löschen
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -542,17 +546,21 @@ export default function Orders() {
                             <FileText className="h-4 w-4 mr-2" />
                             Rechnung erstellen
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onSelect={() => {
-                              if (confirm("Auftrag wirklich löschen?")) {
-                                deleteMutation.mutate(order.id);
-                              }
-                            }}
-                          >
-                            Löschen
-                          </DropdownMenuItem>
+                          {canDelete('orders') && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onSelect={() => {
+                                  if (confirm("Auftrag wirklich löschen?")) {
+                                    deleteMutation.mutate(order.id);
+                                  }
+                                }}
+                              >
+                                Löschen
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

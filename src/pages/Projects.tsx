@@ -349,19 +349,23 @@ export default function Projects() {
                             <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}`)}>
                               Bearbeiten
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm(`Möchten Sie "${project.name}" wirklich löschen?`)) {
-                                  deleteMutation.mutate(project.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Löschen
-                            </DropdownMenuItem>
+                            {canDelete('projects') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Möchten Sie "${project.name}" wirklich löschen?`)) {
+                                      deleteMutation.mutate(project.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Löschen
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

@@ -57,7 +57,7 @@ const modules = [
 
 export default function Roles() {
   const navigate = useNavigate();
-  const { canWrite } = usePermissions();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData, isLoading } = useRoles();
   const deleteRole = useDeleteRole();
   const roles = apiData?.data || [];
@@ -212,14 +212,18 @@ export default function Roles() {
                           </DropdownMenuItem>
                           {!(role.isSystem || role.type === "system") && (
                             <>
-                              <DropdownMenuItem onClick={() => navigate(`/roles/${role.id}/edit`)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Bearbeiten
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(role.id); }}>
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Löschen
-                              </DropdownMenuItem>
+                              {canWrite('roles') && (
+                                <DropdownMenuItem onClick={() => navigate(`/roles/${role.id}/edit`)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Bearbeiten
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete('roles') && (
+                                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(role.id); }}>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Löschen
+                                </DropdownMenuItem>
+                              )}
                             </>
                           )}
                         </DropdownMenuContent>

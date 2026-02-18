@@ -332,17 +332,21 @@ export default function Quotes() {
                           <ArrowRight className="h-4 w-4" />
                           In Rechnung umwandeln
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onSelect={() => {
-                            if (confirm("Offerte wirklich löschen?")) {
-                              deleteMutation.mutate(quote.id);
-                            }
-                          }}
-                        >
-                          Löschen
-                        </DropdownMenuItem>
+                        {canDelete('quotes') && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={() => {
+                                if (confirm("Offerte wirklich löschen?")) {
+                                  deleteMutation.mutate(quote.id);
+                                }
+                              }}
+                            >
+                              Löschen
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -459,17 +463,21 @@ export default function Quotes() {
                             <ArrowRight className="h-4 w-4" />
                             In Rechnung umwandeln
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onSelect={() => {
-                              if (confirm("Offerte wirklich löschen?")) {
-                                deleteMutation.mutate(quote.id);
-                              }
-                            }}
-                          >
-                            Löschen
-                          </DropdownMenuItem>
+                          {canDelete('quotes') && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onSelect={() => {
+                                  if (confirm("Offerte wirklich löschen?")) {
+                                    deleteMutation.mutate(quote.id);
+                                  }
+                                }}
+                              >
+                                Löschen
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

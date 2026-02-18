@@ -88,6 +88,7 @@ const suppliers = [
 ];
 
 export default function PurchaseInvoices() {
+  const { canWrite, canDelete } = usePermissions();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -257,18 +258,22 @@ export default function PurchaseInvoices() {
             className="hidden"
             onChange={handleFileSelect}
           />
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" />
-            PDF importieren
-          </Button>
-          <Button className="gap-2" onClick={() => navigate("/purchase-invoices/new")}>
-            <Plus className="h-4 w-4" />
-            Rechnung erfassen
-          </Button>
+          {canWrite('purchase-invoices') && (
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4" />
+              PDF importieren
+            </Button>
+          )}
+          {canWrite('purchase-invoices') && (
+            <Button className="gap-2" onClick={() => navigate("/purchase-invoices/new")}>
+              <Plus className="h-4 w-4" />
+              Rechnung erfassen
+            </Button>
+          )}
         </div>
       </div>
 
@@ -441,13 +446,15 @@ export default function PurchaseInvoices() {
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-destructive"
-                        onClick={(e) => handleDelete(e, invoice.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </DropdownMenuItem>
+                      {canDelete('purchase-invoices') && (
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={(e) => handleDelete(e, invoice.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
