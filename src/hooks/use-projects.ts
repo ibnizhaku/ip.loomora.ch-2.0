@@ -193,6 +193,22 @@ export function useUpdateProjectMilestone() {
   });
 }
 
+export interface ProjectActivity {
+  id: string;
+  type: string;
+  description: string;
+  user?: string;
+  timestamp: string;
+}
+
+export function useProjectActivity(projectId: string | undefined) {
+  return useQuery({
+    queryKey: [QUERY_KEY, projectId, 'activity'],
+    queryFn: () => api.get<ProjectActivity[]>(`/projects/${projectId}/activity`),
+    enabled: !!projectId,
+  });
+}
+
 export function useRemoveProjectMilestone() {
   const queryClient = useQueryClient();
   return useMutation({

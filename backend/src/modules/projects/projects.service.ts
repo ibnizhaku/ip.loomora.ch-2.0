@@ -381,6 +381,106 @@ export class ProjectsService {
     return this.prisma.projectMember.delete({ where: { id: memberId } });
   }
 
+  // --- Activity ---
+
+  async getActivity(projectId: string, companyId: string) {
+    await this.findById(projectId, companyId);
+
+    const activities: Array<{
+      id: string;
+      type: string;
+      description: string;
+      user?: string;
+      timestamp: Date;
+    }> = [];
+
+    // Audit-Log Einträge für dieses Projekt
+    const auditLogs = await this.prisma.auditLog.findMany({
+      where: { entityId: projectId, companyId },
+      include: { user: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    for (const log of auditLogs) {
+      const actionMap: Record<string, string> = {
+        CREATE: 'Projekt erstellt',
+        UPDATE: 'Projekt aktualisiert',
+        DELETE: 'Projekt gelöscht',
+      };
+      activities.push({
+        id: log.id,
+        type: log.action,
+        description: actionMap[log.action] || `Aktion: ${log.action}`,
+        user: log.user ? `${log.user.firstName} ${log.user.lastName}` : undefined,
+        timestamp: log.createdAt,
+      });
+    }
+
+    // Aufgaben-Aktivität
+    const tasks = await this.prisma.task.findMany({
+      where: { projectId, companyId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, title: true, status: true, createdAt: true, updatedAt: true },
+    });
+
+    for (const task of tasks) {
+      activities.push({
+        id: `task-created-${task.id}`,
+        type: 'TASK_CREATED',
+        description: `Aufgabe erstellt: "${task.title}"`,
+        timestamp: task.createdAt,
+      });
+    }
+
+    // Mitglieder-Aktivität
+    const members = await this.prisma.projectMember.findMany({
+      where: { projectId },
+      include: { employee: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    for (const member of members) {
+      activities.push({
+        id: `member-${member.id}`,
+        type: 'MEMBER_ADDED',
+        description: `${member.employee.firstName} ${member.employee.lastName} wurde zum Team hinzugefügt`,
+        timestamp: member.createdAt,
+      });
+    }
+
+    // Meilensteine
+    const milestones = await this.prisma.projectMilestone.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    for (const m of milestones) {
+      activities.push({
+        id: `milestone-${m.id}`,
+        type: 'MILESTONE_CREATED',
+        description: `Meilenstein hinzugefügt: "${m.title}"`,
+        timestamp: m.createdAt,
+      });
+      if (m.completed) {
+        activities.push({
+          id: `milestone-done-${m.id}`,
+          type: 'MILESTONE_COMPLETED',
+          description: `Meilenstein abgeschlossen: "${m.title}"`,
+          timestamp: m.updatedAt,
+        });
+      }
+    }
+
+    // Nach Datum sortieren (neueste zuerst)
+    activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return activities.slice(0, 50);
+  }
+
   // --- Milestones ---
 
   async getMilestones(projectId: string, companyId: string) {

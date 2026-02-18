@@ -102,6 +102,15 @@ export class ProjectsController {
     return this.projectsService.removeMember(id, user.companyId, memberId);
   }
 
+  // --- Activity ---
+
+  @Get(':id/activity')
+  @RequirePermissions('projects:read')
+  @ApiOperation({ summary: 'Get project activity feed' })
+  getActivity(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
+    return this.projectsService.getActivity(id, user.companyId);
+  }
+
   // --- Milestones ---
 
   @Get(':id/milestones')

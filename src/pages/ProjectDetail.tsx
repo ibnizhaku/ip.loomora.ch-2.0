@@ -34,7 +34,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ProjectChat } from "@/components/project/ProjectChat";
-import { useProject, useDeleteProject, useUpdateProject, useAddProjectMember, useRemoveProjectMember, useAddProjectMilestone, useUpdateProjectMilestone, useRemoveProjectMilestone, ProjectMilestone } from "@/hooks/use-projects";
+import { useProject, useDeleteProject, useUpdateProject, useAddProjectMember, useRemoveProjectMember, useAddProjectMilestone, useUpdateProjectMilestone, useRemoveProjectMilestone, useProjectActivity, ProjectMilestone } from "@/hooks/use-projects";
 import { useEmployees } from "@/hooks/use-employees";
 import { toast } from "sonner";
 import {
@@ -100,6 +100,7 @@ export default function ProjectDetail() {
   const addMilestoneMutation = useAddProjectMilestone();
   const updateMilestoneMutation = useUpdateProjectMilestone();
   const removeMilestoneMutation = useRemoveProjectMilestone();
+  const { data: activityData, isLoading: activityLoading } = useProjectActivity(id);
   const { data: employeesData } = useEmployees({ search: memberSearch, pageSize: 20 });
 
   // Load project documents from backend
@@ -686,13 +687,49 @@ export default function ProjectDetail() {
 
         <TabsContent value="activity" className="space-y-4">
           <h3 className="font-semibold">Letzte Aktivitäten</h3>
-
-          <div className="space-y-4">
+          {activityLoading ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin opacity-50" />
               <p>Aktivitäten werden geladen...</p>
             </div>
-          </div>
+          ) : !activityData || activityData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Noch keine Aktivitäten vorhanden</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {activityData.map((entry) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  CREATE: <Plus className="h-3.5 w-3.5 text-success" />,
+                  UPDATE: <Edit className="h-3.5 w-3.5 text-primary" />,
+                  DELETE: <Trash2 className="h-3.5 w-3.5 text-destructive" />,
+                  TASK_CREATED: <CheckCircle className="h-3.5 w-3.5 text-info" />,
+                  MEMBER_ADDED: <Users className="h-3.5 w-3.5 text-primary" />,
+                  MILESTONE_CREATED: <Target className="h-3.5 w-3.5 text-warning" />,
+                  MILESTONE_COMPLETED: <CheckCircle className="h-3.5 w-3.5 text-success" />,
+                };
+                return (
+                  <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-muted shrink-0">
+                      {iconMap[entry.type] || <Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">{entry.description}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {entry.user && (
+                          <span className="text-xs text-muted-foreground">{entry.user}</span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(entry.timestamp).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
