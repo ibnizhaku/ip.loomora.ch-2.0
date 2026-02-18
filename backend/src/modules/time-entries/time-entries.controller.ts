@@ -10,12 +10,15 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TimeEntriesService } from './time-entries.service';
 import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto, ApproveTimeEntriesDto } from './dto/time-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+
+const PRIVILEGED_ROLES = ['ADMIN', 'OWNER', 'HR', 'PROJECT_MANAGER', 'MANAGER'];
 
 @ApiTags('Time Entries')
 @Controller('time-entries')
@@ -51,6 +54,13 @@ export class TimeEntriesController {
   @Post()
   @ApiOperation({ summary: 'Create new time entry' })
   create(@CurrentUser() user: CurrentUserPayload, @Body() dto: CreateTimeEntryDto) {
+    const isPrivileged = user.isOwner || PRIVILEGED_ROLES.includes((user.role || '').toUpperCase());
+    const isTimerEntry = dto.fromTimer === true;
+
+    if (!isPrivileged && !isTimerEntry) {
+      throw new ForbiddenException('Mitarbeiter dürfen keine manuellen Zeiteinträge erstellen');
+    }
+
     return this.timeEntriesService.create(user.companyId, user.userId, dto);
   }
 

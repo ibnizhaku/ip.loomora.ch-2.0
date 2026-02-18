@@ -50,6 +50,11 @@ export class CreateTimeEntryDto {
   @IsOptional()
   @IsEnum(ApprovalStatus)
   approvalStatus?: ApprovalStatus;
+
+  @ApiPropertyOptional({ description: 'True wenn der Eintrag vom Timer stammt (kein manueller Eintrag)' })
+  @IsOptional()
+  @IsBoolean()
+  fromTimer?: boolean;
 }
 
 export class UpdateTimeEntryDto extends PartialType(CreateTimeEntryDto) {}
