@@ -107,8 +107,14 @@ export default function TimeTracking() {
   const projects = (projectsData?.data || []).map((p: any) => ({ id: p.id, name: p.name }));
   const employees = (employeesData?.data || []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
 
-  const initialEntries = apiData?.data || [];
-  const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
+  const [entries, setEntries] = useState<TimeEntry[]>([]);
+
+  // Sync entries when API data arrives
+  useEffect(() => {
+    if (apiData?.data) {
+      setEntries(apiData.data);
+    }
+  }, [apiData]);
   const [isTracking, setIsTracking] = useState(false);
   const [currentTask, setCurrentTask] = useState("");
   const [currentProject, setCurrentProject] = useState("");
