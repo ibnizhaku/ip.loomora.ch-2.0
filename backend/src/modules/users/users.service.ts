@@ -436,7 +436,7 @@ export class UsersService {
       where: {
         userId,
         companyId,
-        action: { in: ['LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGIN', 'LOGOUT', 'login', 'login_failed'] as any[] },
+        action: { in: ['LOGIN', 'LOGOUT'] },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -456,9 +456,7 @@ export class UsersService {
       ip: log.ipAddress || 'Unbekannt',
       geraet: log.userAgent || 'Unbekannt',
       ort: (log.metadata as any)?.location || undefined,
-      status: (log.action === 'LOGIN_SUCCESS' || log.action === 'LOGIN' || log.action === 'login')
-        ? 'erfolgreich'
-        : 'fehlgeschlagen',
+      status: log.action === 'LOGIN' ? 'erfolgreich' : 'abgemeldet',
     }));
   }
 
