@@ -241,14 +241,17 @@ const TaskDetail = () => {
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
   const timeEntries = task.timeEntries || [];
-  // loggedMinutes: nur genehmigte Einträge (vom Backend oder lokal berechnet)
+  // approvedMinutes / pendingMinutes: für Einzelanzeige "Gebucht" / "Ausstehend"
   const approvedMinutes = timeEntries
     .filter((te: any) => te.approvalStatus === 'approved')
     .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
   const pendingMinutes = timeEntries
     .filter((te: any) => !te.approvalStatus || te.approvalStatus === 'pending')
     .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
-  const loggedMinutes = task.loggedMinutes ?? approvedMinutes;
+  // Fallback: ALLE Einträge summieren (nicht nur approved)
+  const totalMinutes = timeEntries
+    .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
+  const loggedMinutes = task.loggedMinutes ?? totalMinutes;
   const loggedHours = Math.round((loggedMinutes / 60) * 10) / 10;
   const pendingHours = Math.round((pendingMinutes / 60) * 10) / 10;
   const estimatedHours = task.estimatedHours ? Number(task.estimatedHours) : 0;
