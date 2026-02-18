@@ -347,6 +347,7 @@ export class TasksService {
         companyId,
         projectId: task.projectId,
         isBillable: false,
+        approvalStatus: 'pending',
       },
       include: {
         user: { select: { id: true, firstName: true, lastName: true } },
