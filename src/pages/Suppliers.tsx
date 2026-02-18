@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useSuppliers, useSupplierStats, useDeleteSupplier } from "@/hooks/use-suppliers";
+import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 
 const statusConfig = {
@@ -45,6 +46,7 @@ const statusConfig = {
 
 export default function Suppliers() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   
@@ -86,10 +88,12 @@ export default function Suppliers() {
             Verwalten Sie Ihre Lieferantenbeziehungen
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/suppliers/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Lieferant
-        </Button>
+        {canWrite('suppliers') && (
+          <Button className="gap-2" onClick={() => navigate("/suppliers/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Lieferant
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

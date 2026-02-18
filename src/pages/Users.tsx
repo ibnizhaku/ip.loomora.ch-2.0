@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUsers, useDeleteUser, type User } from "@/hooks/use-users";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -88,6 +89,7 @@ const statusConfig = {
 
 export default function Users() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData } = useUsers();
   const deleteMutation = useDeleteUser();
   const users: User[] = apiData?.data || [];
@@ -150,10 +152,12 @@ export default function Users() {
             Verwalten Sie Benutzer und Zugriffsrechte
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/users/new")}>
-          <Plus className="h-4 w-4" />
-          Benutzer erstellen
-        </Button>
+        {canWrite('users') && (
+          <Button className="gap-2" onClick={() => navigate("/users/new")}>
+            <Plus className="h-4 w-4" />
+            Benutzer erstellen
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

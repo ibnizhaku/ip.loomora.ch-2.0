@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -62,6 +63,7 @@ const PurchaseOrders = () => {
   const { data: apiData } = useQuery({ queryKey: ["/purchase-orders"], queryFn: () => api.get<any>("/purchase-orders") });
   const purchaseOrders = apiData?.data || [];
   const navigate = useNavigate();
+  const { canWrite } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
 
@@ -94,10 +96,12 @@ const PurchaseOrders = () => {
           <h1 className="font-display text-3xl font-bold tracking-tight">Einkauf</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einkaufsbestellungen</p>
         </div>
-        <Button onClick={() => navigate("/purchase-orders/new")}>
-          <Plus className="h-4 w-4 mr-2" />
-          Neue Bestellung
-        </Button>
+        {canWrite('purchase-orders') && (
+          <Button onClick={() => navigate("/purchase-orders/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Neue Bestellung
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

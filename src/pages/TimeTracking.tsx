@@ -66,6 +66,7 @@ import { useEmployees } from "@/hooks/use-employees";
 import { useCreateTimeEntry, useApproveTimeEntries, useDeleteTimeEntry, useAllTimeEntries } from "@/hooks/use-time-entries";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface TimeEntry {
   id: string;
@@ -98,6 +99,7 @@ function formatTime(seconds: number): string {
 export default function TimeTracking() {
   // Auth context for current user info
   const { user, activeCompany } = useAuth();
+  const { canWrite, canDelete } = usePermissions();
   const ROLES_CAN_ADD_ENTRY = ['ADMIN', 'OWNER', 'HR', 'PROJECT_MANAGER', 'MANAGER'];
   const userRole = activeCompany?.role?.toUpperCase() || '';
   const canAddEntry = activeCompany?.isOwner || ROLES_CAN_ADD_ENTRY.includes(userRole);

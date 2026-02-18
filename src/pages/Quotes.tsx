@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -100,6 +101,7 @@ const defaultStatus = { label: "Unbekannt", color: "bg-muted text-muted-foregrou
 
 export default function Quotes() {
   const queryClient = useQueryClient();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData, isLoading } = useQuery({ queryKey: ["/quotes"], queryFn: () => api.get<any>("/quotes") });
   const quotes: Quote[] = (apiData?.data || []).map(mapQuote);
   const navigate = useNavigate();
@@ -161,10 +163,12 @@ export default function Quotes() {
             Erstellen und verwalten Sie Ihre Angebote
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/quotes/new")}>
-          <Plus className="h-4 w-4" />
-          Neues Angebot
-        </Button>
+        {canWrite('quotes') && (
+          <Button className="gap-2" onClick={() => navigate("/quotes/new")}>
+            <Plus className="h-4 w-4" />
+            Neues Angebot
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

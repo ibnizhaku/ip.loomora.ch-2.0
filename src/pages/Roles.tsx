@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRoles, useDeleteRole } from "@/hooks/use-roles";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Shield,
@@ -56,6 +57,7 @@ const modules = [
 
 export default function Roles() {
   const navigate = useNavigate();
+  const { canWrite } = usePermissions();
   const { data: apiData, isLoading } = useRoles();
   const deleteRole = useDeleteRole();
   const roles = apiData?.data || [];
@@ -82,10 +84,12 @@ export default function Roles() {
             Zugriffsrechte und Benutzerrollen verwalten
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/roles/new")}>
-          <Plus className="h-4 w-4" />
-          Neue Rolle
-        </Button>
+        {canWrite('roles') && (
+          <Button className="gap-2" onClick={() => navigate("/roles/new")}>
+            <Plus className="h-4 w-4" />
+            Neue Rolle
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

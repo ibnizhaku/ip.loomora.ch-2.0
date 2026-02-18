@@ -129,7 +129,10 @@ class ApiClient {
         error: 'Unknown error',
         message: response.statusText,
       }));
-      throw new Error(error.message || error.error);
+      const msg = error.message || error.error;
+      const err = new Error(msg) as Error & { statusCode?: number };
+      err.statusCode = response.status;
+      throw err;
     }
 
     // Handle empty responses

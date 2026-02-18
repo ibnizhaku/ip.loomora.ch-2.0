@@ -25,6 +25,7 @@ import { useProjects, useProjectStats } from "@/hooks/use-projects";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: "Aktiv", color: "bg-success text-success-foreground" },
@@ -44,6 +45,7 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 export default function Projects() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { canWrite, canDelete } = usePermissions();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -126,10 +128,12 @@ export default function Projects() {
             Verwalten Sie alle Ihre Projekte an einem Ort
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/projects/new")}>
-          <Plus className="h-4 w-4" />
-          Neues Projekt
-        </Button>
+        {canWrite('projects') && (
+          <Button className="gap-2" onClick={() => navigate("/projects/new")}>
+            <Plus className="h-4 w-4" />
+            Neues Projekt
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

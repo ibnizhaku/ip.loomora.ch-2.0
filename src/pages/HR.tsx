@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -72,6 +73,7 @@ const departments = ["Alle", "Geschäftsleitung", "Produktion", "Montage", "Proj
 
 export default function HR() {
   const queryClient = useQueryClient();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData } = useQuery({ queryKey: ["/employees"], queryFn: () => api.get<any>("/employees") });
   const employees = (apiData?.data || []).map(mapEmployee);
   const navigate = useNavigate();
@@ -117,10 +119,12 @@ export default function HR() {
             Verwalten Sie Ihre Mitarbeiter und Teams
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/hr/new")}>
-          <Plus className="h-4 w-4" />
-          Mitarbeiter hinzufügen
-        </Button>
+        {canWrite('employees') && (
+          <Button className="gap-2" onClick={() => navigate("/hr/new")}>
+            <Plus className="h-4 w-4" />
+            Mitarbeiter hinzufügen
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
