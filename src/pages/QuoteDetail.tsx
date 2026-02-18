@@ -28,6 +28,7 @@ import {
 import { useQuote, useConvertQuoteToOrder, useSendQuote, useDeleteQuote, useUpdateQuote } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
 import { sendEmail, downloadPdf } from "@/lib/api";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,6 +152,7 @@ const QuoteDetail = () => {
   const deleteQuote = useDeleteQuote();
   const updateQuote = useUpdateQuote();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<{ date: string; action: string; user: string }[]>([]);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertStep, setConvertStep] = useState(1);
@@ -242,14 +244,8 @@ const QuoteDetail = () => {
     toast.success("PDF wird heruntergeladen");
   };
 
-  const handleSendEmail = async () => {
-    try {
-      await sendEmail('quotes', id || '');
-      toast.success("Angebot per E-Mail versendet");
-      addHistoryEntry("Per E-Mail versendet");
-    } catch {
-      toast.error("Fehler beim Versenden");
-    }
+  const handleSendEmail = () => {
+    setEmailModalOpen(true);
   };
 
   // Konvertierung starten
@@ -782,6 +778,15 @@ const QuoteDetail = () => {
 
       {/* PDF Preview Dialog */}
       <PDFPreviewDialog open={showPDFPreview} onOpenChange={setShowPDFPreview} documentData={pdfData} title={`Angebot ${quoteData.id}`} />
+
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        documentType="quote"
+        documentId={id || ''}
+        documentNumber={quoteData.id}
+        defaultRecipient={quoteData.customer.email}
+      />
     </div>
   );
 };

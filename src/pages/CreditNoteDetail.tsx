@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { downloadPdf, sendEmail } from "@/lib/api";
+import { downloadPdf } from "@/lib/api";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { 
   ArrowLeft, 
   FileText, 
@@ -59,6 +60,7 @@ const CreditNoteDetail = () => {
   const { data: raw, isLoading, error } = useCreditNote(id || "");
   const { data: companyData } = useCompany();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -177,7 +179,7 @@ const CreditNoteDetail = () => {
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
-          <Button variant="outline" size="sm" onClick={async () => { try { await sendEmail('credit-notes' as any, id || ''); toast.success("E-Mail wurde versendet"); } catch { toast.error("Fehler beim Senden"); } }}>
+          <Button variant="outline" size="sm" onClick={() => setEmailModalOpen(true)}>
             <Mail className="h-4 w-4 mr-2" />
             Per E-Mail senden
           </Button>
@@ -333,6 +335,15 @@ const CreditNoteDetail = () => {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Gutschrift ${creditNoteData.id}`}
+      />
+
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        documentType="credit-note"
+        documentId={id || ''}
+        documentNumber={creditNoteData.id}
+        defaultRecipient={creditNoteData.customer.email}
       />
     </div>
   );

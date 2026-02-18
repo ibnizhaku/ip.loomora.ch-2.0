@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Bell,
@@ -64,6 +64,7 @@ import SocialInsuranceSettings from "@/components/settings/SocialInsuranceSettin
 import ExpenseRulesSettings from "@/components/settings/ExpenseRulesSettings";
 import ExpenseWorkflowSettings from "@/components/settings/ExpenseWorkflowSettings";
 import AbsenceWorkflowSettings from "@/components/settings/AbsenceWorkflowSettings";
+import { useSettings, useUpdateSettings, useTestSmtp } from "@/hooks/use-settings";
 
 const settingsSections = [
   { id: "profile", label: "Profil", icon: User },
@@ -88,6 +89,60 @@ const settingsSections = [
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState("profile");
+  
+  // Hooks for E-Mail / SMTP Settings
+  const { data: settingsData } = useSettings();
+  const updateSettings = useUpdateSettings();
+  const testSmtp = useTestSmtp();
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState("587");
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpFromName, setSmtpFromName] = useState("");
+  const [smtpFrom, setSmtpFrom] = useState("");
+  const [smtpSsl, setSmtpSsl] = useState(true);
+
+  // Populate SMTP fields from loaded settings
+  useEffect(() => {
+    if (settingsData) {
+      setSmtpHost(settingsData.smtpHost ?? "");
+      setSmtpPort(String(settingsData.smtpPort ?? "587"));
+      setSmtpUser(settingsData.smtpUser ?? "");
+      setSmtpFromName(settingsData.smtpFromName ?? "");
+      setSmtpFrom(settingsData.smtpFrom ?? "");
+      setSmtpSsl(settingsData.smtpSsl ?? true);
+    }
+  }, [settingsData]);
+
+  const handleSaveEmailSettings = async () => {
+    try {
+      await updateSettings.mutateAsync({
+        smtpHost,
+        smtpPort: parseInt(smtpPort) || 587,
+        smtpUser,
+        smtpPassword: smtpPassword || undefined,
+        smtpFromName,
+        smtpFrom,
+        smtpSsl,
+      });
+      toast.success("E-Mail-Konfiguration gespeichert");
+    } catch {
+      toast.error("Fehler beim Speichern");
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    try {
+      const result = await testSmtp.mutateAsync();
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error("Verbindungstest fehlgeschlagen");
+    }
+  };
 
   // Document Settings State
   const [nummernkreise, setNummernkreise] = useState({
@@ -1324,11 +1379,11 @@ export default function Settings() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="smtpHost">SMTP-Host</Label>
-                    <Input id="smtpHost" placeholder="smtp.example.com" />
+                    <Input id="smtpHost" placeholder="smtp.example.com" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="smtpPort">SMTP-Port</Label>
-                    <Select defaultValue="587">
+                    <Select value={smtpPort} onValueChange={setSmtpPort}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1342,11 +1397,11 @@ export default function Settings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="smtpUser">Benutzername</Label>
-                    <Input id="smtpUser" placeholder="benutzer@example.com" />
+                    <Input id="smtpUser" placeholder="benutzer@example.com" value={smtpUser} onChange={e => setSmtpUser(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="smtpPassword">Passwort</Label>
-                    <Input id="smtpPassword" type="password" placeholder="••••••••" />
+                    <Input id="smtpPassword" type="password" placeholder="••••••••" value={smtpPassword} onChange={e => setSmtpPassword(e.target.value)} />
                   </div>
                 </div>
 
@@ -1358,7 +1413,7 @@ export default function Settings() {
                         Verschlüsselte Verbindung zum SMTP-Server
                       </p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch checked={smtpSsl} onCheckedChange={setSmtpSsl} />
                   </div>
                 </div>
 
@@ -1421,19 +1476,11 @@ export default function Settings() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="emailSenderName">Absender-Name</Label>
-                    <Input id="emailSenderName" defaultValue="Loomora Metallbau AG" />
+                    <Input id="emailSenderName" value={smtpFromName} onChange={e => setSmtpFromName(e.target.value)} placeholder="Meine Firma AG" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="emailSenderAddress">Absender-Adresse</Label>
-                    <Input id="emailSenderAddress" type="email" defaultValue="info@loomora.ch" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emailReplyTo">Antwort-Adresse (Reply-To)</Label>
-                    <Input id="emailReplyTo" type="email" defaultValue="support@loomora.ch" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emailBcc">BCC-Adresse (optional)</Label>
-                    <Input id="emailBcc" type="email" placeholder="archiv@loomora.ch" />
+                    <Input id="emailSenderAddress" type="email" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} placeholder="info@firma.ch" />
                   </div>
                 </div>
               </div>
@@ -1531,17 +1578,13 @@ export default function Settings() {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button className="gap-2">
+                <Button className="gap-2" onClick={handleSaveEmailSettings} disabled={updateSettings.isPending}>
                   <Save className="h-4 w-4" />
-                  Konfiguration speichern
+                  {updateSettings.isPending ? "Wird gespeichert..." : "Konfiguration speichern"}
                 </Button>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2" onClick={handleTestSmtp} disabled={testSmtp.isPending}>
                   <RefreshCw className="h-4 w-4" />
-                  Verbindung testen
-                </Button>
-                <Button variant="outline" className="gap-2">
-                  <Mail className="h-4 w-4" />
-                  Test-E-Mail senden
+                  {testSmtp.isPending ? "Teste..." : "Verbindung testen"}
                 </Button>
               </div>
             </div>

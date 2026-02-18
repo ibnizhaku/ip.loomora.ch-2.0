@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, AlertTriangle, Mail, FileText, Clock, CheckCircle2, Send, Calculator, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useReminder } from "@/hooks/use-reminders";
-import { downloadPdf, sendEmail } from "@/lib/api";
+import { downloadPdf } from "@/lib/api";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-muted text-muted-foreground",
@@ -25,6 +27,7 @@ function formatDate(d?: string | null) {
 }
 
 export default function ReminderDetail() {
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const { id } = useParams();
   const { data: raw, isLoading, error } = useReminder(id || "");
 
@@ -63,7 +66,7 @@ export default function ReminderDetail() {
             <FileText className="mr-2 h-4 w-4" />
             PDF
           </Button>
-          <Button variant="outline" onClick={async () => { try { await sendEmail('reminders', id || ''); toast.success("Mahnung versendet"); } catch { toast.error("Fehler beim Senden"); } }}>
+          <Button variant="outline" onClick={() => setEmailModalOpen(true)}>
             <Mail className="mr-2 h-4 w-4" />
             Per E-Mail
           </Button>
@@ -173,6 +176,15 @@ export default function ReminderDetail() {
           </div>
         </CardContent>
       </Card>
+
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        documentType="reminder"
+        documentId={id || ''}
+        documentNumber={r.number || r.id}
+        defaultRecipient={r.customer?.email}
+      />
     </div>
   );
 }

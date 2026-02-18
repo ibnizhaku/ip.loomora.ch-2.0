@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import {
   Plus,
   Search,
@@ -105,7 +106,9 @@ export default function Invoices() {
   const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [emailModal, setEmailModal] = useState<{ id: string; number: string; recipient?: string } | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+
   
   const { data: invoicesData, isLoading } = useInvoices({ 
     search: searchQuery || undefined,
@@ -320,10 +323,12 @@ export default function Invoices() {
                           <Download className="h-4 w-4" />
                           Herunterladen
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
-                          <Send className="h-4 w-4" />
-                          Per E-Mail senden
-                        </DropdownMenuItem>
+                        {canWrite('invoices') && (
+                          <DropdownMenuItem className="gap-2" onSelect={() => setEmailModal({ id: invoice.id, number: invoice.number || invoice.id, recipient: (invoice.customer as any)?.email })}>
+                            <Send className="h-4 w-4" />
+                            Per E-Mail senden
+                          </DropdownMenuItem>
+                        )}
                         {canDelete('invoices') && (
                           <>
                             <DropdownMenuSeparator />
@@ -458,10 +463,12 @@ export default function Invoices() {
                             <Download className="h-4 w-4" />
                             Herunterladen
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('invoices', invoice.id); toast.success("E-Mail versendet"); } catch { toast.error("Fehler"); } }}>
-                            <Send className="h-4 w-4" />
-                            Per E-Mail senden
-                          </DropdownMenuItem>
+                          {canWrite('invoices') && (
+                            <DropdownMenuItem className="gap-2" onSelect={() => setEmailModal({ id: invoice.id, number: invoice.number || invoice.id, recipient: (invoice.customer as any)?.email })}>
+                              <Send className="h-4 w-4" />
+                              Per E-Mail senden
+                            </DropdownMenuItem>
+                          )}
                            {canDelete('invoices') && (
                             <>
                               <DropdownMenuSeparator />
@@ -486,6 +493,17 @@ export default function Invoices() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {emailModal && (
+        <SendEmailModal
+          open={true}
+          onClose={() => setEmailModal(null)}
+          documentType="invoice"
+          documentId={emailModal.id}
+          documentNumber={emailModal.number}
+          defaultRecipient={emailModal.recipient}
+        />
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePermissions } from "@/hooks/use-permissions";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import {
   Plus,
   Search,
@@ -108,6 +109,7 @@ export default function Quotes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [emailModal, setEmailModal] = useState<{ id: string; number: string; recipient?: string } | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/quotes/${id}`),
@@ -324,10 +326,12 @@ export default function Quotes() {
                           <Copy className="h-4 w-4" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
-                          <Send className="h-4 w-4" />
-                          Versenden
-                        </DropdownMenuItem>
+                        {canWrite('quotes') && (
+                          <DropdownMenuItem className="gap-2" onSelect={() => setEmailModal({ id: quote.id, number: quote.number, recipient: undefined })}>
+                            <Send className="h-4 w-4" />
+                            Versenden
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
                           <ArrowRight className="h-4 w-4" />
                           In Rechnung umwandeln
@@ -455,10 +459,12 @@ export default function Quotes() {
                             <Copy className="h-4 w-4" />
                             Duplizieren
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onSelect={async () => { try { const { sendEmail } = await import("@/lib/api"); await sendEmail('quotes', quote.id); toast.success("Angebot versendet"); } catch { toast.error("Fehler beim Versenden"); } }}>
-                            <Send className="h-4 w-4" />
-                            Versenden
-                          </DropdownMenuItem>
+                          {canWrite('quotes') && (
+                            <DropdownMenuItem className="gap-2" onSelect={() => setEmailModal({ id: quote.id, number: quote.number, recipient: undefined })}>
+                              <Send className="h-4 w-4" />
+                              Versenden
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/new?quoteId=${quote.id}`)}>
                             <ArrowRight className="h-4 w-4" />
                             In Rechnung umwandeln
@@ -487,6 +493,17 @@ export default function Quotes() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {emailModal && (
+        <SendEmailModal
+          open={true}
+          onClose={() => setEmailModal(null)}
+          documentType="quote"
+          documentId={emailModal.id}
+          documentNumber={emailModal.number}
+          defaultRecipient={emailModal.recipient}
+        />
       )}
     </div>
   );
