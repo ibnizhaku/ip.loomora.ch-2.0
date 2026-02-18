@@ -30,10 +30,9 @@ import { usePermissions } from "@/hooks/use-permissions";
 const statusConfig: Record<string, { label: string; color: string }> = {
   active: { label: "Aktiv", color: "bg-success text-success-foreground" },
   planning: { label: "Planung", color: "bg-muted text-muted-foreground" },
-  "on-hold": { label: "Pausiert", color: "bg-warning text-warning-foreground" },
+  paused: { label: "Pausiert", color: "bg-warning text-warning-foreground" },
   completed: { label: "Abgeschlossen", color: "bg-info text-info-foreground" },
   cancelled: { label: "Abgebrochen", color: "bg-destructive text-destructive-foreground" },
-  paused: { label: "Pausiert", color: "bg-warning text-warning-foreground" },
 };
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
@@ -172,7 +171,7 @@ export default function Projects() {
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Status</Label>
                   <div className="space-y-2">
-                    {Object.entries(statusConfig).filter(([key]) => !['paused', 'cancelled'].includes(key)).map(([key, config]) => (
+                    {Object.entries(statusConfig).filter(([key]) => !['cancelled'].includes(key)).map(([key, config]) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox 
                           id={`status-${key}`}
