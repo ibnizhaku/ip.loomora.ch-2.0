@@ -452,9 +452,9 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
 
   // Prepare PDF preview data
   const pdfPreviewData: SalesDocumentData = useMemo(() => ({
-    type: type === "credit-note" ? "invoice" : type === "delivery-note" ? "order" : type as any,
+    type: type as SalesDocumentData['type'],
     number: "VORSCHAU",
-    date: new Date().toLocaleDateString("de-CH"),
+    date: documentDate || new Date().toISOString().split("T")[0],
     company: {
       name: companyData?.name || "—",
       street: companyData?.street || "",
@@ -488,7 +488,14 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     vatAmount: totalVat,
     total,
     notes,
-  }), [type, selectedCustomer, positions, subtotal, totalVat, total, notes, companyData]);
+    ...(type === 'quote' && validDays ? {
+      validUntil: (() => {
+        const d = new Date(documentDate || new Date());
+        d.setDate(d.getDate() + (parseInt(validDays) || 30));
+        return d.toISOString().split("T")[0];
+      })(),
+    } : {}),
+  }), [type, selectedCustomer, positions, subtotal, totalVat, total, notes, companyData, documentDate, validDays]);
 
   return (
     <div className="space-y-6">
