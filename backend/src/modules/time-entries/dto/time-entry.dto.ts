@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsDateString, IsBoolean, Min, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsDateString, IsBoolean, Min, IsEnum, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -56,6 +56,7 @@ export class UpdateTimeEntryDto extends PartialType(CreateTimeEntryDto) {}
 
 export class ApproveTimeEntriesDto {
   @ApiProperty({ description: 'Array of time entry IDs to approve/reject' })
+  @IsArray()
   @IsString({ each: true })
   ids: string[];
 

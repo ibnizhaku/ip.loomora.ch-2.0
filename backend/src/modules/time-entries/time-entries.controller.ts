@@ -55,6 +55,7 @@ export class TimeEntriesController {
   @Post('approve')
   @ApiOperation({ summary: 'Approve or reject time entries (admin only)' })
   approveEntries(@CurrentUser() user: CurrentUserPayload, @Body() dto: ApproveTimeEntriesDto) {
+    console.log('APPROVE BODY:', JSON.stringify(dto));
     return this.timeEntriesService.approveEntries(user.companyId, user.userId, dto);
   }
 
