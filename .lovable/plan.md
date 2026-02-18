@@ -1,289 +1,221 @@
 
-# Multi-Tenant Security Hardening — Loomora
+# E-Mail Versand System – Frontend + Backend Prompt
 
-## Ausgangslage (IST-Zustand)
+## Ausgangslage (bestehender Code)
 
-Nach Analyse aller 43+ Controller zeigt sich ein klares Bild:
-
-- **Nur 2 von ~43 Business-Controllern** nutzen den vollständigen Guard-Stack
-- **Invitations** und **Subscriptions (change-plan/cancel)** sind korrekt geschützt
-- **Alle anderen**: nur `JwtAuthGuard` — kein CompanyGuard, kein PermissionGuard
-- `/auth/getMyCompanies` gibt `[]` zurück (TODO-Kommentar)
-- `jwt.strategy.ts` prüft nur `user.status`, nicht `user.isActive`
-
----
-
-## Umfang der Änderungen
-
-Das Hardening gliedert sich in 6 Phasen, die alle im **Backend** (`/backend`) umgesetzt werden. Kein Frontend-Code wird verändert.
-
-### Betroffene Dateien
-
-**Phase 1 — Controller-Sicherheit (41 Controller-Dateien):**
-
-Alle Controller erhalten den vollständigen Guard-Stack und `@RequirePermissions()` pro Route.
-
-| Controller | Modul-Prefix | GET | POST | PUT/PATCH | DELETE |
-|---|---|---|---|---|---|
-| `customers.controller.ts` | `customers` | `:read` | `:write` | `:write` | `:delete` |
-| `invoices.controller.ts` | `invoices` | `:read` | `:write` | `:write` | `:delete` |
-| `quotes.controller.ts` | `quotes` | `:read` | `:write` | `:write` | `:delete` |
-| `orders.controller.ts` | `orders` | `:read` | `:write` | `:write` | `:delete` |
-| `delivery-notes.controller.ts` | `delivery-notes` | `:read` | `:write` | `:write` | `:delete` |
-| `credit-notes.controller.ts` | `credit-notes` | `:read` | `:write` | `:write` | `:delete` |
-| `reminders.controller.ts` | `reminders` | `:read` | `:write` | `:write` | `:delete` |
-| `suppliers.controller.ts` | `suppliers` | `:read` | `:write` | `:write` | `:delete` |
-| `products.controller.ts` | `products` | `:read` | `:write` | `:write` | `:delete` |
-| `purchase-orders.controller.ts` | `purchase-orders` | `:read` | `:write` | `:write` | `:delete` |
-| `purchase-invoices.controller.ts` | `purchase-invoices` | `:read` | `:write` | `:write` | `:delete` |
-| `goods-receipts.controller.ts` | `goods-receipts` | `:read` | `:write` | `:write` | `:delete` |
-| `employees.controller.ts` | `employees` | `:read` | `:write` | `:write` | `:delete` |
-| `employee-contracts.controller.ts` | `employee-contracts` | `:read` | `:write` | `:write` | `:delete` |
-| `absences.controller.ts` | `absences` | `:read` | `:write` | `:write` | `:delete` |
-| `payroll.controller.ts` | `payroll` | `:read` | `:write` | `:write` | `:delete` |
-| `travel-expenses.controller.ts` | `travel-expenses` | `:read` | `:write` | `:write` | `:delete` |
-| `recruiting.controller.ts` | `recruiting` | `:read` | `:write` | `:write` | `:delete` |
-| `training.controller.ts` | `training` | `:read` | `:write` | `:write` | `:delete` |
-| `departments.controller.ts` | `departments` | `:read` | `:write` | `:write` | `:delete` |
-| `withholding-tax.controller.ts` | `payroll` | `:read` | `:write` | `:write` | — |
-| `swissdec.controller.ts` | `payroll` | `:read` | `:write` | — | — |
-| `finance.controller.ts` | `finance` | `:read` | `:write` | `:write` | — |
-| `journal-entries.controller.ts` | `journal-entries` | `:read` | `:write` | `:write` | `:delete` |
-| `payments.controller.ts` | `payments` | `:read` | `:write` | `:write` | `:delete` |
-| `bank-import.controller.ts` | `bank-accounts` | `:read` | `:write` | `:write` | `:delete` |
-| `vat-returns.controller.ts` | `vat-returns` | `:read` | `:write` | `:write` | `:delete` |
-| `budgets.controller.ts` | `budgets` | `:read` | `:write` | `:write` | `:delete` |
-| `cost-centers.controller.ts` | `cost-centers` | `:read` | `:write` | `:write` | `:delete` |
-| `cash-book.controller.ts` | `cash-book` | `:read` | `:write` | `:write` | `:delete` |
-| `fixed-assets.controller.ts` | `fixed-assets` | `:read` | `:write` | `:write` | `:delete` |
-| `projects.controller.ts` | `projects` | `:read` | `:write` | `:write` | `:delete` |
-| `tasks.controller.ts` | `tasks` | `:read` | `:write` | `:write` | `:delete` |
-| `time-entries.controller.ts` | `time-entries` | `:read` | `:write` | `:write` | `:delete` |
-| `calendar.controller.ts` | `calendar` | `:read` | `:write` | `:write` | `:delete` |
-| `roles.controller.ts` | `roles` | `:read` | `:admin` | `:admin` | `:admin` |
-| `users.controller.ts` | `users` | `:read` | `:write` | `:write` | `:delete` |
-| `company.controller.ts` | `company` | `:read` | `:write` | `:write` | — |
-| `reports.controller.ts` | `reports` | `:read` | — | — | — |
-| `documents.controller.ts` | `documents` | `:read` | `:write` | `:write` | `:delete` |
-| `service-tickets.controller.ts` | `service-tickets` | `:read` | `:write` | `:write` | `:delete` |
-| `dashboard.controller.ts` | `dashboard` | `:read` | — | — | — |
-| `messages.controller.ts` | `messages` | `:read` | `:write` | — | `:delete` |
-| `notifications.controller.ts` | `notifications` | `:read` | — | `:write` | `:delete` |
-| `settings.controller.ts` | `settings` | `:read` | `:write` | `:write` | — |
-| `marketing.controller.ts` | `marketing` | `:read` | `:write` | `:write` | `:delete` |
-| `ecommerce.controller.ts` | `ecommerce` | `:read` | `:write` | `:write` | `:delete` |
-| `bom.controller.ts` | `products` | `:read` | `:write` | `:write` | `:delete` |
-| `calculations.controller.ts` | `quotes` | `:read` | `:write` | `:write` | `:delete` |
-| `production-orders.controller.ts` | `production-orders` | `:read` | `:write` | `:write` | `:delete` |
-| `quality-control.controller.ts` | `quality-control` | `:read` | `:write` | `:write` | `:delete` |
-| `gav-metallbau.controller.ts` | `settings` | `:read` | `:write` | `:write` | — |
-| `contracts.controller.ts` | `contracts` | `:read` | `:write` | `:write` | `:delete` |
-| `recruiting.controller.ts` | `recruiting` | `:read` | `:write` | `:write` | `:delete` |
-
-**Muster für jeden Controller:**
-```typescript
-// Vorher:
-@UseGuards(JwtAuthGuard)
-@Controller('customers')
-
-// Nachher:
-@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
-@Controller('customers')
-
-// Und pro Route:
-@Get()
-@RequirePermissions('customers:read')
-findAll(...)
-
-@Post()
-@RequirePermissions('customers:write')
-create(...)
-
-@Put(':id')
-@RequirePermissions('customers:write')
-update(...)
-
-@Delete(':id')
-@RequirePermissions('customers:delete')
-remove(...)
-```
-
-**Sonderregeln:**
-- Spezial-Aktionen (send, cancel, approve, convert, duplicate) → `:write`
-- Admin-Operationen (Rollen-CRUD, Permission-Overrides) → `:admin`
-- Stats/Reports (schreibgeschützt) → `:read`
-- Public Endpoints (Einladungs-Validierung, Webhook) → kein Guard (bleiben public)
+**Was bereits existiert:**
+- Settings → E-Mail Sektion: SMTP-Formular mit Host, Port, User, Passwort, Absender-Name, Absender-Adresse – **aber statisch, keine API-Anbindung**
+- `sendEmail()` in `src/lib/api.ts`: Ruft direkt `POST /{entityType}/{entityId}/send` auf – ohne Modal, ohne Felder
+- Buttons in folgenden Seiten rufen `sendEmail()` direkt auf:
+  - `Invoices.tsx` (Tabelle + Karten) – inline `onSelect`
+  - `InvoiceDetail.tsx` – `handleSendEmail()`
+  - `Quotes.tsx` (Tabelle + Karten) – inline `onSelect`
+  - `QuoteDetail.tsx` – `handleSendEmail()` + "Nachfassen per E-Mail"
+  - `CreditNoteDetail.tsx` – inline Button
+  - `ReminderDetail.tsx` – inline Button
+  - `CreditNotes.tsx` – `handleSendEmail()` (toast-only, kein API-Call)
+- **Kein Modal vorhanden** – direkter API-Call oder Toast-Dummy
+- **Kein `useEmailAccount` Hook**
 
 ---
 
-**Phase 2 — jwt.strategy.ts — User-Deaktivierungs-Bug**
+## Was geändert wird
 
-**Datei:** `backend/src/modules/auth/strategies/jwt.strategy.ts`
+### PHASE 1 – FRONTEND
 
-**Problem:** `isActive=false` blockiert JWT nicht. Der Guard prüft nur `user.status !== 'ACTIVE'`.
-
-**Fix:**
+#### 1. `src/hooks/use-email-account.ts` (NEU)
+Hook der `GET /mail/account` aufruft:
 ```typescript
-// Vorher (Zeile 28):
-if (!user || user.status !== 'ACTIVE') {
+export interface MailAccount {
+  id: string;
+  fromName: string;
+  fromEmail: string;
+  smtpHost: string;
+  isActive: boolean;
+}
 
-// Nachher:
-if (!user || user.status !== 'ACTIVE' || !user.isActive) {
-```
+export function useEmailAccount() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['mail-account'],
+    queryFn: () => api.get<MailAccount>('/mail/account'),
+    retry: false,           // 404 = kein Account → kein Fehler-Toast
+    throwOnError: false,    // Graceful: wenn noch kein Account
+  });
 
-Dies stellt sicher, dass `users.service.update()` mit `isActive: false` sofort einen Sperreffekt hat — der JwtStrategy-Check greift bei jeder Anfrage.
-
----
-
-**Phase 3 — auth.controller.ts — /auth/companies implementieren**
-
-**Datei:** `backend/src/modules/auth/auth.controller.ts`
-
-**Problem:** `GET /auth/companies` gibt `[]` zurück mit TODO-Kommentar.
-
-**Fix:**
-```typescript
-@Get('companies')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
-async getMyCompanies(@CurrentUser() user: CurrentUserPayload) {
-  return this.authService.getMyCompanies(user.userId);
+  return {
+    account: data,
+    hasEmailAccount: !!(data?.isActive),
+    fromEmail: data?.fromEmail ?? '',
+    fromName: data?.fromName ?? '',
+    isLoading,
+  };
 }
 ```
 
-**Datei:** `backend/src/modules/auth/auth.service.ts`
+#### 2. `src/components/email/SendEmailModal.tsx` (NEU)
+Universelles Modal mit zwei Zuständen:
 
-**Neues Method:**
+**Zustand A – Kein Mail-Account konfiguriert:**
+```
+┌────────────────────────────────────────┐
+│ ⚠ Kein E-Mail-Konto konfiguriert      │
+│                                        │
+│ Sie haben noch kein E-Mail-Konto       │
+│ konfiguriert. Bitte gehen Sie zu       │
+│ Einstellungen → E-Mail.                │
+│                                        │
+│ [Zu Einstellungen]    [Abbrechen]      │
+└────────────────────────────────────────┘
+```
+
+**Zustand B – Mail-Account vorhanden:**
+```
+┌────────────────────────────────────────┐
+│ E-Mail senden                    [X]   │
+├────────────────────────────────────────┤
+│ Von     [info@firma.ch]  (readOnly)    │
+│ An      [kunde@example.com]            │
+│ CC      [optional]                     │
+│ BCC     [optional]                     │
+│ Betreff [Rechnung RE-2026-001 von...]  │
+│ ┌──────────────────────────────────┐   │
+│ │ Sehr geehrte Damen und Herren... │   │
+│ │                                  │   │
+│ └──────────────────────────────────┘   │
+├────────────────────────────────────────┤
+│                [Abbrechen] [Senden]    │
+└────────────────────────────────────────┘
+```
+
+Props:
 ```typescript
-async getMyCompanies(userId: string): Promise<CompanySummary[]> {
-  return this.membershipService.getActiveCompaniesForUser(userId);
+interface SendEmailModalProps {
+  open: boolean;
+  onClose: () => void;
+  documentType: 'invoice' | 'quote' | 'delivery-note' | 'reminder' | 'credit-note' | 'order';
+  documentId: string;
+  documentNumber?: string;    // z.B. "RE-2026-001"
+  defaultRecipient?: string;  // kunde@example.com
+  companyName?: string;       // Für Betreff + Nachricht
 }
 ```
 
----
-
-**Phase 4 — AuditLog bei Login schreiben**
-
-**Datei:** `backend/src/modules/auth/auth.service.ts`
-
-In der `generateFullLoginResponse()`-Methode wird nach dem Token-Generating ein AuditLog-Eintrag geschrieben:
-
-```typescript
-await this.prisma.auditLog.create({
-  data: {
-    userId,
-    action: 'LOGIN_SUCCESS',
-    module: 'auth',
-    companyId,
-    metadata: { ip: ipAddress, device: deviceInfo },
-  }
-});
+Betreff-Generierung (automatisch):
+```
+invoice       → "Rechnung {number} von {companyName}"
+quote         → "Angebot {number} von {companyName}"
+delivery-note → "Lieferschein {number} von {companyName}"
+reminder      → "Zahlungserinnerung {number} von {companyName}"
+credit-note   → "Gutschrift {number} von {companyName}"
+order         → "Auftragsbestätigung {number} von {companyName}"
 ```
 
----
+**Senden-Button:** In Phase 1 nur Dummy-Handler → `toast.success("E-Mail wird gesendet...")` + `onClose()`. Kein API-Call.
 
-**Phase 5 — Abschlussbericht-Datei**
+#### 3. `src/pages/Settings.tsx` – E-Mail Sektion erweitern
+Der bestehende E-Mail-Tab (Zeile 1306–1548) hat bereits SMTP-Felder aber:
+- Felder sind statisch (keine State-Anbindung)
+- Kein `useSettings()` Hook angebunden
+- Kein `useUpdateSettings()` Mutation
 
-**Datei:** `.lovable/security-hardening-abschlussbericht.md`
+Erweiterung: State mit `useSettings()` laden, `useUpdateSettings()` beim Speichern aufrufen, `useTestSmtp()` beim "Verbindung testen" aufrufen. Dabei werden fehlende Felder ergänzt:
+- From Name → bereits als "Absender-Name" vorhanden ✓
+- From Email → bereits als "Absender-Adresse" vorhanden ✓
+- SMTP Host, Port, User, Passwort → bereits vorhanden ✓
 
-Enthält:
-- Liste aller Controller mit Guards nach dem Fix
-- Liste aller Endpoints mit zugehörigen Permissions
-- Bestätigung der 6 Prüfpunkte:
-  1. Kein Endpoint ohne PermissionGuard
-  2. Kein Legacy-Feld aktiv (Status-Fix)
-  3. Kein Service ohne companyId-Filter (bereits korrekt)
-  4. Kein Rollennamen-Check im Code
-  5. Kein UI-Only-Schutz ohne Backend-Schutz
-  6. /auth/companies implementiert
+Neu: Felder mit echtem State verknüpfen + Save/Test Buttons funktional machen.
 
----
+#### 4. Buttons anpassen – alle betroffenen Dateien
 
-## Was NICHT geändert wird (bewusste Entscheidungen)
+**Muster-Pattern:**
+```typescript
+// Statt:
+onSelect={async () => { await sendEmail('invoices', invoice.id); }}
 
-| Thema | Entscheidung | Begründung |
+// Neu:
+const [emailModal, setEmailModal] = useState<{open: boolean; id: string; number: string; recipient?: string} | null>(null);
+
+onSelect={() => setEmailModal({ open: true, id: invoice.id, number: invoice.number, recipient: invoice.customer?.email })}
+
+// Am Ende der Komponente:
+{emailModal && (
+  <SendEmailModal
+    open={emailModal.open}
+    onClose={() => setEmailModal(null)}
+    documentType="invoice"
+    documentId={emailModal.id}
+    documentNumber={emailModal.number}
+    defaultRecipient={emailModal.recipient}
+  />
+)}
+```
+
+**Betroffene Dateien:**
+
+| Datei | Dokumenttyp | Email-Felder |
 |---|---|---|
-| Legacy `User.role` Enum | Kein DB-Schema-Removal | Prisma-Migration erfordert Deployment-Absprache; Enum wird ignoriert aber nicht gelöscht |
-| Legacy `User.companyId` | Kein DB-Schema-Removal | Gleicher Grund; Services nutzen bereits `user.companyId` aus JWT |
-| Token-Lifetime (15min) | Bleibt unverändert | 15min ist akzeptabel mit dem isActive-Fix; Redis-Blacklist ist Out-of-Scope |
-| SubscriptionGuard | Optional, nicht überall | Business-Controller bekommen `JwtAuthGuard, CompanyGuard, PermissionGuard` — SubscriptionGuard wird nicht pauschal hinzugefügt da CompanyGuard die Membership validiert und der SubscriptionGuard nur for Plan-gated Features sinnvoll ist |
+| `Invoices.tsx` | invoice | `invoice.number`, `invoice.customer?.email` |
+| `InvoiceDetail.tsx` | invoice | `invoice.number`, `invoice.customer?.email` |
+| `Quotes.tsx` | quote | `quote.number`, `quote.customer?.email` |
+| `QuoteDetail.tsx` | quote | `quote.number`, `quote.customer?.email` |
+| `CreditNotes.tsx` | credit-note | `note.id`, kein Email-Feld |
+| `CreditNoteDetail.tsx` | credit-note | `creditNote.number`, `creditNote.customer?.email` |
+| `ReminderDetail.tsx` | reminder | `reminder.number`, `reminder.customer?.email` |
+
+**Permission-Check** auf allen Send-Buttons:
+```typescript
+{canWrite('invoices') && (
+  <DropdownMenuItem onSelect={() => setEmailModal(...)}>
+    <Send className="h-4 w-4" /> Per E-Mail senden
+  </DropdownMenuItem>
+)}
+```
+
+#### 5. `src/lib/api.ts` – `sendEmail()` behalten
+Die Funktion bleibt unverändert für Phase 2 (echter API-Call). In Phase 1 wird sie nur nicht mehr direkt aufgerufen.
 
 ---
 
-## Technische Risiken & Mitigation
+## Geänderte Frontend-Dateien (vollständige Liste)
 
-| Risiko | Mitigation |
-|---|---|
-| Bestehende User mit Rolle "ohne :read-Permission" werden ausgesperrt | isOwner-Bypass in PermissionGuard schützt Owner. System-Rollen (ADMIN, MEMBER etc.) haben standardmäßig breite Permissions via PARENT_MAP-Expansion |
-| Dashboard/Reports werden für eingeschränkte Rollen blockiert | Dashboard bekommt `dashboard:read`, Reports bekommt `reports:read` — Rollen müssen diese Permissions haben |
-| Public Endpoints wie Webhook, Einladungs-Validierung werden nicht beeinträchtigt | Diese Endpoints bleiben explizit ohne Guard |
+```
+NEU:
+  src/hooks/use-email-account.ts
+  src/components/email/SendEmailModal.tsx
+
+GEÄNDERT:
+  src/pages/Settings.tsx          (E-Mail Sektion: State + API-Anbindung)
+  src/pages/Invoices.tsx          (Modal statt direkter sendEmail-Call)
+  src/pages/InvoiceDetail.tsx     (Modal statt direkter sendEmail-Call)
+  src/pages/Quotes.tsx            (Modal statt direkter sendEmail-Call)
+  src/pages/QuoteDetail.tsx       (Modal statt direkter sendEmail-Call)
+  src/pages/CreditNotes.tsx       (Modal statt Toast-Dummy)
+  src/pages/CreditNoteDetail.tsx  (Modal statt direkter sendEmail-Call)
+  src/pages/ReminderDetail.tsx    (Modal statt direkter sendEmail-Call)
+```
 
 ---
 
-## Dateiliste (vollständig)
+## PHASE 2 – Backend Cursor Prompt
 
-Alle Dateien liegen in `/backend/src/modules/`:
+Nach Fertigstellung des Frontends wird folgender vollständiger Cursor-Prompt generiert:
 
-```
-auth/auth.controller.ts          — /auth/companies implementieren
-auth/auth.service.ts             — getMyCompanies(), AuditLog bei Login
-auth/strategies/jwt.strategy.ts  — isActive-Fix
+**Enthält exakt:**
+1. Prisma-Migration: `UserMailAccount` Model mit AES-verschlüsseltem SMTP-Passwort
+2. `mail.module.ts`, `mail.service.ts`, `mail.controller.ts`
+3. 4 Endpoints: `GET /mail/account`, `POST /mail/account`, `POST /mail/test`, `POST /mail/send`
+4. Multi-Tenant Guards: `JwtAuthGuard + CompanyGuard + PermissionGuard`
+5. PDF-Attachment Pipeline via `pdf.service.ts`
+6. Nodemailer SMTP-Versand
+7. AuditLog-Eintrag `MAIL_SENT`
+8. Idempotentes Prisma-Migration-Script
 
-customers/customers.controller.ts
-invoices/invoices.controller.ts
-quotes/quotes.controller.ts
-orders/orders.controller.ts
-suppliers/suppliers.controller.ts
-products/products.controller.ts
-employees/employees.controller.ts
-employee-contracts/...
-absences/...
-payroll/...
-travel-expenses/...
-departments/...
-withholding-tax/...
-swissdec/...
-finance/...
-journal-entries/...
-payments/...
-bank-import/...
-vat-returns/...
-budgets/...
-cost-centers/...
-cash-book/...
-fixed-assets/...
-projects/...
-tasks/...
-time-entries/...
-calendar/...
-roles/...
-users/...
-company/...
-reports/...
-documents/...
-service-tickets/...
-dashboard/...
-messages/...
-notifications/...
-settings/...
-marketing/...
-ecommerce/...
-bom/...
-calculations/...
-production-orders/...
-quality-control/...
-purchase-orders/...
-purchase-invoices/...
-goods-receipts/...
-contracts/...
-recruiting/...
-training/...
-delivery-notes/...
-credit-notes/...
-reminders/...
-gav-metallbau/...
+---
 
-.lovable/security-hardening-abschlussbericht.md
-```
+## Technische Details
 
-**Gesamtzahl betroffener Dateien: ~53**
+- `SendEmailModal` nutzt bestehende Radix Dialog-Komponente (`src/components/ui/dialog.tsx`)
+- `useEmailAccount` nutzt `@tanstack/react-query` mit `throwOnError: false` – 404 erzeugt keinen globalen Error-Toast
+- Kein neues Design, keine neuen Bibliotheken
+- `usePermissions()` bereits in allen Seiten importiert
+- Settings E-Mail-Tab ruft `useSettings()` + `useUpdateSettings()` + `useTestSmtp()` aus bestehenden Hooks auf
