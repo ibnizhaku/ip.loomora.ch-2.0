@@ -423,89 +423,89 @@ const App = () => (
               <Route path="/email-marketing/new" element={<ProtectedLayout><EmailCreate /></ProtectedLayout>} />
               
               {/* E-Commerce */}
-              <Route path="/shop" element={<ProtectedLayout><Shop /></ProtectedLayout>} />
-              <Route path="/discounts" element={<ProtectedLayout><Discounts /></ProtectedLayout>} />
-              <Route path="/discounts/new" element={<ProtectedLayout><DiscountCreate /></ProtectedLayout>} />
+              <Route path="/shop" element={<ProtectedLayout><PermissionGuard module="ecommerce"><Shop /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/discounts" element={<ProtectedLayout><PermissionGuard module="ecommerce"><Discounts /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/discounts/new" element={<ProtectedLayout><PermissionGuard module="ecommerce" action="write"><DiscountCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/discounts/:id" element={<ProtectedLayout><DiscountDetail /></ProtectedLayout>} />
-              <Route path="/reviews" element={<ProtectedLayout><Reviews /></ProtectedLayout>} />
+              <Route path="/reviews" element={<ProtectedLayout><PermissionGuard module="ecommerce"><Reviews /></PermissionGuard></ProtectedLayout>} />
               <Route path="/reviews/:id" element={<ProtectedLayout><ReviewDetail /></ProtectedLayout>} />
               
               {/* Berichte */}
-              <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+              <Route path="/reports" element={<ProtectedLayout><PermissionGuard module="reports"><Reports /></PermissionGuard></ProtectedLayout>} />
               
               {/* Dokumente */}
-              <Route path="/documents" element={<ProtectedLayout><Documents /></ProtectedLayout>} />
-              <Route path="/documents/new" element={<ProtectedLayout><DocumentUpload /></ProtectedLayout>} />
+              <Route path="/documents" element={<ProtectedLayout><PermissionGuard module="documents"><Documents /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/documents/new" element={<ProtectedLayout><PermissionGuard module="documents" action="write"><DocumentUpload /></PermissionGuard></ProtectedLayout>} />
               <Route path="/documents/:id" element={<ProtectedLayout><DocumentDetail /></ProtectedLayout>} />
               <Route path="/documents/:id/preview" element={<ProtectedLayout><DocumentPreview /></ProtectedLayout>} />
               <Route path="/folders/:id" element={<ProtectedLayout><FolderDetail /></ProtectedLayout>} />
               
               {/* HR / Personal */}
-              <Route path="/hr" element={<ProtectedLayout><HR /></ProtectedLayout>} />
-              <Route path="/hr/new" element={<ProtectedLayout><EmployeeCreate /></ProtectedLayout>} />
+              <Route path="/hr" element={<ProtectedLayout><PermissionGuard module="employees"><HR /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/hr/new" element={<ProtectedLayout><PermissionGuard module="employees" action="write"><EmployeeCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/hr/:id" element={<ProtectedLayout><EmployeeDetail /></ProtectedLayout>} />
-              <Route path="/hr/:id/edit" element={<ProtectedLayout><EmployeeEdit /></ProtectedLayout>} />
-              <Route path="/employee-contracts" element={<ProtectedLayout><EmployeeContracts /></ProtectedLayout>} />
-              <Route path="/employee-contracts/new" element={<ProtectedLayout><EmployeeContractCreate /></ProtectedLayout>} />
+              <Route path="/hr/:id/edit" element={<ProtectedLayout><PermissionGuard module="employees" action="write"><EmployeeEdit /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/employee-contracts" element={<ProtectedLayout><PermissionGuard module="employees"><EmployeeContracts /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/employee-contracts/new" element={<ProtectedLayout><PermissionGuard module="employees" action="write"><EmployeeContractCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/employee-contracts/:id" element={<ProtectedLayout><EmployeeContractDetail /></ProtectedLayout>} />
-              <Route path="/payroll" element={<ProtectedLayout><Payroll /></ProtectedLayout>} />
-              <Route path="/payroll/new" element={<ProtectedLayout><PayrollCreate /></ProtectedLayout>} />
+              <Route path="/payroll" element={<ProtectedLayout><PermissionGuard module="payroll"><Payroll /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/payroll/new" element={<ProtectedLayout><PermissionGuard module="payroll" action="write"><PayrollCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/payroll/:id" element={<ProtectedLayout><PayrollDetail /></ProtectedLayout>} />
               <Route path="/payslips/:id" element={<ProtectedLayout><PayslipDetail /></ProtectedLayout>} />
               <Route path="/payroll/payslip/:id" element={<ProtectedLayout><PayslipDetail /></ProtectedLayout>} />
-              <Route path="/absences" element={<ProtectedLayout><Absences /></ProtectedLayout>} />
-              <Route path="/absences/new" element={<ProtectedLayout><AbsenceCreate /></ProtectedLayout>} />
+              <Route path="/absences" element={<ProtectedLayout><PermissionGuard module="absences"><Absences /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/absences/new" element={<ProtectedLayout><PermissionGuard module="absences" action="write"><AbsenceCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/absences/:id" element={<ProtectedLayout><AbsenceDetail /></ProtectedLayout>} />
-              <Route path="/departments" element={<ProtectedLayout><Departments /></ProtectedLayout>} />
-              <Route path="/departments/new" element={<ProtectedLayout><DepartmentCreate /></ProtectedLayout>} />
+              <Route path="/departments" element={<ProtectedLayout><PermissionGuard module="employees"><Departments /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/departments/new" element={<ProtectedLayout><PermissionGuard module="employees" action="write"><DepartmentCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/departments/:id" element={<ProtectedLayout><DepartmentDetail /></ProtectedLayout>} />
-              <Route path="/recruiting" element={<ProtectedLayout><Recruiting /></ProtectedLayout>} />
-              <Route path="/recruiting/new" element={<ProtectedLayout><JobPostingCreate /></ProtectedLayout>} />
+              <Route path="/recruiting" element={<ProtectedLayout><PermissionGuard module="recruiting"><Recruiting /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/recruiting/new" element={<ProtectedLayout><PermissionGuard module="recruiting" action="write"><JobPostingCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/recruiting/:id" element={<ProtectedLayout><CandidateDetail /></ProtectedLayout>} />
-              <Route path="/training" element={<ProtectedLayout><Training /></ProtectedLayout>} />
-              <Route path="/training/new" element={<ProtectedLayout><TrainingCreate /></ProtectedLayout>} />
+              <Route path="/training" element={<ProtectedLayout><PermissionGuard module="training"><Training /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/training/new" element={<ProtectedLayout><PermissionGuard module="training" action="write"><TrainingCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/training/:id" element={<ProtectedLayout><TrainingDetail /></ProtectedLayout>} />
-              <Route path="/orgchart" element={<ProtectedLayout><Orgchart /></ProtectedLayout>} />
+              <Route path="/orgchart" element={<ProtectedLayout><PermissionGuard module="employees"><Orgchart /></PermissionGuard></ProtectedLayout>} />
               
               {/* Administration */}
-              <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
-              <Route path="/users/new" element={<ProtectedLayout><UserCreate /></ProtectedLayout>} />
+              <Route path="/users" element={<ProtectedLayout><PermissionGuard module="users"><Users /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/users/new" element={<ProtectedLayout><PermissionGuard module="users" action="write"><UserCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/users/:id" element={<ProtectedLayout><UserDetail /></ProtectedLayout>} />
-              <Route path="/users/:id/edit" element={<ProtectedLayout><UserEdit /></ProtectedLayout>} />
-              <Route path="/company" element={<ProtectedLayout><Company /></ProtectedLayout>} />
-              <Route path="/company/edit" element={<ProtectedLayout><CompanyEdit /></ProtectedLayout>} />
-              <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
-              <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
-              <Route path="/roles/new" element={<ProtectedLayout><RoleCreate /></ProtectedLayout>} />
+              <Route path="/users/:id/edit" element={<ProtectedLayout><PermissionGuard module="users" action="write"><UserEdit /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/company" element={<ProtectedLayout><PermissionGuard module="settings"><Company /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/company/edit" element={<ProtectedLayout><PermissionGuard module="settings" action="write"><CompanyEdit /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/settings" element={<ProtectedLayout><PermissionGuard module="settings"><Settings /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/roles" element={<ProtectedLayout><PermissionGuard module="roles"><Roles /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/roles/new" element={<ProtectedLayout><PermissionGuard module="roles" action="write"><RoleCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/roles/:id" element={<ProtectedLayout><RoleDetail /></ProtectedLayout>} />
-              <Route path="/roles/:id/edit" element={<ProtectedLayout><RoleEdit /></ProtectedLayout>} />
-              <Route path="/audit-log" element={<ProtectedLayout><AuditLog /></ProtectedLayout>} />
+              <Route path="/roles/:id/edit" element={<ProtectedLayout><PermissionGuard module="roles" action="write"><RoleEdit /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/audit-log" element={<ProtectedLayout><PermissionGuard module="settings"><AuditLog /></PermissionGuard></ProtectedLayout>} />
               <Route path="/audit-log/:id" element={<ProtectedLayout><AuditLogDetail /></ProtectedLayout>} />
               <Route path="/notifications" element={<ProtectedLayout><Notifications /></ProtectedLayout>} />
               <Route path="/notifications/:id" element={<ProtectedLayout><NotificationDetail /></ProtectedLayout>} />
               <Route path="/help" element={<ProtectedLayout><Help /></ProtectedLayout>} />
               
               {/* Produktion */}
-              <Route path="/bom" element={<ProtectedLayout><BillOfMaterials /></ProtectedLayout>} />
-              <Route path="/bom/new" element={<ProtectedLayout><BOMCreate /></ProtectedLayout>} />
+              <Route path="/bom" element={<ProtectedLayout><PermissionGuard module="production"><BillOfMaterials /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/bom/new" element={<ProtectedLayout><PermissionGuard module="production" action="write"><BOMCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/bom/:id" element={<ProtectedLayout><BOMDetail /></ProtectedLayout>} />
-              <Route path="/calculation" element={<ProtectedLayout><Calculation /></ProtectedLayout>} />
-              <Route path="/calculation/new" element={<ProtectedLayout><CalculationCreate /></ProtectedLayout>} />
+              <Route path="/calculation" element={<ProtectedLayout><PermissionGuard module="production"><Calculation /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/calculation/new" element={<ProtectedLayout><PermissionGuard module="production" action="write"><CalculationCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/calculation/:id" element={<ProtectedLayout><CalculationDetail /></ProtectedLayout>} />
-              <Route path="/production" element={<ProtectedLayout><Production /></ProtectedLayout>} />
-              <Route path="/production/new" element={<ProtectedLayout><ProductionCreate /></ProtectedLayout>} />
+              <Route path="/production" element={<ProtectedLayout><PermissionGuard module="production"><Production /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/production/new" element={<ProtectedLayout><PermissionGuard module="production" action="write"><ProductionCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/production/:id" element={<ProtectedLayout><ProductionDetail /></ProtectedLayout>} />
-              <Route path="/qr-invoice" element={<ProtectedLayout><QRInvoice /></ProtectedLayout>} />
-              <Route path="/bank-import" element={<ProtectedLayout><BankImport /></ProtectedLayout>} />
-              <Route path="/swissdec" element={<ProtectedLayout><Swissdec /></ProtectedLayout>} />
-              <Route path="/withholding-tax" element={<ProtectedLayout><WithholdingTax /></ProtectedLayout>} />
-              <Route path="/service" element={<ProtectedLayout><Service /></ProtectedLayout>} />
-              <Route path="/service/new" element={<ProtectedLayout><ServiceCreate /></ProtectedLayout>} />
+              <Route path="/qr-invoice" element={<ProtectedLayout><PermissionGuard module="accounting"><QRInvoice /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/bank-import" element={<ProtectedLayout><PermissionGuard module="accounting"><BankImport /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/swissdec" element={<ProtectedLayout><PermissionGuard module="payroll"><Swissdec /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/withholding-tax" element={<ProtectedLayout><PermissionGuard module="finance"><WithholdingTax /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/service" element={<ProtectedLayout><PermissionGuard module="service"><Service /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/service/new" element={<ProtectedLayout><PermissionGuard module="service" action="write"><ServiceCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/service/:id" element={<ProtectedLayout><ServiceDetail /></ProtectedLayout>} />
-              <Route path="/quality" element={<ProtectedLayout><QualityControl /></ProtectedLayout>} />
-              <Route path="/quality/new" element={<ProtectedLayout><QualityCheckCreate /></ProtectedLayout>} />
-              <Route path="/quality/checklists" element={<ProtectedLayout><QualityChecklists /></ProtectedLayout>} />
-              <Route path="/quality/checklists/new" element={<ProtectedLayout><QualityChecklistCreate /></ProtectedLayout>} />
+              <Route path="/quality" element={<ProtectedLayout><PermissionGuard module="quality"><QualityControl /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality/new" element={<ProtectedLayout><PermissionGuard module="quality" action="write"><QualityCheckCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality/checklists" element={<ProtectedLayout><PermissionGuard module="quality"><QualityChecklists /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/quality/checklists/new" element={<ProtectedLayout><PermissionGuard module="quality" action="write"><QualityChecklistCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/quality/checklists/:id" element={<ProtectedLayout><QualityChecklistDetail /></ProtectedLayout>} />
               <Route path="/quality/:id" element={<ProtectedLayout><QualityCheckDetail /></ProtectedLayout>} />
               

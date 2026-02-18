@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ const getTypeIcon = (type: string) => {
 
 export default function Campaigns() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const { data: apiData } = useQuery({ queryKey: ["/marketing/campaigns"], queryFn: () => api.get<any>("/marketing/campaigns") });
   const campaigns = apiData?.data || [];
   const [searchTerm, setSearchTerm] = useState("");
@@ -140,10 +142,12 @@ export default function Campaigns() {
             Marketing-Kampagnen verwalten und analysieren
           </p>
         </div>
-        <Button onClick={() => navigate("/campaigns/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Neue Kampagne
-        </Button>
+        {canWrite('marketing') && (
+          <Button onClick={() => navigate("/campaigns/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Neue Kampagne
+          </Button>
+        )}
       </div>
 
       {/* KPIs */}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -133,6 +134,7 @@ const statusLabels = {
 
 export default function Service() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -339,10 +341,12 @@ export default function Service() {
         </div>
         <div className="flex gap-2">
           <UpcomingMaintenanceDialog />
-          <Button className="gap-2" onClick={() => navigate("/service/new")}>
-            <Plus className="h-4 w-4" />
-            Service-Ticket
-          </Button>
+          {canWrite('service') && (
+            <Button className="gap-2" onClick={() => navigate("/service/new")}>
+              <Plus className="h-4 w-4" />
+              Service-Ticket
+            </Button>
+          )}
         </div>
       </div>
 
@@ -551,14 +555,18 @@ export default function Service() {
                       <Printer className="h-4 w-4 mr-2" />
                       Drucken
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="text-destructive focus:text-destructive" 
-                      onClick={(e) => openDelete(e, ticket)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Löschen
-                    </DropdownMenuItem>
+                    {canDelete('service') && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-destructive focus:text-destructive" 
+                          onClick={(e) => openDelete(e, ticket)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

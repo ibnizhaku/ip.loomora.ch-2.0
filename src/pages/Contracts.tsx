@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -80,6 +81,7 @@ const typeConfig = {
 
 export default function Contracts() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
 
@@ -176,10 +178,12 @@ export default function Contracts() {
             Verwalten Sie Ihre Kundenverträge
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/contracts/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Vertrag
-        </Button>
+        {canWrite('contracts') && (
+          <Button className="gap-2" onClick={() => navigate("/contracts/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Vertrag
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -469,10 +473,12 @@ export default function Contracts() {
                             Kündigen
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, contract.id)}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Löschen
-                        </DropdownMenuItem>
+                        {canDelete('contracts') && (
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, contract.id)}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Löschen
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

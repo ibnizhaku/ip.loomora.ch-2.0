@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -80,6 +81,7 @@ const statusLabels = {
 
 export default function Products() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -144,10 +146,12 @@ export default function Products() {
             <BarChart3 className="h-4 w-4" />
             Preisliste
           </Button>
-          <Button className="gap-2" onClick={() => navigate("/products/new")}>
-            <Plus className="h-4 w-4" />
-            Produkt anlegen
-          </Button>
+          {canWrite('products') && (
+            <Button className="gap-2" onClick={() => navigate("/products/new")}>
+              <Plus className="h-4 w-4" />
+              Produkt anlegen
+            </Button>
+          )}
         </div>
       </div>
 

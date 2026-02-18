@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -127,6 +128,7 @@ const formatCHF = (amount: number) => {
 
 export default function TravelExpenses() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -293,10 +295,12 @@ export default function TravelExpenses() {
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2" onClick={() => navigate("/travel-expenses/new")}>
-            <Plus className="h-4 w-4" />
-            Neue Reise
-          </Button>
+          {canWrite('travel-expenses') && (
+            <Button className="gap-2" onClick={() => navigate("/travel-expenses/new")}>
+              <Plus className="h-4 w-4" />
+              Neue Reise
+            </Button>
+          )}
         </div>
       </div>
 
@@ -632,7 +636,7 @@ export default function TravelExpenses() {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {(expense.status === "draft" || expense.status === "rejected") && (
+                        {(expense.status === "draft" || expense.status === "rejected") && canDelete('travel-expenses') && (
                           <DropdownMenuItem 
                             className="text-destructive"
                             onClick={(e) => handleDelete(expense.id, e)}

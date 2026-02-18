@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import { 
   Plus, 
   Search, 
@@ -107,6 +108,7 @@ const CreditNotes = () => {
   const { data: apiData } = useQuery({ queryKey: ["/credit-notes"], queryFn: () => api.get<any>("/credit-notes") });
   const creditNotes: CreditNote[] = (apiData?.data || []).map(mapCreditNote);
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
@@ -160,10 +162,12 @@ const CreditNotes = () => {
           <h1 className="font-display text-3xl font-bold tracking-tight">Gutschriften</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Gutschriften und Erstattungen</p>
         </div>
-        <Button onClick={() => navigate("/credit-notes/new")}>
-          <Plus className="h-4 w-4 mr-2" />
-          Neue Gutschrift
-        </Button>
+        {canWrite('credit-notes') && (
+          <Button onClick={() => navigate("/credit-notes/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Neue Gutschrift
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

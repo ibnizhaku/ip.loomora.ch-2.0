@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
   Search,
@@ -110,6 +111,7 @@ const defaultDNStatus = { label: "Unbekannt", color: "bg-muted text-muted-foregr
 
 export default function DeliveryNotes() {
   const navigate = useNavigate();
+  const { canWrite, canDelete } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
@@ -143,10 +145,12 @@ export default function DeliveryNotes() {
             Verwalten Sie Ihre Lieferungen und Sendungen
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/delivery-notes/new")}>
-          <Plus className="h-4 w-4" />
-          Neuer Lieferschein
-        </Button>
+        {canWrite('delivery-notes') && (
+          <Button className="gap-2" onClick={() => navigate("/delivery-notes/new")}>
+            <Plus className="h-4 w-4" />
+            Neuer Lieferschein
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
