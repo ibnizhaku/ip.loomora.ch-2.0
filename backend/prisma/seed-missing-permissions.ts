@@ -40,27 +40,38 @@ const ALL_PERMS: PermAction[]   = ['read', 'write', 'delete', 'admin'];
 const WRITE_PERMS: PermAction[] = ['read', 'write'];
 const READ_PERMS: PermAction[]  = ['read'];
 
-/** Welche Permissions eine Rolle für ein Modul bekommt */
+/**
+ * Permission-Matrix — exakt analog zu createSystemRoles():
+ *
+ * reports.controller.ts hat ausschließlich :read Endpoints (11 Stück).
+ * Owner/Admin bekommen daher für reports nur read — write/delete wären
+ * tote Permissions ohne Endpoint-Abdeckung.
+ * Member bekommt für alle operativen Module read+write, reports nur read.
+ *
+ * messages/notifications/service-tickets/marketing/ecommerce:
+ *   Owner/Admin → read, write, delete, admin
+ *   Member      → read, write
+ */
 function getPermissionsForRole(
   roleName: string,
   module: string,
 ): PermAction[] {
-  if (roleName === 'Owner') {
-    return ALL_PERMS;
-  }
+  // reports: rein lesend für alle Rollen (kein write/delete Endpoint existiert)
+  if (module === 'reports') return READ_PERMS;
+
+  if (roleName === 'Owner') return ALL_PERMS;
 
   if (roleName === 'Admin') {
-    // Admin = Owner ohne settings — alle 6 Module sind kein settings
+    // Admin = Owner ohne settings; alle 6 Module sind nicht settings
     return ALL_PERMS;
   }
 
   if (roleName === 'Member') {
-    // Member: reports nur read, rest read+write
-    if (module === 'reports') return READ_PERMS;
+    // Operative Module: read + write
     return WRITE_PERMS;
   }
 
-  return []; // Unbekannte Rollen: nichts hinzufügen
+  return [];
 }
 
 async function main() {
