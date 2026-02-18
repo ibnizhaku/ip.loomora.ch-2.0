@@ -148,10 +148,10 @@ export class TimeEntriesService {
     });
   }
 
-  async delete(id: string, companyId: string, userId: string) {
-    const entry = await this.prisma.timeEntry.findFirst({
-      where: { id, companyId, userId },
-    });
+  async delete(id: string, companyId: string, userId: string, isAdmin = false) {
+    const where: any = isAdmin ? { id, companyId } : { id, companyId, userId };
+
+    const entry = await this.prisma.timeEntry.findFirst({ where });
 
     if (!entry) {
       throw new NotFoundException('Time entry not found');

@@ -74,6 +74,7 @@ export class TimeEntriesController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete time entry' })
   delete(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
-    return this.timeEntriesService.delete(id, user.companyId, user.userId);
+    const isAdmin = user.isOwner || user.permissions.includes('time_entries:delete');
+    return this.timeEntriesService.delete(id, user.companyId, user.userId, isAdmin);
   }
 }
