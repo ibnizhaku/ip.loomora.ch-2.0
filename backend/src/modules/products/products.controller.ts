@@ -3,17 +3,20 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { ProductsService } from './products.service';
 import { CreateProductDto, UpdateProductDto, AdjustStockDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('Products')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
   @Get()
+  @RequirePermissions('products:read')
   @ApiOperation({ summary: 'Get all products' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
@@ -30,18 +33,21 @@ export class ProductsController {
   }
 
   @Get('stats')
+  @RequirePermissions('products:read')
   @ApiOperation({ summary: 'Get product statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.productsService.getStats(user.companyId);
   }
 
   @Get('categories')
+  @RequirePermissions('products:read')
   @ApiOperation({ summary: 'Get all product categories' })
   findAllCategories(@CurrentUser() user: CurrentUserPayload) {
     return this.productsService.findAllCategories(user.companyId);
   }
 
   @Post('categories')
+  @RequirePermissions('products:write')
   @ApiOperation({ summary: 'Create product category' })
   createCategory(
     @Body() data: { name: string; description?: string },
@@ -51,18 +57,21 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @RequirePermissions('products:read')
   @ApiOperation({ summary: 'Get product by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.productsService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('products:write')
   @ApiOperation({ summary: 'Create new product' })
   create(@Body() dto: CreateProductDto, @CurrentUser() user: CurrentUserPayload) {
     return this.productsService.create(user.companyId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('products:write')
   @ApiOperation({ summary: 'Update product' })
   update(
     @Param('id') id: string,
@@ -73,6 +82,7 @@ export class ProductsController {
   }
 
   @Post(':id/adjust-stock')
+  @RequirePermissions('products:write')
   @ApiOperation({ summary: 'Adjust product stock' })
   adjustStock(
     @Param('id') id: string,
@@ -83,6 +93,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @RequirePermissions('products:delete')
   @ApiOperation({ summary: 'Deactivate product' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.productsService.remove(id, user.companyId);

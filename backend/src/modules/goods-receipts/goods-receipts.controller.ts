@@ -1,18 +1,21 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { GoodsReceiptsService } from './goods-receipts.service';
 import { CreateGoodsReceiptDto, UpdateGoodsReceiptDto, QualityCheckDto } from './dto/goods-receipt.dto';
 
 @ApiTags('Goods Receipts')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('goods-receipts')
 export class GoodsReceiptsController {
   constructor(private readonly goodsReceiptsService: GoodsReceiptsService) {}
 
   @Get()
+  @RequirePermissions('goods-receipts:read')
   @ApiOperation({ summary: 'List all goods receipts' })
   findAll(
     @CurrentUser() user: any,
@@ -36,30 +39,35 @@ export class GoodsReceiptsController {
   }
 
   @Get('statistics')
+  @RequirePermissions('goods-receipts:read')
   @ApiOperation({ summary: 'Get goods receipt statistics' })
   getStatistics(@CurrentUser() user: any) {
     return this.goodsReceiptsService.getStatistics(user.companyId);
   }
 
   @Get('pending')
+  @RequirePermissions('goods-receipts:read')
   @ApiOperation({ summary: 'Get pending purchase orders awaiting receipt' })
   getPendingReceipts(@CurrentUser() user: any) {
     return this.goodsReceiptsService.getPendingReceipts(user.companyId);
   }
 
   @Get(':id')
+  @RequirePermissions('goods-receipts:read')
   @ApiOperation({ summary: 'Get goods receipt by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.goodsReceiptsService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('goods-receipts:write')
   @ApiOperation({ summary: 'Create new goods receipt' })
   create(@Body() dto: CreateGoodsReceiptDto, @CurrentUser() user: any) {
     return this.goodsReceiptsService.create(user.companyId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('goods-receipts:write')
   @ApiOperation({ summary: 'Update goods receipt' })
   update(
     @Param('id') id: string,
@@ -70,12 +78,14 @@ export class GoodsReceiptsController {
   }
 
   @Post(':id/confirm')
+  @RequirePermissions('goods-receipts:write')
   @ApiOperation({ summary: 'Confirm goods receipt and update inventory' })
   confirm(@Param('id') id: string, @CurrentUser() user: any) {
     return this.goodsReceiptsService.confirm(id, user.companyId);
   }
 
   @Post(':id/quality-check')
+  @RequirePermissions('goods-receipts:write')
   @ApiOperation({ summary: 'Perform quality check on receipt item' })
   qualityCheck(
     @Param('id') id: string,
@@ -86,6 +96,7 @@ export class GoodsReceiptsController {
   }
 
   @Delete(':id')
+  @RequirePermissions('goods-receipts:delete')
   @ApiOperation({ summary: 'Delete goods receipt (reverses inventory)' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
     return this.goodsReceiptsService.delete(id, user.companyId);

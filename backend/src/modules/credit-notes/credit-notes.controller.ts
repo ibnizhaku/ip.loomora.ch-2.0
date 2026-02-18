@@ -2,6 +2,8 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res 
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreditNotesService } from './credit-notes.service';
 import { PdfService } from '../../common/services/pdf.service';
@@ -9,7 +11,7 @@ import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto'
 
 @ApiTags('Credit Notes')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('credit-notes')
 export class CreditNotesController {
   constructor(
@@ -18,6 +20,7 @@ export class CreditNotesController {
   ) {}
 
   @Get()
+  @RequirePermissions('credit-notes:read')
   @ApiOperation({ summary: 'List all credit notes' })
   findAll(
     @CurrentUser() user: any,
@@ -37,6 +40,7 @@ export class CreditNotesController {
   }
 
   @Get(':id/pdf')
+  @RequirePermissions('credit-notes:read')
   @ApiOperation({ summary: 'Generate credit note PDF' })
   async generatePdf(
     @Param('id') id: string,
@@ -53,18 +57,21 @@ export class CreditNotesController {
   }
 
   @Get(':id')
+  @RequirePermissions('credit-notes:read')
   @ApiOperation({ summary: 'Get credit note by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.creditNotesService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('credit-notes:write')
   @ApiOperation({ summary: 'Create new credit note' })
   create(@Body() dto: CreateCreditNoteDto, @CurrentUser() user: any) {
     return this.creditNotesService.create(user.companyId, dto);
   }
 
   @Post('from-invoice/:invoiceId')
+  @RequirePermissions('credit-notes:write')
   @ApiOperation({ summary: 'Create credit note from invoice' })
   createFromInvoice(
     @Param('invoiceId') invoiceId: string,
@@ -75,12 +82,14 @@ export class CreditNotesController {
   }
 
   @Post(':id/send')
+  @RequirePermissions('credit-notes:write')
   @ApiOperation({ summary: 'Send credit note (set status to ISSUED)' })
   send(@Param('id') id: string, @CurrentUser() user: any) {
     return this.creditNotesService.send(id, user.companyId);
   }
 
   @Put(':id')
+  @RequirePermissions('credit-notes:write')
   @ApiOperation({ summary: 'Update credit note' })
   update(
     @Param('id') id: string,
@@ -91,6 +100,7 @@ export class CreditNotesController {
   }
 
   @Delete(':id')
+  @RequirePermissions('credit-notes:delete')
   @ApiOperation({ summary: 'Delete credit note' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
     return this.creditNotesService.delete(id, user.companyId);

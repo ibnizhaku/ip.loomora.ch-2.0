@@ -3,17 +3,20 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto, UpdateSupplierDto } from './dto/supplier.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('Suppliers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('suppliers')
 export class SuppliersController {
   constructor(private suppliersService: SuppliersService) {}
 
   @Get()
+  @RequirePermissions('suppliers:read')
   @ApiOperation({ summary: 'Get all suppliers' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
@@ -25,30 +28,35 @@ export class SuppliersController {
   }
 
   @Get('creditors')
+  @RequirePermissions('suppliers:read')
   @ApiOperation({ summary: 'Get suppliers with open payables (Creditors list)' })
   findCreditors(@CurrentUser() user: CurrentUserPayload) {
     return this.suppliersService.findCreditors(user.companyId);
   }
 
-    @Get('stats')
+  @Get('stats')
+  @RequirePermissions('suppliers:read')
   @ApiOperation({ summary: 'Get supplier statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.suppliersService.getStats(user.companyId);
   }
 
   @Get(':id')
+  @RequirePermissions('suppliers:read')
   @ApiOperation({ summary: 'Get supplier by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.suppliersService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('suppliers:write')
   @ApiOperation({ summary: 'Create new supplier' })
   create(@Body() dto: CreateSupplierDto, @CurrentUser() user: CurrentUserPayload) {
     return this.suppliersService.create(user.companyId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('suppliers:write')
   @ApiOperation({ summary: 'Update supplier' })
   update(
     @Param('id') id: string,
@@ -59,6 +67,7 @@ export class SuppliersController {
   }
 
   @Delete(':id')
+  @RequirePermissions('suppliers:delete')
   @ApiOperation({ summary: 'Deactivate supplier' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.suppliersService.remove(id, user.companyId);

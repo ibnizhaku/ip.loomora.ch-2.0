@@ -5,12 +5,14 @@ import { QuotesService } from './quotes.service';
 import { PdfService } from '../../common/services/pdf.service';
 import { CreateQuoteDto, UpdateQuoteDto } from './dto/quote.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('Quotes')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('quotes')
 export class QuotesController {
   constructor(
@@ -19,6 +21,7 @@ export class QuotesController {
   ) {}
 
   @Get()
+  @RequirePermissions('quotes:read')
   @ApiOperation({ summary: 'Get all quotes' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
@@ -33,12 +36,14 @@ export class QuotesController {
   }
 
   @Get('stats')
+  @RequirePermissions('quotes:read')
   @ApiOperation({ summary: 'Get quote statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.getStats(user.companyId);
   }
 
   @Get(':id/pdf')
+  @RequirePermissions('quotes:read')
   @ApiOperation({ summary: 'Generate quote PDF' })
   async generatePdf(
     @Param('id') id: string,
@@ -55,18 +60,21 @@ export class QuotesController {
   }
 
   @Get(':id')
+  @RequirePermissions('quotes:read')
   @ApiOperation({ summary: 'Get quote by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Create new quote' })
   create(@Body() dto: CreateQuoteDto, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.create(user.companyId, user.userId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Update quote' })
   update(
     @Param('id') id: string,
@@ -77,30 +85,35 @@ export class QuotesController {
   }
 
   @Post(':id/send')
+  @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Send quote (set status to SENT)' })
   sendQuote(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.sendQuote(id, user.companyId);
   }
 
   @Post(':id/convert-to-order')
+  @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Convert quote to order' })
   convertToOrder(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.convertToOrder(id, user.companyId, user.userId);
   }
 
   @Post(':id/convert-to-invoice')
+  @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Convert quote to invoice' })
   convertToInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.convertToInvoice(id, user.companyId, user.userId);
   }
 
   @Post(':id/duplicate')
+  @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Duplicate quote' })
   duplicate(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.duplicate(id, user.companyId, user.userId);
   }
 
   @Delete(':id')
+  @RequirePermissions('quotes:delete')
   @ApiOperation({ summary: 'Delete quote' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.quotesService.remove(id, user.companyId);

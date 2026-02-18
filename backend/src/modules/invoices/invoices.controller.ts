@@ -4,6 +4,8 @@ import { Response } from 'express';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto, UpdateInvoiceDto, RecordPaymentDto } from './dto/invoice.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CompanyGuard } from '../auth/guards/company.guard';
+import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { PdfService } from '../../common/services/pdf.service';
@@ -11,7 +13,7 @@ import { EmailService } from '../../common/services/email.service';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('invoices')
 export class InvoicesController {
   constructor(
@@ -21,6 +23,7 @@ export class InvoicesController {
   ) {}
 
   @Get()
+  @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Get all invoices' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
@@ -36,6 +39,7 @@ export class InvoicesController {
   }
 
   @Post('from-time-entries')
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Create invoice from billable time entries' })
   createFromTimeEntries(
     @Body() params: { projectId?: string; customerId: string; startDate: string; endDate: string },
@@ -45,24 +49,28 @@ export class InvoicesController {
   }
 
   @Post('check-overdue')
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Check and mark overdue invoices (run daily)' })
   checkOverdue(@CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.checkOverdue(user.companyId, user.userId);
   }
 
   @Get('stats')
+  @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Get invoice statistics' })
   getStats(@CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.getStats(user.companyId);
   }
 
   @Get('open-items')
+  @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Get open items (debtors)' })
   getOpenItems(@CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.getOpenItems(user.companyId);
   }
 
   @Get(':id/pdf')
+  @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Download invoice as PDF with Swiss QR-Bill' })
   async downloadPdf(
     @Param('id') id: string,
@@ -81,18 +89,21 @@ export class InvoicesController {
   }
 
   @Get(':id')
+  @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Get invoice by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.findOne(id, user.companyId);
   }
 
   @Post()
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Create new invoice' })
   create(@Body() dto: CreateInvoiceDto, @CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.create(user.companyId, user.userId, dto);
   }
 
   @Put(':id')
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Update invoice' })
   update(
     @Param('id') id: string,
@@ -103,6 +114,7 @@ export class InvoicesController {
   }
 
   @Post(':id/payment')
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Record payment for invoice' })
   recordPayment(
     @Param('id') id: string,
@@ -113,13 +125,13 @@ export class InvoicesController {
   }
 
   @Post(':id/send')
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Send invoice via email with PDF' })
   async sendInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     const invoice = await this.invoicesService.findOne(id, user.companyId);
     const pdfBuffer = await this.pdfService.generateInvoicePdf(invoice);
     const emailSent = await this.emailService.sendInvoice(invoice, pdfBuffer);
     
-    // Mark as sent
     await this.invoicesService.sendInvoice(id, user.companyId, user.userId);
     
     return {
@@ -131,12 +143,14 @@ export class InvoicesController {
   }
 
   @Post(':id/cancel')
+  @RequirePermissions('invoices:write')
   @ApiOperation({ summary: 'Cancel invoice' })
   cancelInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.cancelInvoice(id, user.companyId);
   }
 
   @Delete(':id')
+  @RequirePermissions('invoices:delete')
   @ApiOperation({ summary: 'Delete invoice' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.invoicesService.remove(id, user.companyId);

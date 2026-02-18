@@ -134,8 +134,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Alle verfügbaren Companies des Users' })
   async getMyCompanies(@CurrentUser() user: CurrentUserPayload) {
-    // TODO: Implement via MembershipService
-    return [];
+    return this.authService.getMyCompanies(user.userId);
   }
 
   // ─── 2FA Endpoints ─────────────────────────────────────
