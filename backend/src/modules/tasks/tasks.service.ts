@@ -99,12 +99,16 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    // loggedMinutes: nur genehmigte Zeiteinträge (approvalStatus === 'approved')
+    // loggedMinutes: ALLE Zeiteinträge unabhängig vom Genehmigungsstatus (für Widget-Anzeige)
     const loggedMinutes = (task.timeEntries || [])
+      .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
+
+    // approvedMinutes: nur genehmigte Einträge (für Lohnbuchhaltung)
+    const approvedMinutes = (task.timeEntries || [])
       .filter((te: any) => te.approvalStatus === 'approved')
       .reduce((sum: number, te: any) => sum + (te.duration || 0), 0);
 
-    return { ...task, loggedMinutes };
+    return { ...task, loggedMinutes, approvedMinutes };
   }
 
   async create(companyId: string, userId: string, dto: CreateTaskDto) {
