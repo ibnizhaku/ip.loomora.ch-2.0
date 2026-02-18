@@ -432,6 +432,10 @@ model Role {
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Erstellt von
+  createdByUserId String?
+  createdByUser   User?    @relation("RoleCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   
   // Relations
   permissions   RolePermission[]
@@ -644,6 +648,9 @@ model User {
   
   // Permission overrides
   permissionOverrides UserPermissionOverride[]
+
+  // Erstellte Rollen
+  createdRoles      Role[]    @relation("RoleCreatedBy")
 
   // Employee relation (optional link)
   employeeId        String?   @unique

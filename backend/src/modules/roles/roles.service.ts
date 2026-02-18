@@ -40,6 +40,7 @@ export class RolesService {
               },
             },
           },
+          createdByUser: { select: { id: true, firstName: true, lastName: true } },
           _count: { select: { memberships: true } },
         },
       }),
@@ -70,6 +71,7 @@ export class RolesService {
             },
           },
         },
+        createdByUser: { select: { id: true, firstName: true, lastName: true } },
         _count: { select: { memberships: true } },
       },
     });
@@ -94,6 +96,7 @@ export class RolesService {
         description: dto.description || '',
         isSystemRole: false,
         companyId,
+        createdByUserId: userId,
       },
     });
 
@@ -206,7 +209,11 @@ export class RolesService {
       users,
       createdAt: role.createdAt?.toISOString(),
       updatedAt: role.updatedAt?.toISOString(),
-      createdBy: role.isSystemRole ? 'System' : undefined,
+      createdBy: role.isSystemRole
+        ? 'System'
+        : role.createdByUser
+          ? `${role.createdByUser.firstName} ${role.createdByUser.lastName}`.trim()
+          : undefined,
     };
   }
 }
