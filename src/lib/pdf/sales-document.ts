@@ -377,3 +377,8 @@ export function getSalesDocumentPDFBlobUrl(data: SalesDocumentData): string {
   const blob = doc.output('blob');
   return URL.createObjectURL(blob);
 }
+
+export function getSalesDocumentPDFBase64(data: SalesDocumentData): string {
+  const doc = generateSalesDocumentPDF(data);
+  return doc.output('datauristring').split(',')[1]; // nur Base64-Teil ohne "data:application/pdf;base64,"
+}

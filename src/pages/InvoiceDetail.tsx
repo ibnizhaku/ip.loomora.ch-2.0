@@ -692,6 +692,7 @@ const InvoiceDetail = () => {
         documentId={id || ''}
         documentNumber={invoiceData.id}
         defaultRecipient={invoiceData.customer.email}
+        documentData={pdfData}
       />
     </div>
   );

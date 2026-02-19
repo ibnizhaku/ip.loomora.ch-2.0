@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, AlertTriangle, Settings } from "lucide-react";
+import { Send, AlertTriangle, Settings, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useEmailAccount } from "@/hooks/use-email-account";
 import { api } from "@/lib/api";
+import { SalesDocumentData, getSalesDocumentPDFBase64 } from "@/lib/pdf/sales-document";
 
 export type DocumentType =
   | "invoice"
@@ -33,7 +34,17 @@ interface SendEmailModalProps {
   documentNumber?: string;
   defaultRecipient?: string;
   companyName?: string;
+  documentData?: SalesDocumentData; // Frontend-PDF Daten für identischen Anhang wie Vorschau
 }
+
+const documentTypeLabels: Record<DocumentType, string> = {
+  invoice: "Rechnung",
+  quote: "Angebot",
+  "delivery-note": "Lieferschein",
+  reminder: "Zahlungserinnerung",
+  "credit-note": "Gutschrift",
+  order: "Auftragsbestätigung",
+};
 
 function getSubject(type: DocumentType, number?: string, company?: string): string {
   const num = number ? ` ${number}` : "";
@@ -61,6 +72,7 @@ export function SendEmailModal({
   documentNumber,
   defaultRecipient,
   companyName,
+  documentData,
 }: SendEmailModalProps) {
   const navigate = useNavigate();
   const { hasEmailAccount, fromEmail, fromName, isLoading } = useEmailAccount();
@@ -82,9 +94,28 @@ export function SendEmailModal({
     }
   }, [open, defaultRecipient, documentType, documentNumber, companyName]);
 
+  // Generiere Dateiname für den Anhang
+  const getPdfFilename = () => {
+    const label = documentTypeLabels[documentType] || "Dokument";
+    const num = documentNumber || documentId;
+    return `${label}-${num}.pdf`;
+  };
+
   const sendMutation = useMutation({
-    mutationFn: () =>
-      api.post<{ success: boolean; message: string }>('/mail/send', {
+    mutationFn: () => {
+      // Falls documentData vorhanden: Frontend-PDF als Base64 generieren (identisch mit Vorschau)
+      let pdfBase64: string | undefined;
+      let pdfFilename: string | undefined;
+      if (documentData) {
+        try {
+          pdfBase64 = getSalesDocumentPDFBase64(documentData);
+          pdfFilename = getPdfFilename();
+        } catch (err) {
+          console.warn("PDF Base64-Generierung fehlgeschlagen:", err);
+        }
+      }
+
+      return api.post<{ success: boolean; message: string }>('/mail/send', {
         to: to.trim(),
         cc: cc.trim() || undefined,
         bcc: bcc.trim() || undefined,
@@ -92,7 +123,10 @@ export function SendEmailModal({
         message,
         documentType,
         documentId,
-      }),
+        pdfBase64,
+        pdfFilename,
+      });
+    },
     onSuccess: () => {
       toast.success("E-Mail erfolgreich versendet");
       onClose();
@@ -231,9 +265,13 @@ export function SendEmailModal({
             />
           </div>
 
-          <p className="text-xs text-muted-foreground pl-[92px]">
-            ⚠️ PDF-Anhang wird noch nicht automatisch beigefügt (in Entwicklung).
-          </p>
+          {/* PDF-Anhang Info */}
+          {documentData && (
+            <div className="flex items-center gap-2 pl-[92px] text-xs text-muted-foreground">
+              <Paperclip className="h-3.5 w-3.5" />
+              <span>{getPdfFilename()} wird als Anhang beigefügt</span>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">

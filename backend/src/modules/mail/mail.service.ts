@@ -113,9 +113,23 @@ export class MailService {
       auth: { user: account.smtpUser, pass: password },
     });
 
-    // PDF generieren falls documentId und documentType vorhanden
+    // PDF anhängen: Frontend-PDF (Base64) bevorzugen, sonst Backend-Generierung
     const attachments: { filename: string; content: Buffer; contentType: string }[] = [];
-    if (dto.documentId && dto.documentType) {
+    
+    if (dto.pdfBase64 && dto.pdfFilename) {
+      // Frontend hat bereits das korrekte PDF generiert (gleich wie Vorschau/Download)
+      try {
+        const pdfBuffer = Buffer.from(dto.pdfBase64, 'base64');
+        attachments.push({
+          filename: dto.pdfFilename,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        });
+      } catch (err) {
+        console.warn(`[MailService] Base64-PDF Konvertierung fehlgeschlagen: ${err?.message}`);
+      }
+    } else if (dto.documentId && dto.documentType) {
+      // Fallback: Backend generiert PDF
       try {
         const { pdfBuffer, filename } = await this.generateDocumentPdf(
           dto.documentId,
@@ -130,7 +144,6 @@ export class MailService {
           });
         }
       } catch (err) {
-        // PDF-Fehler loggen aber E-Mail trotzdem senden
         console.warn(`[MailService] PDF-Generierung fehlgeschlagen: ${err?.message}`);
       }
     }

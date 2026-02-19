@@ -560,7 +560,9 @@ const DeliveryNoteDetail = () => {
         documentId={id || ''}
         documentNumber={deliveryNoteData.id}
         defaultRecipient={(rawDn as any)?.customer?.email || ''}
+        documentData={pdfData}
       />
+
     </div>
   );
 };

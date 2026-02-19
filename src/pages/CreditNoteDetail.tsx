@@ -344,6 +344,7 @@ const CreditNoteDetail = () => {
         documentId={id || ''}
         documentNumber={creditNoteData.id}
         defaultRecipient={creditNoteData.customer.email}
+        documentData={pdfData}
       />
     </div>
   );
