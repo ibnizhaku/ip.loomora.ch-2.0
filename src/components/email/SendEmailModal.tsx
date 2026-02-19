@@ -232,7 +232,7 @@ export function SendEmailModal({
           </div>
 
           <p className="text-xs text-muted-foreground pl-[92px]">
-            Das Dokument wird automatisch als PDF-Anhang beigefügt.
+            ⚠️ PDF-Anhang wird noch nicht automatisch beigefügt (in Entwicklung).
           </p>
         </div>
 
