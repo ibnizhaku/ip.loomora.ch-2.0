@@ -1872,6 +1872,9 @@ model Task {
   // Chat relations
   chatMessages    ChatMessage[] @relation("TaskChatMessages")
   
+  // Chat relations
+  chatMessages    ChatMessage[] @relation("TaskChatMessages")
+  
   @@index([companyId])
   @@index([projectId])
   @@index([assigneeId])
