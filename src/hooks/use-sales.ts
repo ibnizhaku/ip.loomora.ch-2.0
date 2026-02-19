@@ -249,7 +249,7 @@ export function useUpdateOrder() {
   
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Order> }) => 
-      api.put<Order>(`/orders/${id}`, data),
+      api.patch<Order>(`/orders/${id}`, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['orders', id] });

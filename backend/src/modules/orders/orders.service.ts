@@ -170,7 +170,7 @@ export class OrdersService {
     return mapOrderResponse(created);
   }
 
-  async update(id: string, companyId: string, dto: UpdateOrderDto) {
+  async update(id: string, companyId: string, dto: UpdateOrderDto, userId?: string) {
     const order = await this.prisma.order.findFirst({
       where: { id, companyId },
     });
@@ -192,7 +192,10 @@ export class OrdersService {
       notes: rest.notes,
       internalNotes: rest.internalNotes,
     };
-    // updatedByUserId wird aus dem Controller mitgegeben wenn verfügbar
+    // updatedByUserId setzen wenn userId übergeben und Status oder andere Felder geändert werden
+    if (userId) {
+      baseData.updatedByUserId = userId;
+    }
 
     // Undefinierte Felder entfernen (kein unnötiger Überschreiben)
     Object.keys(baseData).forEach((k) => baseData[k] === undefined && delete baseData[k]);

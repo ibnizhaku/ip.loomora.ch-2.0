@@ -59,7 +59,7 @@ export class OrdersController {
     @Body() dto: UpdateOrderDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.ordersService.update(id, user.companyId, dto);
+    return this.ordersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Patch(':id')
@@ -70,7 +70,7 @@ export class OrdersController {
     @Body() dto: UpdateOrderDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.ordersService.update(id, user.companyId, dto);
+    return this.ordersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/create-invoice')
