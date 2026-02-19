@@ -514,6 +514,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     vatAmount: totalVat,
     total,
     notes,
+    ...(useCustomDeliveryAddress && deliveryAddress.street ? { deliveryAddress } : {}),
     ...(type === 'quote' && validDays ? {
       validUntil: (() => {
         const d = new Date(documentDate || new Date());
@@ -521,7 +522,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
         return d.toISOString().split("T")[0];
       })(),
     } : {}),
-  }), [type, selectedCustomer, positions, subtotal, totalVat, total, notes, companyData, documentDate, validDays]);
+  }), [type, selectedCustomer, positions, subtotal, totalVat, total, notes, companyData, documentDate, validDays, useCustomDeliveryAddress, deliveryAddress]);
 
   return (
     <div className="space-y-6">
@@ -572,7 +573,63 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
               <CardTitle>Kunde</CardTitle>
             </CardHeader>
             <CardContent>
-              {selectedCustomer ? (
+              {/* Customer Dialog – always in DOM so it works for both select & change */}
+              <Dialog open={customerDialogOpen} onOpenChange={setCustomerDialogOpen}>
+                {!selectedCustomer && (
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <Search className="h-4 w-4" />
+                      Kunde auswählen...
+                    </Button>
+                  </DialogTrigger>
+                )}
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Kunde auswählen</DialogTitle>
+                    <DialogDescription>Suchen und wählen Sie einen Kunden aus der Liste.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Name, Kontakt oder UID suchen..."
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto space-y-2">
+                      {filteredCustomers.map((customer) => (
+                        <div
+                          key={customer.id}
+                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            setCustomerDialogOpen(false);
+                          }}
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                            <Building2 className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{(customer as any).companyName || customer.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {customer.email} • {customer.city || customer.street}
+                            </p>
+                            {customer.vatNumber && (
+                              <p className="text-xs font-mono text-muted-foreground">
+                                {customer.vatNumber}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {selectedCustomer && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -601,59 +658,6 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                     Ändern
                   </Button>
                 </div>
-              ) : (
-                <Dialog open={customerDialogOpen} onOpenChange={setCustomerDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start gap-2">
-                      <Search className="h-4 w-4" />
-                      Kunde auswählen...
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Kunde auswählen</DialogTitle>
-                      <DialogDescription>Suchen und wählen Sie einen Kunden aus der Liste.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          placeholder="Name, Kontakt oder UID suchen..."
-                          value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto space-y-2">
-                        {filteredCustomers.map((customer) => (
-                          <div
-                            key={customer.id}
-                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted cursor-pointer"
-                            onClick={() => {
-                              setSelectedCustomer(customer);
-                              setCustomerDialogOpen(false);
-                            }}
-                          >
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                              <Building2 className="h-5 w-5 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium">{(customer as any).companyName || customer.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {customer.email} • {customer.city || customer.street}
-                              </p>
-                              {customer.vatNumber && (
-                                <p className="text-xs font-mono text-muted-foreground">
-                                  {customer.vatNumber}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               )}
             </CardContent>
           </Card>
