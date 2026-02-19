@@ -114,7 +114,7 @@ export class MailService {
     });
 
     // PDF generieren falls documentId und documentType vorhanden
-    const attachments: nodemailer.Attachment[] = [];
+    const attachments: { filename: string; content: Buffer; contentType: string }[] = [];
     if (dto.documentId && dto.documentType) {
       try {
         const { pdfBuffer, filename } = await this.generateDocumentPdf(
