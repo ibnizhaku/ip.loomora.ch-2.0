@@ -362,8 +362,19 @@ const InvoiceDetail = () => {
     }
   };
 
-  const handlePrint = () => {
-    const blobUrl = getSalesDocumentPDFBlobUrl(pdfData);
+  const handlePrint = async () => {
+    let blobUrl: string;
+    const qrData = buildQrInvoiceData();
+    if (qrData) {
+      // Use QR invoice PDF (2 pages) for printing
+      const dataUrl = await generateSwissQRInvoicePDFDataUrl(qrData);
+      // Convert data URL to blob URL
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      blobUrl = URL.createObjectURL(blob);
+    } else {
+      blobUrl = getSalesDocumentPDFBlobUrl(pdfData);
+    }
     const printWindow = window.open(blobUrl);
     if (printWindow) {
       printWindow.onload = () => {
@@ -779,6 +790,14 @@ const InvoiceDetail = () => {
       <SendEmailModal
         open={emailModalOpen}
         onClose={() => setEmailModalOpen(false)}
+        onSuccess={async () => {
+          if (invoiceData.status === "Entwurf") {
+            try {
+              await sendInvoiceAction.mutateAsync(id || "");
+              toast.success("Status automatisch auf 'Versendet' gesetzt");
+            } catch { /* ignore */ }
+          }
+        }}
         documentType="invoice"
         documentId={id || ''}
         documentNumber={invoiceData.id}

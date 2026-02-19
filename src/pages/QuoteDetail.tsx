@@ -390,9 +390,23 @@ const QuoteDetail = () => {
                 <Copy className="h-4 w-4 mr-2" />
                 Duplizieren
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.print()}>
+              <DropdownMenuItem onClick={() => {
+                import("@/lib/pdf/sales-document").then(m => {
+                  const blobUrl = m.getSalesDocumentPDFBlobUrl(pdfData);
+                  const printWindow = window.open(blobUrl);
+                  if (printWindow) {
+                    printWindow.onload = () => {
+                      printWindow.print();
+                      setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+                    };
+                  } else {
+                    URL.revokeObjectURL(blobUrl);
+                    toast.error("Popup wurde blockiert");
+                  }
+                });
+              }}>
                 <Printer className="h-4 w-4 mr-2" />
-                Drucken
+                PDF drucken
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/quotes/${id}/edit`)}>
                 <Edit className="h-4 w-4 mr-2" />

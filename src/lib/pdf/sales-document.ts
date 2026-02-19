@@ -60,6 +60,7 @@ export interface SalesDocumentData {
   reference?: string;
   orderNumber?: string;
   projectNumber?: string;
+  createdBy?: string;
   
   company: CompanyInfo;
   customer: CustomerInfo;
@@ -209,6 +210,9 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
   }
   if (data.reference) {
     metaLines.push(`Referenz: ${data.reference}`);
+  }
+  if (data.createdBy) {
+    metaLines.push(`Erstellt von: ${data.createdBy}`);
   }
   
   metaLines.forEach((line, idx) => {

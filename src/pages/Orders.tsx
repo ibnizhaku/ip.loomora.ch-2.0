@@ -55,6 +55,7 @@ interface OrderRaw {
   id: string;
   number: string;
   customer?: { id: string; name: string; companyName?: string };
+  project?: { id: string; name: string; number?: string };
   quote?: { id: string; number: string };
   total?: number;
   subtotal?: number;
@@ -71,6 +72,7 @@ interface Order {
   number: string;
   client: string;
   clientId?: string;
+  project?: string;
   quoteNumber?: string;
   amount: number;
   status: string;
@@ -104,6 +106,7 @@ function mapOrder(raw: OrderRaw): Order {
     number: raw.number || "",
     client: raw.customer?.companyName || raw.customer?.name || "–",
     clientId: raw.customer?.id,
+    project: raw.project?.name,
     quoteNumber: raw.quote?.number,
     amount: Number(raw.total || raw.subtotal || 0),
     status,
@@ -475,6 +478,7 @@ export default function Orders() {
               <TableRow className="hover:bg-transparent">
                 <TableHead>Auftrag</TableHead>
                 <TableHead>Kunde</TableHead>
+                <TableHead>Projekt</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Fortschritt</TableHead>
                 <TableHead>Priorität</TableHead>
@@ -507,6 +511,7 @@ export default function Orders() {
                       </div>
                     </TableCell>
                     <TableCell>{order.client}</TableCell>
+                    <TableCell className="text-muted-foreground">{order.project || '–'}</TableCell>
                     <TableCell>
                       <Badge className={cn("gap-1", sCfg.color)}>
                         <StatusIcon className="h-3 w-3" />

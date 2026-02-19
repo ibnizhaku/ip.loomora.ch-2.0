@@ -50,13 +50,14 @@ interface DeliveryNoteRaw {
   number: string;
   customer?: { id: string; name: string; companyName?: string };
   order?: { id: string; number: string };
+  project?: { id: string; name: string };
+  createdByUser?: { id: string; name: string; firstName?: string; lastName?: string };
   status: string;
   _count?: { items: number };
   createdAt?: string;
   deliveryDate?: string;
   shippingAddress?: string;
-  carrier?: string;
-  trackingNumber?: string;
+  deliveryAddress?: { street?: string; zipCode?: string; city?: string; company?: string };
 }
 
 interface DeliveryNote {
@@ -64,13 +65,13 @@ interface DeliveryNote {
   number: string;
   client: string;
   orderNumber: string;
+  project?: string;
+  createdBy?: string;
   status: string;
   items: number;
   createdDate: string;
   deliveryDate: string;
   address: string;
-  carrier?: string;
-  trackingNumber?: string;
 }
 
 function mapDeliveryNote(raw: DeliveryNoteRaw): DeliveryNote {
@@ -81,11 +82,24 @@ function mapDeliveryNote(raw: DeliveryNoteRaw): DeliveryNote {
   else if (s === "DELIVERED") status = "delivered";
   else if (s === "PREPARED" || s === "DRAFT") status = "prepared";
 
+  // Format delivery address
+  const addr = raw.deliveryAddress
+    ? [raw.deliveryAddress.company, raw.deliveryAddress.street, [raw.deliveryAddress.zipCode, raw.deliveryAddress.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+    : raw.shippingAddress || "–";
+
+  const userName = raw.createdByUser
+    ? (raw.createdByUser.firstName && raw.createdByUser.lastName
+        ? `${raw.createdByUser.firstName} ${raw.createdByUser.lastName}`
+        : raw.createdByUser.name)
+    : undefined;
+
   return {
     id: raw.id,
     number: raw.number || "",
     client: raw.customer?.companyName || raw.customer?.name || "–",
     orderNumber: raw.order?.number || "–",
+    project: raw.project?.name,
+    createdBy: userName,
     status,
     items: raw._count?.items ?? 0,
     createdDate: raw.createdAt
@@ -94,9 +108,7 @@ function mapDeliveryNote(raw: DeliveryNoteRaw): DeliveryNote {
     deliveryDate: raw.deliveryDate
       ? new Date(raw.deliveryDate).toLocaleDateString("de-CH")
       : "–",
-    address: raw.shippingAddress || "–",
-    carrier: raw.carrier,
-    trackingNumber: raw.trackingNumber,
+    address: addr,
   };
 }
 
@@ -333,9 +345,9 @@ export default function DeliveryNotes() {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>Lieferung: {note.deliveryDate}</span>
                     </div>
-                    {note.trackingNumber && (
-                      <div className="text-xs font-mono text-muted-foreground">
-                        Tracking: {note.trackingNumber.slice(0, 15)}...
+                {note.project && (
+                      <div className="text-xs text-muted-foreground">
+                        Projekt: {note.project}
                       </div>
                     )}
                   </div>
@@ -361,9 +373,10 @@ export default function DeliveryNotes() {
               <TableRow className="hover:bg-transparent">
                 <TableHead>Lieferschein</TableHead>
                 <TableHead>Kunde</TableHead>
+                <TableHead>Projekt</TableHead>
                 <TableHead>Lieferadresse</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Tracking</TableHead>
+                <TableHead>Erstellt von</TableHead>
                 <TableHead>Lieferdatum</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -393,6 +406,7 @@ export default function DeliveryNotes() {
                       </div>
                     </TableCell>
                     <TableCell>{note.client}</TableCell>
+                    <TableCell className="text-muted-foreground">{note.project || '–'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -405,14 +419,8 @@ export default function DeliveryNotes() {
                         {sCfg.label}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {note.trackingNumber ? (
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {note.trackingNumber.slice(0, 10)}...
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                    <TableCell className="text-muted-foreground text-sm">
+                      {note.createdBy || '–'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {note.deliveryDate}

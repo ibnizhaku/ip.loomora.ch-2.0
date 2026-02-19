@@ -29,6 +29,7 @@ export type DocumentType =
 interface SendEmailModalProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   documentType: DocumentType;
   documentId: string;
   documentNumber?: string;
@@ -67,6 +68,7 @@ function getDefaultMessage(type: DocumentType, number?: string, company?: string
 export function SendEmailModal({
   open,
   onClose,
+  onSuccess,
   documentType,
   documentId,
   documentNumber,
@@ -129,6 +131,7 @@ export function SendEmailModal({
     },
     onSuccess: () => {
       toast.success("E-Mail erfolgreich versendet");
+      onSuccess?.();
       onClose();
     },
     onError: (err: Error & { statusCode?: number }) => {

@@ -573,7 +573,7 @@ const Reminders = () => {
                               <Eye className="h-4 w-4 mr-2" />
                               Anzeigen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => toast.success("PDF wird heruntergeladen...")}>
+                            <DropdownMenuItem onSelect={() => import("@/lib/api").then(m => m.downloadPdf("reminders", reminder.id, `Mahnung-${reminder.displayNumber}.pdf`))}>
                               <Download className="h-4 w-4 mr-2" />
                               PDF herunterladen
                             </DropdownMenuItem>
@@ -706,7 +706,7 @@ const Reminders = () => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 Anzeigen
                               </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => toast.success("PDF wird heruntergeladen...")}>
+                              <DropdownMenuItem onSelect={() => import("@/lib/api").then(m => m.downloadPdf("reminders", reminder.id, `Mahnung-${reminder.displayNumber}.pdf`))}>
                                 <Download className="h-4 w-4 mr-2" />
                                 PDF herunterladen
                               </DropdownMenuItem>
@@ -717,10 +717,6 @@ const Reminders = () => {
                                   {(levelConfig[Math.min(reminder.level + 1, 5)] || levelConfig[1]).label} senden
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onSelect={() => toast.success("Kunde wird angerufen...")}>
-                                <Phone className="h-4 w-4 mr-2" />
-                                Anrufen
-                              </DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => handleExtendDeadline(reminder)}>
                                 <Calendar className="h-4 w-4 mr-2" />
                                 Zahlungsfrist verlängern
