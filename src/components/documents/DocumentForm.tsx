@@ -15,6 +15,7 @@ import {
   CreditCard,
   Info,
   Loader2,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,6 +130,16 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [documentDate, setDocumentDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+
+  // Delivery address state
+  const [useCustomDeliveryAddress, setUseCustomDeliveryAddress] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState({
+    company: "",
+    street: "",
+    zipCode: "",
+    city: "",
+    country: "CH",
+  });
 
   // Read query params for context-sensitive creation
   const urlCustomerId = defaultCustomerId || searchParams.get("customerId") || undefined;
@@ -405,6 +416,11 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     if (urlQuoteId) payload.quoteId = urlQuoteId;
     if (urlInvoiceId) payload.invoiceId = urlInvoiceId;
 
+    // Delivery address
+    if (useCustomDeliveryAddress && deliveryAddress.street) {
+      payload.deliveryAddress = deliveryAddress;
+    }
+
     // Type-specific fields
     if (type === "quote") {
       payload.issueDate = documentDate;
@@ -632,7 +648,115 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
             </CardContent>
           </Card>
 
+          {/* Delivery Address */}
+          {(type === "quote" || type === "order" || type === "delivery-note") && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Lieferadresse
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {useCustomDeliveryAddress ? "Abweichende Adresse" : "= Kundenadresse"}
+                    </span>
+                    <Switch
+                      checked={useCustomDeliveryAddress}
+                      onCheckedChange={(checked) => {
+                        setUseCustomDeliveryAddress(checked);
+                        // Pre-fill with customer address when toggling on
+                        if (checked && selectedCustomer) {
+                          setDeliveryAddress({
+                            company: selectedCustomer.companyName || selectedCustomer.name || "",
+                            street: selectedCustomer.street || "",
+                            zipCode: selectedCustomer.zipCode || "",
+                            city: selectedCustomer.city || "",
+                            country: "CH",
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              {!useCustomDeliveryAddress ? (
+                <CardContent>
+                  {selectedCustomer ? (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Building2 className="h-4 w-4 shrink-0" />
+                      <span>
+                        {selectedCustomer.name}
+                        {selectedCustomer.street && `, ${selectedCustomer.street}`}
+                        {selectedCustomer.city && `, ${selectedCustomer.zipCode} ${selectedCustomer.city}`}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Bitte zuerst einen Kunden auswählen.</p>
+                  )}
+                </CardContent>
+              ) : (
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Firma / Name</Label>
+                    <Input
+                      placeholder="Firma oder Empfängername"
+                      value={deliveryAddress.company}
+                      onChange={(e) => setDeliveryAddress((a) => ({ ...a, company: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Strasse und Hausnummer *</Label>
+                    <Input
+                      placeholder="z.B. Musterstrasse 12"
+                      value={deliveryAddress.street}
+                      onChange={(e) => setDeliveryAddress((a) => ({ ...a, street: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-2">
+                      <Label>PLZ *</Label>
+                      <Input
+                        placeholder="8000"
+                        value={deliveryAddress.zipCode}
+                        onChange={(e) => setDeliveryAddress((a) => ({ ...a, zipCode: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label>Ort *</Label>
+                      <Input
+                        placeholder="Zürich"
+                        value={deliveryAddress.city}
+                        onChange={(e) => setDeliveryAddress((a) => ({ ...a, city: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Land</Label>
+                    <Select
+                      value={deliveryAddress.country}
+                      onValueChange={(v) => setDeliveryAddress((a) => ({ ...a, country: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CH">Schweiz (CH)</SelectItem>
+                        <SelectItem value="DE">Deutschland (DE)</SelectItem>
+                        <SelectItem value="AT">Österreich (AT)</SelectItem>
+                        <SelectItem value="FR">Frankreich (FR)</SelectItem>
+                        <SelectItem value="IT">Italien (IT)</SelectItem>
+                        <SelectItem value="LI">Liechtenstein (LI)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          )}
+
           {/* Positions */}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Positionen</CardTitle>
