@@ -108,7 +108,7 @@ export class DeliveryNotesService {
           number,
           status,
           deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : new Date(),
-          deliveryAddress: dto.deliveryAddress,
+          deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
           notes: dto.notes,
           carrier: dto.carrier,
           trackingNumber: dto.trackingNumber,
@@ -238,7 +238,7 @@ export class DeliveryNotesService {
       data: {
         status: dto.status,
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-        deliveryAddress: dto.deliveryAddress,
+        deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
         notes: dto.notes,
         carrier: dto.carrier,
         trackingNumber: dto.trackingNumber,
