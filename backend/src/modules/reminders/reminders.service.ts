@@ -140,14 +140,15 @@ export class RemindersService {
     const fee = REMINDER_FEES[level] || 0;
     const totalWithFee = Number(invoice.totalAmount) + fee;
 
-    // Generate reminder number – atomischer Zähler (kein Race-Condition-Risiko)
+    // Generate reminder number – atomischer Counter via Raw SQL (reminderCounter Spalte)
     const year = new Date().getFullYear();
-    const updatedCompany = await this.prisma.company.update({
-      where: { id: companyId },
-      data: { reminderCounter: { increment: 1 } },
-      select: { reminderCounter: true },
-    });
-    const number = `MHN-${year}-${String(updatedCompany.reminderCounter).padStart(5, '0')}`;
+    const result = await this.prisma.$queryRaw<[{ reminderCounter: number }]>`
+      UPDATE companies SET "reminderCounter" = "reminderCounter" + 1
+      WHERE id = ${companyId}
+      RETURNING "reminderCounter"
+    `;
+    const counterValue = Number(result[0]?.reminderCounter ?? 1);
+    const number = `MHN-${year}-${String(counterValue).padStart(5, '0')}`;
 
     // Calculate due date (typically 10 days from now)
     const dueDate = dto.dueDate 
