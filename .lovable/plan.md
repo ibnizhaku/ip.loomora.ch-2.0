@@ -1,221 +1,271 @@
 
-# E-Mail Versand System – Frontend + Backend Prompt
+# Aufträge – Frontend-Verbesserungen & Backend-Prompt für Cursor
 
-## Ausgangslage (bestehender Code)
+## Übersicht der Änderungen
 
-**Was bereits existiert:**
-- Settings → E-Mail Sektion: SMTP-Formular mit Host, Port, User, Passwort, Absender-Name, Absender-Adresse – **aber statisch, keine API-Anbindung**
-- `sendEmail()` in `src/lib/api.ts`: Ruft direkt `POST /{entityType}/{entityId}/send` auf – ohne Modal, ohne Felder
-- Buttons in folgenden Seiten rufen `sendEmail()` direkt auf:
-  - `Invoices.tsx` (Tabelle + Karten) – inline `onSelect`
-  - `InvoiceDetail.tsx` – `handleSendEmail()`
-  - `Quotes.tsx` (Tabelle + Karten) – inline `onSelect`
-  - `QuoteDetail.tsx` – `handleSendEmail()` + "Nachfassen per E-Mail"
-  - `CreditNoteDetail.tsx` – inline Button
-  - `ReminderDetail.tsx` – inline Button
-  - `CreditNotes.tsx` – `handleSendEmail()` (toast-only, kein API-Call)
-- **Kein Modal vorhanden** – direkter API-Call oder Toast-Dummy
-- **Kein `useEmailAccount` Hook**
+Es gibt 6 konkrete Probleme, die behoben werden müssen:
 
----
-
-## Was geändert wird
-
-### PHASE 1 – FRONTEND
-
-#### 1. `src/hooks/use-email-account.ts` (NEU)
-Hook der `GET /mail/account` aufruft:
-```typescript
-export interface MailAccount {
-  id: string;
-  fromName: string;
-  fromEmail: string;
-  smtpHost: string;
-  isActive: boolean;
-}
-
-export function useEmailAccount() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['mail-account'],
-    queryFn: () => api.get<MailAccount>('/mail/account'),
-    retry: false,           // 404 = kein Account → kein Fehler-Toast
-    throwOnError: false,    // Graceful: wenn noch kein Account
-  });
-
-  return {
-    account: data,
-    hasEmailAccount: !!(data?.isActive),
-    fromEmail: data?.fromEmail ?? '',
-    fromName: data?.fromName ?? '',
-    isLoading,
-  };
-}
-```
-
-#### 2. `src/components/email/SendEmailModal.tsx` (NEU)
-Universelles Modal mit zwei Zuständen:
-
-**Zustand A – Kein Mail-Account konfiguriert:**
-```
-┌────────────────────────────────────────┐
-│ ⚠ Kein E-Mail-Konto konfiguriert      │
-│                                        │
-│ Sie haben noch kein E-Mail-Konto       │
-│ konfiguriert. Bitte gehen Sie zu       │
-│ Einstellungen → E-Mail.                │
-│                                        │
-│ [Zu Einstellungen]    [Abbrechen]      │
-└────────────────────────────────────────┘
-```
-
-**Zustand B – Mail-Account vorhanden:**
-```
-┌────────────────────────────────────────┐
-│ E-Mail senden                    [X]   │
-├────────────────────────────────────────┤
-│ Von     [info@firma.ch]  (readOnly)    │
-│ An      [kunde@example.com]            │
-│ CC      [optional]                     │
-│ BCC     [optional]                     │
-│ Betreff [Rechnung RE-2026-001 von...]  │
-│ ┌──────────────────────────────────┐   │
-│ │ Sehr geehrte Damen und Herren... │   │
-│ │                                  │   │
-│ └──────────────────────────────────┘   │
-├────────────────────────────────────────┤
-│                [Abbrechen] [Senden]    │
-└────────────────────────────────────────┘
-```
-
-Props:
-```typescript
-interface SendEmailModalProps {
-  open: boolean;
-  onClose: () => void;
-  documentType: 'invoice' | 'quote' | 'delivery-note' | 'reminder' | 'credit-note' | 'order';
-  documentId: string;
-  documentNumber?: string;    // z.B. "RE-2026-001"
-  defaultRecipient?: string;  // kunde@example.com
-  companyName?: string;       // Für Betreff + Nachricht
-}
-```
-
-Betreff-Generierung (automatisch):
-```
-invoice       → "Rechnung {number} von {companyName}"
-quote         → "Angebot {number} von {companyName}"
-delivery-note → "Lieferschein {number} von {companyName}"
-reminder      → "Zahlungserinnerung {number} von {companyName}"
-credit-note   → "Gutschrift {number} von {companyName}"
-order         → "Auftragsbestätigung {number} von {companyName}"
-```
-
-**Senden-Button:** In Phase 1 nur Dummy-Handler → `toast.success("E-Mail wird gesendet...")` + `onClose()`. Kein API-Call.
-
-#### 3. `src/pages/Settings.tsx` – E-Mail Sektion erweitern
-Der bestehende E-Mail-Tab (Zeile 1306–1548) hat bereits SMTP-Felder aber:
-- Felder sind statisch (keine State-Anbindung)
-- Kein `useSettings()` Hook angebunden
-- Kein `useUpdateSettings()` Mutation
-
-Erweiterung: State mit `useSettings()` laden, `useUpdateSettings()` beim Speichern aufrufen, `useTestSmtp()` beim "Verbindung testen" aufrufen. Dabei werden fehlende Felder ergänzt:
-- From Name → bereits als "Absender-Name" vorhanden ✓
-- From Email → bereits als "Absender-Adresse" vorhanden ✓
-- SMTP Host, Port, User, Passwort → bereits vorhanden ✓
-
-Neu: Felder mit echtem State verknüpfen + Save/Test Buttons funktional machen.
-
-#### 4. Buttons anpassen – alle betroffenen Dateien
-
-**Muster-Pattern:**
-```typescript
-// Statt:
-onSelect={async () => { await sendEmail('invoices', invoice.id); }}
-
-// Neu:
-const [emailModal, setEmailModal] = useState<{open: boolean; id: string; number: string; recipient?: string} | null>(null);
-
-onSelect={() => setEmailModal({ open: true, id: invoice.id, number: invoice.number, recipient: invoice.customer?.email })}
-
-// Am Ende der Komponente:
-{emailModal && (
-  <SendEmailModal
-    open={emailModal.open}
-    onClose={() => setEmailModal(null)}
-    documentType="invoice"
-    documentId={emailModal.id}
-    documentNumber={emailModal.number}
-    defaultRecipient={emailModal.recipient}
-  />
-)}
-```
-
-**Betroffene Dateien:**
-
-| Datei | Dokumenttyp | Email-Felder |
-|---|---|---|
-| `Invoices.tsx` | invoice | `invoice.number`, `invoice.customer?.email` |
-| `InvoiceDetail.tsx` | invoice | `invoice.number`, `invoice.customer?.email` |
-| `Quotes.tsx` | quote | `quote.number`, `quote.customer?.email` |
-| `QuoteDetail.tsx` | quote | `quote.number`, `quote.customer?.email` |
-| `CreditNotes.tsx` | credit-note | `note.id`, kein Email-Feld |
-| `CreditNoteDetail.tsx` | credit-note | `creditNote.number`, `creditNote.customer?.email` |
-| `ReminderDetail.tsx` | reminder | `reminder.number`, `reminder.customer?.email` |
-
-**Permission-Check** auf allen Send-Buttons:
-```typescript
-{canWrite('invoices') && (
-  <DropdownMenuItem onSelect={() => setEmailModal(...)}>
-    <Send className="h-4 w-4" /> Per E-Mail senden
-  </DropdownMenuItem>
-)}
-```
-
-#### 5. `src/lib/api.ts` – `sendEmail()` behalten
-Die Funktion bleibt unverändert für Phase 2 (echter API-Call). In Phase 1 wird sie nur nicht mehr direkt aufgerufen.
-
----
-
-## Geänderte Frontend-Dateien (vollständige Liste)
-
-```
-NEU:
-  src/hooks/use-email-account.ts
-  src/components/email/SendEmailModal.tsx
-
-GEÄNDERT:
-  src/pages/Settings.tsx          (E-Mail Sektion: State + API-Anbindung)
-  src/pages/Invoices.tsx          (Modal statt direkter sendEmail-Call)
-  src/pages/InvoiceDetail.tsx     (Modal statt direkter sendEmail-Call)
-  src/pages/Quotes.tsx            (Modal statt direkter sendEmail-Call)
-  src/pages/QuoteDetail.tsx       (Modal statt direkter sendEmail-Call)
-  src/pages/CreditNotes.tsx       (Modal statt Toast-Dummy)
-  src/pages/CreditNoteDetail.tsx  (Modal statt direkter sendEmail-Call)
-  src/pages/ReminderDetail.tsx    (Modal statt direkter sendEmail-Call)
-```
-
----
-
-## PHASE 2 – Backend Cursor Prompt
-
-Nach Fertigstellung des Frontends wird folgender vollständiger Cursor-Prompt generiert:
-
-**Enthält exakt:**
-1. Prisma-Migration: `UserMailAccount` Model mit AES-verschlüsseltem SMTP-Passwort
-2. `mail.module.ts`, `mail.service.ts`, `mail.controller.ts`
-3. 4 Endpoints: `GET /mail/account`, `POST /mail/account`, `POST /mail/test`, `POST /mail/send`
-4. Multi-Tenant Guards: `JwtAuthGuard + CompanyGuard + PermissionGuard`
-5. PDF-Attachment Pipeline via `pdf.service.ts`
-6. Nodemailer SMTP-Versand
-7. AuditLog-Eintrag `MAIL_SENT`
-8. Idempotentes Prisma-Migration-Script
+1. **Pflicht-Projekt** beim Auftrag erstellen (mit Toast-Meldung)
+2. **Datum-Synchronisation** im PDF (Datum aus Formular → PDF-Vorschau und Download)
+3. **3-Punkte-Dropdown** in OrderDetail: Duplizieren und Stornieren funktionieren nicht
+4. **Lieferschein-Dialog** mit Positionsauswahl (statt direkte Weiterleitung auf neue Seite)
+5. **Fortschrittsbalken-Synchronisation** zwischen Auftragsübersicht und Detailseite
+6. **Lieferadresse** in OrderDetail anzeigen (ist schon im Formular vorhanden, aber fehlt in der Detailansicht)
 
 ---
 
 ## Technische Details
 
-- `SendEmailModal` nutzt bestehende Radix Dialog-Komponente (`src/components/ui/dialog.tsx`)
-- `useEmailAccount` nutzt `@tanstack/react-query` mit `throwOnError: false` – 404 erzeugt keinen globalen Error-Toast
-- Kein neues Design, keine neuen Bibliotheken
-- `usePermissions()` bereits in allen Seiten importiert
-- Settings E-Mail-Tab ruft `useSettings()` + `useUpdateSettings()` + `useTestSmtp()` aus bestehenden Hooks auf
+### 1. Pflicht-Projekt für Aufträge (DocumentForm.tsx)
+
+In `handleSave()` ist bei type `"quote"` kein Projekt-Check vorhanden, und bei `"order"` auch nicht. Der Fix:
+
+```
+// In handleSave(), direkt nach dem Kunden-Check:
+if ((type === "order" || type === "quote") && !selectedProjectId) {
+  toast.error("Bitte wählen Sie ein Projekt aus");
+  return;
+}
+```
+
+Zusätzlich: Das Projekt-Dropdown im Sidebar bekommt für `order` und `quote` ein Pflicht-Label (kein „optional" mehr).
+
+---
+
+### 2. Datum-Synchronisation im PDF
+
+**Problem in OrderDetail.tsx:** Das `pdfData`-Objekt nutzt `orderData.createdAt` (welches das formatierte Datum ist), aber das wird aus `formatDate()` bezogen welches bereits `toLocaleDateString()` aufgerufen hat – das PDF erwartet aber ein ISO-Datum.
+
+**Fix in OrderDetail.tsx:**
+```
+// Direkt das rawOrder.orderDate oder rawOrder.date verwenden, nicht das formatierte
+date: rawOrder?.orderDate || rawOrder?.date || rawOrder?.createdAt || new Date().toISOString(),
+```
+
+---
+
+### 3. Duplizieren & Stornieren in OrderDetail.tsx
+
+Aktuell zeigen beide Menüpunkte nur `toast.info(...)` – keine echte Aktion. 
+
+**Fixes:**
+- **Duplizieren:** Neuen Hook `useCreateOrder` aufrufen mit den aktuellen Bestelldaten (Items, Customer, Project), dann zu `/orders/${newOrder.id}` navigieren
+- **Stornieren:** API-Aufruf `PATCH /orders/:id/status` mit `status: "CANCELLED"` via `useUpdateOrder` oder direktem API-Call, dann Query invalidieren
+
+Konkret in `OrderDetail.tsx`:
+```tsx
+// Import hinzufügen
+import { useCreateOrder, useUpdateOrder } from "@/hooks/use-sales";
+
+// Hooks instanziieren
+const createOrder = useCreateOrder();
+const updateOrder = useUpdateOrder();
+
+// handleDuplicate
+const handleDuplicate = async () => {
+  const dup = await createOrder.mutateAsync({
+    customerId: rawOrder.customerId,
+    projectId: rawOrder.projectId,
+    notes: rawOrder.notes,
+    orderDate: new Date().toISOString().split("T")[0],
+    items: rawOrder.items.map((item: any, idx: number) => ({
+      position: idx + 1,
+      description: item.description,
+      quantity: item.quantity,
+      unit: item.unit,
+      unitPrice: item.unitPrice,
+    })),
+  });
+  toast.success("Auftrag wurde dupliziert");
+  navigate(`/orders/${dup.id}`);
+};
+
+// handleCancel
+const handleCancel = async () => {
+  if (!confirm("Auftrag wirklich stornieren?")) return;
+  await updateOrder.mutateAsync({ id: id!, data: { status: "CANCELLED" } });
+  toast.success("Auftrag wurde storniert");
+};
+```
+
+---
+
+### 4. Lieferschein-Dialog mit Positionsauswahl
+
+**Ist-Zustand:** Klick auf „Lieferschein erstellen" → direkter API-Call `POST /delivery-notes/from-order/:id` → Weiterleitung.
+
+**Soll-Zustand:** Klick → Popup-Dialog öffnet sich → alle Positionen des Auftrags werden mit Checkboxen angezeigt → User wählt welche Positionen geliefert werden sollen → Klick auf „Lieferschein erstellen" im Dialog → API-Call mit gewählten Positionen → Weiterleitung zur neuen Lieferschein-Detailseite.
+
+**Neue Komponente `CreateDeliveryNoteDialog.tsx`:**
+```tsx
+// Props: open, onOpenChange, order (rawOrder), onCreated
+// State: selectedItemIds (string[]) - alle vorselektiert
+// UI: Dialog mit Tabelle der Positionen + Checkboxen
+// Button: "Lieferschein erstellen" → POST /delivery-notes/from-order/:id mit body { itemIds: [...] }
+```
+
+Der bestehende Hook `useCreateDeliveryNoteFromOrder` wird erweitert, um `itemIds` im Body zu übergeben:
+```ts
+mutationFn: ({ orderId, itemIds }: { orderId: string; itemIds?: string[] }) => 
+  api.post<DeliveryNote>(`/delivery-notes/from-order/${orderId}`, { itemIds }),
+```
+
+In `OrderDetail.tsx` wird der Dialog-State eingebaut:
+```tsx
+const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+// Button "Lieferschein erstellen" öffnet Dialog, kein direkter API-Call mehr
+```
+
+---
+
+### 5. Fortschrittsbalken-Synchronisation
+
+**Problem:** In `Orders.tsx` (`mapOrder` Funktion) wird der Progress so berechnet:
+```ts
+progress: s === "CONFIRMED" ? 50 : s === "CANCELLED" ? 0 : s === "DRAFT" ? 0 : 25,
+// → CONFIRMED = 50%, SENT = 25%
+```
+
+In `OrderDetail.tsx` (`mapOrderToView` Funktion):
+```ts
+progress: order.status === "CONFIRMED" ? 100 : order.status === "SENT" ? 50 : 0,
+// → CONFIRMED = 100%, SENT = 50%
+```
+
+**Fix:** Beide auf dieselbe Logik vereinheitlichen. Die sinnvollste Logik basierend auf dem ERP-Workflow:
+
+```ts
+// Einheitliche Funktion:
+function getOrderProgress(status: string): number {
+  switch (status) {
+    case "DRAFT": return 10;
+    case "SENT": return 33;
+    case "CONFIRMED": return 66;
+    case "CANCELLED": return 0;
+    default: return 10;
+  }
+}
+// 100% = alle Lieferscheine geliefert + Rechnung bezahlt (Phase 2)
+```
+
+Diese Funktion wird in beiden Dateien (`Orders.tsx` und `OrderDetail.tsx`) genutzt.
+
+---
+
+### 6. Lieferadresse in OrderDetail anzeigen
+
+Die Lieferadresse (`deliveryAddress`) ist im `rawOrder` als JSON-Objekt vorhanden (bereits backend-seitig gespeichert). Sie muss in der Detailseite in der Sidebar angezeigt werden – analog zur Kunden-Karte.
+
+In `mapOrderToView()`:
+```ts
+deliveryAddress: order.deliveryAddress || null,
+```
+
+In der Sidebar von `OrderDetail.tsx` nach der Kunden-Karte:
+```tsx
+{orderData.deliveryAddress && (
+  <Card>
+    <CardHeader><CardTitle className="text-base">Lieferadresse</CardTitle></CardHeader>
+    <CardContent>
+      <div className="flex items-start gap-2 text-sm">
+        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+        <div>
+          {orderData.deliveryAddress.company && <p className="font-medium">{orderData.deliveryAddress.company}</p>}
+          <p>{orderData.deliveryAddress.street}</p>
+          <p>{orderData.deliveryAddress.zipCode} {orderData.deliveryAddress.city}</p>
+          <p>{orderData.deliveryAddress.country}</p>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)}
+```
+
+---
+
+## Dateien, die geändert werden
+
+| Datei | Änderung |
+|---|---|
+| `src/components/documents/DocumentForm.tsx` | Pflicht-Projekt-Validierung + Label anpassen |
+| `src/pages/OrderDetail.tsx` | Datum-Fix, Duplizieren/Stornieren, Dialog-Integration, Lieferadresse |
+| `src/pages/Orders.tsx` | Fortschritt-Logik vereinheitlichen |
+| `src/hooks/use-delivery-notes.ts` | `useCreateDeliveryNoteFromOrder` mit `itemIds` erweitern |
+| `src/components/documents/CreateDeliveryNoteDialog.tsx` | **Neue Datei** – Dialog mit Positionsauswahl |
+
+---
+
+## Backend Prompt für Cursor
+
+```
+BACKEND AUFGABEN – Aufträge & Lieferscheine
+
+1. LIEFERSCHEIN AUS AUFTRAG MIT POSITIONSAUSWAHL
+   Route: POST /delivery-notes/from-order/:orderId
+   Body: { itemIds?: string[] }  // wenn leer → alle Positionen nehmen
+   
+   Logik in delivery-notes.service.ts:
+   - Auftrag inkl. items laden
+   - Wenn itemIds übergeben: nur diese items filtern
+   - Lieferschein erstellen mit gefilterten items
+   - Nummerierung: LS-{YEAR}-{counter.padStart(4, '0')}
+   - company.deliveryCounter++ in $transaction
+   - Response: Lieferschein mit items, customer, order included
+   
+   Prisma include im Response:
+   {
+     items: { orderBy: { position: 'asc' } },
+     customer: true,
+     order: { select: { id: true, number: true } }
+   }
+
+2. AUFTRAG DUPLIZIEREN
+   Route: POST /orders/:id/duplicate
+   
+   Logik in orders.service.ts:
+   - Original laden mit items
+   - Neuen Auftrag erstellen mit:
+     - status: 'DRAFT'
+     - date: new Date()
+     - customerId, projectId, notes vom Original
+     - items mit gleichen Feldern, aber neu position vergeben
+     - Nummerierung: AB-{YEAR}-{counter.padStart(4, '0')} via company.orderCounter++
+   - AuditLog eintrag: action 'DUPLICATED', entityId = neue ID
+   - Response: neuer Auftrag mit allen Relations
+
+3. AUFTRAG STORNIEREN
+   Route: PATCH /orders/:id/status
+   Status: CANCELLED
+   
+   Prüfen ob Route bereits existiert in orders.ts (server/src/routes/orders.ts Zeile ~35).
+   Wenn ja, sicherstellen dass CANCELLED erlaubt ist.
+   Wenn nein, Route ergänzen.
+   
+   AuditLog Eintrag bei Stornierung.
+
+4. PDF SERVICE – DATUM KORREKT ÜBERNEHMEN
+   In pdf.service.ts:
+   - Für Aufträge: date = order.date || order.orderDate (als ISO-String, nicht formatiert)
+   - Formatierung zu de-CH erst beim Rendering: new Date(date).toLocaleDateString('de-CH', {...})
+   - Titel für order type: 'AUFTRAGSBESTÄTIGUNG'
+
+5. DELIVERY NOTE – ITEMIDS IN PAYLOAD AKZEPTIEREN
+   Im delivery-notes-from-order Controller/Service:
+   - Body-Validierung: itemIds ist optionales string[]
+   - Wenn itemIds vorhanden: WHERE id IN itemIds beim item-Filter
+
+DATEN-INTEGRITÄT:
+- Alle neuen Routen: companyId aus request.user.companyId für Multi-Tenant-Sicherheit
+- Alle Zähler (orderCounter, deliveryCounter) in $transaction atomar inkrementieren
+- AuditLog für alle Status-Änderungen und Erstellungen
+```
+
+---
+
+## Reihenfolge der Implementierung
+
+1. `CreateDeliveryNoteDialog.tsx` erstellen (neue Komponente)
+2. `use-delivery-notes.ts` erweitern (Hook-Änderung)
+3. `OrderDetail.tsx` anpassen (Datum, Duplizieren, Stornieren, Dialog, Lieferadresse)
+4. `Orders.tsx` Fortschritt vereinheitlichen
+5. `DocumentForm.tsx` Pflicht-Projekt-Validierung
