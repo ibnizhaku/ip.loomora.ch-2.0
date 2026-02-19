@@ -105,8 +105,8 @@ export function useCreateDeliveryNoteFromOrder() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (orderId: string) => 
-      api.post<DeliveryNote>(`/delivery-notes/from-order/${orderId}`),
+    mutationFn: ({ orderId, itemIds }: { orderId: string; itemIds?: string[] }) => 
+      api.post<DeliveryNote>(`/delivery-notes/from-order/${orderId}`, { itemIds }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });

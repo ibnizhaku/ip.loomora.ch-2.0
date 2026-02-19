@@ -81,6 +81,16 @@ interface Order {
   progress: number;
 }
 
+function getOrderProgress(status: string): number {
+  switch (status?.toUpperCase()) {
+    case "DRAFT": return 10;
+    case "SENT": return 33;
+    case "CONFIRMED": return 66;
+    case "CANCELLED": return 0;
+    default: return 10;
+  }
+}
+
 function mapOrder(raw: OrderRaw): Order {
   const s = (raw.status || "DRAFT").toUpperCase();
   let status = "new";
@@ -105,7 +115,7 @@ function mapOrder(raw: OrderRaw): Order {
       ? new Date(raw.deliveryDate).toLocaleDateString("de-CH")
       : "–",
     items: raw._count?.items ?? 0,
-    progress: s === "CONFIRMED" ? 50 : s === "CANCELLED" ? 0 : s === "DRAFT" ? 0 : 25,
+    progress: getOrderProgress(s),
   };
 }
 

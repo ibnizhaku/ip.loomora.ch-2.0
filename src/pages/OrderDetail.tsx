@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useOrder } from "@/hooks/use-sales";
+import { useOrder, useCreateOrder, useUpdateOrder } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
-import { useCreateDeliveryNoteFromOrder } from "@/hooks/use-delivery-notes";
 import { Loader2 } from "lucide-react";
 
 import { 
@@ -44,7 +43,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
+import { CreateDeliveryNoteDialog } from "@/components/documents/CreateDeliveryNoteDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+
+// Unified progress function (synced with Orders.tsx)
+function getOrderProgress(status: string): number {
+  switch (status?.toUpperCase()) {
+    case "DRAFT": return 10;
+    case "SENT": return 33;
+    case "CONFIRMED": return 66;
+    case "CANCELLED": return 0;
+    default: return 10;
+  }
+}
 
 // Status mapping from backend enum to German display labels
 const statusLabelMap: Record<string, string> = {
@@ -65,11 +76,13 @@ function mapOrderToView(order: any) {
   const items = order.items || [];
   const total = Number(order.total) || 0;
   const paidAmount = Number(order.paidAmount) || 0;
+  const rawStatus = order.status || "DRAFT";
 
   return {
     id: order.number || order.id,
-    status: statusLabelMap[order.status] || order.status || "Neu",
-    progress: order.status === "CONFIRMED" ? 100 : order.status === "SENT" ? 50 : 0,
+    rawStatus,
+    status: statusLabelMap[rawStatus] || rawStatus || "Neu",
+    progress: getOrderProgress(rawStatus),
     customer: {
       id: order.customer?.id,
       name: order.customer?.name || "Unbekannt",
@@ -81,9 +94,10 @@ function mapOrderToView(order: any) {
     createdAt: formatDate(order.orderDate || order.createdAt),
     deliveryDate: formatDate(order.deliveryDate),
     positions: items.map((item: any, idx: number) => ({
-      id: item.id || idx + 1,
+      id: item.id || String(idx + 1),
       description: item.description || "",
       quantity: item.quantity || 0,
+      unit: item.unit || "Stk",
       status: "In Arbeit",
       progress: 0,
     })),
@@ -91,10 +105,12 @@ function mapOrderToView(order: any) {
     paid: paidAmount,
     milestones: [] as { name: string; date: string; completed: boolean }[],
     deliveries: (order.deliveryNotes || []).map((dn: any) => ({
-      id: dn.number || dn.id,
+      id: dn.id,
+      number: dn.number || dn.id,
       date: formatDate(dn.deliveryDate || dn.createdAt),
       status: dn.status === "DELIVERED" ? "Geliefert" : dn.status === "SHIPPED" ? "Versendet" : "Entwurf",
     })),
+    deliveryAddress: order.deliveryAddress || null,
   };
 }
 
@@ -116,9 +132,10 @@ const OrderDetail = () => {
   const navigate = useNavigate();
   const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
   const { data: companyData } = useCompany();
-  const createDeliveryNoteFromOrder = useCreateDeliveryNoteFromOrder();
-
+  const createOrder = useCreateOrder();
+  const updateOrder = useUpdateOrder();
 
   if (isLoading) {
     return (
@@ -142,12 +159,12 @@ const OrderDetail = () => {
   const status = statusConfig[orderData.status] || statusConfig["Neu"];
   const StatusIcon = status.icon;
 
-  // Prepare PDF data
+  // Prepare PDF data - use raw ISO dates, not formatted strings
   const pdfData: SalesDocumentData = {
     type: 'order',
     number: orderData.id,
-    date: orderData.createdAt,
-    deliveryDate: orderData.deliveryDate,
+    date: (rawOrder as any)?.orderDate || (rawOrder as any)?.date || (rawOrder as any)?.createdAt || new Date().toISOString().split("T")[0],
+    deliveryDate: (rawOrder as any)?.deliveryDate || undefined,
     reference: orderData.quote,
     company: {
       name: companyData?.name || "—",
@@ -169,9 +186,9 @@ const OrderDetail = () => {
       position: idx + 1,
       description: pos.description,
       quantity: pos.quantity,
-      unit: "Stk",
-      unitPrice: orderData.total / orderData.positions.length,
-      total: orderData.total / orderData.positions.length,
+      unit: pos.unit || "Stk",
+      unitPrice: orderData.positions.length > 0 ? orderData.total / orderData.positions.length : 0,
+      total: orderData.positions.length > 0 ? orderData.total / orderData.positions.length : 0,
     })),
     subtotal: orderData.total / 1.081,
     vatRate: 8.1,
@@ -186,17 +203,38 @@ const OrderDetail = () => {
     toast.success("PDF heruntergeladen");
   };
 
-  const handleCreateDeliveryNote = async () => {
+  const handleDuplicate = async () => {
     try {
-      const dn = await createDeliveryNoteFromOrder.mutateAsync(id || "");
-      toast.success("Lieferschein wurde erstellt");
-      navigate(`/delivery-notes/${dn.id}`);
+      const raw = rawOrder as any;
+      const dup = await createOrder.mutateAsync({
+        customerId: raw.customerId || raw.customer?.id,
+        projectId: raw.projectId,
+        notes: raw.notes,
+        orderDate: new Date().toISOString().split("T")[0],
+        items: (raw.items || []).map((item: any, idx: number) => ({
+          position: idx + 1,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+        })),
+      } as any);
+      toast.success("Auftrag wurde dupliziert");
+      navigate(`/orders/${(dup as any).id}`);
     } catch {
-      // Fallback: manuell mit vorausgefüllten Daten
-      navigate(`/delivery-notes/new?orderId=${id}&customerId=${orderData.customer.id || ''}`);
+      toast.error("Fehler beim Duplizieren");
     }
   };
 
+  const handleCancel = async () => {
+    if (!confirm("Auftrag wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+    try {
+      await updateOrder.mutateAsync({ id: id!, data: { status: "CANCELLED" } as any });
+      toast.success("Auftrag wurde storniert");
+    } catch {
+      toast.error("Fehler beim Stornieren");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -229,8 +267,8 @@ const OrderDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={handleCreateDeliveryNote} disabled={createDeliveryNoteFromOrder.isPending}>
-            {createDeliveryNoteFromOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Truck className="h-4 w-4 mr-2" />}
+          <Button variant="outline" size="sm" onClick={() => setShowDeliveryDialog(true)}>
+            <Truck className="h-4 w-4 mr-2" />
             Lieferschein erstellen
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/new?orderId=${id}&customerId=${orderData.customer.id || ''}`)}>
@@ -249,8 +287,13 @@ const OrderDetail = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => navigate(`/orders/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { toast.info("Auftrag wird dupliziert..."); }}>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Auftrag wird storniert...")}>Stornieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDuplicate} disabled={createOrder.isPending}>
+                {createOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Duplizieren
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={handleCancel} disabled={updateOrder.isPending}>
+                Stornieren
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -337,10 +380,8 @@ const OrderDetail = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle>Lieferscheine</CardTitle>
-              <Button size="sm" onClick={handleCreateDeliveryNote} disabled={createDeliveryNoteFromOrder.isPending}>
-                {createDeliveryNoteFromOrder.isPending
-                  ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  : <Truck className="h-4 w-4 mr-2" />}
+              <Button size="sm" onClick={() => setShowDeliveryDialog(true)}>
+                <Truck className="h-4 w-4 mr-2" />
                 Lieferschein erstellen
               </Button>
             </CardHeader>
@@ -355,7 +396,7 @@ const OrderDetail = () => {
                           <Truck className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm hover:text-primary">{delivery.id}</p>
+                          <p className="font-medium text-sm hover:text-primary">{delivery.number}</p>
                           <p className="text-xs text-muted-foreground">{delivery.date}</p>
                         </div>
                       </div>
@@ -372,10 +413,8 @@ const OrderDetail = () => {
                   <Truck className="h-8 w-8 text-muted-foreground mb-2" />
                   <p className="text-sm font-medium">Noch kein Lieferschein vorhanden</p>
                   <p className="text-xs text-muted-foreground mt-1">Erstellen Sie den ersten Lieferschein für diesen Auftrag</p>
-                  <Button size="sm" className="mt-3" onClick={handleCreateDeliveryNote} disabled={createDeliveryNoteFromOrder.isPending}>
-                    {createDeliveryNoteFromOrder.isPending
-                      ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      : <Truck className="h-4 w-4 mr-2" />}
+                  <Button size="sm" className="mt-3" onClick={() => setShowDeliveryDialog(true)}>
+                    <Truck className="h-4 w-4 mr-2" />
                     Lieferschein erstellen
                   </Button>
                 </div>
@@ -412,6 +451,37 @@ const OrderDetail = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Delivery Address */}
+          {orderData.deliveryAddress && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Truck className="h-4 w-4" />
+                  Lieferadresse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="space-y-0.5">
+                    {orderData.deliveryAddress.company && (
+                      <p className="font-medium">{orderData.deliveryAddress.company}</p>
+                    )}
+                    {orderData.deliveryAddress.street && (
+                      <p>{orderData.deliveryAddress.street}</p>
+                    )}
+                    {(orderData.deliveryAddress.zipCode || orderData.deliveryAddress.city) && (
+                      <p>{orderData.deliveryAddress.zipCode} {orderData.deliveryAddress.city}</p>
+                    )}
+                    {orderData.deliveryAddress.country && orderData.deliveryAddress.country !== "CH" && (
+                      <p className="text-muted-foreground">{orderData.deliveryAddress.country}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Financial */}
           <Card>
@@ -470,6 +540,20 @@ const OrderDetail = () => {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Auftrag ${orderData.id}`}
+      />
+
+      {/* Create Delivery Note Dialog */}
+      <CreateDeliveryNoteDialog
+        open={showDeliveryDialog}
+        onOpenChange={setShowDeliveryDialog}
+        orderId={id || ""}
+        orderNumber={orderData.id}
+        items={orderData.positions.map((pos) => ({
+          id: pos.id,
+          description: pos.description,
+          quantity: pos.quantity,
+          unit: pos.unit,
+        }))}
       />
     </div>
   );
