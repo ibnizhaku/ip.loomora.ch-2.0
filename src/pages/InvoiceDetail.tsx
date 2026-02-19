@@ -50,7 +50,7 @@ import {
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
-import { generateSwissQRInvoicePDF, type QRInvoiceData } from "@/lib/pdf/swiss-qr-invoice";
+import { generateSwissQRInvoicePDF, validateQRReference, determineReferenceType, type QRInvoiceData } from "@/lib/pdf/swiss-qr-invoice";
 import { useInvoice } from "@/hooks/use-invoices";
 import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
@@ -239,6 +239,17 @@ const InvoiceDetail = () => {
     const hasIban = !!(companyData?.iban || companyData?.qrIban);
 
     if (qrRef && hasIban) {
+      const cleanRef = qrRef.replace(/\s/g, "");
+      const refType = determineReferenceType(companyData?.iban, companyData?.qrIban, cleanRef);
+
+      // Validate QRR reference
+      if (refType === "QRR" && !validateQRReference(cleanRef)) {
+        toast.error(
+          `QR-Referenz ungültig (${cleanRef.length} Stellen). Erwartet: 27 numerische Zeichen mit Mod10 Prüfziffer.`
+        );
+        return;
+      }
+
       try {
         const qrData: QRInvoiceData = {
           invoiceNumber: invoiceData.id,
@@ -250,9 +261,9 @@ const InvoiceDetail = () => {
           vatAmount: invoiceData.tax,
           subtotal: invoiceData.subtotal,
           iban: companyData?.iban || "",
-          qrIban: companyData?.qrIban || undefined,
-          reference: qrRef,
-          referenceType: companyData?.qrIban ? "QRR" : "SCOR",
+          qrIban: refType === "QRR" ? companyData?.qrIban || undefined : undefined,
+          reference: cleanRef,
+          referenceType: refType,
           additionalInfo: `Rechnung ${invoiceData.id}`,
           creditor: {
             name: companyData?.name || "",

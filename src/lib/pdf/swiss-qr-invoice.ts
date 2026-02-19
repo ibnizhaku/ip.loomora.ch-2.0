@@ -616,24 +616,65 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
 }
 
 // ============================================
-// Utility: Generate QR Reference Number
+// Mod10 Recursive (SIX Swiss Payment Standard)
 // ============================================
 
-export function generateQRReference(invoiceNumber: string): string {
-  // Extract numeric part and pad to 26 digits (leaving 1 for checksum)
-  const numericPart = invoiceNumber.replace(/\D/g, "").padStart(26, "0");
-  
-  // Calculate mod10 checksum (recursive)
+/**
+ * Calculates the check digit using the recursive Mod10 algorithm
+ * as specified by SIX Interbank Clearing.
+ * 
+ * Table: [0, 9, 4, 6, 8, 2, 7, 1, 3, 5]
+ */
+export function calculateMod10Recursive(numericString: string): number {
   const table = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
   let carry = 0;
+
+  for (const char of numericString) {
+    const digit = parseInt(char, 10);
+    if (isNaN(digit)) {
+      throw new Error(`Non-numeric character in QR reference base: "${char}"`);
+    }
+    carry = table[(carry + digit) % 10];
+  }
+
+  return (10 - carry) % 10;
+}
+
+/**
+ * Generates a 27-digit QR Reference Number (QRR).
+ * 26-digit numeric base + 1 check digit (recursive Mod10).
+ */
+export function generateQRReference(invoiceNumber: string): string {
+  const numericOnly = invoiceNumber.replace(/\D/g, "");
   
-  for (const digit of numericPart) {
-    carry = table[(carry + parseInt(digit, 10)) % 10];
+  if (numericOnly.length === 0) {
+    throw new Error("Invoice number must contain at least one digit");
   }
   
-  const checksum = (10 - carry) % 10;
+  const base = numericOnly.padStart(26, "0").substring(0, 26);
+  const checkDigit = calculateMod10Recursive(base);
   
-  return numericPart + checksum.toString();
+  return base + checkDigit.toString();
+}
+
+/**
+ * Validates a QR Reference (QRR) per SIX standard.
+ * - Exactly 27 numeric characters
+ * - Last digit = recursive Mod10 check digit of first 26
+ */
+export function validateQRReference(reference: string): boolean {
+  if (!reference) return false;
+  
+  const clean = reference.replace(/\s/g, "");
+  
+  if (clean.length !== 27) return false;
+  if (!/^\d{27}$/.test(clean)) return false;
+  
+  const base = clean.substring(0, 26);
+  const expectedCheckDigit = calculateMod10Recursive(base);
+  const actualCheckDigit = parseInt(clean[26], 10);
+  
+  return expectedCheckDigit === actualCheckDigit;
 }
 
 // ============================================
@@ -646,52 +687,29 @@ export function isQRIBAN(iban: string): boolean {
     return false;
   }
   
-  // QR-IBANs have IID 30000-31999
   const iid = parseInt(clean.substring(4, 9), 10);
   return iid >= 30000 && iid <= 31999;
 }
 
-// ============================================
-// Preview Data Generator (for demo)
-// ============================================
-
-export function createDemoQRInvoiceData(): QRInvoiceData {
-  return {
-    invoiceNumber: "RE-2024-0156",
-    invoiceDate: "15.01.2024",
-    dueDate: "14.02.2024",
-    currency: "CHF",
-    amount: 13262.55,
-    vatRate: 8.1,
-    vatAmount: 993.17,
-    subtotal: 12269.38,
-    iban: "CH93 0076 2011 6238 5295 7",
-    qrIban: "CH44 3199 9123 0008 8901 2",
-    reference: generateQRReference("RE-2024-0156"),
-    referenceType: "QRR",
-    additionalInfo: "Rechnung RE-2024-0156",
-    creditor: {
-      name: "Loomora Metallbau AG",
-      street: "Industriestrasse 15",
-      postalCode: "8005",
-      city: "Zürich",
-      country: "CH",
-    },
-    debtor: {
-      name: "Müller Bau GmbH",
-      street: "Bahnhofstrasse 10",
-      postalCode: "8001",
-      city: "Zürich",
-      country: "CH",
-    },
-    positions: [
-      { position: 1, description: "Stahlträger HEB 200", quantity: 50, unit: "lfm", unitPrice: 68.50, total: 3425.00 },
-      { position: 2, description: "Montagearbeit", quantity: 40, unit: "Std", unitPrice: 95.00, total: 3800.00 },
-      { position: 3, description: "Schweissarbeit", quantity: 25, unit: "Std", unitPrice: 115.00, total: 2875.00 },
-      { position: 4, description: "Anlieferung & Transport", quantity: 1, unit: "Pausch.", unitPrice: 2169.38, total: 2169.38 },
-    ],
-    orderNumber: "AU-2024-0078",
-    projectNumber: "PRJ-2024-042",
-    paymentTermDays: 30,
-  };
+/**
+ * Determines reference type based on IBAN data.
+ * QRR requires valid QR-IBAN + 27-digit numeric reference.
+ */
+export function determineReferenceType(
+  iban?: string | null,
+  qrIban?: string | null,
+  reference?: string | null
+): "QRR" | "SCOR" | "NON" {
+  if (qrIban && isQRIBAN(qrIban) && reference) {
+    const cleanRef = reference.replace(/\s/g, "");
+    if (/^\d{27}$/.test(cleanRef)) {
+      return "QRR";
+    }
+  }
+  
+  if (reference && reference.toUpperCase().startsWith("RF")) {
+    return "SCOR";
+  }
+  
+  return "NON";
 }
