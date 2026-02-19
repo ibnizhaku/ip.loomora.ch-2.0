@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from '../../common/crypto.service';
+import { PdfService } from '../../common/services/pdf.service';
 import { UpsertMailAccountDto, SendMailDto } from './dto/mail.dto';
 import { AuditAction, AuditModule } from '@prisma/client';
 
@@ -10,6 +11,7 @@ export class MailService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly pdfService: PdfService,
   ) {}
 
   async getAccount(userId: string, companyId: string) {
@@ -111,6 +113,28 @@ export class MailService {
       auth: { user: account.smtpUser, pass: password },
     });
 
+    // PDF generieren falls documentId und documentType vorhanden
+    const attachments: nodemailer.Attachment[] = [];
+    if (dto.documentId && dto.documentType) {
+      try {
+        const { pdfBuffer, filename } = await this.generateDocumentPdf(
+          dto.documentId,
+          dto.documentType,
+          companyId,
+        );
+        if (pdfBuffer) {
+          attachments.push({
+            filename,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          });
+        }
+      } catch (err) {
+        // PDF-Fehler loggen aber E-Mail trotzdem senden
+        console.warn(`[MailService] PDF-Generierung fehlgeschlagen: ${err?.message}`);
+      }
+    }
+
     await transporter.sendMail({
       from: `"${account.fromName}" <${account.fromEmail}>`,
       to: dto.to,
@@ -119,6 +143,7 @@ export class MailService {
       subject: dto.subject,
       text: dto.message,
       html: dto.message.replace(/\n/g, '<br>'),
+      attachments,
     });
 
     await this.prisma.auditLog.create({
@@ -134,6 +159,71 @@ export class MailService {
     });
 
     return { success: true, message: 'E-Mail erfolgreich versendet' };
+  }
+
+  private async generateDocumentPdf(
+    documentId: string,
+    documentType: string,
+    companyId: string,
+  ): Promise<{ pdfBuffer: Buffer; filename: string }> {
+    switch (documentType) {
+      case 'invoice': {
+        const doc = await this.prisma.invoice.findFirst({
+          where: { id: documentId, companyId },
+          include: { customer: true, items: true },
+        });
+        if (!doc) throw new NotFoundException('Rechnung nicht gefunden');
+        const pdfBuffer = await this.pdfService.generateInvoicePdf(doc);
+        return { pdfBuffer, filename: `Rechnung-${doc.number}.pdf` };
+      }
+      case 'quote': {
+        const doc = await this.prisma.quote.findFirst({
+          where: { id: documentId, companyId },
+          include: { customer: true, items: true },
+        });
+        if (!doc) throw new NotFoundException('Angebot nicht gefunden');
+        const pdfBuffer = await this.pdfService.generateQuotePdf(doc);
+        return { pdfBuffer, filename: `Angebot-${doc.number}.pdf` };
+      }
+      case 'order': {
+        const doc = await this.prisma.order.findFirst({
+          where: { id: documentId, companyId },
+          include: { customer: true, items: true },
+        });
+        if (!doc) throw new NotFoundException('Auftrag nicht gefunden');
+        const pdfBuffer = await this.pdfService.generateOrderPdf(doc);
+        return { pdfBuffer, filename: `Auftrag-${doc.number}.pdf` };
+      }
+      case 'delivery-note': {
+        const doc = await this.prisma.deliveryNote.findFirst({
+          where: { id: documentId, companyId },
+          include: { customer: true, items: true },
+        });
+        if (!doc) throw new NotFoundException('Lieferschein nicht gefunden');
+        const pdfBuffer = await this.pdfService.generateDeliveryNotePdf(doc);
+        return { pdfBuffer, filename: `Lieferschein-${doc.number}.pdf` };
+      }
+      case 'credit-note': {
+        const doc = await this.prisma.creditNote.findFirst({
+          where: { id: documentId, companyId },
+          include: { customer: true, items: true },
+        });
+        if (!doc) throw new NotFoundException('Gutschrift nicht gefunden');
+        const pdfBuffer = await this.pdfService.generateCreditNotePdf(doc);
+        return { pdfBuffer, filename: `Gutschrift-${doc.number}.pdf` };
+      }
+      case 'reminder': {
+        const doc = await this.prisma.reminder.findFirst({
+          where: { id: documentId, companyId },
+          include: { invoice: { include: { customer: true } } },
+        });
+        if (!doc) throw new NotFoundException('Mahnung nicht gefunden');
+        const pdfBuffer = await this.pdfService.generateReminderPdf(doc);
+        return { pdfBuffer, filename: `Mahnung-${doc.number}.pdf` };
+      }
+      default:
+        throw new BadRequestException(`Unbekannter Dokumenttyp: ${documentType}`);
+    }
   }
 
   private mapDocumentTypeToModule(documentType: string): AuditModule {
