@@ -145,12 +145,10 @@ export default function DeliveryNotes() {
             Verwalten Sie Ihre Lieferungen und Sendungen
           </p>
         </div>
-        {canWrite('delivery-notes') && (
-          <Button className="gap-2" onClick={() => navigate("/delivery-notes/new")}>
-            <Plus className="h-4 w-4" />
-            Neuer Lieferschein
-          </Button>
-        )}
+        <Button className="gap-2" onClick={() => navigate("/orders")}>
+          <Truck className="h-4 w-4" />
+          Zum Auftrag → Lieferschein erstellen
+        </Button>
       </div>
 
       {/* Stats */}

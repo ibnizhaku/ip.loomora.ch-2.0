@@ -177,11 +177,15 @@ const DeliveryNoteDetail = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/delivery-notes">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => {
+            if (deliveryNoteData.orderId) {
+              navigate(`/orders/${deliveryNoteData.orderId}`);
+            } else {
+              navigate("/delivery-notes");
+            }
+          }}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="font-display text-2xl font-bold">{deliveryNoteData.id}</h1>
