@@ -69,4 +69,14 @@ export class SendMailDto {
   @IsOptional()
   @IsString()
   documentId?: string;
+
+  @ApiPropertyOptional({ description: 'Base64-kodiertes PDF vom Frontend' })
+  @IsOptional()
+  @IsString()
+  pdfBase64?: string;
+
+  @ApiPropertyOptional({ example: 'Lieferschein-LS-2024-001.pdf' })
+  @IsOptional()
+  @IsString()
+  pdfFilename?: string;
 }

@@ -786,6 +786,7 @@ const QuoteDetail = () => {
         documentId={id || ''}
         documentNumber={quoteData.id}
         defaultRecipient={quoteData.customer.email}
+        documentData={pdfData}
       />
     </div>
   );
