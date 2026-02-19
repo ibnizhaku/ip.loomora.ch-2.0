@@ -229,13 +229,21 @@ export class PurchaseInvoicesService {
     if (invoice.status === 'CANCELLED') throw new BadRequestException('Stornierte Rechnung kann nicht bezahlt werden');
 
     return this.prisma.$transaction(async (tx) => {
+      // Payment-Nummer generieren
+      const payCount = await tx.payment.count({ where: { companyId } });
+      const payNumber = `ZA-${new Date().getFullYear()}-${String(payCount + 1).padStart(5, '0')}`;
+
       const payment = await tx.payment.create({
         data: {
+          number: payNumber,
+          type: 'OUTGOING' as any,
+          status: 'COMPLETED' as any,
           purchaseInvoiceId: id,
+          supplierId: invoice.supplierId,
           amount: dto.amount,
           paymentDate: new Date(dto.paymentDate),
-          method: dto.method as any,
-          bankAccountId: dto.bankAccountId,
+          method: dto.method,
+          bankAccountId: dto.bankAccountId ?? undefined,
           notes: dto.note,
           companyId,
         },
