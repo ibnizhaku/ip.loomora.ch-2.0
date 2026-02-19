@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit') as typeof import('pdfkit');
-import QRCode from 'qrcode';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const QRCode = require('qrcode') as typeof import('qrcode');
 
 @Injectable()
 export class PdfService {
