@@ -1,279 +1,138 @@
 
-# Vollständige Analyse: Einkauf-Modul (Einkaufsrechnungen, Bestellungen, Wareneingänge)
+# PDF-Anhang überall sicherstellen + Cursor Prompt
 
-## Zusammenfassung der Befunde
+## Analyse: Aktueller Stand
 
-Nach vollständiger Analyse aller 6 betroffenen Seiten, der Routen in `app.tsx`, der Hooks und der Backend-Controller wurden **14 kritische Fehler und Inkonsistenzen** gefunden.
+Nach vollständiger Code-Prüfung ergibt sich folgendes Bild:
 
----
+### Bereits korrekt implementiert (documentData wird übergeben):
+- `DeliveryNoteDetail.tsx` — Referenz-Implementation, funktioniert
+- `InvoiceDetail.tsx` — bereits mit `documentData={pdfData}`
+- `QuoteDetail.tsx` — bereits mit `documentData={pdfData}`
+- `CreditNoteDetail.tsx` — bereits mit `documentData={pdfData}`
 
-## 1. Routing & Navigation — Befunde
+### Fehlende / unvollständige Implementierungen:
 
-### 1.1 Routen in `app.tsx` — Status
-```text
-Route                              Seite               Status
-/purchase-orders                   PurchaseOrders       OK
-/purchase-orders/new               PurchaseOrderCreate  OK
-/purchase-orders/:id               PurchaseOrderDetail  OK
-/purchase-orders/:id/edit          PurchaseOrderEdit    OK (leitet weiter)
-/purchase-invoices                 PurchaseInvoices     OK
-/purchase-invoices/new             PurchaseInvoiceCreate OK
-/purchase-invoices/:id             PurchaseInvoiceDetail OK
-/purchase-invoices/:id/edit        PurchaseInvoiceEdit   OK (leitet weiter)
-/goods-receipts                    GoodsReceipts         OK
-/goods-receipts/new                GoodsReceiptCreate    OK
-/goods-receipts/:id                GoodsReceiptDetail    OK
-/goods-receipts/:id/edit           FEHLT — keine Route  FEHLER
-```
+**1. `OrderDetail.tsx` — SendEmailModal fehlt komplett**
+- Seite hat bereits `pdfData` (SalesDocumentData, type: `'order'`)
+- Es gibt einen PDF-Vorschau-Dialog mit `documentData={pdfData}`
+- Aber kein "Per E-Mail" Button und kein `SendEmailModal` ist eingebunden
 
-**Fehler 1 (KRITISCH):** Keine Edit-Route für Wareneingänge. `GoodsReceiptDetail` hat keinen Edit-Weg, obwohl das Backend `PUT /goods-receipts/:id` unterstützt.
+**2. `ReminderDetail.tsx` — kein Frontend-PDF, kein `documentData`**
+- Mahnungen haben keinen Frontend-PDF-Generator (kein jsPDF-basiertes Template)
+- Es wird `downloadPdf('reminders', id)` genutzt = Backend-generiertes PDF
+- Der `SendEmailModal` ist eingebunden, aber ohne `documentData`
+- Backend-Fallback via `documentType="reminder"` + `documentId` ist bereits implementiert — die Mahnung wird vom Backend generiert und angehängt (funktioniert bereits per Fallback)
 
----
-
-## 2. Navigation-Fehler in den Seiten
-
-### 2.1 PurchaseOrderDetail.tsx — `handleDuplicate`
-```text
-navigate("/purchase-orders/create")  ← FALSCH
-navigate("/purchase-orders/new")     ← RICHTIG
-```
-**Fehler 2:** Pfad `/purchase-orders/create` existiert nicht → führt zu 404.
-
-### 2.2 PurchaseOrderDetail.tsx — `handleAssignInvoice`
-```text
-navigate("/purchase-invoices/create")  ← FALSCH
-navigate("/purchase-invoices/new")     ← RICHTIG
-```
-Zusätzlich: Kein `purchaseOrderId` Query-Parameter wird übergeben. Der korrekte Aufruf müsste sein:
-```text
-navigate(`/purchase-invoices/new?purchaseOrderId=${id}`)
-```
-**Fehler 3:** Pfad falsch + fehlender Query-Parameter.
-
-### 2.3 PurchaseOrders.tsx — Wareneingang-Button im Drei-Punkte-Menü
-```text
-navigate("/goods-receipts/new")  ← Kein purchaseOrderId!
-```
-Der korrekte Aufruf müsste sein:
-```text
-navigate(`/goods-receipts/new?purchaseOrderId=${order.id}`)
-```
-**Fehler 4:** `purchaseOrderId` wird nicht als Query-Parameter übergeben.
-
-### 2.4 PurchaseInvoiceDetail.tsx — PDF-Download
-```text
-downloadPdf('invoices', id || '', ...)  ← Falsches Modul!
-downloadPdf('purchase-invoices', id || '', ...)  ← RICHTIG
-```
-**Fehler 5:** PDF-Download ruft den Verkaufsrechnungs-Endpunkt auf, nicht den Einkaufsrechnungs-Endpunkt.
-
-### 2.5 PurchaseInvoiceDetail.tsx — "Zahlung erfassen" Button
-```text
-onClick={() => toast.info("Zahlungserfassung wird geöffnet...")}
-```
-Dieser Button hat keine Funktion — er zeigt nur einen Toast. Es gibt keine Navigation zu einer Zahlungserfassungsseite oder einem Dialog.
-**Fehler 6:** Toter Button ohne Funktion (Dead End).
-
-### 2.6 PurchaseInvoiceDetail.tsx — Stornieren im Dropdown
-```text
-onClick={() => toast.info("Rechnung wird storniert...")}
-```
-Kein API-Aufruf, kein Dialog zur Bestätigung, keine Statusänderung.
-**Fehler 7:** Stornieren-Aktion ohne Backend-Anbindung.
-
-### 2.7 PurchaseInvoiceDetail.tsx — Zahlungsverlauf-Card
-```text
-<Button variant="outline" size="sm" className="mt-3">
-  <CreditCard className="h-4 w-4 mr-2" />
-  Zahlung erfassen
-</Button>
-```
-Dieser Button hat kein `onClick`-Handler.
-**Fehler 8:** Zweiter toter Button ohne `onClick`.
+**3. List-Pages (`Quotes.tsx`, `Invoices.tsx`, `CreditNotes.tsx`) — kein `documentData` möglich**
+- Diese Seiten zeigen nur eine Zeile pro Dokument (kein vollständiger Datensatz)
+- `pdfData` (mit allen Positionen, Kundeninfos, Firmeninfos) ist dort nicht verfügbar
+- Backend-Fallback bleibt aktiv — diese Seiten senden bereits `documentType` + `documentId`
+- Kein Handlungsbedarf für jetzt (PDF wird via Backend-Fallback angehängt)
 
 ---
 
-## 3. Daten & State-Inkonsistenzen
+## Implementierungsplan
 
-### 3.1 PurchaseInvoices.tsx — Lokaler State statt API
-Die Liste verwendet `useState(initialInvoices)` für `handleApprove` und `handleReject`. Wenn Daten neu von der API geladen werden (z.B. nach Reload), sind die lokalen Statusänderungen verloren. Der `handleApprove`/`handleReject` sollte `useMutation` → `PUT /purchase-invoices/:id` verwenden.
-**Fehler 9:** Status-Änderungen (Freigeben/Ablehnen) werden nur lokal im State gesetzt, nicht an die API gesendet.
+### Schritt 1: OrderDetail.tsx — E-Mail Button + SendEmailModal hinzufügen
 
-### 3.2 PurchaseInvoices.tsx — PDF-Import schreibt nur in lokalen State
-`handleImportInvoice` erstellt eine neue Invoice mit `Date.now()` als ID und `setInvoices(prev => [...])`, ohne die API anzusprechen.
-**Fehler 10:** Importierte Rechnungen existieren nur im Browser-Speicher, gehen bei Reload verloren.
+In `src/pages/OrderDetail.tsx`:
+- `useState` für `emailModalOpen` hinzufügen
+- Import von `SendEmailModal` ergänzen
+- "Per E-Mail" Button in den Header-Bereich einfügen (neben PDF/Druck-Buttons)
+- `SendEmailModal` am Ende der JSX-Struktur einbinden mit `documentData={pdfData}`
 
-### 3.3 GoodsReceiptCreate.tsx — Kein Query-Parameter ausgelesen
 ```text
-// searchParams werden nicht gelesen!
-const [searchParams] = useSearchParams();  // FEHLT
-```
-Obwohl `PurchaseOrderDetail` mit `navigate(\`/goods-receipts/new?purchaseOrderId=${id}\`)` navigiert, liest `GoodsReceiptCreate` den Parameter `purchaseOrderId` nicht aus und befüllt die Bestellung nicht vor.
-**Fehler 11:** Kontextsensitive Vorbefüllung funktioniert nicht.
+Button → onClick={() => setEmailModalOpen(true)}
+  <Mail className="mr-2 h-4 w-4" />
+  Per E-Mail
 
-### 3.4 GoodsReceiptDetail.tsx — Nur Mockdaten
-```text
-const receiptData = { id: "WE-2024-001", ... }  // Hartkodiert!
+<SendEmailModal
+  open={emailModalOpen}
+  onClose={() => setEmailModalOpen(false)}
+  documentType="order"
+  documentId={orderData.id}
+  documentNumber={orderData.id}
+  defaultRecipient={orderData.customer?.email}
+  documentData={pdfData}
+/>
 ```
-Die Detailseite zeigt immer dieselben Testdaten, unabhängig von der `:id` in der URL. Kein API-Hook.
-**Fehler 12:** Detailseite ist nicht mit dem Backend verbunden.
 
-### 3.5 PurchaseInvoiceCreate.tsx — Lieferantenliste ist hartkodiert
-```text
-<SelectItem value="1">Software AG</SelectItem>
-<SelectItem value="2">Office Supplies GmbH</SelectItem>
-```
-Die Lieferanten werden nicht per `useSuppliers()` Hook von der API geladen. Der `defaultSupplierId` aus dem Query-Parameter wird in `formData.supplier` gespeichert, aber das Dropdown liest es nicht.
-**Fehler 13:** Lieferantenliste ist hartkodiert, Query-Parameter `supplierId` wird nicht in das Dropdown übernommen.
+### Schritt 2: ReminderDetail.tsx — Backend-Fallback verifizieren (kein Frontend-PDF nötig)
 
-### 3.6 PurchaseInvoiceCreate.tsx — `handleSubmit` ohne API-Aufruf
+Der SendEmailModal sendet bereits `documentType="reminder"` + `documentId`. Das Backend-`mail.service.ts` hat einen Fallback, der `generateReminderPdf()` aufruft. Dies funktioniert bereits — kein `documentData` nötig, da es kein jsPDF-Template für Mahnungen gibt.
+
+Einzige Anpassung: Sicherstellen dass im `SendEmailModal` der Text "Das Dokument wird automatisch als PDF-Anhang beigefügt" korrekt angezeigt wird, auch wenn `documentData` nicht gesetzt ist (Backend-Fallback-Modus).
+
+### Schritt 3: Hinweistext in SendEmailModal verbessern
+
+Aktuell zeigt der Modal den Attachment-Hinweis nur wenn `documentData` vorhanden. Für Reminder (Backend-Fallback) soll trotzdem angezeigt werden, dass ein PDF angehängt wird.
+
 ```text
-const handleSubmit = () => {
-  toast.success("Rechnung erfolgreich erfasst");
-  navigate("/purchase-invoices");
-};
+Wenn documentData vorhanden:
+  → "Lieferschein-LS-001.pdf wird als Anhang beigefügt"
+
+Wenn documentData NICHT vorhanden aber documentType & documentId:
+  → "Das Dokument wird automatisch als PDF-Anhang beigefügt"
 ```
-Kein `useCreatePurchaseInvoice()` Mutation-Aufruf. Formularfelder (Inputs ohne `value`/`onChange`) sind auch nicht an den State gebunden.
-**Fehler 14:** Erstellungsformular speichert nichts in der Datenbank.
 
 ---
 
-## 4. Fehlende UX-Flows
+## Cursor Prompt für das Backend
 
-- **Wareneingang bearbeiten:** Es gibt keinen Edit-Button im `GoodsReceiptDetail`, keine Edit-Route und keine Edit-Seite.
-- **Zahlungserfassung bei Einkaufsrechnungen:** Kein echter Dialog oder Navigation.
-- **Approve/Reject Workflow in der Liste:** Nur lokale State-Mutation, kein API-Aufruf.
+```
+In backend/src/modules/mail/mail.service.ts, verify and fix the reminder PDF fallback:
 
----
+The sendMail() method has two code paths:
+1. If pdfBase64 + pdfFilename are provided → use Frontend PDF (already works for invoices, quotes, delivery notes, credit notes, orders)
+2. If documentId + documentType are provided → generate PDF via generateDocumentPdf() (fallback for reminders)
 
-## Geplante Frontend-Fixes (was ich ändern werde)
+Ensure the case 'reminder' in generateDocumentPdf() calls this.pdfService.generateReminderPdf(doc) correctly and returns a proper Buffer. The doc must include: invoice (with customer and items).
 
-### Fix 1 — PurchaseOrderDetail.tsx
-- `handleDuplicate`: `navigate("/purchase-orders/create")` → `navigate("/purchase-orders/new")`
-- `handleAssignInvoice`: `navigate("/purchase-invoices/create")` → `navigate(\`/purchase-invoices/new?purchaseOrderId=${id}\`)`
+Check that PdfService.generateReminderPdf() exists and accepts a reminder object with nested invoice.customer data.
 
-### Fix 2 — PurchaseOrders.tsx
-- Wareneingang-Button: `navigate("/goods-receipts/new")` → `navigate(\`/goods-receipts/new?purchaseOrderId=${order.id}\`)`
-
-### Fix 3 — PurchaseInvoiceDetail.tsx
-- `downloadPdf('invoices', ...)` → `downloadPdf('purchase-invoices', ...)`
-- "Zahlung erfassen" Buttons: Navigation zu `/payments/new?purchaseInvoiceId=${id}` oder Dialog
-- "Stornieren": `useUpdatePurchaseInvoice` Mutation mit Status `CANCELLED` + Bestätigungs-AlertDialog
-
-### Fix 4 — PurchaseInvoices.tsx
-- `handleApprove` / `handleReject`: Ersetzen durch `useUpdatePurchaseInvoice` oder `useApprovePurchaseInvoice` Mutation
-- `handleImportInvoice`: Muss `useCreatePurchaseInvoice` aufrufen
-
-### Fix 5 — PurchaseInvoiceCreate.tsx
-- Lieferantenliste durch `useSuppliers()` Hook ersetzen
-- `supplierId` Query-Parameter korrekt in Dropdown-Defaultwert übernehmen
-- Alle Input-Felder mit State verbinden
-- `handleSubmit` mit `useCreatePurchaseInvoice` verbinden und Items-Array übergeben
-
-### Fix 6 — GoodsReceiptCreate.tsx
-- `useSearchParams()` einbinden und `purchaseOrderId` auslesen
-- Bestellung aus API laden und Positionen vorbefüllen
-
-### Fix 7 — GoodsReceiptDetail.tsx
-- Mockdaten entfernen
-- `useQuery` für `/goods-receipts/:id` hinzufügen
-- Lade- und Fehlerzustand implementieren
-- Link zur zugehörigen Bestellung mit korrekter Navigation
-
-### Fix 8 — App.tsx
-- Route `/goods-receipts/:id/edit` hinzufügen (falls GoodsReceiptEdit-Seite erstellt wird)
+If PdfService.generateReminderPdf() does not exist or is incomplete, implement it following the same pattern as generateInvoicePdf().
+```
 
 ---
 
-## Technische Details
+## Dateien die geändert werden
 
-### Dateien die geändert werden
-
-| Datei | Art der Änderung |
+| Datei | Änderung |
 |---|---|
-| `src/pages/PurchaseOrderDetail.tsx` | navigate-Pfade korrigieren |
-| `src/pages/PurchaseOrders.tsx` | Query-Parameter beim Wareneingang-Button hinzufügen |
-| `src/pages/PurchaseInvoiceDetail.tsx` | PDF-Endpoint, Stornieren-API, Zahlung-Dialog |
-| `src/pages/PurchaseInvoices.tsx` | Approve/Reject mit API verbinden, Import mit API verbinden |
-| `src/pages/PurchaseInvoiceCreate.tsx` | Supplier-Hook, State, API-Submit |
-| `src/pages/GoodsReceiptCreate.tsx` | Query-Parameter auslesen, Vorbefüllung |
-| `src/pages/GoodsReceiptDetail.tsx` | Mockdaten durch API-Hook ersetzen |
-| `docs/einkauf-analyse.md` | Neue Analyse-Datei erstellen |
+| `src/pages/OrderDetail.tsx` | `useState emailModalOpen`, Mail-Button, `SendEmailModal` mit `documentData={pdfData}` |
+| `src/components/email/SendEmailModal.tsx` | Hinweistext auch bei Backend-Fallback (ohne documentData) anzeigen |
+| `src/pages/ReminderDetail.tsx` | Kein Frontend-PDF möglich → bleibt bei Backend-Fallback, kein `documentData` |
 
 ---
 
-## Cursor Backend-Prompts (nach der Frontend-Implementierung ausführen)
+## Cursor Prompt (vollständig, zum Kopieren)
 
-### Prompt 1 — Zahlungserfassung für Einkaufsrechnungen
-```
-In purchase-invoices.service.ts, add a method `recordPayment(id, companyId, dto)` that:
-1. Finds the PurchaseInvoice and validates it belongs to the company
-2. Creates a Payment record linked to the invoice (paymentDate, amount, method, bankAccountId)
-3. Updates paidAmount on the invoice (paidAmount += dto.amount)
-4. If paidAmount >= total, sets status to 'PAID' and sets paidDate
-5. Returns the updated invoice with payment history
+Dieser Prompt soll an Cursor übergeben werden nachdem die Frontend-Änderungen implementiert sind:
 
-Add a new DTO `RecordPaymentDto`:
-- amount: number (required)
-- paymentDate: string (ISO date, required)
-- method: 'BANK_TRANSFER' | 'DIRECT_DEBIT' | 'CASH' (required)
-- bankAccountId?: string (optional)
-- note?: string (optional)
+---
 
-Add endpoint in purchase-invoices.controller.ts:
-POST /purchase-invoices/:id/record-payment
-@RequirePermissions('purchase-invoices:write')
-```
+**CURSOR PROMPT:**
 
-### Prompt 2 — Stornieren mit Audit-Trail
-```
-In purchase-invoices.service.ts, add a method `cancel(id, companyId, reason?)` that:
-1. Validates the invoice status is not already CANCELLED or PAID
-2. Sets status to CANCELLED, stores cancellationReason and cancelledAt
-3. If there is a linked purchaseOrderId, does NOT reverse the PurchaseOrder status automatically
-4. Returns the updated invoice
+In `backend/src/modules/mail/mail.service.ts` und `backend/src/common/services/pdf.service.ts`, prüfe und vervollständige den PDF-Anhang-Fallback für Mahnungen (reminder):
 
-Add endpoint in purchase-invoices.controller.ts:
-POST /purchase-invoices/:id/cancel
-Body: { reason?: string }
-@RequirePermissions('purchase-invoices:write')
-```
+**Aufgabe 1 — mail.service.ts:**
+Die `sendMail()`-Methode hat zwei Pfade:
+- Pfad A: `pdfBase64` + `pdfFilename` vorhanden → Frontend-PDF wird als Buffer direkt verwendet (funktioniert für Rechnungen, Angebote, Lieferscheine, Aufträge, Gutschriften)
+- Pfad B: `documentType` + `documentId` vorhanden → Backend generiert PDF via `generateDocumentPdf()` (Fallback für Mahnungen)
 
-### Prompt 3 — GoodsReceipt mit purchaseOrderId Vorbefüllung
-```
-In goods-receipts.service.ts, ensure that findOne and findAll include:
-- purchaseOrder: { select: { id: true, number: true, supplierId: true, supplier: { select: { id: true, name: true, companyName: true } }, items: true } }
+Sicherstellen dass in `generateDocumentPdf()` der `case 'reminder'` korrekt funktioniert:
+- `prisma.reminder.findFirst()` mit `include: { invoice: { include: { customer: true, items: true } } }` aufrufen
+- `this.pdfService.generateReminderPdf(doc)` aufrufen
+- Den Dateinamen als `Mahnung-${doc.number}.pdf` zurückgeben
 
-In goods-receipts.controller.ts, the GET /goods-receipts/:id endpoint must return:
-- All items with productId, description, quantity, unit, unitPrice
-- The linked purchaseOrder with supplier info and all order items
+**Aufgabe 2 — pdf.service.ts:**
+Prüfe ob `generateReminderPdf()` in `PdfService` existiert und vollständig implementiert ist. Die Methode muss:
+- Ein Reminder-Objekt mit `invoice.customer` und `invoice.items` entgegennehmen
+- Ein professionelles PDF mit Mahnstufe, Fälligkeitsdatum, offener Betrag, Mahngebühr, Verzugszins und Gesamtforderung enthalten
+- Als `Promise<Buffer>` zurückgeben
 
-Also ensure GET /purchase-orders/:id returns all items with their current delivery quantities so GoodsReceiptCreate can compute "alreadyDelivered" per item.
-```
+Falls `generateReminderPdf()` nicht existiert oder unvollständig ist, implementiere es vollständig nach dem gleichen Muster wie `generateInvoicePdf()`.
 
-### Prompt 4 — GoodsReceipt Status-Update + Edit Endpoint
-```
-In goods-receipts.controller.ts, add:
-PUT /goods-receipts/:id (update items, note, receiptDate)
-@RequirePermissions('goods-receipts:write')
-
-In goods-receipts.service.ts, update() method must:
-1. Validate status is DRAFT (only draft can be edited)
-2. Allow updating: receiptDate, supplierDeliveryNote, warehouseId, items (quantity received)
-3. Recalculate totalReceived per item
-
-Also register the route in app.tsx as: /goods-receipts/:id/edit
-```
-
-### Prompt 5 — Approve/Reject Endpunkte für Einkaufsrechnungen
-```
-Ensure purchase-invoices.controller.ts has these endpoints:
-1. POST /purchase-invoices/:id/approve — sets status APPROVED, saves approvedAt and approvedBy (userId)
-2. POST /purchase-invoices/:id/reject — sets status DRAFT (returns to draft for correction), saves rejectionReason
-
-In purchase-invoices.service.ts:
-- approve(id, companyId, dto): validates status is PENDING, sets APPROVED
-- reject(id, companyId, reason): validates status is PENDING, sets DRAFT + stores rejectionNote
-
-These are already partially defined in ApproveInvoiceDto — make sure the controller wires them correctly.
-```
+**Aufgabe 3 — Verifizierung:**
+Stelle sicher dass alle 5 Dokumenttypen (invoice, quote, order, delivery-note, credit-note) korrekt den Pfad A (Frontend-PDF Base64) nehmen wenn `pdfBase64` vorhanden ist, und dass Pfad B (Backend-Fallback) nur für `reminder` aktiv ist.
