@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useReminder } from "@/hooks/use-reminders";
 import { downloadPdf } from "@/lib/api";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-muted text-muted-foreground",
@@ -30,6 +31,7 @@ export default function ReminderDetail() {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const { id } = useParams();
   const { data: raw, isLoading, error } = useReminder(id || "");
+  const { data: auditHistory } = useEntityHistory("reminder", id || "");
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -176,6 +178,39 @@ export default function ReminderDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Verlauf */}
+      {(auditHistory || []).length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Verlauf</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {(auditHistory || []).map((log, index) => (
+                <div key={log.id || index} className="flex items-start gap-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "STATUS_CHANGE" ? "Status geändert" : log.action === "SEND" ? "Versendet" : log.action}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(log.timestamp).toLocaleString("de-CH")}</span>
+                      <span>•</span>
+                      <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <SendEmailModal
         open={emailModalOpen}

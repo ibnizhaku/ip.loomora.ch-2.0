@@ -392,6 +392,8 @@ export default function Invoices() {
                 <TableHead>Rechnung</TableHead>
                 <TableHead>Kunde</TableHead>
                 <TableHead>Projekt</TableHead>
+                <TableHead>Lieferadresse</TableHead>
+                <TableHead>Erstellt von</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Betrag</TableHead>
                 <TableHead>Fällig am</TableHead>
@@ -401,14 +403,14 @@ export default function Invoices() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     <p className="text-muted-foreground">Rechnungen werden geladen...</p>
                   </TableCell>
                 </TableRow>
               ) : filteredInvoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="text-muted-foreground">Keine Rechnungen gefunden</p>
                   </TableCell>
@@ -434,6 +436,21 @@ export default function Invoices() {
                     <TableCell>{invoice.customer?.companyName || invoice.customer?.name || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {invoice.project?.name || '-'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {(() => {
+                        const del = (invoice as any).deliveryAddress;
+                        const cust = invoice.customer as any;
+                        if (!del) return '-';
+                        const delStr = typeof del === 'object' ? [del.street, del.zipCode, del.city].filter(Boolean).join(', ') : del;
+                        const custStr = [cust?.street, cust?.zipCode, cust?.city].filter(Boolean).join(', ');
+                        return delStr === custStr || !delStr ? 'Gleich wie RE-Adresse' : delStr;
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {(invoice as any).createdByUser
+                        ? `${(invoice as any).createdByUser.firstName || ''} ${(invoice as any).createdByUser.lastName || (invoice as any).createdByUser.name || ''}`.trim()
+                        : '-'}
                     </TableCell>
                     <TableCell>
                       <Badge className={cn("gap-1", statusConfig[uiStatus].color)}>

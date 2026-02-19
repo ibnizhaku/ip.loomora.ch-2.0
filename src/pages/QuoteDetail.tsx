@@ -79,6 +79,7 @@ import {
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 // Status mapping from backend enum to German display labels
 const quoteStatusMap: Record<string, string> = {
@@ -157,7 +158,13 @@ const QuoteDetail = () => {
   const updateQuote = useUpdateQuote();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [historyEntries, setHistoryEntries] = useState<{ date: string; action: string; user: string }[]>([]);
+  // Audit log history from API
+  const { data: auditHistory } = useEntityHistory("quote", id || "");
+  const historyEntries = (auditHistory || []).map((log) => ({
+    date: new Date(log.timestamp).toLocaleString("de-CH"),
+    action: log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "STATUS_CHANGE" ? "Status geändert" : log.action,
+    user: log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System",
+  }));
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertStep, setConvertStep] = useState(1);
   const [statusChangeOpen, setStatusChangeOpen] = useState(false);
@@ -190,6 +197,10 @@ const QuoteDetail = () => {
   
   const status = statusConfig[quoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
+
+  // Creator from raw data
+  const createdByUser = (rawQuote as any)?.createdByUser;
+  const createdByName = createdByUser ? `${createdByUser.firstName || ''} ${createdByUser.lastName || createdByUser.name || ''}`.trim() : undefined;
 
   // Company data for PDF
   const companyInfo = {
@@ -232,15 +243,7 @@ const QuoteDetail = () => {
     vatAmount: quoteData.tax,
     total: quoteData.total,
     notes: quoteData.notes,
-  };
-
-  const addHistoryEntry = (action: string) => {
-    const newEntry = {
-      date: new Date().toLocaleString("de-CH"),
-      action,
-      user: "Aktueller Benutzer",
-    };
-    setHistoryEntries([newEntry, ...historyEntries]);
+    createdBy: createdByName,
   };
 
   const handleDownloadPDF = () => {
@@ -267,7 +270,7 @@ const QuoteDetail = () => {
     setIsConverting(true);
     try {
       const result = await convertToOrder.mutateAsync(id || "");
-      addHistoryEntry("In Auftrag umgewandelt");
+      // History is now loaded from AuditLog API
       toast.success("Auftrag wurde erstellt");
       setConvertDialogOpen(false);
       // Navigate to new order
@@ -287,7 +290,7 @@ const QuoteDetail = () => {
     if (!backendStatus) return;
     try {
       await updateQuote.mutateAsync({ id: id || "", data: { status: backendStatus } as any });
-      addHistoryEntry(`Status geändert zu "${newStatus}"`);
+      // History updated via AuditLog
       toast.success("Status aktualisiert");
       setStatusChangeOpen(false);
     } catch {
@@ -299,7 +302,7 @@ const QuoteDetail = () => {
   const handleSendQuote = async () => {
     try {
       await sendQuote.mutateAsync(id || "");
-      addHistoryEntry("Angebot versendet");
+      // History updated via AuditLog
       toast.success("Angebot wurde als versendet markiert");
     } catch {
       toast.error("Fehler beim Versenden");
@@ -567,6 +570,12 @@ const QuoteDetail = () => {
                 <span className="text-sm text-muted-foreground">Positionen</span>
                 <span className="text-sm font-medium">{quoteData.positions.length}</span>
               </div>
+              {createdByName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Erstellt von</span>
+                  <span className="text-sm font-medium">{createdByName}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Nettobetrag</span>

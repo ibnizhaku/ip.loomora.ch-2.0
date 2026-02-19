@@ -69,7 +69,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders, useReminders } from "@/hooks/use-reminders";
+import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders, useReminders, useUpdateReminder, useSendReminder } from "@/hooks/use-reminders";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 
 // Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
 const levelConfig: Record<number, { label: string; color: string; fee: number; days: number }> = {
@@ -83,6 +84,8 @@ const levelConfig: Record<number, { label: string; color: string; fee: number; d
 interface Reminder {
   id: string;
   invoice: string;
+  invoiceNumber?: string;
+  displayNumber?: string;
   customer: string;
   customerEmail?: string;
   dueDate: string;
@@ -90,6 +93,7 @@ interface Reminder {
   level: number;
   lastReminder: string;
   daysOverdue: number;
+  createdByUser?: { firstName?: string; lastName?: string; name?: string };
 }
 
 
@@ -304,17 +308,25 @@ const Reminders = () => {
     setSendingProgress(0);
   };
 
+  const sendReminderMutation = useSendReminder();
+
   const confirmBulkReminder = async () => {
     setIsSending(true);
     setSendingProgress(0);
 
     const totalSteps = selectedReminders.length;
     for (let i = 0; i < totalSteps; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const reminderId = selectedReminders[i];
+      try {
+        if (deliveryMethod === "email" || deliveryMethod === "both") {
+          await sendReminderMutation.mutateAsync({ id: reminderId, data: { method: 'EMAIL' } });
+        }
+      } catch {
+        // continue with next
+      }
       setSendingProgress(((i + 1) / totalSteps) * 100);
     }
 
-    // Refresh data from API after bulk operation
     await queryClient.invalidateQueries({ queryKey: ["/reminders"] });
 
     setIsSending(false);
@@ -336,20 +348,8 @@ const Reminders = () => {
     }
   };
 
-  const handleSendNextReminder = async (reminder: Reminder) => {
-    const nextLevel = Math.min(reminder.level + 1, 5);
-    const levelInfo = levelConfig[nextLevel] || levelConfig[1];
-    const fee = levelInfo.fee;
-    try {
-      await api.put(`/reminders/${reminder.id}`, { level: nextLevel });
-      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
-      toast.success(
-        `${levelInfo.label} für ${reminder.customer || ""} gesendet` +
-        (fee > 0 ? ` (+ CHF ${fee.toFixed(2)} Mahngebühr)` : "")
-      );
-    } catch {
-      toast.error("Fehler beim Aktualisieren der Mahnung");
-    }
+  const handleSendNextReminder = (reminder: Reminder) => {
+    setEmailReminderTarget(reminder);
   };
 
   const handleRecordPayment = (reminder: Reminder) => {
@@ -357,8 +357,28 @@ const Reminders = () => {
     toast.success(`Zahlung für ${reminder.invoice} erfasst`);
   };
 
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [extendReminder, setExtendReminder] = useState<Reminder | null>(null);
+  const [extendDate, setExtendDate] = useState("");
+  const updateReminderMutation = useUpdateReminder();
+  const [emailReminderTarget, setEmailReminderTarget] = useState<Reminder | null>(null);
+
   const handleExtendDeadline = (reminder: Reminder) => {
-    toast.success(`Zahlungsfrist für ${reminder.invoice} verlängert`);
+    setExtendReminder(reminder);
+    setExtendDate("");
+    setExtendDialogOpen(true);
+  };
+
+  const confirmExtendDeadline = async () => {
+    if (!extendReminder || !extendDate) return;
+    try {
+      await updateReminderMutation.mutateAsync({ id: extendReminder.id, data: { dueDate: extendDate } as any });
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      toast.success("Zahlungsfrist wurde verlängert");
+      setExtendDialogOpen(false);
+    } catch {
+      toast.error("Fehler beim Verlängern der Zahlungsfrist");
+    }
   };
 
   const handleTransferToCollection = async (reminder: Reminder) => {
@@ -644,6 +664,7 @@ const Reminders = () => {
                     <TableHead>Mahnung</TableHead>
                     <TableHead>Rechnung</TableHead>
                     <TableHead>Kunde</TableHead>
+                    <TableHead>Erstellt von</TableHead>
                     <TableHead>Fällig seit</TableHead>
                     <TableHead className="text-right">Offener Betrag</TableHead>
                     <TableHead>Mahnstufe</TableHead>
@@ -680,6 +701,11 @@ const Reminders = () => {
                             <Building2 className="h-4 w-4 text-muted-foreground" />
                             {reminder.customerName}
                           </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {(reminder as any).createdByUser
+                            ? `${(reminder as any).createdByUser.firstName || ''} ${(reminder as any).createdByUser.lastName || (reminder as any).createdByUser.name || ''}`.trim()
+                            : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 text-destructive">
@@ -1214,6 +1240,41 @@ const Reminders = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Extend Deadline Dialog */}
+      <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Zahlungsfrist verlängern</DialogTitle>
+            <DialogDescription>
+              Neues Fälligkeitsdatum für {extendReminder?.invoiceNumber || "die Mahnung"} festlegen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Neues Fälligkeitsdatum</Label>
+            <Input type="date" value={extendDate} onChange={(e) => setExtendDate(e.target.value)} className="mt-2" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtendDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={confirmExtendDeadline} disabled={!extendDate || updateReminderMutation.isPending}>
+              {updateReminderMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calendar className="h-4 w-4 mr-2" />}
+              Frist verlängern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Reminder Email Modal */}
+      {emailReminderTarget && (
+        <SendEmailModal
+          open={true}
+          onClose={() => setEmailReminderTarget(null)}
+          documentType="reminder"
+          documentId={emailReminderTarget.id}
+          documentNumber={emailReminderTarget.displayNumber || emailReminderTarget.id}
+          defaultRecipient={emailReminderTarget.customerEmail}
+        />
+      )}
 
       {/* Create Reminder Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
