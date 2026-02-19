@@ -204,6 +204,7 @@ model Company {
   deliveryCounter   Int       @default(0)
   creditNoteCounter Int       @default(0)
   purchaseCounter   Int       @default(0)
+  reminderCounter   Int       @default(0)
   projectCounter    Int       @default(0)
   employeeCounter   Int       @default(0)
   taskCounter       Int       @default(0)

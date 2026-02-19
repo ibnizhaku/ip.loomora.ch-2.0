@@ -66,6 +66,7 @@ export class InvoicesService {
               city: true,
               country: true,
               vatNumber: true,
+              taxId: true,
             },
           },
           project: {
@@ -664,16 +665,19 @@ export class InvoicesService {
     return { total, paid, pending, overdue };
   }
 
-  // Bestehende Rechnungen ohne korrekte qrReference nachrüsten
+  // Bestehende Rechnungen ohne qrReference nachrüsten (nur fehlende)
   async backfillQrReferences() {
     const invoices = await this.prisma.invoice.findMany({
+      where: { qrReference: null },
       select: { id: true, number: true },
       orderBy: { createdAt: 'asc' },
     });
     let count = 0;
-    for (let i = 0; i < invoices.length; i++) {
-      const qrReference = generateSwissQrReference(i + 1);
-      await this.prisma.invoice.update({ where: { id: invoices[i].id }, data: { qrReference } });
+    for (const inv of invoices) {
+      const numeric = inv.number.replace(/\D/g, '');
+      const base = numeric.padStart(26, '0').substring(0, 26);
+      const qrReference = generateSwissQrReference(parseInt(numeric, 10) || count + 1);
+      await this.prisma.invoice.update({ where: { id: inv.id }, data: { qrReference } });
       count++;
     }
     return { updated: count };
