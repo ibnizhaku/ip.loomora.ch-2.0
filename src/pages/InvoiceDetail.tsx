@@ -58,6 +58,7 @@ import { sendEmail } from "@/lib/api";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { useCreateReminder } from "@/hooks/use-reminders";
 import { getSalesDocumentPDFBlobUrl } from "@/lib/pdf/sales-document";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 // Status mapping from backend enum to German display labels
 const invoiceStatusMap: Record<string, string> = {
@@ -150,6 +151,7 @@ const InvoiceDetail = () => {
   const [paymentReference, setPaymentReference] = useState("");
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const { data: auditHistory } = useEntityHistory("invoice", id || "");
 
   if (isLoading) {
     return (
@@ -590,6 +592,36 @@ const InvoiceDetail = () => {
             </CardContent>
           </Card>
 
+          {/* Activity History from AuditLog */}
+          {(auditHistory || []).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Verlauf</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {(auditHistory || []).map((log, index) => (
+                    <div key={log.id || index} className="flex items-start gap-4">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          {log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "STATUS_CHANGE" ? "Status geändert" : log.action}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{new Date(log.timestamp).toLocaleString("de-CH")}</span>
+                          <span>•</span>
+                          <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Reminders */}
           {invoiceData.reminders.length > 0 && (
             <Card>
@@ -691,6 +723,12 @@ const InvoiceDetail = () => {
                 <span className="text-muted-foreground">Fällig am</span>
                 <span className="font-medium text-destructive">{invoiceData.dueDate}</span>
               </div>
+              {(rawInvoice as any)?.createdByUser && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Erstellt von</span>
+                  <span className="font-medium">{`${(rawInvoice as any).createdByUser.firstName || ''} ${(rawInvoice as any).createdByUser.lastName || (rawInvoice as any).createdByUser.name || ''}`.trim()}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
