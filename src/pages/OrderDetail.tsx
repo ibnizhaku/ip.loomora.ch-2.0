@@ -518,32 +518,39 @@ const OrderDetail = () => {
 
           {/* Activity Log */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Activity className="h-4 w-4 text-primary" />
                 Aktivitäten
               </CardTitle>
             </CardHeader>
             <CardContent>
               {activityLog.length > 0 ? (
-                <div className="relative pl-6 space-y-4">
-                  {/* Timeline line */}
-                  <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
-                  {activityLog.map((entry) => {
-                    const iconMap: Record<string, any> = {
-                      create: ShoppingCart,
-                      status: CheckCircle2,
-                      delivery: Truck,
-                      invoice: FileText,
+                <div className="space-y-0">
+                  {activityLog.map((entry, index) => {
+                    const iconMap: Record<string, { icon: any; color: string; bg: string }> = {
+                      create: { icon: ShoppingCart, color: "text-primary", bg: "bg-primary/10" },
+                      status: { icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+                      delivery: { icon: Truck, color: "text-warning", bg: "bg-warning/10" },
+                      invoice: { icon: FileText, color: "text-info", bg: "bg-info/10" },
                     };
-                    const Icon = iconMap[entry.icon] || Activity;
+                    const cfg = iconMap[entry.icon] || { icon: Activity, color: "text-muted-foreground", bg: "bg-muted" };
+                    const Icon = cfg.icon;
+                    const isLast = index === activityLog.length - 1;
                     return (
-                      <div key={entry.id} className="flex items-start gap-3 relative">
-                        <div className="absolute -left-4 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border">
-                          <Icon className="h-3 w-3 text-muted-foreground" />
+                      <div key={entry.id} className="flex gap-3">
+                        {/* Icon + connector line */}
+                        <div className="flex flex-col items-center">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${cfg.bg}`}>
+                            <Icon className={`h-3.5 w-3.5 ${cfg.color}`} />
+                          </div>
+                          {!isLast && (
+                            <div className="w-px flex-1 bg-border my-1" />
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{entry.text}</p>
+                        {/* Content */}
+                        <div className={`flex-1 min-w-0 ${!isLast ? "pb-4" : "pb-0"}`}>
+                          <p className="text-sm font-medium leading-tight pt-1.5">{entry.text}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(entry.time)}</p>
                         </div>
                       </div>
@@ -551,8 +558,11 @@ const OrderDetail = () => {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  Keine Aktivitäten vorhanden
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted mb-3">
+                    <Activity className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Keine Aktivitäten vorhanden</p>
                 </div>
               )}
             </CardContent>

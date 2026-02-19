@@ -15,6 +15,7 @@ import {
   Eye,
   Loader2,
   Mail,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +39,7 @@ import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { SalesDocumentData, downloadSalesDocumentPDF, getSalesDocumentPDFBlobUrl } from "@/lib/pdf/sales-document";
-import { useDeliveryNote } from "@/hooks/use-delivery-notes";
+import { useDeliveryNote, useUpdateDeliveryNote } from "@/hooks/use-delivery-notes";
 
 // Status mapping from backend enum to German display labels
 const dnStatusMap: Record<string, string> = {
@@ -106,8 +107,23 @@ const DeliveryNoteDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: rawDn, isLoading, error } = useDeliveryNote(id || "");
+  const updateDeliveryNote = useUpdateDeliveryNote();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id) return;
+    try {
+      await updateDeliveryNote.mutateAsync({ id, data: { status: newStatus } });
+      toast.success(
+        newStatus === "SHIPPED" ? "Als versendet markiert" :
+        newStatus === "DELIVERED" ? "Als geliefert markiert" :
+        "Status aktualisiert"
+      );
+    } catch {
+      toast.error("Fehler beim Aktualisieren des Status");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -242,6 +258,30 @@ const DeliveryNoteDetail = () => {
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
+          {/* Status transition buttons */}
+          {(rawDn as any)?.status === "DRAFT" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-warning/50 text-warning hover:bg-warning/10"
+              onClick={() => handleStatusChange("SHIPPED")}
+              disabled={updateDeliveryNote.isPending}
+            >
+              {updateDeliveryNote.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Als versendet markieren
+            </Button>
+          )}
+          {(rawDn as any)?.status === "SHIPPED" && (
+            <Button
+              size="sm"
+              className="bg-success text-success-foreground hover:bg-success/90"
+              onClick={() => handleStatusChange("DELIVERED")}
+              disabled={updateDeliveryNote.isPending}
+            >
+              {updateDeliveryNote.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Als geliefert markieren
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -266,7 +306,26 @@ const DeliveryNoteDetail = () => {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/delivery-notes/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onClick={() => toast.info("Lieferschein wird dupliziert...")}>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info("Sendungsverfolgung wird geöffnet...")}>Sendungsverfolgung öffnen</DropdownMenuItem>
+              {(rawDn as any)?.status === "DRAFT" && (
+                <DropdownMenuItem onClick={() => handleStatusChange("SHIPPED")}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Als versendet markieren
+                </DropdownMenuItem>
+              )}
+              {(rawDn as any)?.status === "SHIPPED" && (
+                <DropdownMenuItem onClick={() => handleStatusChange("DELIVERED")}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Als geliefert markieren
+                </DropdownMenuItem>
+              )}
+              {(rawDn as any)?.status !== "CANCELLED" && (rawDn as any)?.status !== "DELIVERED" && (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => handleStatusChange("CANCELLED")}
+                >
+                  Stornieren
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
