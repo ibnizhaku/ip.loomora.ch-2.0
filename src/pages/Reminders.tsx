@@ -190,7 +190,15 @@ const Reminders = () => {
   });
   const initialReminders = (apiData?.data || []).map((r: any) => ({
     ...r,
-    amount: Number(r.amount ?? r.total ?? r.totalAmount ?? 0),
+    displayNumber: r.number || r.id?.substring(0, 8),
+    invoiceId: typeof r.invoice === 'object' ? r.invoice?.id : r.invoiceId || r.invoice,
+    invoiceNumber: typeof r.invoice === 'object' ? (r.invoice?.number || r.invoice?.id) : r.invoice,
+    customerName: typeof r.invoice === 'object' && r.invoice?.customer
+      ? (r.invoice.customer.companyName || r.invoice.customer.name)
+      : (typeof r.customer === 'object' ? (r.customer?.companyName || r.customer?.name) : r.customer),
+    amount: Number(r.totalWithFee ?? r.amount ?? r.total ?? r.totalAmount ?? 0),
+    daysOverdue: r.daysOverdue ?? (r.dueDate ? Math.max(0, Math.floor((Date.now() - new Date(r.dueDate).getTime()) / (1000 * 60 * 60 * 24))) : 0),
+    lastReminder: r.sentAt ? new Date(r.sentAt).toLocaleDateString('de-CH') : (r.createdAt ? new Date(r.createdAt).toLocaleDateString('de-CH') : '—'),
   }));
 
   // Fetch overdue invoices from API
@@ -240,9 +248,9 @@ const Reminders = () => {
 
   const filteredReminders = reminders.filter((r) => {
     const matchesSearch =
-      (r.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.customer || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.invoice || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (r.displayNumber || r.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.invoiceNumber || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesLevel = levelFilters.length === 0 || levelFilters.includes(r.level);
     return matchesSearch && matchesLevel;
   });
@@ -589,15 +597,15 @@ const Reminders = () => {
                           <AlertTriangle className="h-5 w-5 text-destructive" />
                         </div>
                         <div>
-                          <p className="font-medium">{reminder.id}</p>
-                          <p className="text-sm text-muted-foreground">Rechnung: {typeof reminder.invoice === 'object' ? (reminder.invoice as any)?.number || (reminder.invoice as any)?.id : reminder.invoice}</p>
+                          <p className="font-medium">{reminder.displayNumber}</p>
+                          <p className="text-sm text-muted-foreground">Rechnung: {reminder.invoiceNumber}</p>
                         </div>
                       </div>
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-sm">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span>{typeof reminder.customer === 'object' ? (reminder.customer as any)?.companyName || (reminder.customer as any)?.name : reminder.customer}</span>
+                          <span>{reminder.customerName}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-destructive">
                           <Clock className="h-4 w-4" />
@@ -658,19 +666,19 @@ const Reminders = () => {
                             onCheckedChange={() => toggleReminderSelection(reminder.id)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{reminder.id}</TableCell>
+                        <TableCell className="font-medium">{reminder.displayNumber}</TableCell>
                         <TableCell>
                           <span 
                             className="hover:text-primary cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${typeof reminder.invoice === 'object' ? (reminder.invoice as any)?.id : reminder.invoice}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${reminder.invoiceId}`); }}
                           >
-                            {typeof reminder.invoice === 'object' ? (reminder.invoice as any)?.number || (reminder.invoice as any)?.id : reminder.invoice}
+                            {reminder.invoiceNumber}
                           </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Building2 className="h-4 w-4 text-muted-foreground" />
-                            {typeof reminder.customer === 'object' ? (reminder.customer as any)?.companyName || (reminder.customer as any)?.name : reminder.customer}
+                            {reminder.customerName}
                           </div>
                         </TableCell>
                         <TableCell>
