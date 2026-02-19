@@ -65,8 +65,8 @@ import { de } from "date-fns/locale";
 function getOrderProgress(status: string): number {
   switch (status?.toUpperCase()) {
     case "DRAFT": return 10;
-    case "SENT": return 33;
-    case "CONFIRMED": return 66;
+    case "SENT": return 50;
+    case "CONFIRMED": return 100;
     case "CANCELLED": return 0;
     default: return 10;
   }

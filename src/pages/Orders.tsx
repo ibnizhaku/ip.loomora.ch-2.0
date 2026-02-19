@@ -84,8 +84,8 @@ interface Order {
 function getOrderProgress(status: string): number {
   switch (status?.toUpperCase()) {
     case "DRAFT": return 10;
-    case "SENT": return 33;
-    case "CONFIRMED": return 66;
+    case "SENT": return 50;
+    case "CONFIRMED": return 100;
     case "CANCELLED": return 0;
     default: return 10;
   }
@@ -94,8 +94,8 @@ function getOrderProgress(status: string): number {
 function mapOrder(raw: OrderRaw): Order {
   const s = (raw.status || "DRAFT").toUpperCase();
   let status = "new";
-  if (s === "CONFIRMED") status = "confirmed";
-  else if (s === "SENT") status = "confirmed";
+  if (s === "CONFIRMED") status = "completed";
+  else if (s === "SENT") status = "in-progress";
   else if (s === "CANCELLED") status = "cancelled";
   else if (s === "DRAFT") status = "new";
 
@@ -121,9 +121,7 @@ function mapOrder(raw: OrderRaw): Order {
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   new: { label: "Neu", color: "bg-info/10 text-info", icon: ShoppingCart },
-  confirmed: { label: "Bestätigt", color: "bg-primary/10 text-primary", icon: CheckCircle },
-  "in-progress": { label: "In Bearbeitung", color: "bg-warning/10 text-warning", icon: Clock },
-  shipped: { label: "Versendet", color: "bg-success/10 text-success", icon: Truck },
+  "in-progress": { label: "In Arbeit", color: "bg-warning/10 text-warning", icon: Clock },
   completed: { label: "Abgeschlossen", color: "bg-success/10 text-success", icon: CheckCircle },
   cancelled: { label: "Storniert", color: "bg-destructive/10 text-destructive", icon: XCircle },
 };
