@@ -231,7 +231,12 @@ export class MailService {
           include: { invoice: { include: { customer: true, items: true } } },
         });
         if (!doc) throw new NotFoundException('Mahnung nicht gefunden');
-        const pdfBuffer = await this.pdfService.generateReminderPdf(doc);
+        // Company-Info für Firmen-Header und Zahlungsanweisungen laden
+        const company = await this.prisma.company.findUnique({
+          where: { id: companyId },
+          select: { name: true, street: true, zip: true, city: true, iban: true, qrIban: true },
+        });
+        const pdfBuffer = await this.pdfService.generateReminderPdf({ ...doc, company });
         return { pdfBuffer, filename: `Mahnung-${doc.number}.pdf` };
       }
       default:

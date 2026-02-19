@@ -224,81 +224,119 @@ export class PdfService {
 
       const invoice = reminder.invoice || {};
       const customer = invoice.customer || {};
+      const company = reminder.company || {};
       const level = reminder.level || 1;
       const fee = Number(reminder.fee ?? 0);
-      const totalWithFee = Number(reminder.totalWithFee ?? invoice.totalAmount ?? 0);
       const originalAmount = Number(invoice.totalAmount ?? 0);
 
-      // Titel
-      doc.fontSize(20).font('Helvetica-Bold').text(`${level}. MAHNUNG`, { align: 'right' });
-      doc.moveDown(0.5);
+      // Verzugszins: 5% p.a. ab originalem Fälligkeitsdatum
+      let interestAmount = 0;
+      if (invoice.dueDate) {
+        const daysOverdue = Math.max(
+          0,
+          Math.floor((Date.now() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24)),
+        );
+        interestAmount = originalAmount * 0.05 * (daysOverdue / 365);
+      }
 
-      // Referenznummern
+      // Gesamtforderung = Original + Mahngebühr + Verzugszins
+      const totalWithFee = Number(
+        reminder.totalWithFee ?? (originalAmount + fee + interestAmount),
+      );
+
+      const tableLeft = 50;
+      const tableRight = 480;
+      const colValue = 380;
+
+      const drawRow = (label: string, value: string, bold = false) => {
+        const y = doc.y;
+        if (bold) doc.font('Helvetica-Bold'); else doc.font('Helvetica');
+        doc.fontSize(10).text(label, tableLeft, y, { width: colValue - tableLeft });
+        doc.text(value, colValue, y, { width: tableRight - colValue, align: 'right' });
+        doc.moveDown(0.5);
+      };
+
+      // ── Firmen-Header (Absender oben links) ──────────────────────────────
       doc.fontSize(10).font('Helvetica');
-      doc.text(`Mahnung Nr.: ${reminder.number}`, { align: 'right' });
+      if (company.name) doc.text(company.name, 50, 50);
+      if (company.street) doc.text(company.street);
+      if (company.zip && company.city) doc.text(`${company.zip} ${company.city}`);
+
+      // ── Titel + Meta (oben rechts) ────────────────────────────────────────
+      doc.fontSize(20).font('Helvetica-Bold').text(`${level}. MAHNUNG`, 50, 50, { align: 'right' });
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Mahnung Nr.: ${reminder.number || '–'}`, { align: 'right' });
       doc.text(`Rechnungs-Nr.: ${invoice.number || '–'}`, { align: 'right' });
       doc.text(`Datum: ${parseDate(reminder.createdAt)}`, { align: 'right' });
       doc.text(`Fällig bis: ${parseDate(reminder.dueDate)}`, { align: 'right' });
-      doc.moveDown(2);
 
-      // Kundenadresse
+      doc.moveDown(4);
+
+      // ── Schuldner-Adressblock ─────────────────────────────────────────────
       doc.font('Helvetica');
       doc.text(customer.companyName || customer.name || 'Kunde');
       if (customer.street) doc.text(customer.street);
       if (customer.zip && customer.city) doc.text(`${customer.zip} ${customer.city}`);
       doc.moveDown(2);
 
-      // Anrede / Betreff
-      doc.font('Helvetica-Bold').text(`Betreff: ${level}. Mahnung – Rechnung ${invoice.number || ''}`);
-      doc.moveDown();
+      // ── Betreff ───────────────────────────────────────────────────────────
+      doc.font('Helvetica-Bold').fontSize(11)
+        .text(`Betreff: ${level}. Mahnstufe – Rechnung ${invoice.number || ''}`);
+      doc.moveDown(0.5);
       doc.font('Helvetica').fontSize(10);
       doc.text(
         level === 1
-          ? 'Trotz unserer Rechnung vom ' + parseDate(invoice.issueDate) + ' haben wir bis heute keinen Zahlungseingang festgestellt. ' +
+          ? `Trotz unserer Rechnung vom ${parseDate(invoice.issueDate)} haben wir bis heute keinen Zahlungseingang festgestellt. ` +
             'Wir bitten Sie, den ausstehenden Betrag innerhalb der Nachfrist zu begleichen.'
           : `Wir haben Ihnen bereits ${level - 1} Mahnung(en) zugestellt. Da wir bisher keine Zahlung erhalten haben, ` +
             'ersuchen wir Sie dringend, den Gesamtbetrag innerhalb der gesetzten Frist zu begleichen.',
       );
-      doc.moveDown(2);
+      doc.moveDown(1.5);
 
-      // Übersichtstabelle
-      const tableLeft = 50;
-      const tableRight = 480;
-      const colValue = 420;
-
-      const drawRow = (label: string, value: string, bold = false) => {
-        const y = doc.y;
-        if (bold) doc.font('Helvetica-Bold'); else doc.font('Helvetica');
-        doc.text(label, tableLeft, y);
-        doc.text(value, colValue, y, { width: tableRight - colValue, align: 'right' });
-        doc.moveDown(0.5);
-      };
-
+      // ── Forderungs-Tabelle ────────────────────────────────────────────────
       doc.moveTo(tableLeft, doc.y).lineTo(tableRight, doc.y).stroke();
       doc.moveDown(0.5);
 
       drawRow('Rechnungsbetrag (Original):', `CHF ${originalAmount.toFixed(2)}`);
-      drawRow(`Rechnungsdatum:`, parseDate(invoice.issueDate));
+      drawRow('Rechnungsdatum:', parseDate(invoice.issueDate));
       drawRow('Ursprüngliches Fälligkeitsdatum:', parseDate(invoice.dueDate));
 
-      if (fee > 0) {
-        doc.moveDown(0.3);
-        drawRow(`Mahngebühr (${level}. Mahnung):`, `CHF ${fee.toFixed(2)}`);
+      doc.moveDown(0.3);
+      drawRow(`Mahngebühr (${level}. Mahnstufe):`, `CHF ${fee.toFixed(2)}`);
+
+      if (interestAmount > 0) {
+        drawRow('Verzugszins (5% p.a.):', `CHF ${interestAmount.toFixed(2)}`);
       }
 
       doc.moveDown(0.5);
       doc.moveTo(tableLeft, doc.y).lineTo(tableRight, doc.y).stroke();
       doc.moveDown(0.5);
-
       drawRow('GESAMTFORDERUNG:', `CHF ${totalWithFee.toFixed(2)}`, true);
-
-      doc.moveDown(0.5);
+      doc.moveDown(0.3);
       doc.moveTo(tableLeft, doc.y).lineTo(tableRight, doc.y).lineWidth(2).stroke();
       doc.lineWidth(1);
       doc.moveDown(2);
 
-      // Hinweis
-      doc.font('Helvetica').fontSize(9);
+      // ── Zahlungsanweisungen ───────────────────────────────────────────────
+      const iban = (company.qrIban || company.iban || invoice.qrIban || invoice.iban || '').replace(/\s/g, '');
+      const qrRef = invoice.qrReference || '';
+      if (iban) {
+        doc.font('Helvetica-Bold').fontSize(10).text('Zahlungsanweisungen:');
+        doc.font('Helvetica');
+        doc.text(`Bitte überweisen Sie den Gesamtbetrag von CHF ${totalWithFee.toFixed(2)} bis zum ${parseDate(reminder.dueDate)} auf:`);
+        doc.moveDown(0.3);
+        doc.text(`IBAN: ${iban.replace(/(.{4})/g, '$1 ').trim()}`);
+        if (qrRef) doc.text(`QR-Referenz: ${qrRef.replace(/(\d{2})(\d{5})(\d{5})(\d{5})(\d{5})(\d{5})/, '$1 $2 $3 $4 $5 $6')}`);
+        if (company.name) doc.text(`Zahlungsempfänger: ${company.name}`);
+        doc.moveDown(1);
+      } else {
+        doc.font('Helvetica').fontSize(10);
+        doc.text(`Bitte begleichen Sie den offenen Betrag von CHF ${totalWithFee.toFixed(2)} bis zum ${parseDate(reminder.dueDate)}.`);
+        doc.moveDown(1);
+      }
+
+      // ── Schlusshinweis ────────────────────────────────────────────────────
+      doc.fontSize(9);
       doc.text(
         'Sollte sich Ihre Zahlung mit diesem Schreiben gekreuzt haben, betrachten Sie dieses bitte als gegenstandslos. ' +
         'Bei Fragen stehen wir Ihnen gerne zur Verfügung.',
