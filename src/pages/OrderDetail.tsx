@@ -4,6 +4,7 @@ import { useOrder, useCreateOrder, useUpdateOrder } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
 import { useUsers } from "@/hooks/use-users";
 import { Loader2 } from "lucide-react";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 
 import { 
   ArrowLeft, 
@@ -27,6 +28,7 @@ import {
   FolderKanban,
   Activity,
   X,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -231,6 +233,7 @@ const OrderDetail = () => {
   const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const { data: companyData } = useCompany();
   const { data: usersData } = useUsers({ pageSize: 100 });
@@ -419,6 +422,10 @@ const OrderDetail = () => {
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setEmailModalOpen(true)}>
+            <Mail className="h-4 w-4 mr-2" />
+            Per E-Mail
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowDeliveryDialog(true)}>
             <Truck className="h-4 w-4 mr-2" />
@@ -869,6 +876,17 @@ const OrderDetail = () => {
           quantity: pos.quantity,
           unit: pos.unit,
         }))}
+      />
+
+      {/* Send Email Modal */}
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        documentType="order"
+        documentId={id || ''}
+        documentNumber={orderData.id}
+        defaultRecipient={(rawOrder as any)?.customer?.email}
+        documentData={pdfData}
       />
     </div>
   );
