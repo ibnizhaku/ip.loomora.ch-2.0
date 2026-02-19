@@ -11,11 +11,10 @@ import {
   Download,
   Printer,
   MoreHorizontal,
-  User,
-  Calendar,
   FileText,
   Eye,
-  Loader2
+  Loader2,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
-import { SalesDocumentData, downloadSalesDocumentPDF, getSalesDocumentPDFDataUrl } from "@/lib/pdf/sales-document";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
+import { SalesDocumentData, downloadSalesDocumentPDF, getSalesDocumentPDFBlobUrl } from "@/lib/pdf/sales-document";
 import { useDeliveryNote } from "@/hooks/use-delivery-notes";
 
 // Status mapping from backend enum to German display labels
@@ -107,6 +107,7 @@ const DeliveryNoteDetail = () => {
   const navigate = useNavigate();
   const { data: rawDn, isLoading, error } = useDeliveryNote(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -184,15 +185,21 @@ const DeliveryNoteDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    downloadSalesDocumentPDF(pdfData);
+    downloadSalesDocumentPDF(pdfData, `Lieferschein-${(rawDn as any).number || id}.pdf`);
     toast.success("PDF heruntergeladen");
   };
 
   const handlePrint = () => {
-    const url = getSalesDocumentPDFDataUrl(pdfData);
-    const printWindow = window.open(url);
+    const blobUrl = getSalesDocumentPDFBlobUrl(pdfData);
+    const printWindow = window.open(blobUrl);
     if (printWindow) {
-      printWindow.onload = () => { printWindow.print(); };
+      printWindow.onload = () => {
+        printWindow.print();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+      };
+    } else {
+      URL.revokeObjectURL(blobUrl);
+      toast.error("Popup wurde blockiert. Bitte Popup-Blocker deaktivieren.");
     }
   };
 
@@ -231,10 +238,6 @@ const DeliveryNoteDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/new?from=delivery-note&deliveryNoteId=${id}`)}>
-            <FileText className="h-4 w-4 mr-2" />
-            Rechnung erstellen
-          </Button>
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
@@ -246,6 +249,21 @@ const DeliveryNoteDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setEmailModalOpen(true)}>
+                <Mail className="h-4 w-4 mr-2" />
+                Per E-Mail senden
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const ordId = deliveryNoteData.orderId;
+                const custId = (rawDn as any)?.customer?.id;
+                const params = new URLSearchParams();
+                if (ordId) params.set("orderId", ordId);
+                if (custId) params.set("customerId", custId);
+                navigate(`/invoices/new?${params.toString()}`);
+              }}>
+                <FileText className="h-4 w-4 mr-2" />
+                Rechnung erstellen
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/delivery-notes/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onClick={() => toast.info("Lieferschein wird dupliziert...")}>Duplizieren</DropdownMenuItem>
               <DropdownMenuItem onClick={() => toast.info("Sendungsverfolgung wird geöffnet...")}>Sendungsverfolgung öffnen</DropdownMenuItem>
@@ -461,6 +479,17 @@ const DeliveryNoteDetail = () => {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Lieferschein ${deliveryNoteData.id}`}
+        onSendEmail={() => setEmailModalOpen(true)}
+      />
+
+      {/* E-Mail Modal */}
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        documentType="delivery-note"
+        documentId={id || ''}
+        documentNumber={deliveryNoteData.id}
+        defaultRecipient={(rawDn as any)?.customer?.email || ''}
       />
     </div>
   );

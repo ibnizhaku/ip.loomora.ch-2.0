@@ -371,3 +371,9 @@ export function getSalesDocumentPDFDataUrl(data: SalesDocumentData): string {
   const doc = generateSalesDocumentPDF(data);
   return doc.output('dataurlstring');
 }
+
+export function getSalesDocumentPDFBlobUrl(data: SalesDocumentData): string {
+  const doc = generateSalesDocumentPDF(data);
+  const blob = doc.output('blob');
+  return URL.createObjectURL(blob);
+}

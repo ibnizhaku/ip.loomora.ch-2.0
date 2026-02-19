@@ -7,12 +7,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, Mail, Loader2, X } from "lucide-react";
+import { Download, Printer, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { 
   SalesDocumentData, 
   downloadSalesDocumentPDF, 
-  getSalesDocumentPDFDataUrl 
+  getSalesDocumentPDFDataUrl,
+  getSalesDocumentPDFBlobUrl,
 } from "@/lib/pdf/sales-document";
 
 interface PDFPreviewDialogProps {
@@ -20,6 +21,7 @@ interface PDFPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   documentData: SalesDocumentData | null;
   title?: string;
+  onSendEmail?: () => void;
 }
 
 const documentTypeLabels: Record<string, string> = {
@@ -35,6 +37,7 @@ export function PDFPreviewDialog({
   onOpenChange, 
   documentData,
   title,
+  onSendEmail,
 }: PDFPreviewDialogProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,18 +74,27 @@ export function PDFPreviewDialog({
   };
 
   const handlePrint = () => {
-    if (!pdfUrl) return;
-    const printWindow = window.open(pdfUrl);
+    if (!documentData) return;
+    const blobUrl = getSalesDocumentPDFBlobUrl(documentData);
+    const printWindow = window.open(blobUrl);
     if (printWindow) {
       printWindow.onload = () => {
         printWindow.print();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
       };
+    } else {
+      URL.revokeObjectURL(blobUrl);
+      toast.error("Popup wurde blockiert. Bitte Popup-Blocker deaktivieren.");
     }
   };
 
   const handleEmail = () => {
-    toast.info("E-Mail-Versand wird vorbereitet...");
-    // Could integrate with email service here
+    if (onSendEmail) {
+      onOpenChange(false);
+      onSendEmail();
+    } else {
+      toast.info("E-Mail-Versand wird vorbereitet...");
+    }
   };
 
   const typeLabel = documentData ? documentTypeLabels[documentData.type] || 'Dokument' : 'Dokument';
