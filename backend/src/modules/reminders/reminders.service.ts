@@ -28,7 +28,13 @@ export class RemindersService {
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
-    if (status) where.status = status;
+
+    // Status-Filter: unterstützt einzelnen Wert ODER kommaseparierte Liste (z.B. "SENT,PAID,CANCELLED")
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+      where.status = statuses.length === 1 ? statuses[0] : { in: statuses };
+    }
+
     if (level) where.level = level;
     if (customerId) where.invoice = { customerId };
     if (search) {
@@ -52,7 +58,21 @@ export class RemindersService {
               number: true,
               totalAmount: true,
               dueDate: true,
-              customer: { select: { id: true, name: true, email: true } },
+              date: true,
+              status: true,
+              customer: {
+                select: {
+                  id: true,
+                  name: true,
+                  companyName: true,
+                  email: true,
+                  phone: true,
+                  street: true,
+                  zipCode: true,
+                  city: true,
+                  country: true,
+                },
+              },
             },
           },
         },
@@ -222,6 +242,7 @@ export class RemindersService {
   }
 
   // Get overdue invoices that need reminders
+  // Nur Rechnungen ohne aktive (nicht stornierte/bezahlte) Mahnung zurückgeben
   async getOverdueInvoices(companyId: string) {
     const today = new Date();
 
@@ -230,9 +251,22 @@ export class RemindersService {
         companyId,
         status: { in: ['SENT', 'OVERDUE'] },
         dueDate: { lt: today },
+        // Nur Rechnungen ohne aktive Mahnung (DRAFT oder SENT)
+        reminders: {
+          none: {
+            status: { in: [ReminderStatus.DRAFT, ReminderStatus.SENT] },
+          },
+        },
       },
       include: {
-        customer: { select: { id: true, name: true, email: true } },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            email: true,
+          },
+        },
         reminders: {
           orderBy: { level: 'desc' },
           take: 1,
@@ -248,12 +282,13 @@ export class RemindersService {
 
       return {
         ...invoice,
+        number: invoice.number,
         amount: Number(invoice.totalAmount ?? 0),
         daysOverdue,
         currentLevel: lastReminder?.level || 0,
         nextLevel,
         nextFee: REMINDER_FEES[nextLevel] || 0,
-        reminders: undefined, // Remove from response
+        reminders: undefined,
       };
     });
   }
