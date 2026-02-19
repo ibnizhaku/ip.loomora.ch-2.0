@@ -291,16 +291,6 @@ model CompanySettings {
   currency       String  @default("CHF")
   exchangeRates  Json?
 
-  // E-Mail/SMTP
-  smtpHost       String?
-  smtpPort       Int?
-  smtpUser       String?
-  smtpPassword   String?
-  smtpFrom       String?
-  smtpFromName   String?
-  smtpSsl        Boolean @default(true)
-  smtpEncryption String? @default("TLS")
-
   // Dokumente / Nummernkreise
   invoicePrefix         String? @default("RE-")
   invoiceNextNumber     Int?    @default(1)

@@ -28,13 +28,6 @@ export class SettingsController {
     return this.settingsService.updateSettings(user.companyId, dto);
   }
 
-  @Post('smtp/test')
-  @RequirePermissions('settings:write')
-  @ApiOperation({ summary: 'Test SMTP configuration' })
-  testSmtp(@CurrentUser() user: CurrentUserPayload) {
-    return this.settingsService.testSmtp(user.companyId);
-  }
-
   @Post('generate-api-key')
   @RequirePermissions('settings:admin')
   @ApiOperation({ summary: 'Generate new API key' })

@@ -18,55 +18,31 @@ export class SettingsService {
       });
     }
 
-    // Mask SMTP password in response
-    return {
-      ...settings,
-      smtpPassword: settings.smtpPassword ? '••••••••' : null,
-    };
+    return settings;
   }
 
   async updateSettings(companyId: string, dto: UpdateSettingsDto) {
-    // Upsert: create if not exists, update if exists
     const settings = await this.prisma.companySettings.upsert({
       where: { companyId },
       create: { companyId, ...dto },
       update: dto,
     });
 
-    return {
-      ...settings,
-      smtpPassword: settings.smtpPassword ? '••••••••' : null,
-    };
-  }
-
-  async testSmtp(companyId: string) {
-    const settings = await this.prisma.companySettings.findUnique({
-      where: { companyId },
-    });
-
-    if (!settings?.smtpHost || !settings?.smtpUser) {
-      return { success: false, message: 'SMTP nicht konfiguriert' };
-    }
-
-    // In production, this would send a real test email
-    return { success: true, message: 'Test-E-Mail gesendet (SMTP-Konfiguration vorhanden)' };
+    return settings;
   }
 
   async generateApiKey(companyId: string) {
     const crypto = require('crypto');
     const apiKey = `lmra_${crypto.randomBytes(32).toString('hex')}`;
 
-    // Store hashed API key (production: use bcrypt)
-    const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
-
     await this.prisma.companySettings.upsert({
       where: { companyId },
       create: { companyId },
-      update: { },
+      update: {},
     });
 
     return {
-      apiKey, // Return once, never stored in plain text
+      apiKey,
       prefix: apiKey.substring(0, 12) + '...',
       createdAt: new Date().toISOString(),
     };
