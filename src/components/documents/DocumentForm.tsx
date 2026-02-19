@@ -395,6 +395,11 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       return;
     }
 
+    if (type === "order" && !selectedProjectId) {
+      toast.error("Bitte wählen Sie ein Projekt aus");
+      return;
+    }
+
     const isDeliveryNote = type === "delivery-note";
     const payload: any = {
       customerId: selectedCustomer.id,
@@ -1189,7 +1194,14 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
               </div>
 
               <div className="space-y-2">
-                <Label>Projekt (optional)</Label>
+                <Label>
+                  Projekt
+                  {(type === "order" || type === "quote") ? (
+                    <span className="text-destructive ml-1">*</span>
+                  ) : (
+                    <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+                  )}
+                </Label>
                 <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Projekt auswählen..." />
