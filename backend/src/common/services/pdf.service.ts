@@ -41,7 +41,21 @@ export class PdfService {
       if (invoice.customer?.zip && invoice.customer?.city) {
         doc.text(`${invoice.customer.zip} ${invoice.customer.city}`);
       }
-      doc.moveDown(2);
+      doc.moveDown();
+
+      // Delivery address (if different from billing)
+      const da = invoice.deliveryAddress;
+      if (da && (da.street || da.city)) {
+        doc.fontSize(9).font('Helvetica-Bold').text('Lieferadresse:');
+        doc.font('Helvetica');
+        if (da.company) doc.text(da.company);
+        if (da.street) doc.text(da.street);
+        if (da.zipCode || da.city) doc.text(`${da.zipCode || ''} ${da.city || ''}`.trim());
+        if (da.country && da.country !== 'CH') doc.text(da.country);
+        doc.moveDown();
+      } else {
+        doc.moveDown();
+      }
 
       // Items table – hidePrices: nur Pos, Beschreibung, Menge, Einheit (für Lieferscheine)
       const hidePrices = invoice.hidePrices === true;

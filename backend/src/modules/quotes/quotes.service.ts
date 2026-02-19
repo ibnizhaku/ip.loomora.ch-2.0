@@ -133,6 +133,7 @@ export class QuotesService {
         total,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
+        deliveryAddress: dto.deliveryAddress ?? undefined,
         companyId,
         createdById: userId,
         items: {
@@ -195,6 +196,7 @@ export class QuotesService {
           total,
           notes: dto.notes,
           internalNotes: dto.internalNotes,
+          deliveryAddress: dto.deliveryAddress ?? undefined,
           items: {
             create: items.map((item, index) => ({
               position: index + 1,
@@ -227,6 +229,7 @@ export class QuotesService {
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
+        deliveryAddress: dto.deliveryAddress ?? undefined,
       },
       include: {
         customer: true,

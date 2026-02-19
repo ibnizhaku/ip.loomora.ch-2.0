@@ -390,6 +390,11 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       return;
     }
 
+    if (type === "quote" && !selectedProjectId) {
+      toast.error("Bitte Projekt hinzufügen");
+      return;
+    }
+
     const isDeliveryNote = type === "delivery-note";
     const payload: any = {
       customerId: selectedCustomer.id,
@@ -628,7 +633,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                               <Building2 className="h-5 w-5 text-primary" />
                             </div>
                             <div className="flex-1">
-                              <p className="font-medium">{customer.name}</p>
+                              <p className="font-medium">{(customer as any).companyName || customer.name}</p>
                               <p className="text-sm text-muted-foreground">
                                 {customer.email} • {customer.city || customer.street}
                               </p>

@@ -84,7 +84,7 @@ import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-doc
 const quoteStatusMap: Record<string, string> = {
   DRAFT: "Entwurf",
   SENT: "Gesendet",
-  CONFIRMED: "Angenommen",
+  CONFIRMED: "Akzeptiert",
   CANCELLED: "Abgelehnt",
 };
 
@@ -198,12 +198,12 @@ const QuoteDetail = () => {
     vatNumber: companyData?.vatNumber || "",
   };
 
-  // Prepare PDF data
+  // Prepare PDF data – raw dates verwenden um "Invalid Date" zu vermeiden
   const pdfData: SalesDocumentData = {
     type: 'quote',
     number: quoteData.id,
-    date: quoteData.createdAt,
-    validUntil: quoteData.validUntil,
+    date: (rawQuote as any).issueDate || (rawQuote as any).createdAt || quoteData.createdAt,
+    validUntil: (rawQuote as any).validUntil,
     projectNumber: quoteData.project,
     company: companyInfo,
     customer: {

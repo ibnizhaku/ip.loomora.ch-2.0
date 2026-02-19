@@ -1,7 +1,15 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsDateString, IsEnum, IsArray, ValidateNested, Min } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsDateString, IsEnum, IsArray, ValidateNested, Min, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DocumentStatus } from '@prisma/client';
+
+export class DeliveryAddressDto {
+  @IsOptional() @IsString() company?: string;
+  @IsOptional() @IsString() street?: string;
+  @IsOptional() @IsString() zipCode?: string;
+  @IsOptional() @IsString() city?: string;
+  @IsOptional() @IsString() country?: string;
+}
 
 export class QuoteItemDto {
   @ApiProperty()
@@ -77,6 +85,13 @@ export class CreateQuoteDto {
   @IsString()
   @IsOptional()
   internalNotes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => DeliveryAddressDto)
+  deliveryAddress?: DeliveryAddressDto;
 
   @ApiProperty({ type: [QuoteItemDto] })
   @IsArray()

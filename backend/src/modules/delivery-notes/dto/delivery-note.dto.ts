@@ -1,5 +1,8 @@
-import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
+import { DeliveryAddressDto } from '../../quotes/dto/quote.dto';
+
+export { DeliveryAddressDto };
 
 export enum DeliveryNoteStatus {
   DRAFT = 'DRAFT',
@@ -46,8 +49,10 @@ export class CreateDeliveryNoteDto {
   deliveryDate?: string;
 
   @IsOptional()
-  @IsString()
-  deliveryAddress?: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => DeliveryAddressDto)
+  deliveryAddress?: DeliveryAddressDto;
 
   @IsOptional()
   @IsString()
@@ -81,8 +86,10 @@ export class UpdateDeliveryNoteDto {
   deliveryDate?: string;
 
   @IsOptional()
-  @IsString()
-  deliveryAddress?: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => DeliveryAddressDto)
+  deliveryAddress?: DeliveryAddressDto;
 
   @IsOptional()
   @IsString()
