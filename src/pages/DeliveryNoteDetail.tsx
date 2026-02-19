@@ -148,62 +148,57 @@ const DeliveryNoteDetail = () => {
   const StatusIcon = status.icon;
 
   // Prepare PDF data for delivery note – rohe ISO-Daten verwenden (nicht vorformatiert)
-  const pdfData: SalesDocumentData = (() => {
-    const raw = rawDn as any;
-    // Lieferadresse: zuerst vom Lieferschein selbst, dann vom Auftrag als Fallback
-    const da = raw.deliveryAddress ?? raw.order?.deliveryAddress;
-    const hasCustomDeliveryAddress = da && typeof da === 'object' && da.street;
-
-    // Projekt vom verknüpften Auftrag
-    const project = raw.order?.project;
-
-    return {
-      type: 'delivery-note' as const,
-      number: raw.number || deliveryNoteData.id,
-      date: raw.deliveryDate || raw.createdAt || new Date().toISOString(),
-      deliveryDate: raw.shippedDate || raw.deliveryDate,
-      orderNumber: deliveryNoteData.order,
-      projectNumber: project?.number ? `${project.number} – ${project.name || ''}`.trim().replace(/–\s*$/, '') : undefined,
-      company: {
-        name: "Loomora Metallbau AG",
-        street: "Industriestrasse 15",
-        postalCode: "8005",
-        city: "Zürich",
-        phone: "+41 44 123 45 67",
-        email: "info@loomora.ch",
-      },
-      // Rechnungsadresse = immer Kundenstammdaten
-      customer: {
+  const pdfData: SalesDocumentData = {
+    type: 'delivery-note',
+    number: (rawDn as any).number || deliveryNoteData.id,
+    date: (rawDn as any).deliveryDate || (rawDn as any).createdAt || new Date().toISOString(),
+    deliveryDate: (rawDn as any).shippedDate || (rawDn as any).deliveryDate,
+    orderNumber: deliveryNoteData.order,
+    company: {
+      name: "Loomora Metallbau AG",
+      street: "Industriestrasse 15",
+      postalCode: "8005",
+      city: "Zürich",
+      phone: "+41 44 123 45 67",
+      email: "info@loomora.ch",
+    },
+    customer: (() => {
+      const raw = rawDn as any;
+      const da = raw.deliveryAddress;
+      // Custom Lieferadresse (Toggle EIN): { company, street, zipCode, city, country }
+      if (da && typeof da === 'object' && da.street) {
+        return {
+          name: da.company || raw.customer?.companyName || raw.customer?.name || deliveryNoteData.customer.name,
+          contact: "",
+          street: da.street || "",
+          postalCode: da.zipCode || "",
+          city: da.city || "",
+        };
+      }
+      // Kein Toggle / Standard: Kundenstammdaten mit Firmenname
+      return {
         name: raw.customer?.companyName || raw.customer?.name || deliveryNoteData.customer.name,
         contact: raw.customer?.contactPerson || "",
         street: raw.customer?.street || "",
         postalCode: raw.customer?.zipCode || "",
         city: raw.customer?.city || "",
-      },
-      // Lieferadresse: nur setzen wenn Toggle EIN war (abweichende Adresse)
-      deliveryAddress: hasCustomDeliveryAddress ? {
-        company: da.company || "",
-        street: da.street || "",
-        zipCode: da.zipCode || "",
-        city: da.city || "",
-        country: da.country || "",
-      } : undefined,
-      positions: deliveryNoteData.positions.map((pos, idx) => ({
-        position: idx + 1,
-        description: `${pos.articleNo} - ${pos.description}`,
-        quantity: pos.delivered,
-        unit: "Stk",
-        unitPrice: 0,
-        total: 0,
-      })),
-      subtotal: 0,
-      vatRate: 0,
-      vatAmount: 0,
+      };
+    })(),
+    positions: deliveryNoteData.positions.map((pos, idx) => ({
+      position: idx + 1,
+      description: `${pos.articleNo} - ${pos.description}`,
+      quantity: pos.delivered,
+      unit: "Stk",
+      unitPrice: 0,
       total: 0,
-      notes: deliveryNoteData.notes,
-      deliveryTerms: deliveryNoteData.deliveredBy !== "—" ? `Versand: ${deliveryNoteData.deliveredBy}` : undefined,
-    };
-  })();
+    })),
+    subtotal: 0,
+    vatRate: 0,
+    vatAmount: 0,
+    total: 0,
+    notes: deliveryNoteData.notes,
+    deliveryTerms: `Versand: ${deliveryNoteData.deliveredBy}`,
+  };
 
   const handleDownloadPDF = () => {
     downloadSalesDocumentPDF(pdfData, `Lieferschein-${(rawDn as any).number || id}.pdf`);
