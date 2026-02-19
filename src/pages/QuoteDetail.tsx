@@ -240,7 +240,7 @@ const QuoteDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    downloadPdf('quotes', id || '', `Angebot-${quoteData.id}.pdf`);
+    downloadSalesDocumentPDF(pdfData, `Angebot-${quoteData.id}.pdf`);
     toast.success("PDF wird heruntergeladen");
   };
 

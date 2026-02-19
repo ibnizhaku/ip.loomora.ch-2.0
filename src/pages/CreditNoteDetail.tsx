@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import { useCreditNote } from "@/hooks/use-credit-notes";
 import { useCompany } from "@/hooks/use-company";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
-import { SalesDocumentData } from "@/lib/pdf/sales-document";
+import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
 const statusMap: Record<string, string> = {
   DRAFT: "Entwurf",
@@ -171,7 +171,7 @@ const CreditNoteDetail = () => {
             <Eye className="h-4 w-4 mr-2" />
             Vorschau
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { downloadPdf('credit-notes', id || '', `Gutschrift-${creditNoteData.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
+          <Button variant="outline" size="sm" onClick={() => { downloadSalesDocumentPDF(pdfData, `Gutschrift-${creditNoteData.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>

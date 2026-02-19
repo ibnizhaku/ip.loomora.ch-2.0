@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
-import { SalesDocumentData } from "@/lib/pdf/sales-document";
+import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 import { useInvoice } from "@/hooks/use-invoices";
 import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
@@ -222,7 +222,7 @@ const InvoiceDetail = () => {
   };
 
   const handleDownloadPDF = () => {
-    downloadPdf('invoices', id || '', `Rechnung-${invoiceData.id}.pdf`);
+    downloadSalesDocumentPDF(pdfData, `Rechnung-${invoiceData.id}.pdf`);
     toast.success("PDF wird heruntergeladen");
   };
 
