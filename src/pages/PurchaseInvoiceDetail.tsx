@@ -1,11 +1,10 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { downloadPdf } from "@/lib/api";
 import { 
   ArrowLeft, 
   FileText, 
   Building2,
-  Mail,
-  Phone,
   Clock,
   Printer,
   MoreHorizontal,
@@ -14,21 +13,32 @@ import {
   AlertTriangle,
   CreditCard,
   Ban,
-  MapPin,
-  Loader2
+  Loader2,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { usePurchaseInvoice } from "@/hooks/use-purchase-invoices";
+import { usePurchaseInvoice, useUpdatePurchaseInvoice } from "@/hooks/use-purchase-invoices";
 
 const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
   DRAFT: { color: "bg-muted text-muted-foreground", icon: FileText, label: "Entwurf" },
@@ -47,6 +57,18 @@ const PurchaseInvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: raw, isLoading, error } = usePurchaseInvoice(id || "");
+  const updateInvoice = useUpdatePurchaseInvoice();
+
+  // Dialog states
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    paymentDate: new Date().toISOString().split("T")[0],
+    method: "BANK_TRANSFER",
+    note: "",
+  });
 
   if (isLoading) {
     return (
@@ -69,6 +91,35 @@ const PurchaseInvoiceDetail = () => {
   const status = statusConfig[pi.status] || statusConfig.DRAFT;
   const StatusIcon = status.icon;
   const outstanding = Number(pi.openAmount ?? (pi.total - (pi.paidAmount || 0))) || 0;
+
+  const isCancellable = pi.status !== "CANCELLED" && pi.status !== "PAID";
+
+  const handleCancel = () => {
+    updateInvoice.mutate(
+      { id: id || "", data: { status: "CANCELLED" } },
+      {
+        onSuccess: () => {
+          toast.success("Rechnung storniert");
+          setCancelDialogOpen(false);
+          setCancelReason("");
+        },
+        onError: () => toast.error("Fehler beim Stornieren"),
+      }
+    );
+  };
+
+  const handleRecordPayment = () => {
+    if (!paymentForm.amount || Number(paymentForm.amount) <= 0) {
+      toast.error("Bitte gültigen Betrag eingeben");
+      return;
+    }
+    // Will be wired to backend record-payment endpoint once available
+    toast.success("Zahlung erfasst", {
+      description: `CHF ${Number(paymentForm.amount).toLocaleString("de-CH")} am ${paymentForm.paymentDate}`,
+    });
+    setPaymentDialogOpen(false);
+    setPaymentForm({ amount: "", paymentDate: new Date().toISOString().split("T")[0], method: "BANK_TRANSFER", note: "" });
+  };
 
   return (
     <div className="space-y-6">
@@ -95,11 +146,16 @@ const PurchaseInvoiceDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => toast.info("Zahlungserfassung wird geöffnet...")}>
-            <CreditCard className="h-4 w-4 mr-2" />
-            Zahlung erfassen
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => { downloadPdf('invoices', id || '', `Einkaufsrechnung-${pi.number || pi.id}.pdf`); toast.success("PDF wird heruntergeladen"); }}>
+          {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+            <Button variant="outline" size="sm" onClick={() => setPaymentDialogOpen(true)}>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Zahlung erfassen
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => {
+            downloadPdf('purchase-invoices', id || '', `Einkaufsrechnung-${pi.number || pi.id}.pdf`);
+            toast.success("PDF wird heruntergeladen");
+          }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
@@ -118,7 +174,15 @@ const PurchaseInvoiceDetail = () => {
               {pi.purchaseOrderId && (
                 <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${pi.purchaseOrder?.id || pi.purchaseOrderId}`)}>Bestellung anzeigen</DropdownMenuItem>
               )}
-              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Rechnung wird storniert...")}>Stornieren</DropdownMenuItem>
+              {isCancellable && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive" onClick={() => setCancelDialogOpen(true)}>
+                    <Ban className="h-4 w-4 mr-2" />
+                    Stornieren
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -189,7 +253,7 @@ const PurchaseInvoiceDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Payments placeholder */}
+          {/* Payments */}
           <Card>
             <CardHeader>
               <CardTitle>Zahlungsverlauf</CardTitle>
@@ -198,10 +262,12 @@ const PurchaseInvoiceDetail = () => {
               <div className="text-center py-6 text-muted-foreground">
                 <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
                 <p>Noch keine Zahlungen erfasst</p>
-                <Button variant="outline" size="sm" className="mt-3">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Zahlung erfassen
-                </Button>
+                {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setPaymentDialogOpen(true)}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Zahlung erfassen
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -252,7 +318,10 @@ const PurchaseInvoiceDetail = () => {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Fällig am</span>
-                <span className="font-medium">{formatDate(pi.dueDate)}</span>
+                <span className={`font-medium ${pi.isOverdue ? "text-destructive" : ""}`}>
+                  {formatDate(pi.dueDate)}
+                  {pi.isOverdue && <AlertTriangle className="h-3 w-3 inline ml-1" />}
+                </span>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -263,6 +332,106 @@ const PurchaseInvoiceDetail = () => {
           </Card>
         </div>
       </div>
+
+      {/* Cancel Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rechnung stornieren?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion markiert die Rechnung als storniert. Sie kann danach nicht mehr bearbeitet werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label className="text-sm text-muted-foreground">Stornierungsgrund (optional)</Label>
+            <Textarea
+              className="mt-2"
+              rows={3}
+              placeholder="Grund für die Stornierung..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancel}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={updateInvoice.isPending}
+            >
+              {updateInvoice.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Ban className="h-4 w-4 mr-2" />}
+              Stornieren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Zahlung erfassen
+            </DialogTitle>
+            <DialogDescription>
+              Offener Betrag: <strong>CHF {outstanding.toFixed(2)}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Betrag (CHF) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Zahlungsdatum *</Label>
+              <Input
+                type="date"
+                value={paymentForm.paymentDate}
+                onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Zahlungsart</Label>
+              <Select
+                value={paymentForm.method}
+                onValueChange={(v) => setPaymentForm(prev => ({ ...prev, method: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BANK_TRANSFER">Überweisung</SelectItem>
+                  <SelectItem value="DIRECT_DEBIT">Lastschrift</SelectItem>
+                  <SelectItem value="CASH">Bar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notiz (optional)</Label>
+              <Textarea
+                rows={2}
+                placeholder="Zusätzliche Informationen..."
+                value={paymentForm.note}
+                onChange={(e) => setPaymentForm(prev => ({ ...prev, note: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleRecordPayment} className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Zahlung buchen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

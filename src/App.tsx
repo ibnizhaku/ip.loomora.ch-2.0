@@ -363,6 +363,7 @@ const App = () => (
               <Route path="/goods-receipts" element={<ProtectedLayout><PermissionGuard module="goods-receipts"><GoodsReceipts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/goods-receipts/new" element={<ProtectedLayout><GoodsReceiptCreate /></ProtectedLayout>} />
               <Route path="/goods-receipts/:id" element={<ProtectedLayout><GoodsReceiptDetail /></ProtectedLayout>} />
+              <Route path="/goods-receipts/:id/edit" element={<ProtectedLayout><GoodsReceiptCreate /></ProtectedLayout>} />
               
               {/* Finanzen & Buchhaltung */}
               <Route path="/finance" element={<ProtectedLayout><PermissionGuard module="finance"><Finance /></PermissionGuard></ProtectedLayout>} />

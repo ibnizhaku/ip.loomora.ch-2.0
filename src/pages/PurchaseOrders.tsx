@@ -243,7 +243,7 @@ const PurchaseOrders = () => {
                           <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${order.id}`)}>
                             Anzeigen
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate("/goods-receipts/new")}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/goods-receipts/new?purchaseOrderId=${order.id}`); }}>
                             Wareneingang buchen
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => navigate(`/purchase-orders/${order.id}/edit`)}>Bearbeiten</DropdownMenuItem>

@@ -294,7 +294,7 @@ const PurchaseOrderDetail = () => {
   // Duplicate handler
   const handleDuplicate = () => {
     toast.success("Bestellung dupliziert", { description: "Eine neue Bestellung wurde als Entwurf erstellt" });
-    navigate("/purchase-orders/create");
+    navigate("/purchase-orders/new");
   };
 
   // Edit handler
@@ -305,9 +305,8 @@ const PurchaseOrderDetail = () => {
 
   // Invoice assignment handler
   const handleAssignInvoice = () => {
-    toast.success("Rechnung zugeordnet", { description: "Weiterleitung zu Einkaufsrechnungen" });
     setInvoiceDialogOpen(false);
-    navigate("/purchase-invoices/create");
+    navigate(`/purchase-invoices/new?purchaseOrderId=${id}&supplierId=${orderData.supplier.id}`);
   };
 
   const createdDate = safeDate(orderData.createdAt);

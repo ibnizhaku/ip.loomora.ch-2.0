@@ -44,6 +44,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useApprovePurchaseInvoice, useUpdatePurchaseInvoice } from "@/hooks/use-purchase-invoices";
+
 
 interface PurchaseInvoice {
   id: string;
@@ -93,12 +95,16 @@ export default function PurchaseInvoices() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // API mutations
+  const approveMutation = useApprovePurchaseInvoice();
+  const updateMutation = useUpdatePurchaseInvoice();
+
   // Fetch data from API
   const { data: apiData } = useQuery({
     queryKey: ["/purchase-invoices"],
     queryFn: () => api.get<any>("/purchase-invoices"),
   });
-  const initialInvoices: PurchaseInvoice[] = (apiData?.data || []).map((raw: any) => ({
+  const invoices: PurchaseInvoice[] = (apiData?.data || []).map((raw: any) => ({
     id: raw.id || "",
     number: raw.number || "",
     supplierNumber: raw.supplierNumber || raw.supplier?.number || "–",
@@ -114,7 +120,6 @@ export default function PurchaseInvoices() {
     costCenter: raw.costCenter?.name || raw.costCenterName,
     pdfFile: raw.pdfFile,
   }));
-  const [invoices, setInvoices] = useState<PurchaseInvoice[]>(initialInvoices);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -171,59 +176,40 @@ export default function PurchaseInvoices() {
       toast.error("Bitte Pflichtfelder ausfüllen");
       return;
     }
-
-    const netAmount = parseFloat(importData.netAmount);
-    const vatAmount = netAmount * 0.081; // 8.1% MwSt
-    const grossAmount = netAmount + vatAmount;
-
-    const newInvoice: PurchaseInvoice = {
-      id: Date.now().toString(),
-      number: `ERI-2024-${String(invoices.length + 1).padStart(3, "0")}`,
-      supplierNumber: importData.supplierNumber || "N/A",
-      supplier: importData.supplier,
-      invoiceDate: importData.invoiceDate || new Date().toLocaleDateString("de-CH"),
-      dueDate: importData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("de-CH"),
-      netAmount,
-      vatAmount,
-      grossAmount,
-      currency: "CHF",
-      status: "draft",
-      pdfFile: uploadedFile?.name,
-    };
-
-    setInvoices((prev) => [newInvoice, ...prev]);
+    // TODO: Wire to useCreatePurchaseInvoice once backend supports direct import
     setImportDialogOpen(false);
     setUploadedFile(null);
-    setImportData({
-      supplier: "",
-      supplierNumber: "",
-      netAmount: "",
-      invoiceDate: "",
-      dueDate: "",
-    });
-    toast.success("Rechnung importiert", {
-      description: `${newInvoice.number} - CHF ${grossAmount.toLocaleString("de-CH")}`,
-    });
+    setImportData({ supplier: "", supplierNumber: "", netAmount: "", invoiceDate: "", dueDate: "" });
+    toast.success("Rechnung importiert – bitte manuell vervollständigen");
+    navigate("/purchase-invoices/new?supplierId=" + importData.supplier);
   };
 
   const handleApprove = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === id ? { ...inv, status: "approved" as const } : inv
-      )
+    approveMutation.mutate(
+      { id, data: {} },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/purchase-invoices"] });
+          toast.success("Rechnung freigegeben");
+        },
+        onError: () => toast.error("Fehler beim Freigeben"),
+      }
     );
-    toast.success("Rechnung freigegeben");
   };
 
   const handleReject = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === id ? { ...inv, status: "rejected" as const } : inv
-      )
+    updateMutation.mutate(
+      { id, data: { status: "DRAFT" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/purchase-invoices"] });
+          toast.info("Rechnung abgelehnt – zurück in Entwurf");
+        },
+        onError: () => toast.error("Fehler beim Ablehnen"),
+      }
     );
-    toast.info("Rechnung abgelehnt");
   };
 
   const deleteMutation = useMutation({
@@ -238,6 +224,7 @@ export default function PurchaseInvoices() {
     e.stopPropagation();
     deleteMutation.mutate(id);
   };
+
 
   return (
     <div className="space-y-6">

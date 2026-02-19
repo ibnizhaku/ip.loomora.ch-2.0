@@ -1,19 +1,105 @@
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Package, Plus, Trash2 } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Save, Package, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { toast } from "sonner";
+import { useCreateGoodsReceipt } from "@/hooks/use-goods-receipts";
+import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
+
+interface ReceiptItem {
+  id: number;
+  productId: string;
+  article: string;
+  ordered: number;
+  received: number;
+  unit: string;
+}
 
 export default function GoodsReceiptCreate() {
   const navigate = useNavigate();
-  const [items, setItems] = useState([{ id: 1, article: "", ordered: 0, received: 0 }]);
+  const [searchParams] = useSearchParams();
+  const purchaseOrderId = searchParams.get("purchaseOrderId") || "";
 
-  const addItem = () => setItems([...items, { id: Date.now(), article: "", ordered: 0, received: 0 }]);
-  const removeItem = (id: number) => setItems(items.filter(i => i.id !== id));
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState(purchaseOrderId);
+  const [deliveryNoteNumber, setDeliveryNoteNumber] = useState("");
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split("T")[0]);
+  const [warehouseId, setWarehouseId] = useState("main");
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<ReceiptItem[]>([
+    { id: 1, productId: "", article: "", ordered: 0, received: 0, unit: "Stück" },
+  ]);
+
+  const createReceipt = useCreateGoodsReceipt();
+
+  // Load purchase order data when purchaseOrderId is provided
+  const { data: poData, isLoading: poLoading } = usePurchaseOrder(selectedPurchaseOrderId);
+
+  // Pre-fill items from purchase order
+  useEffect(() => {
+    if (poData && (poData as any).items?.length > 0) {
+      const poItems = ((poData as any).items || []).map((item: any, idx: number) => ({
+        id: idx + 1,
+        productId: item.productId || item.id || "",
+        article: item.description || item.name || "",
+        ordered: item.quantity || 0,
+        received: item.quantity || 0, // Default to full quantity
+        unit: item.unit || "Stück",
+      }));
+      setItems(poItems);
+    }
+  }, [poData]);
+
+  const addItem = () => setItems(prev => [...prev, {
+    id: Date.now(), productId: "", article: "", ordered: 0, received: 0, unit: "Stück"
+  }]);
+  const removeItem = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
+  const updateItem = (id: number, field: keyof ReceiptItem, value: string | number) =>
+    setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+
+  const supplierName = useMemo(() => {
+    const d = poData as any;
+    return d?.supplier?.companyName || d?.supplier?.name || "";
+  }, [poData]);
+
+  const handleSubmit = () => {
+    if (!selectedPurchaseOrderId) {
+      toast.error("Bitte eine Bestellung auswählen");
+      return;
+    }
+    const validItems = items.filter(i => i.productId || i.article);
+    if (validItems.length === 0) {
+      toast.error("Bitte mindestens eine Position erfassen");
+      return;
+    }
+
+    createReceipt.mutate(
+      {
+        purchaseOrderId: selectedPurchaseOrderId,
+        receiptDate,
+        deliveryNoteNumber: deliveryNoteNumber || undefined,
+        notes: notes || undefined,
+        items: validItems.map(i => ({
+          productId: i.productId || undefined,
+          description: i.article,
+          expectedQuantity: i.ordered,
+          receivedQuantity: i.received,
+          unit: i.unit,
+        })),
+      } as any,
+      {
+        onSuccess: (res: any) => {
+          toast.success("Wareneingang gebucht");
+          navigate(`/goods-receipts/${res?.id || ""}`);
+        },
+        onError: () => toast.error("Fehler beim Buchen des Wareneingangs"),
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -36,25 +122,40 @@ export default function GoodsReceiptCreate() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Bestellung</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Bestellung auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">BE-2024-015 - Material AG</SelectItem>
-                      <SelectItem value="2">BE-2024-018 - Stahlwerk GmbH</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Bestellnummer *</Label>
+                  <Input
+                    placeholder="Bestellungs-ID eingeben"
+                    value={selectedPurchaseOrderId}
+                    onChange={(e) => setSelectedPurchaseOrderId(e.target.value)}
+                    className="font-mono"
+                  />
+                  {poLoading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Lade Bestellung...</p>}
+                  {supplierName && <p className="text-xs text-muted-foreground">Lieferant: <strong>{supplierName}</strong></p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Lieferschein-Nr.</Label>
-                  <Input placeholder="Lieferschein des Lieferanten" />
+                  <Input
+                    placeholder="Lieferschein des Lieferanten"
+                    value={deliveryNoteNumber}
+                    onChange={(e) => setDeliveryNoteNumber(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Eingangsdatum</Label>
-                <Input type="date" />
+                <Input
+                  type="date"
+                  value={receiptDate}
+                  onChange={(e) => setReceiptDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Bemerkungen</Label>
+                <Input
+                  placeholder="Optionale Notiz"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -64,8 +165,9 @@ export default function GoodsReceiptCreate() {
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 Positionen
+                {poLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               </CardTitle>
-              <Button size="sm" onClick={addItem}>
+              <Button size="sm" onClick={addItem} variant="outline">
                 <Plus className="h-4 w-4 mr-2" />
                 Position hinzufügen
               </Button>
@@ -75,25 +177,57 @@ export default function GoodsReceiptCreate() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Artikel</TableHead>
-                    <TableHead>Bestellt</TableHead>
-                    <TableHead>Erhalten</TableHead>
-                    <TableHead></TableHead>
+                    <TableHead className="w-[100px]">Bestellt</TableHead>
+                    <TableHead className="w-[100px]">Erhalten</TableHead>
+                    <TableHead className="w-[80px]">Einheit</TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <Input placeholder="Artikelbezeichnung" className="h-8" />
+                        <Input
+                          placeholder="Artikelbezeichnung"
+                          className="h-8"
+                          value={item.article}
+                          onChange={(e) => updateItem(item.id, "article", e.target.value)}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" defaultValue={0} className="h-8 w-20" />
+                        <Input
+                          type="number"
+                          min={0}
+                          className="h-8 w-20"
+                          value={item.ordered}
+                          onChange={(e) => updateItem(item.id, "ordered", Number(e.target.value))}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" defaultValue={0} className="h-8 w-20" />
+                        <Input
+                          type="number"
+                          min={0}
+                          max={item.ordered || undefined}
+                          className="h-8 w-20"
+                          value={item.received}
+                          onChange={(e) => updateItem(item.id, "received", Number(e.target.value))}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)}>
+                        <Input
+                          className="h-8 w-20"
+                          value={item.unit}
+                          onChange={(e) => updateItem(item.id, "unit", e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => removeItem(item.id)}
+                          disabled={items.length === 1}
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>
@@ -112,7 +246,7 @@ export default function GoodsReceiptCreate() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Lager</Label>
-              <Select>
+              <Select value={warehouseId} onValueChange={setWarehouseId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Lager wählen" />
                 </SelectTrigger>
@@ -128,8 +262,12 @@ export default function GoodsReceiptCreate() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button className="gap-2">
-          <Save className="h-4 w-4" />
+        <Button className="gap-2" onClick={handleSubmit} disabled={createReceipt.isPending}>
+          {createReceipt.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
           Wareneingang buchen
         </Button>
       </div>
