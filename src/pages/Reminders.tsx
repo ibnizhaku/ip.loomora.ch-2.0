@@ -117,8 +117,11 @@ const Reminders = () => {
   }));
 
   // Fetch overdue invoices from API
-  const { data: overdueInvoicesData } = useOverdueInvoices();
+  const { data: overdueInvoicesData, refetch: refetchOverdue } = useOverdueInvoices();
   const overdueInvoices: any[] = Array.isArray(overdueInvoicesData) ? overdueInvoicesData : [];
+
+  // Create reminder mutation
+  const createReminderMutation = useCreateReminder();
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -243,11 +246,18 @@ const Reminders = () => {
     setBulkStep(5); // Success step
   };
 
-  const handleCreateReminder = (invoiceId?: string) => {
-    if (invoiceId) {
-      toast.success(`1. Mahnung für ${invoiceId} wird erstellt...`);
-    } else {
+  const handleCreateReminder = async (invoiceId?: string) => {
+    if (!invoiceId) {
       setCreateDialogOpen(true);
+      return;
+    }
+    try {
+      await createReminderMutation.mutateAsync({ invoiceId });
+      await refetchOverdue();
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      toast.success("Mahnung wurde erfolgreich erstellt");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Fehler beim Erstellen der Mahnung");
     }
   };
 
@@ -352,9 +362,15 @@ const Reminders = () => {
                 {overdueInvoices.length} Rechnungen sind überfällig und wurden noch nicht gemahnt.
               </p>
             </div>
-            <Button size="sm" onClick={() => {
-              overdueInvoices.forEach((inv) => handleCreateReminder(inv.id));
-            }}>
+            <Button
+              size="sm"
+              disabled={createReminderMutation.isPending}
+              onClick={async () => {
+                for (const inv of overdueInvoices) {
+                  await handleCreateReminder(inv.id);
+                }
+              }}
+            >
               Mahnungen erstellen
             </Button>
           </CardContent>
@@ -676,11 +692,19 @@ const Reminders = () => {
                     <TableRow key={invoice.id}>
                       <TableCell>
                         <Link to={`/invoices/${invoice.id}`} className="font-medium hover:text-primary">
-                          {invoice.id}
+                          {invoice.number || invoice.id}
                         </Link>
                       </TableCell>
-                      <TableCell>{typeof invoice.customer === 'object' ? (invoice.customer as any)?.name || (invoice.customer as any)?.companyName : invoice.customer}</TableCell>
-                      <TableCell>{invoice.dueDate}</TableCell>
+                      <TableCell>
+                        {typeof invoice.customer === 'object'
+                          ? (invoice.customer as any)?.companyName || (invoice.customer as any)?.name
+                          : invoice.customer}
+                      </TableCell>
+                      <TableCell>
+                        {invoice.dueDate
+                          ? new Date(invoice.dueDate).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                          : '—'}
+                      </TableCell>
                       <TableCell>
                         <Badge className="bg-destructive/10 text-destructive">
                           {invoice.daysOverdue} Tage
@@ -690,7 +714,11 @@ const Reminders = () => {
                         {formatCHF(invoice.amount)}
                       </TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => handleCreateReminder(invoice.id)}>
+                        <Button
+                          size="sm"
+                          disabled={createReminderMutation.isPending}
+                          onClick={() => handleCreateReminder(invoice.id)}
+                        >
                           <Send className="h-4 w-4 mr-2" />
                           Mahnen
                         </Button>
@@ -1132,8 +1160,12 @@ const Reminders = () => {
                   }}
                 >
                   <div>
-                    <p className="font-medium">{invoice.id}</p>
-                    <p className="text-sm text-muted-foreground">{typeof invoice.customer === 'object' ? (invoice.customer as any)?.name || (invoice.customer as any)?.companyName : invoice.customer}</p>
+                    <p className="font-medium">{invoice.number || invoice.id}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {typeof invoice.customer === 'object'
+                        ? (invoice.customer as any)?.companyName || (invoice.customer as any)?.name
+                        : invoice.customer}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{formatCHF(invoice.amount)}</p>
