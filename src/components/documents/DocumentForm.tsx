@@ -397,6 +397,11 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       return;
     }
 
+    if (type === "invoice" && !selectedProjectId) {
+      toast.error("Bitte wählen Sie ein Projekt aus");
+      return;
+    }
+
     const isDeliveryNote = type === "delivery-note";
     const isQuoteType = type === "quote";
     const payload: any = {

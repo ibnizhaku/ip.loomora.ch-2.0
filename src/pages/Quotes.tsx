@@ -53,6 +53,8 @@ interface QuoteRaw {
   id: string;
   number: string;
   customer?: { id: string; name: string; companyName?: string };
+  project?: { id: string; name: string; number?: string };
+  createdByUser?: { id: string; name: string; firstName?: string; lastName?: string };
   total?: number;
   subtotal?: number;
   status: string;
@@ -67,6 +69,8 @@ interface Quote {
   number: string;
   client: string;
   customerId?: string;
+  project?: string;
+  createdBy?: string;
   amount: number;
   status: string;
   validUntil: string;
@@ -74,11 +78,18 @@ interface Quote {
 }
 
 function mapQuote(raw: QuoteRaw): Quote {
+  const userName = raw.createdByUser
+    ? (raw.createdByUser.firstName && raw.createdByUser.lastName
+        ? `${raw.createdByUser.firstName} ${raw.createdByUser.lastName}`
+        : raw.createdByUser.name)
+    : undefined;
   return {
     id: raw.id,
     number: raw.number || "",
     client: raw.customer?.companyName || raw.customer?.name || "–",
     customerId: raw.customer?.id,
+    project: raw.project?.name,
+    createdBy: userName,
     amount: Number(raw.total || raw.subtotal || 0),
     status: (raw.status || "DRAFT").toLowerCase(),
     validUntil: raw.validUntil
@@ -431,7 +442,7 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>{quote.client}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      –
+                      {quote.project || '–'}
                     </TableCell>
                     <TableCell>
                       <Badge className={cn("gap-1", cfg.color)}>

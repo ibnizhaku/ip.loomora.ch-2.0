@@ -59,7 +59,7 @@ export default function ReminderDetail() {
               Mahnstufe {r.level || 1}
             </Badge>
           </div>
-          <p className="text-muted-foreground">{r.customer?.name || "Unbekannt"}</p>
+          <p className="text-muted-foreground">{r.invoice?.customer?.companyName || r.invoice?.customer?.name || r.customer?.companyName || r.customer?.name || "Unbekannt"}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => { downloadPdf('reminders', id || ''); toast.success("PDF wird heruntergeladen"); }}>
@@ -109,8 +109,8 @@ export default function ReminderDetail() {
         <Card>
           <CardHeader><CardTitle>Schuldner</CardTitle></CardHeader>
           <CardContent>
-            <Link to={`/customers/${r.customer?.id || r.customerId}`} className="text-xl font-bold text-primary hover:underline">
-              {r.customer?.name || "Unbekannt"}
+            <Link to={`/customers/${r.invoice?.customer?.id || r.customer?.id || r.customerId}`} className="text-xl font-bold text-primary hover:underline">
+              {r.invoice?.customer?.companyName || r.invoice?.customer?.name || r.customer?.companyName || r.customer?.name || "Unbekannt"}
             </Link>
           </CardContent>
         </Card>

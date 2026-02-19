@@ -87,7 +87,7 @@ const CreditNoteDetail = () => {
     originalInvoiceId: cn.invoice?.id || cn.invoiceId || "",
     customer: {
       id: cn.customer?.id || cn.customerId,
-      name: cn.customer?.name || "Unbekannt",
+      name: cn.customer?.companyName || cn.customer?.name || "Unbekannt",
       contact: cn.customer?.contactPerson || "",
       email: cn.customer?.email || "",
       phone: cn.customer?.phone || "",
@@ -109,7 +109,7 @@ const CreditNoteDetail = () => {
 
   // PDF data for preview
   const pdfData: SalesDocumentData = {
-    type: 'invoice',
+    type: 'credit-note',
     number: creditNoteData.id,
     date: creditNoteData.createdAt,
     company: {
@@ -191,8 +191,19 @@ const CreditNoteDetail = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => navigate(`/credit-notes/${id}/edit`)}>Bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info("Gutschrift wird dupliziert...")}>Duplizieren</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => toast.info("Gutschrift wird storniert...")}>Stornieren</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                navigate(`/credit-notes/new?invoiceId=${creditNoteData.originalInvoiceId}`);
+                toast.info("Gutschrift wird dupliziert – bitte Daten anpassen");
+              }}>Duplizieren</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={async () => {
+                try {
+                  await import("@/lib/api").then(m => m.api.put(`/credit-notes/${id}`, { status: "CANCELLED" }));
+                  toast.success("Gutschrift wurde storniert");
+                  navigate("/credit-notes");
+                } catch {
+                  toast.error("Fehler beim Stornieren");
+                }
+              }}>Stornieren</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
