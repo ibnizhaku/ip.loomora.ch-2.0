@@ -493,7 +493,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       bic: companyData?.bic || "",
     },
     customer: {
-      name: selectedCustomer?.name || "—",
+      name: (selectedCustomer as any)?.companyName || selectedCustomer?.name || "—",
       contact: "",
       street: selectedCustomer?.street || "",
       postalCode: selectedCustomer?.zipCode || "",
@@ -604,7 +604,10 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                           key={customer.id}
                           className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted cursor-pointer"
                           onClick={() => {
-                            setSelectedCustomer(customer);
+                            setSelectedCustomer({
+                              ...customer,
+                              name: (customer as any).companyName || customer.name,
+                            });
                             setCustomerDialogOpen(false);
                           }}
                         >
