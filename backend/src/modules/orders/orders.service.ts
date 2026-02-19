@@ -382,14 +382,21 @@ export class OrdersService {
 
       if (!order) throw new NotFoundException('Order not found');
 
-      // Generate delivery note number
-      const year = new Date().getFullYear();
-      const lastDN = await tx.deliveryNote.findFirst({
-        where: { companyId, number: { startsWith: `LS-${year}` } },
-        orderBy: { number: 'desc' },
+      // Atomar inkrementieren via company.deliveryCounter
+      const company = await tx.company.update({
+        where: { id: companyId },
+        data: { deliveryCounter: { increment: 1 } },
+        select: { deliveryCounter: true },
       });
-      const lastNum = lastDN?.number ? parseInt(lastDN.number.split('-')[2] || '0') : 0;
-      const dnNumber = `LS-${year}-${String(lastNum + 1).padStart(3, '0')}`;
+
+      const dnNumber = `LS-${new Date().getFullYear()}-${String(company.deliveryCounter).padStart(4, '0')}`;
+
+      const deliveryAddress = [
+        order.customer?.street,
+        order.customer?.zipCode && order.customer?.city
+          ? `${order.customer.zipCode} ${order.customer.city}`
+          : order.customer?.city,
+      ].filter(Boolean).join(', ');
 
       const deliveryNote = await tx.deliveryNote.create({
         data: {
@@ -398,7 +405,7 @@ export class OrdersService {
           orderId: order.id,
           status: 'DRAFT' as any,
           date: new Date(),
-          deliveryAddress: `${order.customer?.street || ''}, ${order.customer?.zipCode || ''} ${order.customer?.city || ''}`.trim(),
+          deliveryAddress: deliveryAddress ? { address: deliveryAddress } : undefined,
           companyId,
           items: {
             create: order.items.map((item, index) => ({
@@ -410,7 +417,25 @@ export class OrdersService {
             })),
           },
         },
-        include: { customer: true, items: true },
+        include: {
+          customer: true,
+          order: { select: { id: true, number: true } },
+          items: { orderBy: { position: 'asc' }, include: { product: true } },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'CREATE',
+          module: 'DOCUMENTS',
+          entityId: deliveryNote.id,
+          entityType: 'DeliveryNote',
+          entityName: deliveryNote.number,
+          description: `Lieferschein ${deliveryNote.number} aus Auftrag ${order.number} erstellt`,
+          userId,
+          companyId,
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+        },
       });
 
       return deliveryNote;

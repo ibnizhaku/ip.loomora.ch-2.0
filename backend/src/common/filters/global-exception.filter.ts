@@ -34,11 +34,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Prisma Errors
     else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       switch (exception.code) {
-        case 'P2002': // Unique constraint violation
+        case 'P2002': { // Unique constraint violation
+          const field = (exception.meta?.target as string[])?.join(', ') || 'unbekannt';
+          console.error(`[P2002] Unique constraint on field: ${field}`);
           status = HttpStatus.CONFLICT;
-          message = 'Eintrag existiert bereits';
+          message = `Eintrag existiert bereits (Konfliktfeld: ${field})`;
           error = 'Conflict';
           break;
+        }
         case 'P2025': // Record not found
           status = HttpStatus.NOT_FOUND;
           message = 'Eintrag nicht gefunden';
