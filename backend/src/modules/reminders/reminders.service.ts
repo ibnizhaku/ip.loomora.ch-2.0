@@ -256,10 +256,10 @@ export class RemindersService {
         companyId,
         status: { in: ['SENT', 'OVERDUE'] },
         dueDate: { lt: today },
-        // Nur Rechnungen ohne aktive Mahnung (DRAFT oder SENT)
+        // Nur Rechnungen ohne aktive Mahnung (alles ausser CANCELLED)
         reminders: {
           none: {
-            status: { in: [ReminderStatus.DRAFT, ReminderStatus.SENT] },
+            status: { not: ReminderStatus.CANCELLED },
           },
         },
       },
