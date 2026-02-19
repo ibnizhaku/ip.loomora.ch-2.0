@@ -590,14 +590,14 @@ const Reminders = () => {
                         </div>
                         <div>
                           <p className="font-medium">{reminder.id}</p>
-                          <p className="text-sm text-muted-foreground">Rechnung: {reminder.invoice}</p>
+                          <p className="text-sm text-muted-foreground">Rechnung: {typeof reminder.invoice === 'object' ? (reminder.invoice as any)?.number || (reminder.invoice as any)?.id : reminder.invoice}</p>
                         </div>
                       </div>
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-sm">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span>{reminder.customer}</span>
+                          <span>{typeof reminder.customer === 'object' ? (reminder.customer as any)?.companyName || (reminder.customer as any)?.name : reminder.customer}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-destructive">
                           <Clock className="h-4 w-4" />
@@ -662,15 +662,15 @@ const Reminders = () => {
                         <TableCell>
                           <span 
                             className="hover:text-primary cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${reminder.invoice}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/invoices/${typeof reminder.invoice === 'object' ? (reminder.invoice as any)?.id : reminder.invoice}`); }}
                           >
-                            {reminder.invoice}
+                            {typeof reminder.invoice === 'object' ? (reminder.invoice as any)?.number || (reminder.invoice as any)?.id : reminder.invoice}
                           </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Building2 className="h-4 w-4 text-muted-foreground" />
-                            {reminder.customer}
+                            {typeof reminder.customer === 'object' ? (reminder.customer as any)?.companyName || (reminder.customer as any)?.name : reminder.customer}
                           </div>
                         </TableCell>
                         <TableCell>
