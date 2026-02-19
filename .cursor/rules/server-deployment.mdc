@@ -23,7 +23,13 @@ alwaysApply: true
 4. `npx prisma generate`
 5. Backend Build: `nest build` (global installiert)
 6. Frontend Build: `cd /var/www/loomora && npx vite build`
-7. `pm2 restart all`
+7. `cd /var/www/loomora/backend && pm2 reload ecosystem.config.js` (NICHT `pm2 restart all`!)
+
+## PM2 Konfiguration
+- **Ecosystem Config:** `/var/www/loomora/backend/ecosystem.config.js`
+- **Script-Pfad:** `dist/main.js` (relativ zu `/var/www/loomora/backend`)
+- **WICHTIG:** Immer `pm2 reload ecosystem.config.js` verwenden – sonst kann PM2 einen alten/falschen Pfad speichern
+- Bei erstem Setup oder nach `pm2 delete all`: `pm2 start ecosystem.config.js && pm2 save`
 
 ## Datenbank
 - **PostgreSQL:** `postgresql://loomora:loomora_secret@localhost:5432/loomora`
