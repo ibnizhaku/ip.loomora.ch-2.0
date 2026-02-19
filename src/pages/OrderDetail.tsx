@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useOrder } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
+import { useCreateDeliveryNoteFromOrder } from "@/hooks/use-delivery-notes";
 import { Loader2 } from "lucide-react";
+
 import { 
   ArrowLeft, 
   ShoppingCart, 
@@ -115,6 +117,8 @@ const OrderDetail = () => {
   const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const { data: companyData } = useCompany();
+  const createDeliveryNoteFromOrder = useCreateDeliveryNoteFromOrder();
+
 
   if (isLoading) {
     return (
@@ -182,6 +186,18 @@ const OrderDetail = () => {
     toast.success("PDF heruntergeladen");
   };
 
+  const handleCreateDeliveryNote = async () => {
+    try {
+      const dn = await createDeliveryNoteFromOrder.mutateAsync(id || "");
+      toast.success("Lieferschein wurde erstellt");
+      navigate(`/delivery-notes/${dn.id}`);
+    } catch {
+      // Fallback: manuell mit vorausgefüllten Daten
+      navigate(`/delivery-notes/new?orderId=${id}&customerId=${orderData.customer.id || ''}`);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -213,8 +229,8 @@ const OrderDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/delivery-notes/new?orderId=${id}&customerId=${orderData.customer.id || ''}`)}>
-            <Truck className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleCreateDeliveryNote} disabled={createDeliveryNoteFromOrder.isPending}>
+            {createDeliveryNoteFromOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Truck className="h-4 w-4 mr-2" />}
             Lieferschein erstellen
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/new?orderId=${id}&customerId=${orderData.customer.id || ''}`)}>
@@ -319,29 +335,50 @@ const OrderDetail = () => {
 
           {/* Lieferscheine */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle>Lieferscheine</CardTitle>
+              <Button size="sm" onClick={handleCreateDeliveryNote} disabled={createDeliveryNoteFromOrder.isPending}>
+                {createDeliveryNoteFromOrder.isPending
+                  ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  : <Truck className="h-4 w-4 mr-2" />}
+                Lieferschein erstellen
+              </Button>
             </CardHeader>
             <CardContent>
               {orderData.deliveries.length > 0 ? (
                 <div className="space-y-3">
                   {orderData.deliveries.map((delivery) => (
-                    <div key={delivery.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div key={delivery.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                      onClick={() => navigate(`/delivery-notes/${delivery.id}`)}>
                       <div className="flex items-center gap-3">
-                        <Truck className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                          <Truck className="h-4 w-4 text-primary" />
+                        </div>
                         <div>
-                          <Link to={`/delivery-notes/${delivery.id}`} className="font-medium hover:text-primary">
-                            {delivery.id}
-                          </Link>
-                          <p className="text-sm text-muted-foreground">{delivery.date}</p>
+                          <p className="font-medium text-sm hover:text-primary">{delivery.id}</p>
+                          <p className="text-xs text-muted-foreground">{delivery.date}</p>
                         </div>
                       </div>
-                      <Badge className="bg-success/10 text-success">{delivery.status}</Badge>
+                      <Badge className={
+                        delivery.status === "Geliefert" ? "bg-success/10 text-success" :
+                        delivery.status === "Versendet" ? "bg-warning/10 text-warning" :
+                        "bg-muted text-muted-foreground"
+                      }>{delivery.status}</Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Noch keine Lieferscheine erstellt.</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-border rounded-lg">
+                  <Truck className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">Noch kein Lieferschein vorhanden</p>
+                  <p className="text-xs text-muted-foreground mt-1">Erstellen Sie den ersten Lieferschein für diesen Auftrag</p>
+                  <Button size="sm" className="mt-3" onClick={handleCreateDeliveryNote} disabled={createDeliveryNoteFromOrder.isPending}>
+                    {createDeliveryNoteFromOrder.isPending
+                      ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      : <Truck className="h-4 w-4 mr-2" />}
+                    Lieferschein erstellen
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
