@@ -156,8 +156,22 @@ const positionStatusColors: Record<string, string> = {
 };
 
 // Build a local activity log from order data
+function getUserName(user: any): string {
+  if (!user) return "";
+  if (user.firstName || user.lastName) return `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  if (user.name) return user.name;
+  if (user.email) return user.email;
+  return "";
+}
+
+function getUserInitials(name: string): string {
+  return name.split(" ").map((n) => n[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "?";
+}
+
 function buildActivityLog(order: any) {
-  const entries: { id: string; text: string; time: string; icon: string }[] = [];
+  const entries: { id: string; text: string; time: string; icon: string; user?: string; initials?: string }[] = [];
+
+  const creatorName = getUserName(order.createdByUser || order.user);
 
   if (order.createdAt || order.orderDate) {
     entries.push({
@@ -165,33 +179,44 @@ function buildActivityLog(order: any) {
       text: "Auftrag erstellt",
       time: order.orderDate || order.createdAt,
       icon: "create",
+      user: creatorName || undefined,
+      initials: creatorName ? getUserInitials(creatorName) : undefined,
     });
   }
 
   if (order.status === "SENT" || order.status === "CONFIRMED" || order.status === "CANCELLED") {
+    const updaterName = getUserName(order.updatedByUser || order.user);
     entries.push({
       id: "status",
       text: `Status geändert zu "${statusLabelMap[order.status] || order.status}"`,
       time: order.updatedAt || order.orderDate || order.createdAt,
       icon: "status",
+      user: updaterName || undefined,
+      initials: updaterName ? getUserInitials(updaterName) : undefined,
     });
   }
 
   (order.deliveryNotes || []).forEach((dn: any, idx: number) => {
+    const dnUserName = getUserName(dn.createdByUser || dn.user);
     entries.push({
       id: `dn-${dn.id || idx}`,
       text: `Lieferschein ${dn.number || ""} erstellt`,
       time: dn.createdAt || "",
       icon: "delivery",
+      user: dnUserName || undefined,
+      initials: dnUserName ? getUserInitials(dnUserName) : undefined,
     });
   });
 
   (order.invoices || []).forEach((inv: any, idx: number) => {
+    const invUserName = getUserName(inv.createdByUser || inv.user);
     entries.push({
       id: `inv-${inv.id || idx}`,
       text: `Rechnung ${inv.number || ""} erstellt`,
       time: inv.createdAt || "",
       icon: "invoice",
+      user: invUserName || undefined,
+      initials: invUserName ? getUserInitials(invUserName) : undefined,
     });
   });
 
@@ -550,8 +575,21 @@ const OrderDetail = () => {
                         </div>
                         {/* Content */}
                         <div className={`flex-1 min-w-0 ${!isLast ? "pb-4" : "pb-0"}`}>
-                          <p className="text-sm font-medium leading-tight pt-1.5">{entry.text}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(entry.time)}</p>
+                          <p className="text-sm font-medium leading-tight pt-1">{entry.text}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {entry.user && (
+                              <>
+                                <Avatar className="h-4 w-4">
+                                  <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
+                                    {entry.initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-xs font-medium text-foreground/70">{entry.user}</span>
+                                <span className="text-xs text-muted-foreground">·</span>
+                              </>
+                            )}
+                            <span className="text-xs text-muted-foreground">{formatRelativeTime(entry.time)}</span>
+                          </div>
                         </div>
                       </div>
                     );
