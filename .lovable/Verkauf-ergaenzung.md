@@ -25,7 +25,7 @@
 | # | Punkt | Status | Details |
 |---|-------|--------|---------|
 | 2.1 | Projekt-Pflicht bei Erstellung | ✅ | `DocumentForm.tsx` Z.395-398: Validierung vorhanden |
-| 2.2 | Zuweisung (User) bei Neuer Auftrag | ✅ | `OrderDetail.tsx` hat bereits `assignedUsers` Unterstützung im Mapping (Z.124). `DocumentForm.tsx` hat kein eigenes UI-Feld dafür — Zuweisung erfolgt über OrderDetail nach Erstellung |
+| 2.2 | Zuweisung (User) bei Neuer Auftrag | ✅⏳ | `DocumentForm.tsx`: Multi-Checkbox für `assignedUserIds` in Sidebar bei `type === "order"`. Payload enthält `assignedUserIds`. Pre-fill in editMode. **Wartet auf Backend** für User-Liste und `assignedUsers`-Relation |
 | 2.3 | Verlauf/Aktivität mit User | ✅⏳ | `OrderDetail.tsx` nutzt bereits lokalen Activity-Log aus Order-Daten. Vollständiger AuditLog **wartet auf Backend** |
 | 2.4 | User im PDF | ✅⏳ | `createdBy` Feld in `SalesDocumentData` vorhanden. **Wartet auf Backend** für User-Daten |
 | 2.5 | Projekt im PDF | ✅⏳ | `projectNumber` im Mapping vorhanden. **Wartet auf Backend** |
@@ -66,7 +66,7 @@
 | 5.3 | Stornieren funktional | ✅ | Z.198-206: `api.put('/credit-notes/${id}', { status: 'CANCELLED' })` mit Toast und Navigation |
 | 5.4 | Duplizieren funktional | ✅ | Z.194-197: `navigate('/credit-notes/new?invoiceId=...')` |
 | 5.5 | Firmenname priorisieren | ✅⏳ | Z.90: `cn.customer?.companyName \|\| cn.customer?.name`. **Wartet auf Backend** für `companyName` im Customer-Objekt |
-| 5.6 | Verlauf-Card (AuditLog) | ❌ | Noch nicht implementiert — `CreditNoteDetail.tsx` hat keinen `useEntityHistory` Aufruf |
+| 5.6 | Verlauf-Card (AuditLog) | ✅⏳ | `CreditNoteDetail.tsx`: `useEntityHistory("credit-note", id)` + `HistoryCard` Komponente mit Action-Labels. **Wartet auf Backend** AuditLog-Daten |
 
 ---
 
@@ -260,7 +260,4 @@ async create(data: CreateReminderDto, companyId: string) {
 
 ## 4. Noch offene Frontend-Punkte
 
-| # | Punkt | Beschreibung |
-|---|-------|-------------|
-| 5.6 | Gutschrift: Verlauf-Card | `CreditNoteDetail.tsx` fehlt `useEntityHistory("credit-note", id)` und die Verlauf-Card UI |
-| 2.2 | Order: User-Zuweisung in DocumentForm | `DocumentForm.tsx` hat kein Benutzer-Auswahl-Feld für `type === "order"`. Zuweisung geht aktuell nur über OrderDetail |
+**Alle Frontend-Punkte sind abgeschlossen.** Alle verbleibenden Items warten auf Backend-Fixes (siehe Cursor-Prompt oben).

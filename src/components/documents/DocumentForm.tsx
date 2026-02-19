@@ -58,6 +58,7 @@ import { useProducts } from "@/hooks/use-products";
 import { useProjects } from "@/hooks/use-projects";
 import { useCompany } from "@/hooks/use-company";
 import { useOrder, useQuote } from "@/hooks/use-sales";
+import { useUsers } from "@/hooks/use-users";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData } from "@/lib/pdf/sales-document";
@@ -127,6 +128,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [documentDate, setDocumentDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
 
   // Delivery address state
   const [useCustomDeliveryAddress, setUseCustomDeliveryAddress] = useState(false);
@@ -149,6 +151,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const { data: productsData, isLoading: productsLoading } = useProducts({ search: productSearch, pageSize: 50 });
   const { data: projectsData } = useProjects({ pageSize: 100 });
   const { data: companyData } = useCompany();
+  const { data: usersData } = useUsers({ pageSize: 100, isActive: true });
 
   // Fetch source document for pre-filling (order or quote)
   const { data: sourceOrder } = useOrder(urlOrderId || "");
@@ -157,6 +160,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const customers = useMemo(() => customersData?.data || [], [customersData]);
   const products = useMemo(() => productsData?.data || [], [productsData]);
   const projects = useMemo(() => projectsData?.data || [], [projectsData]);
+  const users = useMemo(() => usersData?.data || [], [usersData]);
 
   // Company bank details (dynamic from API)
   const companyBankAccount = useMemo(() => ({
@@ -224,6 +228,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     if (raw.validDays) setValidDays(String(raw.validDays));
     if (raw.paymentTermDays) setPaymentDays(String(raw.paymentTermDays));
     if (raw.projectId) setSelectedProjectId(raw.projectId);
+    if (raw.assignedUsers) setAssignedUserIds(raw.assignedUsers.map((u: any) => u.id || u));
     // Pre-fill document date
     const rawDate = raw.issueDate || raw.date || raw.orderDate || raw.deliveryDate;
     if (rawDate) setDocumentDate(rawDate.split("T")[0]);
@@ -451,6 +456,9 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       }
     } else if (type === "order") {
       payload.orderDate = documentDate;
+      if (assignedUserIds.length > 0) {
+        payload.assignedUserIds = assignedUserIds;
+      }
     } else if (type === "delivery-note") {
       payload.deliveryDate = documentDate;
     } else if (type === "credit-note") {
@@ -1187,6 +1195,41 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* User Assignment for Orders */}
+              {type === "order" && (
+                <div className="space-y-2">
+                  <Label>Zugewiesene Benutzer</Label>
+                  <div className="space-y-2">
+                    {users.map((user: any) => {
+                      const isSelected = assignedUserIds.includes(user.id);
+                      return (
+                        <label
+                          key={user.id}
+                          className="flex items-center gap-2 cursor-pointer text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setAssignedUserIds((prev) =>
+                                isSelected
+                                  ? prev.filter((id) => id !== user.id)
+                                  : [...prev, user.id]
+                              );
+                            }}
+                            className="rounded border-input"
+                          />
+                          <span>{user.name || user.email}</span>
+                        </label>
+                      );
+                    })}
+                    {users.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">Keine Benutzer verfügbar</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -39,6 +39,7 @@ import {
 import { toast } from "sonner";
 import { useCreditNote } from "@/hooks/use-credit-notes";
 import { useCompany } from "@/hooks/use-company";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
 
@@ -52,6 +53,59 @@ const statusMap: Record<string, string> = {
 function formatDate(d?: string | null) {
   if (!d) return "—";
   try { return new Date(d).toLocaleDateString("de-CH"); } catch { return d; }
+}
+
+// History card using AuditLog API
+function HistoryCard({ creditNoteId }: { creditNoteId: string }) {
+  const { data: history, isLoading } = useEntityHistory("credit-note", creditNoteId);
+
+  const actionLabels: Record<string, string> = {
+    CREATE: "Erstellt",
+    UPDATE: "Aktualisiert",
+    STATUS_CHANGE: "Status geändert",
+    DELETE: "Gelöscht",
+    SEND: "Versendet",
+  };
+
+  if (isLoading) return null;
+
+  const entries = (history || []).slice(0, 10);
+  if (entries.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Clock className="h-4 w-4" />
+          Verlauf
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {entries.map((entry) => (
+            <div key={entry.id} className="flex items-start gap-3 text-sm">
+              <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">
+                  {actionLabels[entry.action] || entry.action}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : "System"} ·{" "}
+                  {new Date(entry.timestamp).toLocaleDateString("de-CH", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 const CreditNoteDetail = () => {
@@ -330,6 +384,14 @@ const CreditNoteDetail = () => {
                 <span className="text-muted-foreground">Erstellt am</span>
                 <span className="font-medium">{creditNoteData.createdAt}</span>
               </div>
+              {cn.createdByUser && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Erstellt von</span>
+                  <span className="font-medium">
+                    {cn.createdByUser.firstName} {cn.createdByUser.lastName}
+                  </span>
+                </div>
+              )}
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Gutschriftsbetrag</span>
@@ -337,6 +399,9 @@ const CreditNoteDetail = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* History / Verlauf */}
+          <HistoryCard creditNoteId={id || ""} />
         </div>
       </div>
 
