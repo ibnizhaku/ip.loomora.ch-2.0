@@ -150,7 +150,7 @@ export class DeliveryNotesService {
     });
   }
 
-  async createFromOrder(orderId: string, companyId: string, userId?: string) {
+  async createFromOrder(orderId: string, companyId: string, userId?: string, itemIds?: string[]) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, companyId },
       include: { items: true, customer: true },
@@ -158,6 +158,15 @@ export class DeliveryNotesService {
 
     if (!order) {
       throw new NotFoundException('Auftrag nicht gefunden');
+    }
+
+    // Wenn itemIds angegeben → nur diese Positionen verwenden, sonst alle
+    const selectedItems = itemIds && itemIds.length > 0
+      ? order.items.filter((item) => itemIds.includes(item.id))
+      : order.items;
+
+    if (selectedItems.length === 0) {
+      throw new BadRequestException('Keine Auftragspositionen für den Lieferschein gefunden');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -186,21 +195,21 @@ export class DeliveryNotesService {
           number,
           status: DeliveryNoteStatus.DRAFT,
           deliveryDate: new Date(),
-          deliveryAddress: deliveryAddress || undefined,
+          deliveryAddress: deliveryAddress ? { address: deliveryAddress } : undefined,
           items: {
-            create: order.items.map((item, index) => ({
+            create: selectedItems.map((item, index) => ({
               productId: item.productId || undefined,
               quantity: item.quantity,
               unit: item.unit || 'Stk',
               description: item.description,
-              position: item.position || index + 1,
+              position: index + 1,
             })),
           },
         },
         include: {
           customer: true,
           order: { select: { id: true, number: true } },
-          items: { include: { product: true } },
+          items: { orderBy: { position: 'asc' }, include: { product: true } },
         },
       });
 
@@ -212,7 +221,7 @@ export class DeliveryNotesService {
             entityId: deliveryNote.id,
             entityType: 'DeliveryNote',
             entityName: deliveryNote.number,
-            description: `Lieferschein ${deliveryNote.number} aus Auftrag ${order.number} erstellt`,
+            description: `Lieferschein ${deliveryNote.number} aus Auftrag ${order.number} erstellt${itemIds?.length ? ` (${selectedItems.length} Positionen)` : ''}`,
             userId,
             companyId,
             retentionUntil: new Date(Date.now() + 10 * 365.25 * 24 * 60 * 60 * 1000),

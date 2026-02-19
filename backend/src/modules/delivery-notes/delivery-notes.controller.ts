@@ -82,9 +82,13 @@ export class DeliveryNotesController {
 
   @Post('from-order/:orderId')
   @RequirePermissions('delivery-notes:write')
-  @ApiOperation({ summary: 'Create delivery note from order' })
-  createFromOrder(@Param('orderId') orderId: string, @CurrentUser() user: any) {
-    return this.deliveryNotesService.createFromOrder(orderId, user.companyId, user.userId);
+  @ApiOperation({ summary: 'Create delivery note from order (with optional item selection)' })
+  createFromOrder(
+    @Param('orderId') orderId: string,
+    @Body() body: { itemIds?: string[] },
+    @CurrentUser() user: any,
+  ) {
+    return this.deliveryNotesService.createFromOrder(orderId, user.companyId, user.userId, body?.itemIds);
   }
 
   @Post(':id/ship')

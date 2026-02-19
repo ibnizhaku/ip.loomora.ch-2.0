@@ -20,18 +20,30 @@ export class PdfService {
       doc.fontSize(20).text(docTitle, { align: 'right' });
       doc.moveDown();
 
-      // Document details
-      const docDate = invoice.issueDate || invoice.date || invoice.orderDate || invoice.deliveryDate;
+      // Document details – Datum-Formatierung sicher (ISO-String oder Date-Objekt)
+      const parseDate = (d: any): string | null => {
+        if (!d) return null;
+        try {
+          const dt = new Date(d);
+          if (isNaN(dt.getTime())) return null;
+          return dt.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch { return null; }
+      };
+
+      const docDate = invoice.issueDate || invoice.orderDate || invoice.date || invoice.deliveryDate;
       doc.fontSize(10);
       doc.text(`Nummer: ${invoice.number}`, { align: 'right' });
-      if (docDate) {
-        doc.text(`Datum: ${new Date(docDate).toLocaleDateString('de-CH')}`, { align: 'right' });
+      const formattedDate = parseDate(docDate);
+      if (formattedDate) {
+        doc.text(`Datum: ${formattedDate}`, { align: 'right' });
       }
-      if (invoice.validUntil) {
-        doc.text(`Gültig bis: ${new Date(invoice.validUntil).toLocaleDateString('de-CH')}`, { align: 'right' });
+      const formattedValidUntil = parseDate(invoice.validUntil);
+      if (formattedValidUntil) {
+        doc.text(`Gültig bis: ${formattedValidUntil}`, { align: 'right' });
       }
-      if (invoice.dueDate) {
-        doc.text(`Fälligkeitsdatum: ${new Date(invoice.dueDate).toLocaleDateString('de-CH')}`, { align: 'right' });
+      const formattedDueDate = parseDate(invoice.dueDate);
+      if (formattedDueDate) {
+        doc.text(`Fälligkeitsdatum: ${formattedDueDate}`, { align: 'right' });
       }
       doc.moveDown(2);
 
@@ -130,6 +142,10 @@ export class PdfService {
   async generateQuotePdf(quote: any): Promise<Buffer> {
     // Similar to invoice but without QR-Bill, title "OFFERTE"
     return this.generateInvoicePdf({ ...quote, title: 'OFFERTE' });
+  }
+
+  async generateOrderPdf(order: any): Promise<Buffer> {
+    return this.generateInvoicePdf({ ...order, title: 'AUFTRAGSBESTÄTIGUNG' });
   }
 
   async generateDeliveryNotePdf(deliveryNote: any): Promise<Buffer> {

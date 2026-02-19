@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderDto } from './dto/order.dto';
@@ -74,6 +74,24 @@ export class OrdersController {
   @ApiOperation({ summary: 'Create delivery note from order' })
   createDeliveryNote(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.ordersService.createDeliveryNote(id, user.companyId, user.userId);
+  }
+
+  @Post(':id/duplicate')
+  @RequirePermissions('orders:write')
+  @ApiOperation({ summary: 'Duplicate order' })
+  duplicate(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.ordersService.duplicate(id, user.companyId, user.userId);
+  }
+
+  @Patch(':id/status')
+  @RequirePermissions('orders:write')
+  @ApiOperation({ summary: 'Update order status' })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: string },
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ordersService.updateStatus(id, user.companyId, body.status as any, user.userId);
   }
 
   @Delete(':id')

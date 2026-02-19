@@ -417,6 +417,117 @@ export class OrdersService {
     });
   }
 
+  async duplicate(id: string, companyId: string, userId: string) {
+    const original = await this.prisma.order.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+
+    if (!original) throw new NotFoundException('Order not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.update({
+        where: { id: companyId },
+        data: { orderCounter: { increment: 1 } },
+        select: { orderCounter: true },
+      });
+
+      const number = `AB-${new Date().getFullYear()}-${String(company.orderCounter).padStart(4, '0')}`;
+
+      const newOrder = await tx.order.create({
+        data: {
+          number,
+          customerId: original.customerId,
+          projectId: original.projectId,
+          status: DocumentStatus.DRAFT,
+          date: new Date(),
+          deliveryAddress: (original.deliveryAddress as any) ?? undefined,
+          notes: original.notes,
+          subtotal: original.subtotal,
+          vatAmount: original.vatAmount,
+          total: original.total,
+          companyId,
+          createdById: userId,
+          items: {
+            create: original.items.map((item, index) => ({
+              position: index + 1,
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              vatRate: 'STANDARD',
+              total: item.total,
+            })),
+          },
+        },
+        include: {
+          customer: true,
+          project: true,
+          items: { orderBy: { position: 'asc' } },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'CREATE',
+          module: 'ORDERS',
+          entityId: newOrder.id,
+          entityType: 'Order',
+          entityName: newOrder.number,
+          description: `Auftrag ${newOrder.number} dupliziert von ${original.number}`,
+          oldValues: { sourceOrderId: original.id, sourceOrderNumber: original.number },
+          newValues: { newOrderId: newOrder.id, newOrderNumber: newOrder.number },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+
+      return mapOrderResponse(newOrder);
+    });
+  }
+
+  async updateStatus(id: string, companyId: string, status: DocumentStatus, userId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.order.update({
+        where: { id },
+        data: { status },
+        include: {
+          customer: true,
+          items: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: status === DocumentStatus.CANCELLED ? 'DELETE' : 'UPDATE',
+          module: 'ORDERS',
+          entityId: id,
+          entityType: 'Order',
+          entityName: result.number,
+          description: `Auftrag ${result.number} Status geändert: ${order.status} → ${status}`,
+          oldValues: { status: order.status },
+          newValues: { status },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+
+      return result;
+    });
+
+    return mapOrderResponse(updated);
+  }
+
   async remove(id: string, companyId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id, companyId },
