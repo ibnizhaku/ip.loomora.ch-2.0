@@ -74,7 +74,7 @@ const statusConfig = {
     icon: CheckCircle,
   },
   pending: {
-    label: "Ausstehend",
+    label: "Gesendet",
     color: "bg-warning/10 text-warning",
     icon: Clock,
   },

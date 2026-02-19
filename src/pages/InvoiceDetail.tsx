@@ -53,8 +53,10 @@ import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-doc
 import { useInvoice } from "@/hooks/use-invoices";
 import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
-import { downloadPdf, sendEmail } from "@/lib/api";
+import { sendEmail } from "@/lib/api";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
+import { useCreateReminder } from "@/hooks/use-reminders";
+import { getSalesDocumentPDFBlobUrl } from "@/lib/pdf/sales-document";
 
 // Status mapping from backend enum to German display labels
 const invoiceStatusMap: Record<string, string> = {
@@ -86,13 +88,14 @@ function mapInvoiceToView(invoice: any) {
     status: invoiceStatusMap[invoice.status] || invoice.status || "Entwurf",
     customer: {
       id: invoice.customer?.id,
-      name: invoice.customer?.name || "Unbekannt",
-      contact: invoice.customer?.contactPerson || invoice.customer?.companyName || "",
+      name: invoice.customer?.companyName || invoice.customer?.name || "Unbekannt",
+      contact: invoice.customer?.contactPerson || "",
       email: invoice.customer?.email || "",
       phone: invoice.customer?.phone || "",
       address: [invoice.customer?.street, [invoice.customer?.zipCode, invoice.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
       taxId: invoice.customer?.vatNumber || "",
     },
+    project: invoice.project || null,
     order: invoice.order?.number || "",
     orderId: invoice.order?.id || invoice.orderId || "",
     createdAt: formatDate(invoice.issueDate || invoice.createdAt),
@@ -138,6 +141,7 @@ const InvoiceDetail = () => {
   const recordPayment = useRecordPayment();
   const sendInvoiceAction = useSendInvoice();
   const cancelInvoice = useCancelInvoice();
+  const createReminder = useCreateReminder();
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -188,20 +192,28 @@ const InvoiceDetail = () => {
     bic: companyData?.bic || "—",
   };
 
+  // Projekt-Info aus rawInvoice
+  const rawInv = rawInvoice as any;
+  const projectLabel = rawInv?.project
+    ? [rawInv.project.number, rawInv.project.name].filter(Boolean).join(' – ')
+    : undefined;
+
   // Prepare PDF data
   const pdfData: SalesDocumentData = {
     type: 'invoice',
     number: invoiceData.id,
     date: invoiceData.createdAt,
     dueDate: invoiceData.dueDate,
-    orderNumber: invoiceData.order,
+    orderNumber: invoiceData.order || undefined,
+    projectNumber: projectLabel,
     company: companyInfo,
     customer: {
-      name: invoiceData.customer.name,
-      contact: invoiceData.customer.contact,
-      street: invoiceData.customer.address.split(',')[0],
-      postalCode: invoiceData.customer.address.split(',')[1]?.trim().split(' ')[0] || '',
-      city: invoiceData.customer.address.split(',')[1]?.trim().split(' ').slice(1).join(' ') || '',
+      name: rawInv?.customer?.companyName || rawInv?.customer?.name || invoiceData.customer.name,
+      // Kontaktperson als zweite Zeile (ohne z.Hd.)
+      contact: rawInv?.customer?.contactPerson || undefined,
+      street: rawInv?.customer?.street || invoiceData.customer.address.split(',')[0],
+      postalCode: rawInv?.customer?.zipCode || '',
+      city: rawInv?.customer?.city || '',
       email: invoiceData.customer.email,
       phone: invoiceData.customer.phone,
       vatNumber: invoiceData.customer.taxId,
@@ -274,7 +286,17 @@ const InvoiceDetail = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    const blobUrl = getSalesDocumentPDFBlobUrl(pdfData);
+    const printWindow = window.open(blobUrl);
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+      };
+    } else {
+      URL.revokeObjectURL(blobUrl);
+      toast.error("Popup wurde blockiert. Bitte Popup-Blocker deaktivieren.");
+    }
   };
 
   return (
@@ -304,8 +326,23 @@ const InvoiceDetail = () => {
             <CreditCard className="h-4 w-4 mr-2" />
             Zahlung erfassen
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/reminders/new?invoiceId=${id}`)}>
-            <AlertTriangle className="h-4 w-4 mr-2" />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={createReminder.isPending}
+            onClick={async () => {
+              try {
+                await createReminder.mutateAsync({ invoiceId: id || "" });
+                toast.success("Mahnung wurde erstellt");
+                navigate("/reminders");
+              } catch {
+                toast.error("Fehler beim Erstellen der Mahnung");
+              }
+            }}
+          >
+            {createReminder.isPending
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <AlertTriangle className="h-4 w-4 mr-2" />}
             Mahnung erstellen
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowPDFPreview(true)}>
@@ -357,8 +394,21 @@ const InvoiceDetail = () => {
                 Die Rechnung war am {invoiceData.dueDate} fällig. Offener Betrag: CHF {outstanding.toFixed(2)}
               </p>
             </div>
-            <Button size="sm" className="ml-auto bg-destructive hover:bg-destructive/90" onClick={() => navigate(`/reminders/new?invoiceId=${id}`)}>
-              Mahnung senden
+            <Button
+              size="sm"
+              className="ml-auto bg-destructive hover:bg-destructive/90"
+              disabled={createReminder.isPending}
+              onClick={async () => {
+                try {
+                  await createReminder.mutateAsync({ invoiceId: id || "" });
+                  toast.success("Mahnung wurde erstellt");
+                  navigate("/reminders");
+                } catch {
+                  toast.error("Fehler beim Erstellen der Mahnung");
+                }
+              }}
+            >
+              Mahnung erstellen
             </Button>
           </CardContent>
         </Card>
@@ -585,6 +635,7 @@ const InvoiceDetail = () => {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Rechnung ${invoiceData.id}`}
+        onSendEmail={() => setEmailModalOpen(true)}
       />
 
       {/* Payment Recording Dialog */}
