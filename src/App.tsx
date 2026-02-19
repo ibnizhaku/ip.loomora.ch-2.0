@@ -260,40 +260,6 @@ class PageErrorBoundary extends React.Component<
   }
 }
 
-// Error Boundary to catch and display rendering errors
-class PageErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-8 max-w-2xl mx-auto">
-          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6">
-            <h2 className="text-lg font-semibold text-destructive mb-2">Seite konnte nicht geladen werden</h2>
-            <p className="text-sm text-muted-foreground mb-4">{this.state.error?.message}</p>
-            <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-40 mb-4">{this.state.error?.stack}</pre>
-            <button
-              className="text-sm text-primary hover:underline"
-              onClick={() => this.setState({ hasError: false, error: null })}
-            >
-              Erneut versuchen
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 // Layout wrapper for protected routes with sidebar
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
