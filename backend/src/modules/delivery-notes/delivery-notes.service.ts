@@ -63,7 +63,7 @@ export class DeliveryNotesService {
         items: {
           orderBy: { position: 'asc' },
           include: {
-            product: { select: { id: true, name: true, articleNumber: true } },
+            product: { select: { id: true, name: true, sku: true } },
           },
         },
       },
