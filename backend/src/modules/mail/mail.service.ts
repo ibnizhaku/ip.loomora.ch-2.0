@@ -232,9 +232,8 @@ export class MailService {
         });
         if (!doc) throw new NotFoundException('Mahnung nicht gefunden');
         // Company-Info für Firmen-Header und Zahlungsanweisungen laden
-        const company = await this.prisma.company.findUnique({
+        const company = await this.prisma.company.findFirst({
           where: { id: companyId },
-          select: { name: true, street: true, zip: true, city: true, iban: true, qrIban: true },
         });
         const pdfBuffer = await this.pdfService.generateReminderPdf({ ...doc, company });
         return { pdfBuffer, filename: `Mahnung-${doc.number}.pdf` };
