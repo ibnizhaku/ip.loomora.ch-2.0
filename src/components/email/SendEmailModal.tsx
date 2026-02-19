@@ -266,10 +266,14 @@ export function SendEmailModal({
           </div>
 
           {/* PDF-Anhang Info */}
-          {documentData && (
+          {(documentData || (documentId && documentType)) && (
             <div className="flex items-center gap-2 pl-[92px] text-xs text-muted-foreground">
               <Paperclip className="h-3.5 w-3.5" />
-              <span>{getPdfFilename()} wird als Anhang beigefügt</span>
+              <span>
+                {documentData
+                  ? `${getPdfFilename()} wird als Anhang beigefügt`
+                  : "Das Dokument wird automatisch als PDF-Anhang beigefügt"}
+              </span>
             </div>
           )}
         </div>
