@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useOrder, useCreateOrder, useUpdateOrder } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
+import { useUsers } from "@/hooks/use-users";
 import { Loader2 } from "lucide-react";
 
 import { 
@@ -20,13 +21,19 @@ import {
   AlertCircle,
   MapPin,
   Download,
-  Eye
+  Eye,
+  User,
+  UserPlus,
+  FolderKanban,
+  Activity,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -39,12 +46,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { CreateDeliveryNoteDialog } from "@/components/documents/CreateDeliveryNoteDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { de } from "date-fns/locale";
 
 // Unified progress function (synced with Orders.tsx)
 function getOrderProgress(status: string): number {
@@ -72,6 +87,13 @@ function formatDate(dateStr?: string | null): string {
   } catch { return dateStr; }
 }
 
+function formatRelativeTime(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  try {
+    return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: de });
+  } catch { return ""; }
+}
+
 function mapOrderToView(order: any) {
   const items = order.items || [];
   const total = Number(order.total) || 0;
@@ -85,14 +107,20 @@ function mapOrderToView(order: any) {
     progress: getOrderProgress(rawStatus),
     customer: {
       id: order.customer?.id,
-      name: order.customer?.name || "Unbekannt",
-      contact: order.customer?.contactPerson || order.customer?.companyName || "",
+      name: order.customer?.companyName || order.customer?.name || "Unbekannt",
+      contact: order.customer?.contactPerson || "",
       address: [order.customer?.street, [order.customer?.zipCode, order.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
     },
     quote: order.quote?.number || "",
     quoteId: order.quote?.id || order.quoteId || "",
+    projectId: order.projectId || order.project?.id || "",
+    projectName: order.project?.name || order.projectName || "",
+    projectNumber: order.project?.number || order.projectNumber || "",
     createdAt: formatDate(order.orderDate || order.createdAt),
+    createdAtRaw: order.orderDate || order.createdAt || "",
     deliveryDate: formatDate(order.deliveryDate),
+    assignedUsers: order.assignedUsers || [],
+    notes: order.notes || "",
     positions: items.map((item: any, idx: number) => ({
       id: item.id || String(idx + 1),
       description: item.description || "",
@@ -127,13 +155,60 @@ const positionStatusColors: Record<string, string> = {
   "Geplant": "bg-muted text-muted-foreground",
 };
 
+// Build a local activity log from order data
+function buildActivityLog(order: any) {
+  const entries: { id: string; text: string; time: string; icon: string }[] = [];
+
+  if (order.createdAt || order.orderDate) {
+    entries.push({
+      id: "created",
+      text: "Auftrag erstellt",
+      time: order.orderDate || order.createdAt,
+      icon: "create",
+    });
+  }
+
+  if (order.status === "SENT" || order.status === "CONFIRMED" || order.status === "CANCELLED") {
+    entries.push({
+      id: "status",
+      text: `Status geändert zu "${statusLabelMap[order.status] || order.status}"`,
+      time: order.updatedAt || order.orderDate || order.createdAt,
+      icon: "status",
+    });
+  }
+
+  (order.deliveryNotes || []).forEach((dn: any, idx: number) => {
+    entries.push({
+      id: `dn-${dn.id || idx}`,
+      text: `Lieferschein ${dn.number || ""} erstellt`,
+      time: dn.createdAt || "",
+      icon: "delivery",
+    });
+  });
+
+  (order.invoices || []).forEach((inv: any, idx: number) => {
+    entries.push({
+      id: `inv-${inv.id || idx}`,
+      text: `Rechnung ${inv.number || ""} erstellt`,
+      time: inv.createdAt || "",
+      icon: "invoice",
+    });
+  });
+
+  return entries
+    .filter((e) => e.time)
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+}
+
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: rawOrder, isLoading, error } = useOrder(id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const { data: companyData } = useCompany();
+  const { data: usersData } = useUsers({ pageSize: 100 });
   const createOrder = useCreateOrder();
   const updateOrder = useUpdateOrder();
 
@@ -155,6 +230,8 @@ const OrderDetail = () => {
   }
 
   const orderData = mapOrderToView(rawOrder);
+  const activityLog = buildActivityLog(rawOrder as any);
+  const users = usersData?.data || [];
   
   const status = statusConfig[orderData.status] || statusConfig["Neu"];
   const StatusIcon = status.icon;
@@ -166,6 +243,7 @@ const OrderDetail = () => {
     date: (rawOrder as any)?.orderDate || (rawOrder as any)?.date || (rawOrder as any)?.createdAt || new Date().toISOString().split("T")[0],
     deliveryDate: (rawOrder as any)?.deliveryDate || undefined,
     reference: orderData.quote,
+    projectNumber: orderData.projectNumber || orderData.projectName || undefined,
     company: {
       name: companyData?.name || "—",
       street: companyData?.street || "",
@@ -243,6 +321,31 @@ const OrderDetail = () => {
     }
   };
 
+  const handleMarkDone = async () => {
+    try {
+      await updateOrder.mutateAsync({ id: id!, data: { status: "CONFIRMED" } as any });
+      toast.success("Auftrag wurde als erledigt markiert");
+    } catch {
+      toast.error("Fehler beim Aktualisieren");
+    }
+  };
+
+  const handleAssignUser = async (userId: string, userName: string) => {
+    const currentIds: string[] = ((rawOrder as any)?.assignedUsers || []).map((u: any) => u.id || u);
+    const isAlreadyAssigned = currentIds.includes(userId);
+    const newIds = isAlreadyAssigned
+      ? currentIds.filter((uid) => uid !== userId)
+      : [...currentIds, userId];
+    try {
+      await updateOrder.mutateAsync({ id: id!, data: { assignedUserIds: newIds } as any });
+      toast.success(isAlreadyAssigned ? `${userName} entfernt` : `${userName} zugewiesen`);
+    } catch {
+      toast.error("Fehler beim Zuweisen");
+    }
+  };
+
+  const assignedUserIds: string[] = ((rawOrder as any)?.assignedUsers || []).map((u: any) => u.id || u);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -282,10 +385,12 @@ const OrderDetail = () => {
             <FileText className="h-4 w-4 mr-2" />
             Rechnung erstellen
           </Button>
-          <Button variant="outline" size="sm">
-            <Printer className="h-4 w-4 mr-2" />
-            Drucken
-          </Button>
+          {orderData.rawStatus !== "CONFIRMED" && orderData.rawStatus !== "CANCELLED" && (
+            <Button size="sm" onClick={handleMarkDone} disabled={updateOrder.isPending}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Als erledigt markieren
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -298,6 +403,7 @@ const OrderDetail = () => {
                 {createOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Duplizieren
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onClick={handleCancel} disabled={updateOrder.isPending}>
                 Stornieren
               </DropdownMenuItem>
@@ -322,25 +428,6 @@ const OrderDetail = () => {
             </div>
           </div>
           <Progress value={orderData.progress} className="h-3" />
-
-          {/* Milestones */}
-          <div className="flex justify-between mt-6">
-            {orderData.milestones.map((milestone, index) => (
-              <div key={index} className="flex flex-col items-center text-center">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                  milestone.completed ? "bg-success text-success-foreground" : "bg-muted"
-                }`}>
-                  {milestone.completed ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : (
-                    <Clock className="h-4 w-4" />
-                  )}
-                </div>
-                <p className="text-xs font-medium mt-2 max-w-[80px]">{milestone.name}</p>
-                <p className="text-xs text-muted-foreground">{milestone.date}</p>
-              </div>
-            ))}
-          </div>
         </CardContent>
       </Card>
 
@@ -428,6 +515,48 @@ const OrderDetail = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Activity Log */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Aktivitäten
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activityLog.length > 0 ? (
+                <div className="relative pl-6 space-y-4">
+                  {/* Timeline line */}
+                  <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
+                  {activityLog.map((entry) => {
+                    const iconMap: Record<string, any> = {
+                      create: ShoppingCart,
+                      status: CheckCircle2,
+                      delivery: Truck,
+                      invoice: FileText,
+                    };
+                    const Icon = iconMap[entry.icon] || Activity;
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3 relative">
+                        <div className="absolute -left-4 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border">
+                          <Icon className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{entry.text}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(entry.time)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  Keine Aktivitäten vorhanden
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
@@ -446,18 +575,111 @@ const OrderDetail = () => {
                   <Link to={`/customers/${orderData.customer.id || ''}`} className="font-medium hover:text-primary">
                     {orderData.customer.name}
                   </Link>
-                  <p className="text-sm text-muted-foreground">{orderData.customer.contact}</p>
+                  {orderData.customer.contact && (
+                    <p className="text-sm text-muted-foreground">{orderData.customer.contact}</p>
+                  )}
                 </div>
               </div>
-
               <Separator />
-
               <div className="flex items-start gap-2 text-sm">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <span>{orderData.customer.address}</span>
               </div>
             </CardContent>
           </Card>
+
+          {/* Assigned Users */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Zugewiesen an
+              </CardTitle>
+              <Popover open={assignOpen} onOpenChange={setAssignOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-2" align="end">
+                  <p className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1">Person auswählen</p>
+                  {users.length === 0 ? (
+                    <p className="text-xs text-muted-foreground px-2 py-2">Keine Benutzer gefunden</p>
+                  ) : (
+                    <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                      {users.map((u) => {
+                        const isAssigned = assignedUserIds.includes(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            onClick={() => handleAssignUser(u.id, u.name)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-muted transition-colors ${isAssigned ? "bg-primary/10 text-primary" : ""}`}
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-[10px]">
+                                {(u.name || "?").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="flex-1 text-left">{u.name}</span>
+                            {isAssigned && <CheckCircle2 className="h-3.5 w-3.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </CardHeader>
+            <CardContent>
+              {((rawOrder as any)?.assignedUsers || []).length > 0 ? (
+                <div className="space-y-2">
+                  {((rawOrder as any)?.assignedUsers || []).map((u: any) => {
+                    const name = u.name || u.firstName ? `${u.firstName || ""} ${u.lastName || ""}`.trim() : u.id;
+                    return (
+                      <div key={u.id || u} className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                            {name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Noch niemand zugewiesen</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Project */}
+          {orderData.projectName && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4" />
+                  Projekt
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Link
+                  to={`/projects/${orderData.projectId}`}
+                  className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
+                    <FolderKanban className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{orderData.projectName}</p>
+                    {orderData.projectNumber && (
+                      <p className="text-xs text-muted-foreground">{orderData.projectNumber}</p>
+                    )}
+                  </div>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Delivery Address */}
           {orderData.deliveryAddress && (
@@ -524,9 +746,13 @@ const OrderDetail = () => {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Angebot</span>
-                <Link to={`/quotes/${orderData.quoteId}`} className="font-medium hover:text-primary">
-                  {orderData.quote || "—"}
-                </Link>
+                {orderData.quote ? (
+                  <Link to={`/quotes/${orderData.quoteId}`} className="font-medium hover:text-primary">
+                    {orderData.quote}
+                  </Link>
+                ) : (
+                  <span className="font-medium">—</span>
+                )}
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Erstellt am</span>
