@@ -6,6 +6,7 @@ import { InvoiceStatus, PaymentStatus, PaymentType } from '@prisma/client';
 import { mapInvoiceResponse } from '../../common/mappers/response.mapper';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/dto/notification.dto';
+import { generateSwissQrReference } from '../../common/utils/swiss-qr-reference.util';
 
 @Injectable()
 export class InvoicesService {
@@ -167,8 +168,9 @@ export class InvoicesService {
     const vatAmount = subtotal * this.VAT_RATE;
     const total = subtotal + vatAmount;
 
-    // QR-Referenz nach Swiss Payment Standard (QRR, MOD10 rekursiv)
-    const qrReference = this.generateQRReference(number);
+    // QR-Referenz nach SIX Swiss Payment Standard (QRR, 27 Stellen, MOD10 rekursiv)
+    const invoiceCount = await this.prisma.invoice.count({ where: { companyId } });
+    const qrReference = generateSwissQrReference(invoiceCount + 1);
 
     const created = await this.prisma.invoice.create({
       data: {
@@ -602,11 +604,9 @@ export class InvoicesService {
       const lastNum = lastInvoice?.number ? parseInt(lastInvoice.number.split('-')[2] || '0') : 0;
       const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
 
-      // Generate QR reference
+      // QR-Referenz nach SIX Swiss Payment Standard (QRR, 27 Stellen, MOD10 rekursiv)
       const invoiceCount = await tx.invoice.count({ where: { companyId } });
-      const referenceBase = `${companyId.substring(0, 8)}${String(invoiceCount + 1).padStart(10, '0')}`;
-      const checkDigit = this.calculateMod10CheckDigit(referenceBase);
-      const qrReference = referenceBase + checkDigit;
+      const qrReference = generateSwissQrReference(invoiceCount + 1);
 
       // Create invoice
       const invoice = await tx.invoice.create({
@@ -653,25 +653,6 @@ export class InvoicesService {
     });
   }
 
-  // Calculate Swiss MOD10 check digit (used in createInvoice and createFromTimeEntries)
-  private calculateMod10CheckDigit(reference: string): string {
-    const table = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
-    let carry = 0;
-    for (const char of reference) {
-      carry = table[(carry + parseInt(char)) % 10];
-    }
-    return String((10 - carry) % 10);
-  }
-
-  // Generiert eine Swiss QR-Referenz (QRR) nach SIX-Standard: 26 Stellen + 1 Prüfziffer
-  private generateQRReference(invoiceNumber: string): string {
-    // Nur Ziffern aus der Rechnungsnummer extrahieren (z.B. RE-2026-011 → 2026011)
-    const numericPart = invoiceNumber.replace(/\D/g, '').slice(-20).padStart(20, '0');
-    const base = numericPart.padStart(26, '0').slice(0, 25);
-    const checkDigit = this.calculateMod10CheckDigit(base);
-    return base + checkDigit;
-  }
-
   // Rückgabe von Zählern (nicht CHF-Beträgen) – Frontend QRInvoice erwartet { total, paid, pending, overdue }
   async getStats(companyId: string) {
     const [total, paid, overdue] = await Promise.all([
@@ -683,16 +664,16 @@ export class InvoicesService {
     return { total, paid, pending, overdue };
   }
 
-  // Bestehende Rechnungen ohne qrReference nachrüsten
+  // Bestehende Rechnungen ohne korrekte qrReference nachrüsten
   async backfillQrReferences() {
     const invoices = await this.prisma.invoice.findMany({
-      where: { qrReference: null },
       select: { id: true, number: true },
+      orderBy: { createdAt: 'asc' },
     });
     let count = 0;
-    for (const inv of invoices) {
-      const qrReference = this.generateQRReference(inv.number);
-      await this.prisma.invoice.update({ where: { id: inv.id }, data: { qrReference } });
+    for (let i = 0; i < invoices.length; i++) {
+      const qrReference = generateSwissQrReference(i + 1);
+      await this.prisma.invoice.update({ where: { id: invoices[i].id }, data: { qrReference } });
       count++;
     }
     return { updated: count };

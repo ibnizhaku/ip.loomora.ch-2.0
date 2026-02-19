@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateCompanyDto, CreateTeamMemberDto } from './dto/company.dto';
+import { isQrIban } from '../../common/utils/swiss-qr-reference.util';
 
 @Injectable()
 export class CompanyService {
@@ -30,6 +31,13 @@ export class CompanyService {
 
     if (!company) {
       throw new NotFoundException('Company not found');
+    }
+
+    // QR-IBAN validieren wenn angegeben (IID muss zwischen 30000 und 31999 liegen)
+    if (dto.qrIban && !isQrIban(dto.qrIban)) {
+      throw new BadRequestException(
+        'QR-IBAN ungültig. IID muss zwischen 30000 und 31999 liegen (z.B. CH44 3099 9123 0008 8901 2).',
+      );
     }
 
     return this.prisma.company.update({

@@ -4,6 +4,7 @@ import { CreateOrderDto, UpdateOrderDto } from './dto/order.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { DocumentStatus, InvoiceStatus } from '@prisma/client';
 import { mapOrderResponse } from '../../common/mappers/response.mapper';
+import { generateSwissQrReference } from '../../common/utils/swiss-qr-reference.util';
 
 // Gemeinsames Full-Include für alle Order-Abfragen
 const ORDER_FULL_INCLUDE = {
@@ -281,11 +282,9 @@ export class OrdersService {
         : 0;
       const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
 
-      // Generate Swiss QR reference (26-27 digits with check digit)
+      // QR-Referenz nach SIX Swiss Payment Standard (QRR, 27 Stellen, MOD10 rekursiv)
       const invoiceCount = await tx.invoice.count({ where: { companyId } });
-      const referenceBase = `${companyId.substring(0, 8)}${String(invoiceCount + 1).padStart(10, '0')}`;
-      const checkDigit = this.calculateMod10CheckDigit(referenceBase);
-      const qrReference = referenceBase + checkDigit;
+      const qrReference = generateSwissQrReference(invoiceCount + 1);
 
       const invoice = await tx.invoice.create({
         data: {
@@ -343,18 +342,6 @@ export class OrdersService {
 
       return invoice;
     });
-  }
-
-  // Calculate Swiss MOD10 check digit for QR reference
-  private calculateMod10CheckDigit(reference: string): string {
-    const table = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
-    let carry = 0;
-    
-    for (const char of reference) {
-      carry = table[(carry + parseInt(char)) % 10];
-    }
-    
-    return String((10 - carry) % 10);
   }
 
   async getStats(companyId: string) {
