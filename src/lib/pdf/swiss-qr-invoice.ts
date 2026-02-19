@@ -384,8 +384,9 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
   doc.setTextColor(0);
   
   // ==========================================
-  // PAYMENT PART (Bottom of page)
+  // PAYMENT PART (Page 2)
   // ==========================================
+  doc.addPage();
   
   // Scissors / Perforation Line
   const perfY = SCISSORS_Y;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   Plus, 
@@ -69,7 +69,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders } from "@/hooks/use-reminders";
+import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders, useReminders } from "@/hooks/use-reminders";
 
 // Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
 const levelConfig: Record<number, { label: string; color: string; fee: number; days: number }> = {
@@ -101,6 +101,83 @@ const formatCHF = (amount: number | undefined | null) => {
 };
 
 type DeliveryMethod = "email" | "post" | "both";
+
+// History tab component for completed reminders
+const HistoryTab = () => {
+  const { data: historyData, isLoading } = useReminders({ status: "SENT" });
+  const { data: paidData } = useReminders({ status: "PAID" });
+  const { data: cancelledData } = useReminders({ status: "CANCELLED" });
+
+  const allHistory = [
+    ...(historyData?.data || []),
+    ...(paidData?.data || []),
+    ...(cancelledData?.data || []),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+        <p className="text-muted-foreground">Verlauf wird geladen...</p>
+      </div>
+    );
+  }
+
+  if (allHistory.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <p>Noch keine abgeschlossenen Mahnungen</p>
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Mahnung</TableHead>
+          <TableHead>Kunde</TableHead>
+          <TableHead>Rechnung</TableHead>
+          <TableHead>Stufe</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Betrag</TableHead>
+          <TableHead>Datum</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {allHistory.map((r: any) => {
+          const statusColors: Record<string, string> = {
+            SENT: "bg-blue-500/10 text-blue-500",
+            PAID: "bg-emerald-500/10 text-emerald-500",
+            CANCELLED: "bg-muted text-muted-foreground",
+          };
+          return (
+            <TableRow key={r.id}>
+              <TableCell className="font-medium">{r.number || r.id?.substring(0, 8)}</TableCell>
+              <TableCell>{r.customer?.name || '—'}</TableCell>
+              <TableCell>{r.invoice?.number || '—'}</TableCell>
+              <TableCell>
+                <Badge className={levelConfig[r.level]?.color || "bg-muted text-muted-foreground"} variant="outline">
+                  {levelConfig[r.level]?.label || `Stufe ${r.level}`}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge className={statusColors[r.status] || "bg-muted text-muted-foreground"}>
+                  {r.status === "SENT" ? "Versendet" : r.status === "PAID" ? "Bezahlt" : "Storniert"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right font-medium">{formatCHF(r.totalAmount)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {r.createdAt ? new Date(r.createdAt).toLocaleDateString("de-CH") : "—"}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+};
 
 const Reminders = () => {
   const navigate = useNavigate();
@@ -136,7 +213,7 @@ const Reminders = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const reminders = initialReminders;
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [levelFilters, setLevelFilters] = useState<number[]>([]);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -223,27 +300,17 @@ const Reminders = () => {
     setIsSending(true);
     setSendingProgress(0);
 
-    // Simulate sending process
     const totalSteps = selectedReminders.length;
     for (let i = 0; i < totalSteps; i++) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       setSendingProgress(((i + 1) / totalSteps) * 100);
     }
 
-    // Update reminder levels
-    setReminders((prev) =>
-      prev.map((r) => {
-        if (selectedReminders.includes(r.id)) {
-          const newLevel = Math.min(r.level + 1, 5);
-          const today = new Date().toLocaleDateString("de-CH");
-          return { ...r, level: newLevel, lastReminder: today };
-        }
-        return r;
-      })
-    );
+    // Refresh data from API after bulk operation
+    await queryClient.invalidateQueries({ queryKey: ["/reminders"] });
 
     setIsSending(false);
-    setBulkStep(5); // Success step
+    setBulkStep(5);
   };
 
   const handleCreateReminder = async (invoiceId?: string) => {
@@ -261,23 +328,24 @@ const Reminders = () => {
     }
   };
 
-  const handleSendNextReminder = (reminder: Reminder) => {
+  const handleSendNextReminder = async (reminder: Reminder) => {
     const nextLevel = Math.min(reminder.level + 1, 5);
     const levelInfo = levelConfig[nextLevel] || levelConfig[1];
     const fee = levelInfo.fee;
-    setReminders((prev) =>
-      prev.map((r) =>
-        r.id === reminder.id ? { ...r, level: nextLevel } : r
-      )
-    );
-    toast.success(
-      `${levelInfo.label} für ${reminder.customer || ""} gesendet` +
-      (fee > 0 ? ` (+ CHF ${fee.toFixed(2)} Mahngebühr)` : "")
-    );
+    try {
+      await api.put(`/reminders/${reminder.id}`, { level: nextLevel });
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      toast.success(
+        `${levelInfo.label} für ${reminder.customer || ""} gesendet` +
+        (fee > 0 ? ` (+ CHF ${fee.toFixed(2)} Mahngebühr)` : "")
+      );
+    } catch {
+      toast.error("Fehler beim Aktualisieren der Mahnung");
+    }
   };
 
   const handleRecordPayment = (reminder: Reminder) => {
-    setReminders((prev) => prev.filter((r) => r.id !== reminder.id));
+    queryClient.invalidateQueries({ queryKey: ["/reminders"] });
     toast.success(`Zahlung für ${reminder.invoice} erfasst`);
   };
 
@@ -285,13 +353,14 @@ const Reminders = () => {
     toast.success(`Zahlungsfrist für ${reminder.invoice} verlängert`);
   };
 
-  const handleTransferToCollection = (reminder: Reminder) => {
-    setReminders((prev) =>
-      prev.map((r) =>
-        r.id === reminder.id ? { ...r, level: 5 } : r
-      )
-    );
-    toast.success(`${reminder.invoice} an Inkasso übergeben`);
+  const handleTransferToCollection = async (reminder: Reminder) => {
+    try {
+      await api.put(`/reminders/${reminder.id}`, { level: 5 });
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      toast.success(`${reminder.invoice} an Inkasso übergeben`);
+    } catch {
+      toast.error("Fehler beim Inkasso-Transfer");
+    }
   };
 
   const finishBulkProcess = () => {
@@ -369,6 +438,8 @@ const Reminders = () => {
                 for (const inv of overdueInvoices) {
                   await handleCreateReminder(inv.id);
                 }
+                await refetchOverdue();
+                await queryClient.invalidateQueries({ queryKey: ["/reminders"] });
               }}
             >
               Mahnungen erstellen
@@ -733,10 +804,11 @@ const Reminders = () => {
 
         <TabsContent value="history">
           <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Mahnverlauf wird hier angezeigt</p>
-              <p className="text-sm">Abgeschlossene Mahnverfahren und Zahlungseingänge</p>
+            <CardHeader>
+              <CardTitle>Mahnverlauf</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <HistoryTab />
             </CardContent>
           </Card>
         </TabsContent>

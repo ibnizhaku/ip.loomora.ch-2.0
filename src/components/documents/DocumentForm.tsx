@@ -292,7 +292,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   };
   const typeConfig: Record<string, { title: string; backPath: string; sendLabel: string }> = {
     quote: { title: editMode ? editTitleConfig.quote : "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot erstellen" },
-    invoice: { title: editMode ? editTitleConfig.invoice : "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung senden" },
+    invoice: { title: editMode ? editTitleConfig.invoice : "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung erstellen" },
     order: { title: editMode ? editTitleConfig.order : "Neuer Auftrag", backPath: "/orders", sendLabel: "Auftrag erstellen" },
     "delivery-note": { title: editMode ? editTitleConfig["delivery-note"] : "Neuer Lieferschein", backPath: "/delivery-notes", sendLabel: "Lieferschein erstellen" },
     "credit-note": { title: editMode ? editTitleConfig["credit-note"] : "Neue Gutschrift", backPath: "/credit-notes", sendLabel: "Gutschrift erstellen" },
