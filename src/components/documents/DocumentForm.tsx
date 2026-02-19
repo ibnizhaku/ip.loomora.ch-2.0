@@ -124,9 +124,6 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   const [validDays, setValidDays] = useState("30");
   const [paymentDays, setPaymentDays] = useState("30");
   const [defaultVatRate, setDefaultVatRate] = useState("8.1");
-  const [useQrInvoice, setUseQrInvoice] = useState(true);
-  const [qrReference, setQrReference] = useState("");
-  const [esrParticipant, setEsrParticipant] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [documentDate, setDocumentDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
@@ -536,7 +533,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-display text-2xl font-bold">{title}</h1>
-              {isInvoice && useQrInvoice && (
+              {isInvoice && (companyData?.iban || companyData?.qrIban) && (
                 <Badge variant="outline" className="gap-1">
                   <QrCode className="h-3 w-3" />
                   QR-Rechnung
@@ -994,7 +991,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
           </Card>
 
           {/* QR Invoice Preview (for invoices) */}
-          {isInvoice && useQrInvoice && (
+          {isInvoice && (companyData?.iban || companyData?.qrIban) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1014,12 +1011,8 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                         <p>{companyBankAccount.name}</p>
                         <p>{companyBankAccount.address}</p>
                         
-                        {qrReference && (
-                          <>
-                            <p className="font-semibold mt-2">Referenz</p>
-                            <p className="font-mono text-[10px]">{qrReference}</p>
-                          </>
-                        )}
+                        
+                        <p className="text-xs text-muted-foreground italic mt-2">Referenz wird vom Backend generiert</p>
                         
                         <p className="font-semibold mt-2">Zahlbar durch</p>
                         {selectedCustomer ? (
@@ -1057,12 +1050,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                       </div>
                       
                       <div className="mt-3 space-y-1 text-xs">
-                        {qrReference && (
-                          <>
-                            <p className="font-semibold">Referenz</p>
-                            <p className="font-mono">{qrReference}</p>
-                          </>
-                        )}
+                        <p className="text-xs text-muted-foreground italic">Referenz wird automatisch generiert</p>
                         
                         <p className="font-semibold mt-2">Zusätzliche Informationen</p>
                         <p>{isQuote ? "Angebot" : "Rechnung"} {selectedCustomer?.name || ""}</p>
@@ -1150,38 +1138,9 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                     </Select>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>QR-Rechnung</Label>
-                      <p className="text-xs text-muted-foreground">Swiss QR-Invoice aktivieren</p>
-                    </div>
-                    <Switch checked={useQrInvoice} onCheckedChange={setUseQrInvoice} />
+                  <div className="rounded-lg border border-info/30 bg-info/5 p-3 text-xs text-info">
+                    QR-Rechnung wird automatisch aktiviert wenn IBAN konfiguriert ist.
                   </div>
-
-                  {useQrInvoice && (
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1">
-                        QR-Referenz
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="h-3 w-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs text-xs">
-                              26-stellige QR-Referenz (QRR) oder 25-stellige Creditor Reference (SCOR).
-                              Wird automatisch vom Backend generiert.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </Label>
-                      <Input 
-                        value={qrReference}
-                        onChange={(e) => setQrReference(e.target.value)}
-                        placeholder="Wird automatisch generiert"
-                        className="font-mono text-sm"
-                      />
-                    </div>
-                  )}
                 </>
               ) : null}
 
@@ -1244,7 +1203,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                   <span className="text-muted-foreground">IBAN</span>
                   <span className="font-mono text-xs">{companyBankAccount.iban}</span>
                 </div>
-                {useQrInvoice && (
+                {companyBankAccount.qrIban && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">QR-IBAN</span>
                     <span className="font-mono text-xs">{companyBankAccount.qrIban}</span>

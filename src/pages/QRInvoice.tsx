@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -6,14 +7,15 @@ import {
   FileText,
   CheckCircle2,
   Clock,
-  Send,
   Download,
   Eye,
   Copy,
   Printer,
+  Send,
   MoreHorizontal,
   AlertTriangle,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,217 +40,145 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { 
-  generateSwissQRInvoicePDF, 
-  generateQRReference,
-  type QRInvoiceData 
+import {
+  generateSwissQRInvoicePDF,
+  type QRInvoiceData,
 } from "@/lib/pdf/swiss-qr-invoice";
+import { useInvoices, type Invoice } from "@/hooks/use-invoices";
+import { useCompany } from "@/hooks/use-company";
+import { useInvoiceStats } from "@/hooks/use-invoices";
 
-interface QRInvoiceListItem {
-  id: string;
-  invoiceNumber: string;
-  customer: string;
-  // Customer address – used for the debtor block in the QR-bill
-  customerStreet?: string;
-  customerPostalCode?: string;
-  customerCity?: string;
-  customerCountry?: string;
-  amount: number;
-  currency: "CHF" | "EUR";
-  iban: string;
-  qrIban?: string;
-  reference: string;
-  referenceType: "QRR" | "SCOR" | "NON";
-  status: "draft" | "generated" | "sent" | "paid";
-  dueDate: string;
-  createdAt: string;
-  qrGenerated: boolean;
+// Map Invoice status → QR page display status
+function mapStatus(status: Invoice["status"]): "draft" | "sent" | "paid" | "overdue" {
+  switch (status) {
+    case "PAID": return "paid";
+    case "SENT": return "sent";
+    case "OVERDUE": return "overdue";
+    default: return "draft";
+  }
 }
 
-const qrInvoices: QRInvoiceListItem[] = [
-  {
-    id: "1",
-    invoiceNumber: "RE-2024-0156",
-    customer: "Bauherr AG",
-    customerStreet: "Industriestrasse 45",
-    customerPostalCode: "8005",
-    customerCity: "Zürich",
-    customerCountry: "CH",
-    amount: 31970,
-    currency: "CHF",
-    iban: "CH93 0076 2011 6238 5295 7",
-    qrIban: "CH44 3199 9123 0008 8901 2",
-    reference: generateQRReference("RE-2024-0156"),
-    referenceType: "QRR",
-    status: "sent",
-    dueDate: "28.02.2024",
-    createdAt: "29.01.2024",
-    qrGenerated: true,
-  },
-  {
-    id: "2",
-    invoiceNumber: "RE-2024-0157",
-    customer: "Immobilien Müller",
-    customerStreet: "Bahnhofstrasse 10",
-    customerPostalCode: "8001",
-    customerCity: "Zürich",
-    customerCountry: "CH",
-    amount: 8760,
-    currency: "CHF",
-    iban: "CH93 0076 2011 6238 5295 7",
-    qrIban: "CH44 3199 9123 0008 8901 2",
-    reference: generateQRReference("RE-2024-0157"),
-    referenceType: "QRR",
-    status: "paid",
-    dueDate: "15.02.2024",
-    createdAt: "25.01.2024",
-    qrGenerated: true,
-  },
-  {
-    id: "3",
-    invoiceNumber: "RE-2024-0158",
-    customer: "Logistik Center Zürich",
-    customerStreet: "Hagenholzstrasse 83",
-    customerPostalCode: "8050",
-    customerCity: "Zürich",
-    customerCountry: "CH",
-    amount: 15700,
-    currency: "CHF",
-    iban: "CH93 0076 2011 6238 5295 7",
-    qrIban: "CH44 3199 9123 0008 8901 2",
-    reference: generateQRReference("RE-2024-0158"),
-    referenceType: "QRR",
-    status: "generated",
-    dueDate: "10.03.2024",
-    createdAt: "30.01.2024",
-    qrGenerated: true,
-  },
-  {
-    id: "4",
-    invoiceNumber: "RE-2024-0159",
-    customer: "Privat Schneider",
-    customerStreet: "Dorfstrasse 7",
-    customerPostalCode: "8400",
-    customerCity: "Winterthur",
-    customerCountry: "CH",
-    amount: 4250,
-    currency: "CHF",
-    iban: "CH93 0076 2011 6238 5295 7",
-    reference: "",
-    referenceType: "NON",
-    status: "draft",
-    dueDate: "15.03.2024",
-    createdAt: "31.01.2024",
-    qrGenerated: false,
-  },
-];
-
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  generated: "bg-info/10 text-info",
   sent: "bg-warning/10 text-warning",
   paid: "bg-success/10 text-success",
+  overdue: "bg-destructive/10 text-destructive",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   draft: "Entwurf",
-  generated: "QR generiert",
   sent: "Versendet",
   paid: "Bezahlt",
+  overdue: "Überfällig",
 };
 
-const refTypeLabels = {
-  QRR: "QR-Referenz",
-  SCOR: "Creditor Ref.",
-  NON: "Ohne Referenz",
-};
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("de-CH", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function QRInvoice() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
-  const [previewInvoice, setPreviewInvoice] = useState<QRInvoiceListItem | null>(null);
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
 
-  const filteredInvoices = qrInvoices.filter((invoice) => {
-    const matchesSearch = 
-      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.customer.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+  const { data: invoicesData, isLoading } = useInvoices({ pageSize: 100 });
+  const { data: companyData } = useCompany();
+  const stats = useInvoiceStats();
+
+  const invoices: Invoice[] = invoicesData?.data ?? [];
+
+  const hasIban = !!(companyData?.iban || companyData?.qrIban);
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const customerName =
+      invoice.customer?.name || "";
+    const matchesSearch =
+      invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchQuery.toLowerCase());
+    const qrStatus = mapStatus(invoice.status);
+    const matchesStatus =
+      statusFilter === "all" || qrStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const totalInvoices = qrInvoices.length;
-  const paidInvoices = qrInvoices.filter((i) => i.status === "paid").length;
-  const openAmount = qrInvoices
-    .filter((i) => i.status !== "paid")
-    .reduce((sum, i) => sum + i.amount, 0);
-  const paidAmount = qrInvoices
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + i.amount, 0);
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    if (!invoice.qrReference) {
+      toast.error(
+        "Keine QR-Referenz vorhanden. Bitte Backend prüfen – Referenz wird beim Erstellen der Rechnung automatisch generiert."
+      );
+      return;
+    }
+    if (!hasIban) {
+      toast.error(
+        "IBAN fehlt. Bitte unter Einstellungen → Firma → Bankverbindung konfigurieren."
+      );
+      return;
+    }
 
-  const handleGenerateQR = async (invoice: QRInvoiceListItem) => {
     setIsGenerating(invoice.id);
-    toast.success(`QR-Code für ${invoice.invoiceNumber} wird generiert...`);
-    
-    // Simulate generation delay
-    setTimeout(() => {
-      setIsGenerating(null);
-      toast.success(`QR-Code für ${invoice.invoiceNumber} erfolgreich generiert`);
-    }, 1500);
-  };
-
-  const handleDownloadPDF = async (invoice: QRInvoiceListItem) => {
-    setIsGenerating(invoice.id);
-    
     try {
+      const raw = invoice as any;
       const qrData: QRInvoiceData = {
-        invoiceNumber: invoice.invoiceNumber,
-        invoiceDate: invoice.createdAt,
-        dueDate: invoice.dueDate,
-        currency: invoice.currency,
-        amount: invoice.amount,
+        invoiceNumber: invoice.number,
+        invoiceDate: formatDate(invoice.issueDate || invoice.createdAt),
+        dueDate: formatDate(invoice.dueDate),
+        currency: "CHF",
+        amount: invoice.total,
         vatRate: 8.1,
-        vatAmount: invoice.amount * 0.081 / 1.081,
-        subtotal: invoice.amount / 1.081,
-        iban: invoice.iban,
-        qrIban: invoice.qrIban,
-        reference: invoice.reference || generateQRReference(invoice.invoiceNumber),
-        referenceType: invoice.referenceType,
-        additionalInfo: `Rechnung ${invoice.invoiceNumber}`,
+        vatAmount: invoice.vatAmount,
+        subtotal: invoice.subtotal,
+        iban: companyData?.iban || "",
+        qrIban: companyData?.qrIban || undefined,
+        reference: invoice.qrReference,
+        referenceType: companyData?.qrIban ? "QRR" : "SCOR",
+        additionalInfo: `Rechnung ${invoice.number}`,
         creditor: {
-          name: "Loomora Metallbau AG",
-          street: "Industriestrasse 15",
-          postalCode: "8005",
-          city: "Zürich",
+          name: companyData?.name || "",
+          street: companyData?.street || "",
+          postalCode: companyData?.zipCode || "",
+          city: companyData?.city || "",
           country: "CH",
         },
-        // Use real customer address data from the list item
         debtor: {
-          name: invoice.customer,
-          street: invoice.customerStreet,
-          postalCode: invoice.customerPostalCode,
-          city: invoice.customerCity,
-          country: invoice.customerCountry || "CH",
+          name:
+            raw?.customer?.companyName ||
+            raw?.customer?.name ||
+            invoice.customer?.name ||
+            "",
+          street: raw?.customer?.street || "",
+          postalCode: raw?.customer?.zipCode || "",
+          city: raw?.customer?.city || "",
+          country: "CH",
         },
-        positions: [
-          { 
-            position: 1, 
-            description: "Metallbauarbeiten gemäss Auftrag", 
-            quantity: 1, 
-            unit: "Pausch.", 
-            unitPrice: invoice.amount / 1.081, 
-            total: invoice.amount / 1.081 
-          },
-        ],
+        positions: (invoice.items || []).map((item, idx) => ({
+          position: idx + 1,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          total: item.total,
+        })),
         paymentTermDays: 30,
       };
 
       await generateSwissQRInvoicePDF(qrData);
-      toast.success(`QR-Rechnung ${invoice.invoiceNumber} heruntergeladen`);
+      toast.success(`QR-Rechnung ${invoice.number} heruntergeladen`);
     } catch (error) {
-      console.error("PDF generation error:", error);
+      console.error("QR PDF error:", error);
       toast.error("Fehler beim Erstellen der PDF");
     } finally {
       setIsGenerating(null);
@@ -260,20 +190,16 @@ export default function QRInvoice() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            QR-Rechnung
+            QR-Rechnungen
           </h1>
           <p className="text-muted-foreground">
             Swiss QR-Invoice gem. ISO 20022 Standard
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Sammel-PDF
-          </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/invoices/new")}>
             <Plus className="h-4 w-4" />
-            QR-Rechnung erstellen
+            Rechnung erstellen
           </Button>
         </div>
       </div>
@@ -287,12 +213,30 @@ export default function QRInvoice() {
           <div>
             <h3 className="font-semibold text-info">Swiss QR-Rechnung Standard</h3>
             <p className="text-sm text-muted-foreground">
-              Vollständig konform mit ISO 20022 und SIX Vorgaben. Generiert PDF mit Zahlteil inkl. 
+              Vollständig konform mit ISO 20022 und SIX Vorgaben. PDF mit Zahlteil inkl.
               QR-Code, Schweizer Kreuz und Empfangsschein. Unterstützt QRR, SCOR und NON Referenzen.
             </p>
           </div>
         </div>
       </div>
+
+      {/* IBAN Warning */}
+      {!hasIban && companyData && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>IBAN nicht konfiguriert</AlertTitle>
+          <AlertDescription>
+            Für QR-Rechnungen wird eine IBAN benötigt. Bitte unter{" "}
+            <button
+              className="underline font-medium"
+              onClick={() => navigate("/settings")}
+            >
+              Einstellungen → Firma
+            </button>{" "}
+            die Bankverbindung hinterlegen.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-4">
@@ -302,8 +246,10 @@ export default function QRInvoice() {
               <QrCode className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">QR-Rechnungen</p>
-              <p className="text-2xl font-bold">{totalInvoices}</p>
+              <p className="text-sm text-muted-foreground">Total Rechnungen</p>
+              <p className="text-2xl font-bold">
+                {stats.isLoading ? "—" : stats.total}
+              </p>
             </div>
           </div>
         </div>
@@ -314,7 +260,9 @@ export default function QRInvoice() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Bezahlt</p>
-              <p className="text-2xl font-bold text-success">{paidInvoices}</p>
+              <p className="text-2xl font-bold text-success">
+                {stats.isLoading ? "—" : stats.paid}
+              </p>
             </div>
           </div>
         </div>
@@ -325,18 +273,22 @@ export default function QRInvoice() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Offen</p>
-              <p className="text-2xl font-bold">CHF {openAmount.toLocaleString("de-CH")}</p>
+              <p className="text-2xl font-bold">
+                {stats.isLoading ? "—" : stats.pending}
+              </p>
             </div>
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10">
-              <FileText className="h-6 w-6 text-info" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Eingegangen</p>
-              <p className="text-2xl font-bold">CHF {paidAmount.toLocaleString("de-CH")}</p>
+              <p className="text-sm text-muted-foreground">Überfällig</p>
+              <p className="text-2xl font-bold text-destructive">
+                {stats.isLoading ? "—" : stats.overdue}
+              </p>
             </div>
           </div>
         </div>
@@ -360,207 +312,185 @@ export default function QRInvoice() {
           <SelectContent>
             <SelectItem value="all">Alle Status</SelectItem>
             <SelectItem value="draft">Entwurf</SelectItem>
-            <SelectItem value="generated">Generiert</SelectItem>
             <SelectItem value="sent">Versendet</SelectItem>
             <SelectItem value="paid">Bezahlt</SelectItem>
+            <SelectItem value="overdue">Überfällig</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* QR Invoice List */}
-      <div className="space-y-3">
-        {filteredInvoices.map((invoice, index) => (
-          <div
-            key={invoice.id}
-            className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "flex h-14 w-14 items-center justify-center rounded-xl",
-                  invoice.qrGenerated ? "bg-primary/10" : "bg-muted"
-                )}>
-                  {isGenerating === invoice.id ? (
-                    <Loader2 className="h-7 w-7 text-primary animate-spin" />
-                  ) : invoice.qrGenerated ? (
-                    <QrCode className="h-7 w-7 text-primary" />
-                  ) : (
-                    <AlertTriangle className="h-7 w-7 text-muted-foreground" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{invoice.customer}</h3>
-                    <Badge className={statusStyles[invoice.status]}>
-                      {statusLabels[invoice.status]}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-mono">{invoice.invoiceNumber}</span>
-                    {" • "}
-                    Fällig: {invoice.dueDate}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6">
-                <div className="text-right hidden md:block">
-                  <p className="text-sm text-muted-foreground">Referenztyp</p>
-                  <Badge variant="outline">{refTypeLabels[invoice.referenceType]}</Badge>
-                </div>
-
-                <div className="text-right hidden lg:block">
-                  <p className="text-sm text-muted-foreground">IBAN</p>
-                  <p className="font-mono text-sm">{invoice.iban.substring(0, 12)}...</p>
-                </div>
-
-                <div className="text-right min-w-[120px]">
-                  <p className="text-sm text-muted-foreground">Betrag</p>
-                  <p className="font-mono font-bold text-lg">
-                    {invoice.currency} {invoice.amount.toLocaleString("de-CH")}
-                  </p>
-                </div>
-
-                <div className="flex gap-1">
-                  {!invoice.qrGenerated && (
-                    <Button 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => handleGenerateQR(invoice)}
-                      disabled={isGenerating === invoice.id}
-                    >
-                      {isGenerating === invoice.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <QrCode className="h-4 w-4" />
-                      )}
-                      QR generieren
-                    </Button>
-                  )}
-                  {invoice.qrGenerated && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="gap-2"
-                      onClick={() => handleDownloadPDF(invoice)}
-                      disabled={isGenerating === invoice.id}
-                    >
-                      {isGenerating === invoice.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                      PDF
-                    </Button>
-                  )}
-                </div>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setPreviewInvoice(invoice)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Vorschau
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
-                      <Download className="h-4 w-4 mr-2" />
-                      PDF herunterladen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Printer className="h-4 w-4 mr-2" />
-                      Drucken
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Send className="h-4 w-4 mr-2" />
-                      Per E-Mail senden
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
-                      navigator.clipboard.writeText(invoice.reference);
-                      toast.success("QR-Referenz kopiert");
-                    }}>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Referenz kopieren
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {invoice.reference && (
-              <div className="mt-3 pt-3 border-t border-border">
-                <p className="text-sm text-muted-foreground">
-                  QR-Referenz: <span className="font-mono">{invoice.reference.replace(/(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/, "$1 $2 $3 $4 $5 $6")}</span>
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* QR Code Preview Panel */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="font-semibold mb-4">QR-Zahlteil Vorschau (ISO 20022)</h3>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="p-6 border border-dashed border-border rounded-lg bg-white dark:bg-card">
-            <div className="aspect-square max-w-[200px] mx-auto bg-muted rounded-lg flex items-center justify-center relative">
-              <QrCode className="h-24 w-24 text-muted-foreground" />
-              {/* Swiss Cross Overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 bg-destructive flex items-center justify-center">
-                  <div className="text-destructive-foreground text-2xl font-bold">+</div>
-                </div>
-              </div>
-            </div>
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Swiss QR Code mit Schweizer Kreuz
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground">Konto / Zahlbar an</p>
-              <p className="font-mono text-sm">CH93 0076 2011 6238 5295 7</p>
-              <p className="text-sm">Loomora Metallbau AG</p>
-              <p className="text-sm">Industriestrasse 15</p>
-              <p className="text-sm">8005 Zürich</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground">Referenz (QRR)</p>
-              <p className="font-mono text-sm">00 00000 00000 00000 00000 00156</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground">Zahlbar durch</p>
-              <p className="text-sm">Bauherr AG</p>
-              <p className="text-sm">Bahnhofstrasse 10</p>
-              <p className="text-sm">8001 Zürich</p>
-            </div>
-            <div className="pt-4 border-t">
-              <div className="flex gap-8">
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Währung</p>
-                  <p className="text-lg font-bold">CHF</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Betrag</p>
-                  <p className="text-lg font-bold">31'970.00</p>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Invoice List */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </div>
+      ) : filteredInvoices.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-12 text-center">
+          <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Keine Rechnungen gefunden.</p>
+          <Button
+            className="mt-4 gap-2"
+            onClick={() => navigate("/invoices/new")}
+          >
+            <Plus className="h-4 w-4" />
+            Erste Rechnung erstellen
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredInvoices.map((invoice, index) => {
+            const qrStatus = mapStatus(invoice.status);
+            const hasQrRef = !!invoice.qrReference;
+            return (
+              <div
+                key={invoice.id}
+                className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-all animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={cn(
+                        "flex h-14 w-14 items-center justify-center rounded-xl",
+                        hasQrRef && hasIban ? "bg-primary/10" : "bg-muted"
+                      )}
+                    >
+                      {isGenerating === invoice.id ? (
+                        <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                      ) : hasQrRef && hasIban ? (
+                        <QrCode className="h-7 w-7 text-primary" />
+                      ) : (
+                        <AlertTriangle className="h-7 w-7 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">
+                          {invoice.customer?.name || "—"}
+                        </h3>
+                        <Badge className={statusStyles[qrStatus]}>
+                          {statusLabels[qrStatus]}
+                        </Badge>
+                        {!hasQrRef && (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">
+                            Keine QR-Ref.
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-mono">{invoice.number}</span>
+                        {" • "}
+                        Fällig: {formatDate(invoice.dueDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <div className="text-right hidden lg:block">
+                      <p className="text-sm text-muted-foreground">IBAN</p>
+                      <p className="font-mono text-sm">
+                        {companyData?.iban
+                          ? companyData.iban.substring(0, 12) + "..."
+                          : "—"}
+                      </p>
+                    </div>
+
+                    <div className="text-right min-w-[120px]">
+                      <p className="text-sm text-muted-foreground">Betrag</p>
+                      <p className="font-mono font-bold text-lg">
+                        CHF {invoice.total.toLocaleString("de-CH")}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => handleDownloadPDF(invoice)}
+                        disabled={isGenerating === invoice.id}
+                      >
+                        {isGenerating === invoice.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        PDF
+                      </Button>
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => setPreviewInvoice(invoice)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Vorschau
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDownloadPDF(invoice)}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          PDF herunterladen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Rechnung öffnen
+                        </DropdownMenuItem>
+                        {invoice.qrReference && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                invoice.qrReference!
+                              );
+                              toast.success("QR-Referenz kopiert");
+                            }}
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Referenz kopieren
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                {invoice.qrReference && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <p className="text-sm text-muted-foreground">
+                      QR-Referenz:{" "}
+                      <span className="font-mono">
+                        {invoice.qrReference.replace(
+                          /(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/,
+                          "$1 $2 $3 $4 $5 $6"
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewInvoice} onOpenChange={() => setPreviewInvoice(null)}>
+      <Dialog
+        open={!!previewInvoice}
+        onOpenChange={() => setPreviewInvoice(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>QR-Rechnung Vorschau</DialogTitle>
             <DialogDescription>
-              {previewInvoice?.invoiceNumber} - {previewInvoice?.customer}
+              {previewInvoice?.number} – {previewInvoice?.customer?.name}
             </DialogDescription>
           </DialogHeader>
           {previewInvoice && (
@@ -568,35 +498,69 @@ export default function QRInvoice() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Rechnungsnummer</p>
-                  <p className="font-mono font-semibold">{previewInvoice.invoiceNumber}</p>
+                  <p className="font-mono font-semibold">{previewInvoice.number}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Betrag</p>
-                  <p className="font-mono font-semibold">{previewInvoice.currency} {previewInvoice.amount.toLocaleString("de-CH")}</p>
+                  <p className="font-mono font-semibold">
+                    CHF {previewInvoice.total.toLocaleString("de-CH")}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Fälligkeitsdatum</p>
-                  <p className="font-semibold">{previewInvoice.dueDate}</p>
+                  <p className="font-semibold">{formatDate(previewInvoice.dueDate)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Referenztyp</p>
-                  <p className="font-semibold">{refTypeLabels[previewInvoice.referenceType]}</p>
+                  <p className="font-semibold">
+                    {companyData?.qrIban ? "QR-Referenz (QRR)" : "Creditor Ref. (SCOR)"}
+                  </p>
                 </div>
               </div>
-              {previewInvoice.reference && (
+
+              {previewInvoice.qrReference ? (
                 <div>
                   <p className="text-muted-foreground text-sm">QR-Referenz</p>
                   <p className="font-mono text-sm bg-muted p-2 rounded">
-                    {previewInvoice.reference.replace(/(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/, "$1 $2 $3 $4 $5 $6")}
+                    {previewInvoice.qrReference.replace(
+                      /(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/,
+                      "$1 $2 $3 $4 $5 $6"
+                    )}
                   </p>
                 </div>
+              ) : (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Keine QR-Referenz</AlertTitle>
+                  <AlertDescription>
+                    Diese Rechnung hat noch keine QR-Referenz. Sie wird vom Backend beim Erstellen automatisch generiert.
+                  </AlertDescription>
+                </Alert>
               )}
+
               <div className="flex gap-2 pt-4">
-                <Button onClick={() => handleDownloadPDF(previewInvoice)} className="flex-1">
+                <Button
+                  onClick={() => handleDownloadPDF(previewInvoice)}
+                  className="flex-1"
+                  disabled={!previewInvoice.qrReference || !hasIban}
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  PDF herunterladen
+                  QR-PDF herunterladen
                 </Button>
-                <Button variant="outline" onClick={() => setPreviewInvoice(null)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPreviewInvoice(null);
+                    navigate(`/invoices/${previewInvoice.id}`);
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Rechnung öffnen
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPreviewInvoice(null)}
+                >
                   Schliessen
                 </Button>
               </div>
