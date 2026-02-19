@@ -28,6 +28,7 @@ export class DeliveryNotesController {
     @Query('pageSize') pageSize?: string,
     @Query('status') status?: string,
     @Query('customerId') customerId?: string,
+    @Query('orderId') orderId?: string,
     @Query('search') search?: string,
   ) {
     return this.deliveryNotesService.findAll(user.companyId, {
@@ -35,6 +36,7 @@ export class DeliveryNotesController {
       pageSize: pageSize ? parseInt(pageSize) : undefined,
       status,
       customerId,
+      orderId,
       search,
     });
   }
@@ -75,14 +77,14 @@ export class DeliveryNotesController {
   @RequirePermissions('delivery-notes:write')
   @ApiOperation({ summary: 'Create new delivery note' })
   create(@Body() dto: CreateDeliveryNoteDto, @CurrentUser() user: any) {
-    return this.deliveryNotesService.create(user.companyId, dto);
+    return this.deliveryNotesService.create(user.companyId, dto, user.userId);
   }
 
   @Post('from-order/:orderId')
   @RequirePermissions('delivery-notes:write')
   @ApiOperation({ summary: 'Create delivery note from order' })
   createFromOrder(@Param('orderId') orderId: string, @CurrentUser() user: any) {
-    return this.deliveryNotesService.createFromOrder(orderId, user.companyId);
+    return this.deliveryNotesService.createFromOrder(orderId, user.companyId, user.userId);
   }
 
   @Post(':id/ship')

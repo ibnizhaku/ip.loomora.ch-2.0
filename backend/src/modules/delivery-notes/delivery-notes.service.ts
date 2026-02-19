@@ -12,14 +12,16 @@ export class DeliveryNotesService {
     pageSize?: number;
     status?: string;
     customerId?: string;
+    orderId?: string;
     search?: string;
   }) {
-    const { page = 1, pageSize = 20, status, customerId, search } = params;
+    const { page = 1, pageSize = 20, status, customerId, orderId, search } = params;
     const skip = (page - 1) * pageSize;
 
     const where: any = { companyId };
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
+    if (orderId) where.orderId = orderId;
     if (search) {
       where.OR = [
         { number: { contains: search, mode: 'insensitive' } },
@@ -36,11 +38,8 @@ export class DeliveryNotesService {
         include: {
           customer: { select: { id: true, name: true } },
           order: { select: { id: true, number: true } },
-          items: {
-            include: {
-              product: { select: { id: true, name: true, sku: true } },
-            },
-          },
+          items: { select: { id: true } },
+          _count: { select: { items: true } },
         },
       }),
       this.prisma.deliveryNote.count({ where }),
@@ -62,8 +61,9 @@ export class DeliveryNotesService {
         customer: true,
         order: { select: { id: true, number: true } },
         items: {
+          orderBy: { position: 'asc' },
           include: {
-            product: true,
+            product: { select: { id: true, name: true, articleNumber: true } },
           },
         },
       },
@@ -76,49 +76,157 @@ export class DeliveryNotesService {
     return mapDeliveryNoteResponse(deliveryNote);
   }
 
-  async create(companyId: string, dto: CreateDeliveryNoteDto) {
-    // Generate delivery note number
-    const count = await this.prisma.deliveryNote.count({ where: { companyId } });
-    const year = new Date().getFullYear();
-    const number = `LS-${year}-${String(count + 1).padStart(4, '0')}`;
+  async create(companyId: string, dto: CreateDeliveryNoteDto, userId?: string) {
+    if (!dto.orderId) {
+      throw new BadRequestException('Ein Lieferschein muss einem Auftrag zugeordnet sein.');
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: { id: dto.orderId, companyId },
+      include: { customer: true },
+    });
+    if (!order) {
+      throw new NotFoundException('Auftrag nicht gefunden oder keine Berechtigung.');
+    }
 
     const status = dto.status || DeliveryNoteStatus.DRAFT;
 
-    const created = await this.prisma.deliveryNote.create({
-      data: {
-        companyId,
-        customerId: dto.customerId,
-        orderId: dto.orderId,
-        number,
-        status,
-        deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
-        deliveryAddress: dto.deliveryAddress,
-        notes: dto.notes,
-        carrier: dto.carrier,
-        trackingNumber: dto.trackingNumber,
-        shippedAt: status === DeliveryNoteStatus.SHIPPED ? new Date() : undefined,
-        items: {
-          create: dto.items.map((item, index) => ({
-            productId: item.productId || undefined,
-            quantity: item.quantity,
-            unit: item.unit || 'Stk',
-            description: item.description,
-            position: item.position || index + 1,
-          })),
+    return this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.update({
+        where: { id: companyId },
+        data: { deliveryCounter: { increment: 1 } },
+        select: { deliveryCounter: true },
+      });
+
+      const number = `LS-${new Date().getFullYear()}-${String(company.deliveryCounter).padStart(4, '0')}`;
+
+      const deliveryNote = await tx.deliveryNote.create({
+        data: {
+          companyId,
+          customerId: dto.customerId || order.customerId,
+          orderId: dto.orderId,
+          number,
+          status,
+          deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : new Date(),
+          deliveryAddress: dto.deliveryAddress,
+          notes: dto.notes,
+          carrier: dto.carrier,
+          trackingNumber: dto.trackingNumber,
+          shippedAt: status === DeliveryNoteStatus.SHIPPED ? new Date() : undefined,
+          items: {
+            create: dto.items.map((item, index) => ({
+              productId: item.productId || undefined,
+              quantity: item.quantity,
+              unit: item.unit || 'Stk',
+              description: item.description,
+              position: item.position || index + 1,
+            })),
+          },
         },
-      },
-      include: {
-        customer: true,
-        items: { include: { product: true } },
-      },
+        include: {
+          customer: true,
+          order: { select: { id: true, number: true } },
+          items: { include: { product: true } },
+        },
+      });
+
+      if (userId) {
+        await tx.auditLog.create({
+          data: {
+            action: 'CREATE',
+            module: 'DOCUMENTS',
+            entityId: deliveryNote.id,
+            entityType: 'DeliveryNote',
+            entityName: deliveryNote.number,
+            description: `Lieferschein ${deliveryNote.number} für Auftrag ${order.number} erstellt`,
+            userId,
+            companyId,
+            retentionUntil: new Date(Date.now() + 10 * 365.25 * 24 * 60 * 60 * 1000),
+          },
+        });
+      }
+
+      return mapDeliveryNoteResponse(deliveryNote);
     });
-    return mapDeliveryNoteResponse(created);
+  }
+
+  async createFromOrder(orderId: string, companyId: string, userId?: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, companyId },
+      include: { items: true, customer: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Auftrag nicht gefunden');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.update({
+        where: { id: companyId },
+        data: { deliveryCounter: { increment: 1 } },
+        select: { deliveryCounter: true },
+      });
+
+      const number = `LS-${new Date().getFullYear()}-${String(company.deliveryCounter).padStart(4, '0')}`;
+
+      const deliveryAddress = [
+        order.customer.street,
+        order.customer.zipCode && order.customer.city
+          ? `${order.customer.zipCode} ${order.customer.city}`
+          : order.customer.city,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      const deliveryNote = await tx.deliveryNote.create({
+        data: {
+          companyId,
+          customerId: order.customerId,
+          orderId: order.id,
+          number,
+          status: DeliveryNoteStatus.DRAFT,
+          deliveryDate: new Date(),
+          deliveryAddress: deliveryAddress || undefined,
+          items: {
+            create: order.items.map((item, index) => ({
+              productId: item.productId || undefined,
+              quantity: item.quantity,
+              unit: item.unit || 'Stk',
+              description: item.description,
+              position: item.position || index + 1,
+            })),
+          },
+        },
+        include: {
+          customer: true,
+          order: { select: { id: true, number: true } },
+          items: { include: { product: true } },
+        },
+      });
+
+      if (userId) {
+        await tx.auditLog.create({
+          data: {
+            action: 'CREATE',
+            module: 'DOCUMENTS',
+            entityId: deliveryNote.id,
+            entityType: 'DeliveryNote',
+            entityName: deliveryNote.number,
+            description: `Lieferschein ${deliveryNote.number} aus Auftrag ${order.number} erstellt`,
+            userId,
+            companyId,
+            retentionUntil: new Date(Date.now() + 10 * 365.25 * 24 * 60 * 60 * 1000),
+          },
+        });
+      }
+
+      return mapDeliveryNoteResponse(deliveryNote);
+    });
   }
 
   async update(id: string, companyId: string, dto: UpdateDeliveryNoteDto) {
-    const deliveryNote = await this.findOne(id, companyId);
+    await this.findOne(id, companyId);
 
-    // If items are provided, delete existing and create new
     if (dto.items) {
       await this.prisma.deliveryNoteItem.deleteMany({
         where: { deliveryNoteId: id },
@@ -148,6 +256,7 @@ export class DeliveryNotesService {
       },
       include: {
         customer: true,
+        order: { select: { id: true, number: true } },
         items: { include: { product: true } },
       },
     });
@@ -185,7 +294,7 @@ export class DeliveryNotesService {
 
   async delete(id: string, companyId: string) {
     await this.findOne(id, companyId);
-    
+
     await this.prisma.deliveryNoteItem.deleteMany({
       where: { deliveryNoteId: id },
     });
@@ -201,45 +310,5 @@ export class DeliveryNotesService {
       this.prisma.deliveryNote.count({ where: { companyId, status: 'DELIVERED' } }),
     ]);
     return { total, draft, shipped, delivered };
-  }
-
-  // Convert from order
-  async createFromOrder(orderId: string, companyId: string) {
-    const order = await this.prisma.order.findFirst({
-      where: { id: orderId, companyId },
-      include: { items: true, customer: true },
-    });
-
-    if (!order) {
-      throw new NotFoundException('Auftrag nicht gefunden');
-    }
-
-    const count = await this.prisma.deliveryNote.count({ where: { companyId } });
-    const year = new Date().getFullYear();
-    const number = `LS-${year}-${String(count + 1).padStart(4, '0')}`;
-
-    return this.prisma.deliveryNote.create({
-      data: {
-        companyId,
-        customerId: order.customerId,
-        orderId: order.id,
-        number,
-        status: DeliveryNoteStatus.DRAFT,
-        deliveryAddress: `${order.customer.street || ''}, ${order.customer.zipCode || ''} ${order.customer.city || ''}`.trim(),
-        items: {
-          create: order.items.map((item, index) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unit: item.unit || 'Stk',
-            description: item.description,
-            position: index + 1,
-          })),
-        },
-      },
-      include: {
-        customer: true,
-        items: { include: { product: true } },
-      },
-    });
   }
 }

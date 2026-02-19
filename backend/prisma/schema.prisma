@@ -1145,8 +1145,8 @@ model DeliveryNote {
   customerId      String
   customer        Customer @relation(fields: [customerId], references: [id])
   
-  orderId         String?
-  order           Order?   @relation(fields: [orderId], references: [id])
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id])
   
   status          DeliveryNoteStatus @default(DRAFT)
   date            DateTime @default(now())

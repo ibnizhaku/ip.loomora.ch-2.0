@@ -30,12 +30,12 @@ export class DeliveryNoteItemDto {
 }
 
 export class CreateDeliveryNoteDto {
-  @IsString()
-  customerId: string;
-
   @IsOptional()
   @IsString()
-  orderId?: string;
+  customerId?: string;
+
+  @IsString()
+  orderId: string;
 
   @IsOptional()
   @IsEnum(DeliveryNoteStatus)
