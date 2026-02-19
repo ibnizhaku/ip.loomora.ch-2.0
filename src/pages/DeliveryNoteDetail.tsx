@@ -62,7 +62,7 @@ function mapDeliveryNoteToView(dn: any) {
     status: dnStatusMap[dn.status] || dn.status || "Entwurf",
     customer: {
       id: dn.customer?.id,
-      name: dn.customer?.name || dn.customerName || "Unbekannt",
+      name: dn.customer?.companyName || dn.customer?.name || dn.customerName || "Unbekannt",
       contact: dn.customer?.contactPerson || "",
       deliveryAddress: (() => {
         const da = dn.deliveryAddress;
@@ -145,13 +145,28 @@ const DeliveryNoteDetail = () => {
       phone: "+41 44 123 45 67",
       email: "info@loomora.ch",
     },
-    customer: {
-      name: deliveryNoteData.customer.name,
-      contact: deliveryNoteData.customer.contact,
-      street: deliveryNoteData.customer.deliveryAddress.split(',')[0],
-      postalCode: deliveryNoteData.customer.deliveryAddress.split(',')[1]?.trim().split(' ')[0] || '',
-      city: deliveryNoteData.customer.deliveryAddress.split(',')[1]?.trim().split(' ').slice(1).join(' ') || '',
-    },
+    customer: (() => {
+      const raw = rawDn as any;
+      const da = raw.deliveryAddress;
+      // Custom Lieferadresse (Toggle EIN): { company, street, zipCode, city, country }
+      if (da && typeof da === 'object' && da.street) {
+        return {
+          name: da.company || raw.customer?.companyName || raw.customer?.name || deliveryNoteData.customer.name,
+          contact: "",
+          street: da.street || "",
+          postalCode: da.zipCode || "",
+          city: da.city || "",
+        };
+      }
+      // Kein Toggle / Standard: Kundenstammdaten mit Firmenname
+      return {
+        name: raw.customer?.companyName || raw.customer?.name || deliveryNoteData.customer.name,
+        contact: raw.customer?.contactPerson || "",
+        street: raw.customer?.street || "",
+        postalCode: raw.customer?.zipCode || "",
+        city: raw.customer?.city || "",
+      };
+    })(),
     positions: deliveryNoteData.positions.map((pos, idx) => ({
       position: idx + 1,
       description: `${pos.articleNo} - ${pos.description}`,
