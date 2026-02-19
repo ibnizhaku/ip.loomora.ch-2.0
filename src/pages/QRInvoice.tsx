@@ -45,11 +45,21 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   generateSwissQRInvoicePDF,
+  validateQRReference,
+  isQRIBAN,
+  determineReferenceType,
   type QRInvoiceData,
 } from "@/lib/pdf/swiss-qr-invoice";
 import { useInvoices, type Invoice } from "@/hooks/use-invoices";
 import { useCompany } from "@/hooks/use-company";
 import { useInvoiceStats } from "@/hooks/use-invoices";
+
+// Format 27-digit QRR: XX XXXXX XXXXX XXXXX XXXXX XXXXX
+function formatQRRef(ref: string): string {
+  const clean = ref.replace(/\s/g, "");
+  if (clean.length !== 27) return clean; // show as-is if not 27 digits
+  return `${clean.slice(0, 2)} ${clean.slice(2, 7)} ${clean.slice(7, 12)} ${clean.slice(12, 17)} ${clean.slice(17, 22)} ${clean.slice(22, 27)}`;
+}
 
 // Map Invoice status → QR page display status
 function mapStatus(status: Invoice["status"]): "draft" | "sent" | "paid" | "overdue" {
@@ -129,6 +139,25 @@ export default function QRInvoice() {
       return;
     }
 
+    // Validate QRR: must be exactly 27 numeric digits with correct check digit
+    const cleanRef = invoice.qrReference.replace(/\s/g, "");
+    const refType = determineReferenceType(companyData?.iban, companyData?.qrIban, cleanRef);
+    
+    if (refType === "QRR" && !validateQRReference(cleanRef)) {
+      toast.error(
+        `QR-Referenz ungültig (${cleanRef.length} Stellen, erwartet: 27 numerische Zeichen mit korrekter Mod10-Prüfziffer). Bitte Backend prüfen.`
+      );
+      return;
+    }
+
+    // Validate QR-IBAN if QRR is used
+    if (refType === "QRR" && companyData?.qrIban && !isQRIBAN(companyData.qrIban)) {
+      toast.error(
+        "QR-IBAN ungültig. IID muss zwischen 30000-31999 liegen. Bitte unter Einstellungen → Firma korrigieren."
+      );
+      return;
+    }
+
     setIsGenerating(invoice.id);
     try {
       const raw = invoice as any;
@@ -142,9 +171,9 @@ export default function QRInvoice() {
         vatAmount: invoice.vatAmount,
         subtotal: invoice.subtotal,
         iban: companyData?.iban || "",
-        qrIban: companyData?.qrIban || undefined,
-        reference: invoice.qrReference,
-        referenceType: companyData?.qrIban ? "QRR" : "SCOR",
+        qrIban: refType === "QRR" ? companyData?.qrIban || undefined : undefined,
+        reference: cleanRef,
+        referenceType: refType,
         additionalInfo: `Rechnung ${invoice.number}`,
         creditor: {
           name: companyData?.name || "",
@@ -465,13 +494,13 @@ export default function QRInvoice() {
                 {invoice.qrReference && (
                   <div className="mt-3 pt-3 border-t border-border">
                     <p className="text-sm text-muted-foreground">
-                      QR-Referenz:{" "}
+                       QR-Referenz:{" "}
                       <span className="font-mono">
-                        {invoice.qrReference.replace(
-                          /(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/,
-                          "$1 $2 $3 $4 $5 $6"
-                        )}
+                        {formatQRRef(invoice.qrReference)}
                       </span>
+                      {!validateQRReference(invoice.qrReference.replace(/\s/g, "")) && (
+                        <span className="text-destructive text-xs ml-2">⚠ ungültig</span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -522,11 +551,13 @@ export default function QRInvoice() {
                 <div>
                   <p className="text-muted-foreground text-sm">QR-Referenz</p>
                   <p className="font-mono text-sm bg-muted p-2 rounded">
-                    {previewInvoice.qrReference.replace(
-                      /(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/,
-                      "$1 $2 $3 $4 $5 $6"
-                    )}
+                    {formatQRRef(previewInvoice.qrReference)}
                   </p>
+                  {!validateQRReference(previewInvoice.qrReference.replace(/\s/g, "")) && (
+                    <p className="text-xs text-destructive mt-1">
+                      ⚠ Referenz ungültig – Prüfziffer oder Länge stimmt nicht (erwartet: 27 Stellen, Mod10 rekursiv)
+                    </p>
+                  )}
                 </div>
               ) : (
                 <Alert>
