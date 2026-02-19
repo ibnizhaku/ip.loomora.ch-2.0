@@ -42,6 +42,14 @@ export interface CustomerInfo {
   vatNumber?: string;
 }
 
+export interface DeliveryAddressInfo {
+  company?: string;
+  street?: string;
+  zipCode?: string;
+  city?: string;
+  country?: string;
+}
+
 export interface SalesDocumentData {
   type: 'quote' | 'order' | 'invoice' | 'delivery-note' | 'credit-note';
   number: string;
@@ -55,6 +63,7 @@ export interface SalesDocumentData {
   
   company: CompanyInfo;
   customer: CustomerInfo;
+  deliveryAddress?: DeliveryAddressInfo;
   
   positions: DocumentPosition[];
   
@@ -142,9 +151,35 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
     yPos += 5;
     doc.text(`${data.customer.postalCode} ${data.customer.city}`, margin, yPos);
   }
+
+  // Delivery Address (if different from billing)
+  if (data.deliveryAddress && (data.deliveryAddress.street || data.deliveryAddress.city)) {
+    yPos += 8;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("Lieferadresse:", margin, yPos);
+    doc.setFont("helvetica", "normal");
+    if (data.deliveryAddress.company) {
+      yPos += 4;
+      doc.text(data.deliveryAddress.company, margin, yPos);
+    }
+    if (data.deliveryAddress.street) {
+      yPos += 4;
+      doc.text(data.deliveryAddress.street, margin, yPos);
+    }
+    if (data.deliveryAddress.zipCode || data.deliveryAddress.city) {
+      yPos += 4;
+      doc.text(`${data.deliveryAddress.zipCode || ''} ${data.deliveryAddress.city || ''}`.trim(), margin, yPos);
+    }
+    if (data.deliveryAddress.country && data.deliveryAddress.country !== 'CH') {
+      yPos += 4;
+      doc.text(data.deliveryAddress.country, margin, yPos);
+    }
+    doc.setFontSize(10);
+  }
   
   // Document Title
-  yPos = 90;
+  yPos = Math.max(yPos + 10, 90);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.text(`${title} ${data.number}`, margin, yPos);
