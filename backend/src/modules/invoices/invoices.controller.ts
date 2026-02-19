@@ -126,17 +126,25 @@ export class InvoicesController {
 
   @Post(':id/send')
   @RequirePermissions('invoices:write')
-  @ApiOperation({ summary: 'Send invoice via email with PDF' })
+  @ApiOperation({ summary: 'Mark invoice as sent, optionally send via email' })
   async sendInvoice(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    const invoice = await this.invoicesService.findOne(id, user.companyId);
-    const pdfBuffer = await this.pdfService.generateInvoicePdf(invoice);
-    const emailSent = await this.emailService.sendInvoice(invoice, pdfBuffer);
-    
-    await this.invoicesService.sendInvoice(id, user.companyId, user.userId);
-    
+    // 1. Status auf SENT setzen (Hauptoperation – darf nicht scheitern)
+    const updated = await this.invoicesService.sendInvoice(id, user.companyId, user.userId);
+
+    // 2. PDF generieren + E-Mail senden (optional, Fehler dürfen nicht den Status-Update blockieren)
+    let emailSent = false;
+    try {
+      const invoice = await this.invoicesService.findOne(id, user.companyId);
+      const pdfBuffer = await this.pdfService.generateInvoicePdf(invoice);
+      emailSent = await this.emailService.sendInvoice(invoice, pdfBuffer);
+    } catch (err) {
+      // E-Mail-Fehler loggen, aber kein 500 zurückgeben
+      console.warn(`[sendInvoice] PDF/E-Mail optional step failed: ${err?.message}`);
+    }
+
     return {
       success: true,
-      sentTo: invoice.customer?.email,
+      sentTo: (updated as any)?.customer?.email,
       sentAt: new Date().toISOString(),
       emailSent,
     };

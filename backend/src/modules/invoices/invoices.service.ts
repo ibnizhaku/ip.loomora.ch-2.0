@@ -335,23 +335,30 @@ export class InvoicesService {
   async sendInvoice(id: string, companyId: string, userId: string) {
     const invoice = await this.prisma.invoice.findFirst({
       where: { id, companyId },
-      include: { customer: { select: { name: true } } },
+      include: { customer: { select: { id: true, name: true, email: true } } },
     });
 
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status !== InvoiceStatus.DRAFT) {
-      throw new BadRequestException('Only draft invoices can be sent');
+    // Stornierte Rechnungen dürfen nicht versendet werden
+    if (invoice.status === InvoiceStatus.CANCELLED) {
+      throw new BadRequestException('Stornierte Rechnungen können nicht versendet werden');
+    }
+
+    // Bereits bezahlte Rechnungen nicht nochmal auf SENT setzen
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new BadRequestException('Bezahlte Rechnungen können nicht auf "Versendet" gesetzt werden');
     }
 
     const updated = await this.prisma.invoice.update({
       where: { id },
       data: { status: InvoiceStatus.SENT },
+      include: { customer: { select: { id: true, name: true, email: true } } },
     });
 
-    // Send notification to invoice creator
+    // Notification an Ersteller senden (falls anderer Benutzer)
     if (invoice.createdById && invoice.createdById !== userId) {
       await this.notificationsService.create(companyId, {
         title: 'Rechnung versendet',
