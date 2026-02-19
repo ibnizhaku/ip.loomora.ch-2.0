@@ -248,6 +248,7 @@ export class RemindersService {
 
       return {
         ...invoice,
+        amount: Number(invoice.total ?? (invoice as any).totalAmount ?? 0),
         daysOverdue,
         currentLevel: lastReminder?.level || 0,
         nextLevel,

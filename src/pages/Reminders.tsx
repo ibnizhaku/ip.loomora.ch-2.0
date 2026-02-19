@@ -95,7 +95,10 @@ interface Reminder {
 
 // Overdue invoices now fetched from API below
 
-const formatCHF = (amount: number) => `CHF ${amount.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+const formatCHF = (amount: number | undefined | null) => {
+  const n = Number(amount ?? 0);
+  return `CHF ${n.toLocaleString("de-CH", { minimumFractionDigits: 2 })}`;
+};
 
 type DeliveryMethod = "email" | "post" | "both";
 
@@ -108,7 +111,10 @@ const Reminders = () => {
     queryKey: ["/reminders"],
     queryFn: () => api.get<any>("/reminders"),
   });
-  const initialReminders = apiData?.data || [];
+  const initialReminders = (apiData?.data || []).map((r: any) => ({
+    ...r,
+    amount: Number(r.amount ?? r.total ?? r.totalAmount ?? 0),
+  }));
 
   // Fetch overdue invoices from API
   const { data: overdueInvoicesData } = useOverdueInvoices();
