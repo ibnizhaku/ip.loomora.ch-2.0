@@ -10,18 +10,6 @@ export interface CompanySettings {
   dateFormat?: string;
   // Währung
   currency?: string;
-  // E-Mail/SMTP
-  smtpHost?: string;
-  smtpPort?: number;
-  smtpUser?: string;
-  smtpPassword?: string;
-  smtpFrom?: string;
-  smtpFromName?: string;
-  smtpSsl?: boolean;
-  // Sicherheit
-  twoFactorEnabled?: boolean;
-  sessionTimeoutMin?: number;
-  passwordMinLength?: number;
   // Nummernkreise
   invoicePrefix?: string;
   invoiceNextNumber?: number;
@@ -29,20 +17,37 @@ export interface CompanySettings {
   quoteNextNumber?: number;
   orderPrefix?: string;
   orderNextNumber?: number;
+  deliveryNotePrefix?: string;
+  creditNotePrefix?: string;
+  purchaseOrderPrefix?: string;
   customerPrefix?: string;
   customerNextNumber?: number;
   projectPrefix?: string;
   projectNextNumber?: number;
+  // PDF-Optionen
+  logoPosition?: string;
+  pdfLogoPosition?: string;
+  headerColor?: string;
+  footerLeft?: string;
+  footerRight?: string;
+  pdfFooterText?: string;
+  pdfShowBankDetails?: boolean;
+  pdfDefaultLanguage?: string;
+  enableQrInvoice?: boolean;
+  enablePdfA?: boolean;
+  defaultPaymentTerms?: number;
   // Benachrichtigungen
+  emailNotifications?: boolean;
+  invoiceReminders?: boolean;
+  projectUpdates?: boolean;
   notifyOnNewInvoice?: boolean;
   notifyOnPaymentReceived?: boolean;
   notifyOnContractExpiring?: boolean;
   notifyDaysBeforeExpiry?: number;
-  // PDF-Optionen
-  pdfLogoPosition?: string;
-  pdfShowBankDetails?: boolean;
-  pdfFooterText?: string;
-  pdfDefaultLanguage?: string;
+  // Sicherheit
+  twoFactorEnabled?: boolean;
+  sessionTimeoutMin?: number;
+  passwordMinLength?: number;
   // API
   apiKey?: string;
   createdAt?: string;
@@ -65,12 +70,6 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: (data: UpdateSettingsInput) => api.put<CompanySettings>('/settings', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-export function useTestSmtp() {
-  return useMutation({
-    mutationFn: () => api.post<{ success: boolean; message: string }>('/settings/smtp/test'),
   });
 }
 

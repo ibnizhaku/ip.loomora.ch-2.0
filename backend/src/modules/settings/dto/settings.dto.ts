@@ -24,47 +24,6 @@ export class UpdateSettingsDto {
   @IsString()
   currency?: string;
 
-  // E-Mail/SMTP
-  @ApiPropertyOptional({ example: 'smtp.example.com' })
-  @IsOptional()
-  @IsString()
-  smtpHost?: string;
-
-  @ApiPropertyOptional({ example: 587 })
-  @IsOptional()
-  @IsInt()
-  smtpPort?: number;
-
-  @ApiPropertyOptional({ example: 'user@example.com' })
-  @IsOptional()
-  @IsString()
-  smtpUser?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  smtpPassword?: string;
-
-  @ApiPropertyOptional({ example: 'noreply@example.com' })
-  @IsOptional()
-  @IsString()
-  smtpFrom?: string;
-
-  @ApiPropertyOptional({ example: 'Loomora ERP' })
-  @IsOptional()
-  @IsString()
-  smtpFromName?: string;
-
-  @ApiPropertyOptional({ example: true })
-  @IsOptional()
-  @IsBoolean()
-  smtpSsl?: boolean;
-
-  @ApiPropertyOptional({ example: 'TLS' })
-  @IsOptional()
-  @IsString()
-  smtpEncryption?: string;
-
   // Dokumente / Nummernkreise
   @ApiPropertyOptional({ example: 'RE-' })
   @IsOptional()
