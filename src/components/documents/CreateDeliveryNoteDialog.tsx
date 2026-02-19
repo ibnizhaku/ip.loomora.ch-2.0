@@ -75,8 +75,15 @@ export function CreateDeliveryNoteDialog({
       toast.success("Lieferschein wurde erstellt");
       onOpenChange(false);
       navigate(`/delivery-notes/${dn.id}`);
-    } catch {
-      toast.error("Fehler beim Erstellen des Lieferscheins");
+    } catch (err: any) {
+      const status = err?.status || err?.response?.status;
+      if (status === 409) {
+        toast.error("Lieferschein-Nummer bereits vergeben", {
+          description: "Bitte Backend prüfen: deliveryCounter-Konflikt (P2002). Cursor-Fix erforderlich.",
+        });
+      } else {
+        toast.error("Fehler beim Erstellen des Lieferscheins");
+      }
     }
   };
 
