@@ -1366,7 +1366,7 @@ export default function Settings() {
               <div>
                 <h2 className="font-display text-xl font-semibold">E-Mail Konfiguration</h2>
                 <p className="text-sm text-muted-foreground">
-                  SMTP-Server und E-Mail-Einstellungen konfigurieren
+                  SMTP-Server für den E-Mail-Versand konfigurieren
                 </p>
               </div>
 
@@ -1376,7 +1376,7 @@ export default function Settings() {
               <div className="space-y-4">
                 <h3 className="font-medium flex items-center gap-2">
                   <Mail className="h-5 w-5" />
-                  SMTP-Server Einstellungen
+                  SMTP-Server Einstellungen (Ausgang)
                 </h3>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -1419,55 +1419,6 @@ export default function Settings() {
                     <Switch checked={smtpSsl} onCheckedChange={setSmtpSsl} />
                   </div>
                 </div>
-
-                <div className="p-4 rounded-xl border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">SMTP-Authentifizierung</p>
-                      <p className="text-sm text-muted-foreground">
-                        Anmeldung beim SMTP-Server erforderlich
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* IMAP Server */}
-              <div className="space-y-4">
-                <h3 className="font-medium flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  IMAP-Server Einstellungen (Posteingang)
-                </h3>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="imapHost">IMAP-Host</Label>
-                    <Input id="imapHost" placeholder="imap.example.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="imapPort">IMAP-Port</Label>
-                    <Select defaultValue="993">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="143">143 (Unverschlüsselt)</SelectItem>
-                        <SelectItem value="993">993 (SSL/TLS)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="imapUser">Benutzername</Label>
-                    <Input id="imapUser" placeholder="benutzer@example.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="imapPassword">Passwort</Label>
-                    <Input id="imapPassword" type="password" placeholder="••••••••" />
-                  </div>
-                </div>
               </div>
 
               <Separator />
@@ -1490,93 +1441,24 @@ export default function Settings() {
 
               <Separator />
 
-              {/* E-Mail Vorlagen */}
-              <div className="space-y-4">
-                <h3 className="font-medium">E-Mail Vorlagen & Signatur</h3>
-
-                <div className="p-4 rounded-xl border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">HTML-E-Mails aktivieren</p>
-                      <p className="text-sm text-muted-foreground">
-                        E-Mails mit HTML-Formatierung versenden
-                      </p>
+              {/* Demnächst verfügbar */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-muted-foreground flex items-center gap-2">
+                  Demnächst verfügbar
+                  <Badge variant="outline" className="text-xs">Geplant</Badge>
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { label: "IMAP-Posteingang", desc: "E-Mails empfangen & im ERP verwalten" },
+                    { label: "HTML-E-Mail Vorlagen", desc: "Professionelle Vorlagen mit Editor" },
+                    { label: "Firmen-Signatur", desc: "Automatische Signatur mit Logo" },
+                    { label: "Posteingang-Modul", desc: "Vollständiges Mail-Interface im ERP" },
+                  ].map(item => (
+                    <div key={item.label} className="p-4 rounded-xl border border-dashed border-border opacity-60">
+                      <p className="font-medium text-sm">{item.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
                     </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Firmen-Signatur anhängen</p>
-                      <p className="text-sm text-muted-foreground">
-                        Automatische Signatur an alle E-Mails
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Firmenlogo in E-Mails</p>
-                      <p className="text-sm text-muted-foreground">
-                        Logo in der E-Mail-Kopfzeile anzeigen
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Erweiterte Einstellungen */}
-              <div className="space-y-4">
-                <h3 className="font-medium">Erweiterte Einstellungen</h3>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Timeout (Sekunden)</Label>
-                    <Select defaultValue="30">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10 Sekunden</SelectItem>
-                        <SelectItem value="30">30 Sekunden</SelectItem>
-                        <SelectItem value="60">60 Sekunden</SelectItem>
-                        <SelectItem value="120">120 Sekunden</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Max. Anhangsgrösse</Label>
-                    <Select defaultValue="25">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10 MB</SelectItem>
-                        <SelectItem value="25">25 MB</SelectItem>
-                        <SelectItem value="50">50 MB</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Debug-Modus</p>
-                      <p className="text-sm text-muted-foreground">
-                        Detaillierte E-Mail-Logs für Fehleranalyse
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
+                  ))}
                 </div>
               </div>
 
