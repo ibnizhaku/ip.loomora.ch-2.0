@@ -53,7 +53,6 @@ export class GoodsReceiptsService {
               supplier: { select: { id: true, name: true, companyName: true } },
             },
           },
-          supplier: { select: { id: true, name: true, companyName: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true } },
@@ -76,33 +75,30 @@ export class GoodsReceiptsService {
   async findOne(id: string, companyId: string) {
     const goodsReceipt = await this.prisma.goodsReceipt.findFirst({
       where: { id, companyId },
-      include: {
-        purchaseOrder: {
-          select: {
-            id: true,
-            number: true,
-            supplierId: true,
-            supplier: { select: { id: true, name: true, companyName: true } },
-            items: {
-              select: {
-                id: true,
-                productId: true,
-                description: true,
-                quantity: true,
-                unit: true,
-                unitPrice: true,
-                delivered: true,
+        include: {
+          purchaseOrder: {
+            select: {
+              id: true,
+              number: true,
+              supplierId: true,
+              supplier: { select: { id: true, name: true, companyName: true } },
+              items: {
+                select: {
+                  id: true,
+                  description: true,
+                  quantity: true,
+                  unit: true,
+                  unitPrice: true,
+                },
               },
             },
           },
-        },
-        supplier: { select: { id: true, name: true, companyName: true } },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, sku: true } },
+          items: {
+            include: {
+              product: { select: { id: true, name: true, sku: true } },
+            },
           },
         },
-      },
     });
 
     if (!goodsReceipt) {
@@ -228,7 +224,11 @@ export class GoodsReceiptsService {
   }
 
   async update(id: string, companyId: string, dto: UpdateGoodsReceiptDto) {
-    const goodsReceipt = await this.findOne(id, companyId);
+    const goodsReceipt = await this.prisma.goodsReceipt.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+    if (!goodsReceipt) throw new NotFoundException('Wareneingang nicht gefunden');
 
     if (goodsReceipt.status === GoodsReceiptStatus.COMPLETE) {
       throw new BadRequestException('Abgeschlossener Wareneingang kann nicht bearbeitet werden');
@@ -306,7 +306,11 @@ export class GoodsReceiptsService {
   }
 
   async delete(id: string, companyId: string) {
-    const goodsReceipt = await this.findOne(id, companyId);
+    const goodsReceipt = await this.prisma.goodsReceipt.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+    if (!goodsReceipt) throw new NotFoundException('Wareneingang nicht gefunden');
 
     // Reverse inventory changes
     for (const item of goodsReceipt.items) {
@@ -328,7 +332,11 @@ export class GoodsReceiptsService {
 
   // Quality check for specific item
   async performQualityCheck(id: string, companyId: string, dto: QualityCheckDto) {
-    const goodsReceipt = await this.findOne(id, companyId);
+    const goodsReceipt = await this.prisma.goodsReceipt.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+    if (!goodsReceipt) throw new NotFoundException('Wareneingang nicht gefunden');
     
     const item = goodsReceipt.items.find(i => i.id === dto.itemId);
     if (!item) {

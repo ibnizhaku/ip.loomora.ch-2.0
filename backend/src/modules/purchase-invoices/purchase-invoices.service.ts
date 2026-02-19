@@ -236,7 +236,7 @@ export class PurchaseInvoicesService {
           paymentDate: new Date(dto.paymentDate),
           method: dto.method as any,
           bankAccountId: dto.bankAccountId,
-          note: dto.note,
+          notes: dto.note,
           companyId,
         },
       });
