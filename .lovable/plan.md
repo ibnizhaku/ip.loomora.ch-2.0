@@ -1,209 +1,97 @@
 
-# QR-Rechnungs-System Finalisierung — Frontend
+# Fehlerbehebung: 5 Probleme in Rechnungen & Mahnwesen
 
-## Vollständige Analyse des IST-Zustands
+## Problem 1: Button "Rechnung senden" statt "Rechnung erstellen"
 
-### Was ist kaputt / fehlt:
+**Ursache:** In `DocumentForm.tsx` Zeile 295 steht `sendLabel: "Rechnung senden"`.
 
-**1. `src/pages/QRInvoice.tsx` — 100% Mock-Daten**
-Die Seite enthält ein hartkodiertes `const qrInvoices: QRInvoiceListItem[]` Array mit 4 Fake-Rechnungen. Kein API-Aufruf. Keine Verbindung zu echten Invoices. KPI-Karten rechnen auf Mock-Daten. Button "QR-Rechnung erstellen" tut nichts. `handleGenerateQR` simuliert nur mit `setTimeout`. Die Creditor-Daten im `handleDownloadPDF` sind hartkodiert ("Loomora Metallbau AG", "Industriestrasse 15" etc.).
+**Fix:** Label auf `"Rechnung erstellen"` andern.
 
-**2. Sidebar — `/qr-invoice` fehlt komplett**
-In `AppSidebar.tsx` ist `/qr-invoice` nirgends eingetragen. Die Route existiert in `App.tsx` (Zeile 499), aber kein Menüpunkt führt dorthin. Logisch soll es unter `salesItems` nach "Rechnungen" stehen.
-
-**3. InvoiceDetail — kein QR-Zahlteil im PDF**
-`InvoiceDetail.tsx` nutzt `downloadSalesDocumentPDF` aus `sales-document.ts`. Das ist ein einfaches Dokument **ohne QR-Zahlteil**. Der `swiss-qr-invoice.ts` Generator wird **nie aufgerufen**. Es gibt keinen Code der `rawInvoice.qrReference` oder `rawInvoice.qrIban` liest und an den QR-Generator übergibt. Das `Invoice` Interface in `use-invoices.ts` hat kein `qrReference` Feld.
-
-**4. `DocumentForm.tsx` — falscher Toggle**
-Zeile 127: `const [useQrInvoice, setUseQrInvoice] = useState(true)` + Switch auf Zeile 1158. Laut Anforderung: Wenn Company IBAN vorhanden → QR automatisch aktiv. Toggle soll entfernt werden. Die `qrReference` State-Variable (Zeile 128) und das Input-Feld (Zeile 1177-1183) sollen ebenfalls entfernt werden — das Backend generiert die Referenz automatisch.
-
-**5. IBAN-Herkunft**
-`companyData?.iban` und `companyData?.qrIban` werden bereits in `DocumentForm.tsx` korrekt aus der Company geladen. In `InvoiceDetail.tsx` werden sie auch geladen, aber nie an den QR-Generator übergeben.
+**Datei:** `src/components/documents/DocumentForm.tsx` (Zeile 295)
 
 ---
 
-## Implementierungsplan
+## Problem 2: QR-Referenznummer fehlt im Einzahlungsschein
 
-### Datei 1: `src/pages/QRInvoice.tsx` — Mock entfernen, API anbinden
+**Analyse-Ergebnis:**
+- Die PDF-Render-Logik in `swiss-qr-invoice.ts` (Zeilen 436-448, 552-565) ist korrekt implementiert -- Referenz wird gerendert wenn `data.reference` vorhanden und `referenceType !== "NON"`.
+- Die `InvoiceDetail.tsx` (Zeile 238) liest `(rawInvoice as any)?.qrReference` -- wenn das Backend dieses Feld nicht liefert, wird der Fallback-Pfad (normales PDF ohne Zahlteil) genommen.
+- Das `Invoice` Interface in `use-invoices.ts` hat `qrReference?: string` und `qrIban?: string` (wurde in vorheriger Session hinzugefuegt).
+- **Kernproblem**: Das Backend liefert wahrscheinlich `qrReference` nicht in der API-Response. Solange das Backend-Feld fehlt, faellt der Code immer in den Else-Zweig (Zeile 299-308), der ein normales PDF ohne Zahlteil generiert und einen Toast "Kein Zahlteil: QR-Referenz fehlt" anzeigt.
 
-**Kompletter Umbau:**
+**Frontend-Fix (Absicherung + bessere UX):**
+- In InvoiceDetail: Klare visuelle Anzeige im Sidebar-Card "Bankverbindung" ob QR-Referenz vorhanden ist oder fehlt
+- Im PDF-Download: Bereits korrekt implementiert -- wenn `qrReference` vom Backend kommt, wird der QR-Zahlteil generiert
 
-- Mock-Array `const qrInvoices` entfernen (Zeilen 70–146)
-- Interface `QRInvoiceListItem` erweitern um `qrReference`, `qrIban`, `street`, `zipCode`, `city`, `country` der Kunden
-- `useInvoices` Hook importieren und aufrufen
-- `useCompany` Hook importieren (für Creditor-Daten im PDF)
-- KPI-Karten auf echte API-Daten umstellen
-- `handleDownloadPDF` anpassen: Creditor-Daten aus `companyData`, Debtor-Daten aus `invoice.customer`
-- Wenn Rechnung kein `qrReference` hat → klarer Alert: "QR-Rechnung kann nicht generiert werden – Referenz fehlt. Bitte Backend prüfen."
-- Wenn `companyData?.iban` fehlt → Alert: "IBAN nicht konfiguriert. Einstellungen → Firma → Bankverbindung"
-- Status-Mapping: Invoice-Status (DRAFT/SENT/PAID/OVERDUE) → QR-Status (draft/sent/paid)
-- Button "QR-Rechnung erstellen" → navigiert zu `/invoices/new`
-- Button "PDF" → ruft `generateSwissQRInvoicePDF` mit echten Daten auf (nur wenn `qrReference` vorhanden)
-
-**Neue Logik für `handleDownloadPDF`:**
-```typescript
-const handleDownloadPDF = async (invoice: RealInvoice) => {
-  if (!invoice.qrReference) {
-    toast.error("Keine QR-Referenz vorhanden. PDF kann nicht erstellt werden.");
-    return;
-  }
-  if (!companyData?.iban && !companyData?.qrIban) {
-    toast.error("IBAN fehlt. Bitte in Einstellungen → Firma konfigurieren.");
-    return;
-  }
-  // ...build QRInvoiceData from real data...
-};
-```
+**Dieser Punkt erfordert hauptsachlich einen Backend-Fix** (Cursor-Prompt wird geliefert).
 
 ---
 
-### Datei 2: `src/components/layout/AppSidebar.tsx` — QR-Rechnung in Sidebar
+## Problem 3: Rechnungsliste zeigt Kundenname statt Firmenname
 
-In `salesItems` nach dem Eintrag "Rechnungen" (Zeile 159-165) einen neuen Eintrag hinzufügen:
+**Ursache:** Das `Invoice` Interface hat nur `customer?: { id: string; name: string }`. Das Backend gibt unter `name` den Personennamen zurueck, nicht den Firmennamen.
 
-```typescript
-{
-  title: "QR-Rechnungen",
-  url: "/qr-invoice",
-  icon: QrCode,  // Import hinzufügen
-  keywords: ["qr", "iso20022", "swiss payment", "zahlteil"],
-  permission: "invoices",
-},
-```
+**Fix:**
+1. `use-invoices.ts`: Interface erweitern um `companyName?: string`
+2. `Invoices.tsx` Zeile 364 (Kartenansicht) und Zeile 434 (Tabellenansicht): `invoice.customer?.companyName || invoice.customer?.name` anzeigen
 
-Import: `QrCode` von `lucide-react` hinzufügen (Zeile 56).
+**Dateien:**
+- `src/hooks/use-invoices.ts` -- Interface erweitern
+- `src/pages/Invoices.tsx` -- Zeilen 364 und 434 anpassen
 
 ---
 
-### Datei 3: `src/pages/InvoiceDetail.tsx` — QR-Zahlteil ins PDF
+## Problem 4: PDF soll 2 Seiten haben (Rechnung + Einzahlungsschein)
 
-**Problem:** PDF nutzt `downloadSalesDocumentPDF` (kein Zahlteil). Wenn die Rechnung eine `qrReference` hat und die Company eine IBAN hat, soll das PDF den SIX-konformen Zahlteil enthalten.
+**Aktuelle Situation:** `generateSwissQRInvoicePDF` in `swiss-qr-invoice.ts` rendert den Zahlteil am unteren Rand von Seite 1 (ab Zeile 390). Bei langen Rechnungen mit vielen Positionen ueberlappen die Tabelle und der Zahlteil.
 
-**Lösung:** `handleDownloadPDF` aufteilen:
+**Fix:** Zahlteil immer auf Seite 2 rendern:
+- Nach den Rechnungspositionen und Totals eine neue Seite einfuegen (`doc.addPage()`)
+- Zahlteil dann auf Seite 2 unten rendern (gleiche Position relativ zur Seitenunterseite)
 
-```typescript
-const handleDownloadPDF = async () => {
-  const rawInv = rawInvoice as any;
-  const qrRef = rawInv?.qrReference;
-  const hasIban = !!(companyData?.iban || companyData?.qrIban);
-
-  if (qrRef && hasIban) {
-    // Generiere QR-Rechnung PDF (swiss-qr-invoice.ts)
-    const qrData: QRInvoiceData = {
-      invoiceNumber: invoiceData.id,
-      invoiceDate: invoiceData.createdAt,
-      dueDate: invoiceData.dueDate,
-      currency: "CHF",
-      amount: invoiceData.total,
-      vatRate: 8.1,
-      vatAmount: invoiceData.tax,
-      subtotal: invoiceData.subtotal,
-      iban: companyData.iban || "",
-      qrIban: companyData.qrIban || undefined,
-      reference: qrRef,
-      referenceType: companyData.qrIban ? "QRR" : "SCOR",
-      additionalInfo: `Rechnung ${invoiceData.id}`,
-      creditor: {
-        name: companyData.name,
-        street: companyData.street || "",
-        postalCode: companyData.zipCode || "",
-        city: companyData.city || "",
-        country: "CH",
-      },
-      debtor: {
-        name: rawInv?.customer?.companyName || rawInv?.customer?.name || "",
-        street: rawInv?.customer?.street || "",
-        postalCode: rawInv?.customer?.zipCode || "",
-        city: rawInv?.customer?.city || "",
-        country: "CH",
-      },
-      positions: invoiceData.positions.map((pos, idx) => ({
-        position: idx + 1,
-        description: pos.description,
-        quantity: pos.quantity,
-        unit: pos.unit,
-        unitPrice: pos.price,
-        total: pos.total,
-      })),
-      paymentTermDays: 30,
-      orderNumber: invoiceData.order || undefined,
-    };
-    await generateSwissQRInvoicePDF(qrData);
-    toast.success("QR-Rechnung PDF wird heruntergeladen");
-  } else {
-    // Fallback: normales PDF ohne Zahlteil
-    downloadSalesDocumentPDF(pdfData, `Rechnung-${invoiceData.id}.pdf`);
-    if (!hasIban) toast.warning("Kein Zahlteil: IBAN fehlt in Einstellungen → Firma");
-    else if (!qrRef) toast.warning("Kein Zahlteil: QR-Referenz fehlt (wird vom Backend generiert)");
-    else toast.success("PDF wird heruntergeladen");
-  }
-};
-```
-
-Import `generateSwissQRInvoicePDF` und `QRInvoiceData` aus `@/lib/pdf/swiss-qr-invoice` hinzufügen.
-
-**Zusätzlich:** `Invoice` Interface in `use-invoices.ts` um `qrReference?: string` und `qrIban?: string` ergänzen, damit TypeScript keine Fehler wirft.
+**Datei:** `src/lib/pdf/swiss-qr-invoice.ts` -- Ab Zeile ~385: `doc.addPage()` vor dem Payment Part einfuegen, Koordinaten anpassen
 
 ---
 
-### Datei 4: `src/components/documents/DocumentForm.tsx` — Toggle entfernen
+## Problem 5: Mahnwesen -- 3 Bugs
 
-**Entfernen:**
-- State `useQrInvoice` (Zeile 127)
-- State `qrReference` (Zeile 128)  
-- State `esrParticipant` (Zeile 129)
-- Switch "QR-Rechnung" (Zeilen 1153-1159)
-- Input "QR-Referenz" (Zeilen 1161-1184)
-- Badge im Header (Zeilen 539-542, konditionell auf `useQrInvoice`)
-- QR-Vorschau Block im Formular ist als Info-UI (Zeilen 996-1094) in Ordnung — er zeigt Bankdaten an. Dieser **bleibt**, weil er dem User zeigt "so wird die Zahlung aussehen". Aber er darf nicht mehr vom Toggle abhängig sein — stattdessen: anzeigen wenn `companyData?.iban` vorhanden.
+### 5a: "Neue ueberfaellige Rechnungen" Meldung bleibt nach Mahnerstellung bestehen
 
-**Neue Bedingung für QR-Vorschau:**
-```tsx
-// Vorher:
-{isInvoice && useQrInvoice && (
+**Ursache:** Die Meldung basiert auf `overdueInvoices.length > 0` (Zeile 355). Nach `handleCreateReminder` wird `refetchOverdue()` aufgerufen (Zeile 256), was korrekt ist. ABER: Die Alert-Box ruft eine eigene `onClick`-Funktion auf (Zeile 368-374) die direkt `handleCreateReminder` in einer Schleife aufruft -- dort fehlt am Ende ein `refetchOverdue()` und `queryClient.invalidateQueries`.
 
-// Nachher:
-{isInvoice && (companyData?.iban || companyData?.qrIban) && (
-```
+**Fix:** Nach der Schleife in der Alert-Box (Zeile 368-374):
+- `await refetchOverdue()` aufrufen
+- `queryClient.invalidateQueries({ queryKey: ["/reminders"] })` aufrufen
+- Danach automatisch zum Tab "Aktive Mahnungen" wechseln
 
-**QR-IBAN Display im `companyBankAccount`-Block** (Zeile 1247-1251): bleibt unverändert, ist bereits korrekt.
+### 5b: "Aktive Mahnungen" Tab bleibt immer leer
 
----
+**Ursache (Kritischer Bug):** Zeile 139: `const [reminders, setReminders] = useState<Reminder[]>(initialReminders)`. `useState` initialisiert nur EINMAL beim ersten Render. Wenn `apiData` spaeter geladen wird, aendert sich `initialReminders`, aber der State wird NICHT aktualisiert. Die `reminders` bleiben ein leeres Array.
 
-### Datei 5: `src/hooks/use-invoices.ts` — Interface erweitern
+**Fix:** `useState` durch direkte Nutzung von `initialReminders` ersetzen, oder einen `useEffect` hinzufuegen der `setReminders(initialReminders)` aufruft wenn sich `apiData` aendert. Besser: Den lokalen State komplett entfernen und direkt `initialReminders` als Datenquelle nutzen (und lokale Mutationen durch API-Aufrufe ersetzen).
 
-```typescript
-export interface Invoice {
-  // ... bestehende Felder ...
-  qrReference?: string;  // NEU: QR-Referenz aus Backend
-  qrIban?: string;       // NEU: QR-IBAN aus Backend
-}
-```
+### 5c: "Verlauf" Tab bleibt immer leer
+
+**Ursache:** Zeile 734-742: Der Tab zeigt nur einen Platzhalter-Text "Mahnverlauf wird hier angezeigt". Keine Daten werden geladen.
+
+**Fix:** Die existierenden `useReminders`-Hook nutzen mit Status-Filter `SENT` oder `PAID`/`CANCELLED` um abgeschlossene Mahnungen zu laden und anzuzeigen.
 
 ---
 
-## Dateien-Übersicht
+## Implementierungsreihenfolge
 
-| Datei | Änderungen |
-|---|---|
-| `src/pages/QRInvoice.tsx` | Mock-Array entfernen, `useInvoices` + `useCompany` anbinden, echte PDF-Generierung, Error-States |
-| `src/components/layout/AppSidebar.tsx` | QrCode Icon importieren, "QR-Rechnungen" zu salesItems hinzufügen |
-| `src/pages/InvoiceDetail.tsx` | `handleDownloadPDF` → QR-PDF wenn `qrReference` + IBAN vorhanden, sonst Fallback |
-| `src/components/documents/DocumentForm.tsx` | `useQrInvoice` Toggle + `qrReference` Input entfernen, QR-Vorschau auf IBAN-Check umstellen |
-| `src/hooks/use-invoices.ts` | `qrReference?` und `qrIban?` zum Invoice Interface hinzufügen |
+| Schritt | Datei | Aenderung |
+|---------|-------|-----------|
+| 1 | `src/components/documents/DocumentForm.tsx` | sendLabel "Rechnung senden" zu "Rechnung erstellen" |
+| 2 | `src/hooks/use-invoices.ts` | Invoice.customer Interface um `companyName?` erweitern |
+| 3 | `src/pages/Invoices.tsx` | companyName Vorrang bei Anzeige (Zeilen 364, 434) |
+| 4 | `src/lib/pdf/swiss-qr-invoice.ts` | Zahlteil auf Seite 2 verschieben (doc.addPage) |
+| 5 | `src/pages/InvoiceDetail.tsx` | QR-Status Info in Bankverbindungs-Card anzeigen |
+| 6 | `src/pages/Reminders.tsx` | Bug: useState mit useEffect synchronisieren, Verlauf-Tab befuellen, Alert-Refresh nach Mahnerstellung |
 
-## Was NICHT geändert wird
+## Cursor-Prompt fuer Backend (wird nach Frontend-Aenderungen geliefert)
 
-- `src/lib/pdf/swiss-qr-invoice.ts` — korrekt implementiert, keine Änderungen nötig
-- `src/lib/pdf/sales-document.ts` — bleibt als Fallback für Dokumente ohne QR
-- Backend — wird als separater Cursor-Prompt behandelt
-- Bestehende `InvoiceDetail` UI/Layout — nur die `handleDownloadPDF` Logik ändert sich
-
-## Danach: Cursor-Prompt für Backend
-
-Nach der Frontend-Implementierung wird ein vollständiger Cursor-Prompt geliefert mit:
-- `qrReference` automatisch generieren beim Erstellen jeder Rechnung (Backend)
-- `qrIban` aus Company in Invoice-Response mitgeben
-- `GET /invoices/:id` muss `qrReference` und `qrIban` im Response enthalten
-- `GET /invoices` Liste muss `customer.street`, `customer.zipCode`, `customer.city`, `customer.country` inkludieren
-
+- `GET /invoices/:id` und `GET /invoices` muessen `qrReference`, `qrIban` und `customer.companyName` zurueckgeben
+- `POST /invoices` muss `qrReference` automatisch generieren (27-stellig, rekursiver Mod10)
+- `GET /reminders` muss korrekte Datenstruktur liefern (invoice, customer als Objekte)
+- `GET /reminders/overdue-invoices` muss nach Mahnerstellung die betroffene Rechnung nicht mehr zurueckgeben
