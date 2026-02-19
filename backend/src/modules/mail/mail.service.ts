@@ -228,7 +228,7 @@ export class MailService {
       case 'reminder': {
         const doc = await this.prisma.reminder.findFirst({
           where: { id: documentId, companyId },
-          include: { invoice: { include: { customer: true } } },
+          include: { invoice: { include: { customer: true, items: true } } },
         });
         if (!doc) throw new NotFoundException('Mahnung nicht gefunden');
         const pdfBuffer = await this.pdfService.generateReminderPdf(doc);
