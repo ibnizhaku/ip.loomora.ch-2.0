@@ -294,7 +294,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     "purchase-order": "Bestellung bearbeiten",
   };
   const typeConfig: Record<string, { title: string; backPath: string; sendLabel: string }> = {
-    quote: { title: editMode ? editTitleConfig.quote : "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot senden" },
+    quote: { title: editMode ? editTitleConfig.quote : "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot erstellen" },
     invoice: { title: editMode ? editTitleConfig.invoice : "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung senden" },
     order: { title: editMode ? editTitleConfig.order : "Neuer Auftrag", backPath: "/orders", sendLabel: "Auftrag erstellen" },
     "delivery-note": { title: editMode ? editTitleConfig["delivery-note"] : "Neuer Lieferschein", backPath: "/delivery-notes", sendLabel: "Lieferschein erstellen" },
@@ -401,9 +401,10 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     }
 
     const isDeliveryNote = type === "delivery-note";
+    const isQuoteType = type === "quote";
     const payload: any = {
       customerId: selectedCustomer.id,
-      status: asDraft ? "DRAFT" : (isDeliveryNote ? "SHIPPED" : "SENT"),
+      status: asDraft || isQuoteType ? "DRAFT" : (isDeliveryNote ? "SHIPPED" : "SENT"),
       items: positions.map((pos, idx) => {
         const item: any = {
           position: idx + 1,

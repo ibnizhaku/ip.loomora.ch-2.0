@@ -110,8 +110,12 @@ function mapQuoteToView(quote: any) {
     status: quoteStatusMap[quote.status] || quote.status || "Entwurf",
     customer: {
       id: quote.customer?.id,
-      name: quote.customer?.name || "Unbekannt",
-      contact: quote.customer?.contactPerson || quote.customer?.companyName || "",
+      name: quote.customer?.companyName || quote.customer?.name || "Unbekannt",
+      contact: quote.customer?.companyName
+        ? (quote.customer?.name && quote.customer.name !== quote.customer.companyName
+            ? quote.customer.name
+            : (quote.customer?.contactPerson || ""))
+        : (quote.customer?.contactPerson || ""),
       email: quote.customer?.email || "",
       phone: quote.customer?.phone || "",
       address: [quote.customer?.street, [quote.customer?.zipCode, quote.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
@@ -777,7 +781,7 @@ const QuoteDetail = () => {
       </AlertDialog>
 
       {/* PDF Preview Dialog */}
-      <PDFPreviewDialog open={showPDFPreview} onOpenChange={setShowPDFPreview} documentData={pdfData} title={`Angebot ${quoteData.id}`} />
+      <PDFPreviewDialog open={showPDFPreview} onOpenChange={setShowPDFPreview} documentData={pdfData} title={`Angebot ${quoteData.id}`} onSendEmail={() => setEmailModalOpen(true)} />
 
       <SendEmailModal
         open={emailModalOpen}

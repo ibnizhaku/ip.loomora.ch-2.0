@@ -862,6 +862,7 @@ const OrderDetail = () => {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Auftrag ${orderData.id}`}
+        onSendEmail={() => setEmailModalOpen(true)}
       />
 
       {/* Create Delivery Note Dialog */}

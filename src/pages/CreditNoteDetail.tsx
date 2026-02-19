@@ -335,6 +335,7 @@ const CreditNoteDetail = () => {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Gutschrift ${creditNoteData.id}`}
+        onSendEmail={() => setEmailModalOpen(true)}
       />
 
       <SendEmailModal

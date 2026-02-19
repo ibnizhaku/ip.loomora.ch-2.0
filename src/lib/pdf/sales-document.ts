@@ -141,7 +141,7 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
   
   if (data.customer.contact) {
     yPos += 5;
-    doc.text(data.customer.contact, margin, yPos);
+    doc.text(`z.Hd. ${data.customer.contact}`, margin, yPos);
   }
   if (data.customer.street) {
     yPos += 5;
