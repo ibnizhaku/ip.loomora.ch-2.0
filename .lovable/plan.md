@@ -1,283 +1,226 @@
 
-# ISO 20022 QR-Rechnung — Vollständige SIX-konforme Korrektur
+# Workflow-Verbesserungen: Angebote
 
-## Audit-Ergebnisse: Gefundene Fehler
+## Problem-Analyse
 
-### 1. QR Payload (`buildQRCodeData`) — 2 Fehler
+### Problem 1: "Angebot senden" Button — schlechte UX
+**Aktuell:** In `DocumentForm.tsx` gibt es einen Button "Angebot senden" (sendLabel), der das Angebot direkt mit Status `SENT` speichert. Es ist nicht intuitiv — der Benutzer erwartet, dass "senden" das Angebot per E-Mail verschickt.
 
-**Fehler A — Falsche Anzahl AV-Zeilen (Trailer):**
-Die SIX-Spezifikation verlangt exakt **zwei** Alternative-Procedure-Zeilen (`AV1` und `AV2`). Aktuell wird nur **eine** leere Zeile angehängt.
+**Empfehlung:** Zwei separate Buttons im Header:
+- `Als Entwurf speichern` (bleibt gleich)
+- `Angebot erstellen` → speichert als DRAFT und navigiert zur Detailseite (wo E-Mail, PDF etc. dann verfügbar sind)
+- Auf der **Detailseite** (QuoteDetail.tsx) gibt es bereits einen eigenen "Per E-Mail senden" Button
 
-```
-Aktuell (falsch):    Soll (SIX-konform):
-...                  ...
-EPD                  EPD
-""  ← nur 1          ""  ← AV1 (leer wenn nicht genutzt)
-                     ""  ← AV2 (leer wenn nicht genutzt)
-```
+Alternativ: Den "Angebot senden" Button umbenennen in "Angebot erstellen" (Status DRAFT → direkt zur Detailansicht). Der Benutzer kann dann von der Detailansicht aus per E-Mail senden.
 
-**Fehler B — Kein Trailing Newline Handling:**
-`lines.join("\n")` ist korrekt. Aber: Wenn `amount` null oder 0 ist, muss trotzdem `"0.00"` oder `""` (leer, nicht "0.00") eingetragen werden. SIX-Spec: Bei leerem Betrag muss das Feld komplett leer bleiben (kein Wert), nicht "0.00".
+**Gewählt: Saubere Lösung** — Button "Angebot senden" wird zu "Angebot erstellen" umbenannt und speichert als `DRAFT`. Danach öffnet ein kleines **After-Save-Dialog** mit zwei Optionen:
+- "PDF anzeigen" → öffnet Vorschau auf Detailseite
+- "Per E-Mail senden" → öffnet direkt E-Mail Modal auf Detailseite
 
----
-
-### 2. Swiss Cross — Falsche Positionierung
-
-Das Swiss Cross wird mit `size = QR_CODE_SIZE = 46mm` berechnet. Die Darstellung ist dadurch inkorrekt skaliert. Laut SIX-Spezifikation:
-
-- Swiss Cross: exakt **7×7mm**
-- Weißes Quadrat darum: exakt **6×6mm** weiß gefüllt
-- Positioniert **exakt zentriert** auf dem QR-Code
-
-Die aktuelle `drawSwissCross(doc, qrX, qrY, QR_CODE_SIZE)` Funktion übergibt `size=46` und berechnet alles relativ dazu — dies ergibt falsche Dimensionen.
-
-**Korrekte SIX-Maße:**
-```
-Schweizer Kreuz gesamt:     7.0 × 7.0 mm
-Weißes Quadrat (Hintergrund): 6.0 × 6.0 mm  (1mm Abstand zum Rand)
-Rotes Quadrat:              4.8 × 4.8 mm
-Weißes Kreuz (Vertikalarm): 1.0 × 2.8 mm  (zentriert im roten Quadrat)
-Weißes Kreuz (Horizontalarm): 2.8 × 1.0 mm
-```
+Da die Detailseite alle Daten neu lädt (API), ist das der sauberste Weg. Der Button navigiert zur Detailseite mit einem `?action=email` oder `?action=preview` Query-Parameter, den QuoteDetail.tsx dann auswertet und den entsprechenden Dialog automatisch öffnet.
 
 ---
 
-### 3. PDF Layout — Falsche X-Koordinaten
+### Problem 2: PDF — Firma und Name falsche Reihenfolge
+**Datei:** `src/lib/pdf/sales-document.ts`, Zeilen 136–153
 
+**Aktuell:**
 ```
-RECEIPT_WIDTH = 62mm  ← korrekt (SIX-Spec)
-paymentX = RECEIPT_WIDTH + 5 = 67mm  ← FALSCH (+5mm Lücke)
+data.customer.name      ← steht ganz oben (z.B. "Max Muster")
+data.customer.contact   ← steht darunter (z.B. "Muster AG")
 ```
 
-Laut SIX-Spec beginnt der Zahlteil **direkt bei 62mm**, kein zusätzlicher Abstand. Alle Texte im Zahlteil (IBAN, Kreditor, Betrag, Referenz etc.) müssen ab `x = 67mm` beginnen (5mm innerer Abstand vom Trennstrich). Das ergibt:
-- Trennstrich: x = 62mm
-- Inhalte Zahlteil: x = 67mm (5mm Abstand) ✅ — tatsächlich korrekt nach Spec
-
-**Echter Fehler**: Der QR-Code selbst (`qrX = paymentX = 67mm`) liegt korrekt. Aber der "Zahlbar durch"-Block auf der rechten Seite:
+**Problem:** In `QuoteDetail.tsx` wird das `customer`-Objekt so gebaut:
+```typescript
+customer: {
+  name: quoteData.customer.name,       // = "Muster AG" (Firmenname aus mapQuoteToView)
+  contact: quoteData.customer.contact, // = contactPerson oder companyName
+  ...
+}
 ```
-debtorX = paymentX + 80 = 147mm
+
+Aber in `mapQuoteToView`:
+```typescript
+name: quote.customer?.name || "Unbekannt",      // Personenname
+contact: quote.customer?.contactPerson || quote.customer?.companyName || "",
 ```
-Der Zahlteil endet bei `62 + 148 = 210mm`. `debtorX = 147mm` → Textbereich nur 63mm breit → kann Inhalt abschneiden. Sollte `debtorX = 130mm` sein für ausreichend Platz.
 
----
+Das Problem ist: `name` enthält den Personennamen und `contact` den Firmennamen. Im PDF wird `name` zuerst gedruckt, dann `contact`. Die korrekte Reihenfolge für Schweizer Geschäftspost:
+```
+Firma / Unternehmensname  ← zuerst
+z.Hd. Kontaktperson      ← darunter (optional)
+```
 
-### 4. Backend `pdf.service.ts` — Komplett defekter QR-Payload
+**Fix:** In `sales-document.ts` im Adressblock zuerst prüfen ob `contact` ein Firmenname ist und `name` ein Personenname, dann entsprechend umkehren. Einfacher: Im PDF-Generator prüfen ob `contact` gesetzt ist und dann `contact` zuerst, `name` darunter anzeigen.
 
-Zeile 126 (Backend) ist vollständig falsch:
+**Noch einfacher und robuster:** In allen Detailseiten (QuoteDetail, InvoiceDetail, etc.) das `pdfData.customer`-Objekt so befüllen, dass `name` immer die Firma ist und `contact` der Personenname — was bereits der Fall ist bei Firmenkunden. Das Problem liegt in `mapQuoteToView` wo:
 
 ```typescript
-// FALSCH — escaped \n statt echten Zeilenumbrüchen:
-const qrData = `SPC\\n0200\\n1\\nCH4431999123000889012\\nK\\n...`;
+name: quote.customer?.name || "Unbekannt",
+contact: quote.customer?.contactPerson || quote.customer?.companyName || "",
 ```
 
-Probleme:
-- `\\n` erzeugt literale Backslash-n-Zeichen, keine Zeilenumbrüche
-- Adresstyp `K` (kombiniert) statt `S` (strukturiert)
-- IBAN hardcoded (`CH4431999123000889012`)
-- Debitordaten falsch strukturiert (nur 4 Felder statt 7)
-- Kein `EPD` + AV-Zeilen
-
-Der Backend-Service muss die **gleiche Payload-Logik** wie das Frontend verwenden — entweder durch Extraktion in eine shared utility oder durch Reimplementierung der korrekten Sequenz.
-
----
-
-### 5. IBAN-Anzeige im Empfangsschein — Falsch
-
-Im Empfangsschein und Zahlteil wird immer `data.iban` gedruckt. Aber: Wenn `referenceType === "QRR"` und `qrIban` vorhanden ist, **muss die QR-IBAN gedruckt werden** (nicht die normale IBAN), da die Zahlung über die QR-IBAN abgewickelt wird.
-
-```
-Aktuell: doc.text(formatIBAN(data.iban), ...)  ← immer normale IBAN
-Soll:    doc.text(formatIBAN(effectiveIban), ...)  ← QR-IBAN wenn QRR
-```
-
----
-
-### 6. `QRInvoice.tsx` — Hardcodierte Debtor-Adressdaten
+`quote.customer.name` ist der Personenname (z.B. "Hans Muster"), `companyName` wäre "Muster AG". Der Fix in `mapQuoteToView`:
 
 ```typescript
-debtor: {
-  name: invoice.customer,
-  street: "Kundenstrasse 1",  // ← HARDCODED PLACEHOLDER
-  postalCode: "8000",          // ← HARDCODED PLACEHOLDER  
-  city: "Zürich",              // ← HARDCODED PLACEHOLDER
-  country: "CH",
-},
+// Firma hat Vorrang
+name: quote.customer?.companyName || quote.customer?.name || "Unbekannt",
+contact: quote.customer?.companyName 
+  ? (quote.customer?.contactPerson || quote.customer?.name || "")
+  : (quote.customer?.contactPerson || ""),
 ```
 
-Die Kundenadressen müssen aus der Datenbank geladen werden.
+Und in `sales-document.ts` zusätzlich sicherstellen, dass `contact` mit "z.Hd." Präfix angezeigt wird wenn vorhanden:
+
+```typescript
+// Zeile 142-145 aktuell:
+if (data.customer.contact) {
+  yPos += 5;
+  doc.text(data.customer.contact, margin, yPos);
+}
+```
+
+Bleibt gleich, aber `contact` enthält jetzt den Personennamen.
+
+---
+
+### Problem 3: "Per E-Mail" Button in Vorschau funktioniert nicht
+**Datei:** `src/components/documents/PDFPreviewDialog.tsx`, Zeile 91-98
+
+**Problem:** `handleEmail` prüft ob `onSendEmail` übergeben wurde. Wenn nicht, zeigt es nur `toast.info("E-Mail-Versand wird vorbereitet...")` — kein tatsächlicher E-Mail Dialog.
+
+**In QuoteDetail.tsx** (Zeile 780):
+```tsx
+<PDFPreviewDialog 
+  open={showPDFPreview} 
+  onOpenChange={setShowPDFPreview} 
+  documentData={pdfData} 
+  title={`Angebot ${quoteData.id}`} 
+/>
+```
+
+**`onSendEmail` prop fehlt!** Der Fix ist einfach: `onSendEmail` übergeben:
+
+```tsx
+<PDFPreviewDialog
+  open={showPDFPreview}
+  onOpenChange={setShowPDFPreview}
+  documentData={pdfData}
+  title={`Angebot ${quoteData.id}`}
+  onSendEmail={() => setEmailModalOpen(true)}  // ← NEU
+/>
+```
+
+Diese Korrektur muss auch bei **InvoiceDetail**, **OrderDetail**, **DeliveryNoteDetail**, **CreditNoteDetail** geprüft und ggf. ergänzt werden.
 
 ---
 
 ## Implementierungsplan
 
-### Datei 1: `src/lib/pdf/swiss-qr-invoice.ts`
+### Schritt 1: "Per E-Mail" Button in Vorschau reparieren (alle Detailseiten)
 
-**Änderung 1.1 — `buildQRCodeData`: Zweite AV-Zeile hinzufügen**
+In folgenden Dateien `onSendEmail` prop zum `PDFPreviewDialog` hinzufügen:
+- `src/pages/QuoteDetail.tsx` — fehlt
+- `src/pages/InvoiceDetail.tsx` — prüfen
+- `src/pages/OrderDetail.tsx` — prüfen
+- `src/pages/DeliveryNoteDetail.tsx` — prüfen
+- `src/pages/CreditNoteDetail.tsx` — prüfen
 
-```typescript
-// Trailer
-lines.push("EPD");
-lines.push(""); // AV1 (leer)
-lines.push(""); // AV2 (leer)  ← NEU
+Änderung jeweils:
+```tsx
+<PDFPreviewDialog
+  open={showPDFPreview}
+  onOpenChange={setShowPDFPreview}
+  documentData={pdfData}
+  title="..."
+  onSendEmail={() => setEmailModalOpen(true)}  // ← hinzufügen
+/>
 ```
 
-**Änderung 1.2 — `buildQRCodeData`: Betrag-Handling**
+### Schritt 2: Firma/Name Reihenfolge im PDF korrigieren
 
-Wenn `amount === 0` oder nicht angegeben, muss das Feld leer sein (SIX-Spec erlaubt offene Rechnungen ohne Betrag):
+**Datei: `src/pages/QuoteDetail.tsx`** — `mapQuoteToView` anpassen:
 
 ```typescript
-// Payment Amount
-if (data.amount > 0) {
-  lines.push(data.amount.toFixed(2));
-} else {
-  lines.push(""); // Offener Betrag
+// Zeile 113-115 aktuell:
+customer: {
+  id: quote.customer?.id,
+  name: quote.customer?.name || "Unbekannt",
+  contact: quote.customer?.contactPerson || quote.customer?.companyName || "",
+```
+
+**Fix:**
+```typescript
+customer: {
+  id: quote.customer?.id,
+  name: quote.customer?.companyName || quote.customer?.name || "Unbekannt",
+  contact: quote.customer?.companyName
+    ? (quote.customer?.name && quote.customer.name !== quote.customer.companyName
+        ? quote.customer.name
+        : (quote.customer?.contactPerson || ""))
+    : (quote.customer?.contactPerson || ""),
+```
+
+**Datei: `src/lib/pdf/sales-document.ts`** — Adressblock anpassen, damit `contact` als "z.Hd." Zeile angezeigt wird:
+
+```typescript
+// Vorher (Zeile 142-145):
+if (data.customer.contact) {
+  yPos += 5;
+  doc.text(data.customer.contact, margin, yPos);
 }
-lines.push(data.currency);
-```
-
-**Änderung 1.3 — `drawSwissCross`: Exakte SIX-Maße**
-
-```typescript
-function drawSwissCross(doc: jsPDF, centerX: number, centerY: number): void {
-  // Weißes Hintergrundquadrat: 6×6mm
-  doc.setFillColor(255, 255, 255);
-  doc.rect(centerX - 3, centerY - 3, 6, 6, "F");
-  
-  // Rotes Quadrat: 4.8×4.8mm  
-  doc.setFillColor(220, 0, 0); // SIX-Rot: #DC0000
-  doc.rect(centerX - 2.4, centerY - 2.4, 4.8, 4.8, "F");
-  
-  // Weißes Kreuz — Vertikalarm: 1.0×2.8mm
-  doc.setFillColor(255, 255, 255);
-  doc.rect(centerX - 0.5, centerY - 1.4, 1.0, 2.8, "F");
-  
-  // Weißes Kreuz — Horizontalarm: 2.8×1.0mm
-  doc.rect(centerX - 1.4, centerY - 0.5, 2.8, 1.0, "F");
-}
-```
-
-Aufruf anpassen:
-```typescript
-// Vorher:
-drawSwissCross(doc, qrX, qrY, QR_CODE_SIZE);
-
-// Nachher (Mittelpunkt des QR-Codes):
-drawSwissCross(doc, qrX + QR_CODE_SIZE / 2, qrY + QR_CODE_SIZE / 2);
-```
-
-**Änderung 1.4 — IBAN-Anzeige: QR-IBAN wenn QRR**
-
-```typescript
-// Vorher:
-doc.text(formatIBAN(data.iban), receiptX, receiptY);
 
 // Nachher:
-const displayIban = (data.referenceType === "QRR" && data.qrIban)
-  ? data.qrIban
-  : data.iban;
-doc.text(formatIBAN(displayIban), receiptX, receiptY);
+if (data.customer.contact) {
+  yPos += 5;
+  doc.text(`z.Hd. ${data.customer.contact}`, margin, yPos);
+}
 ```
 
-Diese Korrektur an **beiden Stellen** anwenden (Empfangsschein + Zahlteil).
+Aber nur wenn `contact` kein Firmenname ist (d.h. wenn `name` bereits der Firmenname ist). Da wir den Fix in mapQuoteToView machen, enthält `contact` jetzt immer den Personennamen → "z.Hd." Präfix ist korrekt.
 
-**Änderung 1.5 — `debtorX` Anpassung**
+### Schritt 3: "Angebot senden" Button-Label und Workflow anpassen
 
+**Datei: `src/components/documents/DocumentForm.tsx`**
+
+Nur für `type === "quote"`: Den "Angebot senden" Button umbenennen in "Angebot erstellen & senden" und einen **Post-Save-Dialog** hinzufügen. Der Dialog erscheint nach erfolgreichem Speichern mit zwei Aktionen:
+
+```text
+Nach dem Speichern → Dialog öffnet sich:
+┌─────────────────────────────────────────┐
+│  Angebot wurde erstellt                 │
+│                                         │
+│  [📄 PDF Vorschau]  [✉️ Per E-Mail senden] │
+│              [Zur Detailansicht]        │
+└─────────────────────────────────────────┘
+```
+
+Technisch: Nach `navigate(`${backPath}/${result.id}`)` wird der Benutzer zur Detailseite navigiert. Um den E-Mail Dialog direkt zu öffnen, wird `?sendEmail=1` als Query-Parameter übergeben, den QuoteDetail.tsx auswertet.
+
+**Einfachere Variante (empfohlen):** Den Button nur umbenennen von "Angebot senden" → "Angebot erstellen" und den Status auf `DRAFT` setzen (nicht `SENT`). Der Benutzer sieht dann auf der Detailseite klar die Aktionen "Per E-Mail senden" und "PDF anzeigen". Kein extra Dialog nötig.
+
+In `typeConfig`:
 ```typescript
-// Vorher:
-const debtorX = paymentX + 80; // = 147mm → zu knapp am Rand
-
-// Nachher:
-const debtorX = paymentX + 75; // = 130mm → 80mm Restbreite bis 210mm
+quote: { title: ..., backPath: "/quotes", sendLabel: "Angebot erstellen" },
 ```
 
-**Änderung 1.6 — `buildQRCodeData` als Export**
-
-Die Funktion wird von `private` zu `export` geändert, damit das Backend sie künftig nutzen kann (Phase 5).
-
----
-
-### Datei 2: `backend/src/common/services/pdf.service.ts`
-
-**Änderung 2.1 — Korrekter QR-Payload-Generator**
-
-Die defekte Zeile 126 wird durch eine korrekte Implementierung ersetzt, die der SIX-Spezifikation entspricht:
-
+Und in `handleSave`:
 ```typescript
-// Korrekter QR-Payload (echte \n, Adresstyp S, strukturiert)
-const effectiveIban = invoice.qrIban 
-  ? invoice.qrIban.replace(/\s/g, '')
-  : (invoice.iban || '').replace(/\s/g, '');
-
-const qrLines = [
-  'SPC',
-  '0200',
-  '1',
-  effectiveIban,
-  'S',
-  (invoice.company?.name || '').substring(0, 70),
-  (invoice.company?.street || '').substring(0, 70),
-  (invoice.company?.buildingNumber || ''),
-  (invoice.company?.zip || '').substring(0, 16),
-  (invoice.company?.city || '').substring(0, 35),
-  (invoice.company?.country || 'CH'),
-  '', '', '', '', '', '', '', // Ultimate Creditor (7 leer)
-  Number(invoice.totalAmount || 0).toFixed(2),
-  'CHF',
-  'S',
-  (invoice.customer?.companyName || invoice.customer?.name || '').substring(0, 70),
-  (invoice.customer?.street || ''),
-  '',
-  (invoice.customer?.zip || '').substring(0, 16),
-  (invoice.customer?.city || '').substring(0, 35),
-  (invoice.customer?.country || 'CH'),
-  'QRR',
-  (invoice.qrReference || '').replace(/\s/g, ''),
-  (invoice.additionalInfo || '').substring(0, 140),
-  'EPD',
-  '', // AV1
-  '', // AV2
-];
-const qrData = qrLines.join('\n');
+status: asDraft ? "DRAFT" : (isDeliveryNote ? "SHIPPED" : "SENT"),
 ```
 
----
-
-### Datei 3: `src/pages/QRInvoice.tsx`
-
-**Änderung 3.1 — API-Daten für Debtor aus Datenbank laden**
-
-Den `handleDownloadPDF` Handler so anpassen, dass echte Kundendaten aus dem API-Response verwendet werden (sofern die `QRInvoiceListItem`-Schnittstelle die Adressfelder enthält).
-
-Die `QRInvoiceListItem` Schnittstelle wird erweitert um:
-```typescript
-customerStreet?: string;
-customerPostalCode?: string;
-customerCity?: string;
-customerCountry?: string;
-```
-
-Und der API-Call wird entsprechend angepasst.
+→ Nur für Angebote: Immer `DRAFT` als Initialstatus setzen (da Angebote erst "SENT" werden wenn sie per E-Mail versendet werden).
 
 ---
 
 ## Dateien-Übersicht
 
-| Datei | Änderungen |
+| Datei | Änderung |
 |---|---|
-| `src/lib/pdf/swiss-qr-invoice.ts` | AV2-Zeile, Swiss Cross exakte Maße, QR-IBAN Anzeige, debtorX, buildQRCodeData export, Betrag-Handling |
-| `backend/src/common/services/pdf.service.ts` | QR-Payload komplett korrigiert (echte \\n, Adresstyp S, strukturiert, EPD+AV1+AV2) |
-| `src/pages/QRInvoice.tsx` | Debtor-Adressdaten aus DB, Schnittstelle erweitert |
-
----
-
-## Zusammenfassung: Was NICHT geändert wird
-
-- QR-Code Fehlerkorrektur `"M"` ✅ (korrekt laut SIX)
-- `margin: 0` beim QR-Code ✅ (korrekt, Ruhezone wird durch PDF-Layout sichergestellt)
-- `RECEIPT_WIDTH = 62` ✅ (korrekt)
-- `PAYMENT_PART_HEIGHT = 105` ✅ (korrekt)
-- `QR_CODE_SIZE = 46` ✅ (korrekt)
-- `perfY = 297 - 105 = 192` ✅ (korrekt)
-- Trennstrich-Logik ✅ (korrekt)
-- Mod10-Algorithmus für `generateQRReference` ✅ (korrekt implementiert)
-- `isQRIBAN` IID-Prüfung 30000–31999 ✅ (korrekt)
+| `src/pages/QuoteDetail.tsx` | `mapQuoteToView` Firma/Name-Logik korrigieren + `onSendEmail` zu PDFPreviewDialog |
+| `src/lib/pdf/sales-document.ts` | `contact` mit "z.Hd." Präfix anzeigen |
+| `src/pages/InvoiceDetail.tsx` | `onSendEmail` zu PDFPreviewDialog |
+| `src/pages/OrderDetail.tsx` | `onSendEmail` zu PDFPreviewDialog |
+| `src/pages/DeliveryNoteDetail.tsx` | `onSendEmail` zu PDFPreviewDialog |
+| `src/pages/CreditNoteDetail.tsx` | `onSendEmail` zu PDFPreviewDialog |
+| `src/components/documents/DocumentForm.tsx` | Button-Label "Angebot erstellen" + DRAFT-Status für Angebote |
