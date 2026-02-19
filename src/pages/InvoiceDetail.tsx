@@ -50,7 +50,7 @@ import {
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
-import { generateSwissQRInvoicePDF, validateQRReference, determineReferenceType, type QRInvoiceData } from "@/lib/pdf/swiss-qr-invoice";
+import { generateSwissQRInvoicePDF, generateSwissQRInvoicePDFDataUrl, validateQRReference, determineReferenceType, type QRInvoiceData } from "@/lib/pdf/swiss-qr-invoice";
 import { useInvoice } from "@/hooks/use-invoices";
 import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
@@ -234,62 +234,67 @@ const InvoiceDetail = () => {
     paymentTerms: "30 Tage netto",
   };
 
-  const handleDownloadPDF = async () => {
+  const buildQrInvoiceData = (): QRInvoiceData | null => {
     const qrRef = (rawInvoice as any)?.qrReference;
     const hasIban = !!(companyData?.iban || companyData?.qrIban);
+    if (!qrRef || !hasIban) return null;
 
-    if (qrRef && hasIban) {
-      const cleanRef = qrRef.replace(/\s/g, "");
-      const refType = determineReferenceType(companyData?.iban, companyData?.qrIban, cleanRef);
+    const cleanRef = qrRef.replace(/\s/g, "");
+    const refType = determineReferenceType(companyData?.iban, companyData?.qrIban, cleanRef);
+    if (refType === "QRR" && !validateQRReference(cleanRef)) return null;
 
-      // Validate QRR reference
-      if (refType === "QRR" && !validateQRReference(cleanRef)) {
-        toast.error(
-          `QR-Referenz ungültig (${cleanRef.length} Stellen). Erwartet: 27 numerische Zeichen mit Mod10 Prüfziffer.`
-        );
-        return;
-      }
+    return {
+      invoiceNumber: invoiceData.id,
+      invoiceDate: invoiceData.createdAt,
+      dueDate: invoiceData.dueDate,
+      currency: "CHF",
+      amount: invoiceData.total,
+      vatRate: 8.1,
+      vatAmount: invoiceData.tax,
+      subtotal: invoiceData.subtotal,
+      iban: companyData?.iban || "",
+      qrIban: refType === "QRR" ? companyData?.qrIban || undefined : undefined,
+      reference: cleanRef,
+      referenceType: refType,
+      additionalInfo: `Rechnung ${invoiceData.id}`,
+      creditor: {
+        name: companyData?.name || "",
+        street: companyData?.street || "",
+        postalCode: companyData?.zipCode || "",
+        city: companyData?.city || "",
+        country: "CH",
+      },
+      debtor: {
+        name: (rawInvoice as any)?.customer?.companyName || (rawInvoice as any)?.customer?.name || "",
+        street: (rawInvoice as any)?.customer?.street || "",
+        postalCode: (rawInvoice as any)?.customer?.zipCode || "",
+        city: (rawInvoice as any)?.customer?.city || "",
+        country: "CH",
+      },
+      positions: invoiceData.positions.map((pos, idx) => ({
+        position: idx + 1,
+        description: pos.description,
+        quantity: pos.quantity,
+        unit: pos.unit,
+        unitPrice: pos.price,
+        total: pos.total,
+      })),
+      paymentTermDays: 30,
+      orderNumber: invoiceData.order || undefined,
+    };
+  };
 
+  const qrPdfUrlGenerator = async (): Promise<string> => {
+    const qrData = buildQrInvoiceData();
+    if (!qrData) throw new Error("QR data not available");
+    return generateSwissQRInvoicePDFDataUrl(qrData);
+  };
+
+  const handleDownloadPDF = async () => {
+    const qrData = buildQrInvoiceData();
+
+    if (qrData) {
       try {
-        const qrData: QRInvoiceData = {
-          invoiceNumber: invoiceData.id,
-          invoiceDate: invoiceData.createdAt,
-          dueDate: invoiceData.dueDate,
-          currency: "CHF",
-          amount: invoiceData.total,
-          vatRate: 8.1,
-          vatAmount: invoiceData.tax,
-          subtotal: invoiceData.subtotal,
-          iban: companyData?.iban || "",
-          qrIban: refType === "QRR" ? companyData?.qrIban || undefined : undefined,
-          reference: cleanRef,
-          referenceType: refType,
-          additionalInfo: `Rechnung ${invoiceData.id}`,
-          creditor: {
-            name: companyData?.name || "",
-            street: companyData?.street || "",
-            postalCode: companyData?.zipCode || "",
-            city: companyData?.city || "",
-            country: "CH",
-          },
-          debtor: {
-            name: (rawInvoice as any)?.customer?.companyName || (rawInvoice as any)?.customer?.name || "",
-            street: (rawInvoice as any)?.customer?.street || "",
-            postalCode: (rawInvoice as any)?.customer?.zipCode || "",
-            city: (rawInvoice as any)?.customer?.city || "",
-            country: "CH",
-          },
-          positions: invoiceData.positions.map((pos, idx) => ({
-            position: idx + 1,
-            description: pos.description,
-            quantity: pos.quantity,
-            unit: pos.unit,
-            unitPrice: pos.price,
-            total: pos.total,
-          })),
-          paymentTermDays: 30,
-          orderNumber: invoiceData.order || undefined,
-        };
         await generateSwissQRInvoicePDF(qrData);
         toast.success("QR-Rechnung PDF wird heruntergeladen");
       } catch (err) {
@@ -298,6 +303,8 @@ const InvoiceDetail = () => {
       }
     } else {
       downloadSalesDocumentPDF(pdfData, `Rechnung-${invoiceData.id}.pdf`);
+      const qrRef = (rawInvoice as any)?.qrReference;
+      const hasIban = !!(companyData?.iban || companyData?.qrIban);
       if (!hasIban) {
         toast.warning("Kein Zahlteil: IBAN fehlt – bitte in Einstellungen → Firma konfigurieren");
       } else if (!qrRef) {
@@ -719,6 +726,7 @@ const InvoiceDetail = () => {
         documentData={pdfData}
         title={`Rechnung ${invoiceData.id}`}
         onSendEmail={() => setEmailModalOpen(true)}
+        customPdfUrlGenerator={buildQrInvoiceData() ? qrPdfUrlGenerator : undefined}
       />
 
       {/* Payment Recording Dialog */}

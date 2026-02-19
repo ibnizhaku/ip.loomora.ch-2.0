@@ -255,7 +255,7 @@ function formatSCORReference(ref: string): string {
 // Main PDF Generator
 // ============================================
 
-export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<void> {
+async function generateSwissQRInvoicePDFDoc(data: QRInvoiceData): Promise<jsPDF> {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -611,7 +611,16 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
   doc.line(RECEIPT_WIDTH, perfY, RECEIPT_WIDTH, pageHeight);
   doc.setLineDashPattern([], 0);
   
-  // Save PDF
+  return doc;
+}
+
+export async function generateSwissQRInvoicePDFDataUrl(data: QRInvoiceData): Promise<string> {
+  const doc = await generateSwissQRInvoicePDFDoc(data);
+  return doc.output("datauristring");
+}
+
+export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<void> {
+  const doc = await generateSwissQRInvoicePDFDoc(data);
   const filename = `QR-Rechnung_${data.invoiceNumber}.pdf`;
   doc.save(filename);
 }

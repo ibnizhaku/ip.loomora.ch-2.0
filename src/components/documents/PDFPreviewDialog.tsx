@@ -22,6 +22,7 @@ interface PDFPreviewDialogProps {
   documentData: SalesDocumentData | null;
   title?: string;
   onSendEmail?: () => void;
+  customPdfUrlGenerator?: () => Promise<string>;
 }
 
 const documentTypeLabels: Record<string, string> = {
@@ -38,30 +39,36 @@ export function PDFPreviewDialog({
   documentData,
   title,
   onSendEmail,
+  customPdfUrlGenerator,
 }: PDFPreviewDialogProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Generate PDF when dialog opens (either via prop or internal change)
   useEffect(() => {
-    if (open && documentData) {
+    if (open && (documentData || customPdfUrlGenerator)) {
       setIsLoading(true);
-      const timer = setTimeout(() => {
+      const generate = async () => {
         try {
-          const url = getSalesDocumentPDFDataUrl(documentData);
-          setPdfUrl(url);
+          if (customPdfUrlGenerator) {
+            const url = await customPdfUrlGenerator();
+            setPdfUrl(url);
+          } else if (documentData) {
+            const url = getSalesDocumentPDFDataUrl(documentData);
+            setPdfUrl(url);
+          }
         } catch (error) {
           console.error("PDF generation error:", error);
           toast.error("Fehler beim Erstellen der PDF-Vorschau");
         } finally {
           setIsLoading(false);
         }
-      }, 300);
-      return () => clearTimeout(timer);
+      };
+      generate();
     } else if (!open) {
       setPdfUrl(null);
     }
-  }, [open, documentData]);
+  }, [open, documentData, customPdfUrlGenerator]);
 
   const handleDownload = () => {
     if (!documentData) return;
