@@ -64,7 +64,16 @@ function mapDeliveryNoteToView(dn: any) {
       id: dn.customer?.id,
       name: dn.customer?.name || dn.customerName || "Unbekannt",
       contact: dn.customer?.contactPerson || "",
-      deliveryAddress: dn.deliveryAddress || [dn.customer?.street, [dn.customer?.zipCode, dn.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+      deliveryAddress: (() => {
+        const da = dn.deliveryAddress;
+        if (!da) return [dn.customer?.street, [dn.customer?.zipCode, dn.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+        if (typeof da === 'string') return da;
+        if (typeof da === 'object') {
+          if ((da as any).address) return (da as any).address;
+          return [(da as any).company, (da as any).street, [(da as any).zipCode, (da as any).city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+        }
+        return [dn.customer?.street, [dn.customer?.zipCode, dn.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      })(),
       billingAddress: [dn.customer?.street, [dn.customer?.zipCode, dn.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
     },
     order: dn.order?.number || dn.orderNumber || "",
