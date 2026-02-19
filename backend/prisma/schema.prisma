@@ -1489,6 +1489,21 @@ model PurchaseInvoice {
   
   documentUrl     String?  // Uploaded PDF
   notes           String?
+
+  // Zahlung
+  paidDate        DateTime?
+
+  // Freigabe
+  approvedById    String?
+  approvedAt      DateTime?
+
+  // Stornierung
+  cancellationReason String?
+  cancelledAt     DateTime?
+
+  // Ablehnung
+  rejectionNote   String?
+  rejectedAt      DateTime?
   
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)

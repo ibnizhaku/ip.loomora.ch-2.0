@@ -50,9 +50,10 @@ export class GoodsReceiptsService {
             select: {
               id: true,
               number: true,
-              supplier: { select: { id: true, name: true } },
+              supplier: { select: { id: true, name: true, companyName: true } },
             },
           },
+          supplier: { select: { id: true, name: true, companyName: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true } },
@@ -77,14 +78,28 @@ export class GoodsReceiptsService {
       where: { id, companyId },
       include: {
         purchaseOrder: {
-          include: {
-            supplier: true,
-            items: true,
+          select: {
+            id: true,
+            number: true,
+            supplierId: true,
+            supplier: { select: { id: true, name: true, companyName: true } },
+            items: {
+              select: {
+                id: true,
+                productId: true,
+                description: true,
+                quantity: true,
+                unit: true,
+                unitPrice: true,
+                delivered: true,
+              },
+            },
           },
         },
+        supplier: { select: { id: true, name: true, companyName: true } },
         items: {
           include: {
-            product: true,
+            product: { select: { id: true, name: true, sku: true } },
           },
         },
       },

@@ -138,3 +138,22 @@ export class ApproveInvoiceDto {
   @IsDateString()
   paymentDate?: string;
 }
+
+export class RecordPaymentDto {
+  @IsNumber()
+  amount: number;
+
+  @IsDateString()
+  paymentDate: string;
+
+  @IsEnum(['BANK_TRANSFER', 'DIRECT_DEBIT', 'CASH'])
+  method: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountId?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+}

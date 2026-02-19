@@ -4,6 +4,7 @@ import {
   CreatePurchaseInvoiceDto, 
   UpdatePurchaseInvoiceDto, 
   ApproveInvoiceDto,
+  RecordPaymentDto,
   PurchaseInvoiceStatus,
   OcrExtractedDataDto,
 } from './dto/purchase-invoice.dto';
@@ -219,33 +220,102 @@ export class PurchaseInvoicesService {
     return this.prisma.purchaseInvoice.delete({ where: { id } });
   }
 
-  // Approve invoice for payment
-  async approve(id: string, companyId: string, dto: ApproveInvoiceDto) {
-    const purchaseInvoice = await this.findOne(id, companyId);
+  // Prompt 1: Zahlungserfassung
+  async recordPayment(id: string, companyId: string, dto: RecordPaymentDto) {
+    const invoice = await this.prisma.purchaseInvoice.findFirst({
+      where: { id, companyId },
+    });
+    if (!invoice) throw new NotFoundException('Rechnung nicht gefunden');
+    if (invoice.status === 'CANCELLED') throw new BadRequestException('Stornierte Rechnung kann nicht bezahlt werden');
 
-    if (purchaseInvoice.status !== PurchaseInvoiceStatus.PENDING) {
-      throw new BadRequestException('Nur ausstehende Rechnungen können freigegeben werden');
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
+        data: {
+          purchaseInvoiceId: id,
+          amount: dto.amount,
+          paymentDate: new Date(dto.paymentDate),
+          method: dto.method as any,
+          bankAccountId: dto.bankAccountId,
+          note: dto.note,
+          companyId,
+        },
+      });
+
+      const paidAmount = Number(invoice.paidAmount) + dto.amount;
+      const isPaid = paidAmount >= Number(invoice.totalAmount);
+
+      await tx.purchaseInvoice.update({
+        where: { id },
+        data: {
+          paidAmount,
+          status: isPaid ? 'PAID' : (invoice.status as any),
+          paidDate: isPaid ? new Date() : undefined,
+        },
+      });
+
+      return payment;
+    });
+  }
+
+  // Prompt 2: Stornieren mit Audit-Trail
+  async cancel(id: string, companyId: string, reason?: string) {
+    const invoice = await this.prisma.purchaseInvoice.findFirst({ where: { id, companyId } });
+    if (!invoice) throw new NotFoundException('Rechnung nicht gefunden');
+    if (['CANCELLED', 'PAID'].includes(invoice.status as string)) {
+      throw new BadRequestException(`Rechnung mit Status "${invoice.status}" kann nicht storniert werden`);
     }
 
-    const updatedInvoice = await this.prisma.purchaseInvoice.update({
+    return this.prisma.purchaseInvoice.update({
       where: { id },
       data: {
-        status: 'SENT', // Use SENT as approved status
-        notes: dto.approvalNote 
-          ? `${purchaseInvoice.notes || ''}\n[Freigabe] ${dto.approvalNote}`
-          : purchaseInvoice.notes,
+        status: 'CANCELLED' as any,
+        cancellationReason: reason,
+        cancelledAt: new Date(),
       },
-      include: {
-        supplier: true,
-      },
+      include: { supplier: true },
     });
+  }
 
-    // TODO: If schedulePayment is true, create a scheduled payment
+  // Prompt 5: Approve (fixed)
+  async approve(id: string, companyId: string, dto: ApproveInvoiceDto) {
+    const invoice = await this.prisma.purchaseInvoice.findFirst({ where: { id, companyId } });
+    if (!invoice) throw new NotFoundException('Rechnung nicht gefunden');
 
-    return {
-      ...updatedInvoice,
-      message: 'Rechnung wurde zur Zahlung freigegeben',
-    };
+    if (!['PENDING', 'DRAFT'].includes(invoice.status as string)) {
+      throw new BadRequestException('Nur Rechnungen im Status DRAFT oder PENDING können freigegeben werden');
+    }
+
+    return this.prisma.purchaseInvoice.update({
+      where: { id },
+      data: {
+        status: 'APPROVED' as any,
+        approvedAt: new Date(),
+        notes: dto.approvalNote
+          ? `${invoice.notes || ''}\n[Freigabe] ${dto.approvalNote}`.trim()
+          : invoice.notes,
+      },
+      include: { supplier: true },
+    });
+  }
+
+  // Prompt 5: Reject
+  async reject(id: string, companyId: string, reason?: string) {
+    const invoice = await this.prisma.purchaseInvoice.findFirst({ where: { id, companyId } });
+    if (!invoice) throw new NotFoundException('Rechnung nicht gefunden');
+
+    if (!['PENDING', 'APPROVED'].includes(invoice.status as string)) {
+      throw new BadRequestException('Nur Rechnungen im Status PENDING oder APPROVED können abgelehnt werden');
+    }
+
+    return this.prisma.purchaseInvoice.update({
+      where: { id },
+      data: {
+        status: 'DRAFT' as any,
+        rejectionNote: reason,
+        rejectedAt: new Date(),
+      },
+      include: { supplier: true },
+    });
   }
 
   // Simulate OCR extraction from PDF
