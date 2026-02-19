@@ -54,7 +54,18 @@ export class InvoicesService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           customer: {
-            select: { id: true, name: true, companyName: true },
+            select: {
+              id: true,
+              name: true,
+              companyName: true,
+              email: true,
+              phone: true,
+              street: true,
+              zipCode: true,
+              city: true,
+              country: true,
+              vatNumber: true,
+            },
           },
           project: {
             select: { id: true, number: true, name: true },
@@ -90,27 +101,30 @@ export class InvoicesService {
   }
 
   async findOne(id: string, companyId: string) {
-    const invoice = await this.prisma.invoice.findFirst({
-      where: { id, companyId },
-      include: {
-        customer: true,
-        project: true,
-        order: true,
-        items: {
-          orderBy: { position: 'asc' },
-          include: { product: true },
+    const [invoice, company] = await Promise.all([
+      this.prisma.invoice.findFirst({
+        where: { id, companyId },
+        include: {
+          customer: true,
+          project: true,
+          order: true,
+          items: {
+            orderBy: { position: 'asc' },
+            include: { product: true },
+          },
+          payments: {
+            orderBy: { paymentDate: 'desc' },
+          },
+          reminders: {
+            orderBy: { sentAt: 'desc' },
+          },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
-        payments: {
-          orderBy: { paymentDate: 'desc' },
-        },
-        reminders: {
-          orderBy: { sentAt: 'desc' },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
-    });
+      }),
+      this.prisma.company.findFirst({ where: { id: companyId } }),
+    ]);
 
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
@@ -118,6 +132,7 @@ export class InvoicesService {
 
     const enriched = {
       ...invoice,
+      qrIban: (invoice as any).qrIban || company?.qrIban || null,
       openAmount: Number(invoice.totalAmount) - Number(invoice.paidAmount),
       isOverdue: invoice.status !== InvoiceStatus.PAID && new Date(invoice.dueDate) < new Date(),
     };
@@ -152,8 +167,8 @@ export class InvoicesService {
     const vatAmount = subtotal * this.VAT_RATE;
     const total = subtotal + vatAmount;
 
-    // Generate QR reference
-    const qrReference = String(Date.now()).padStart(27, '0');
+    // QR-Referenz nach Swiss Payment Standard (QRR, MOD10 rekursiv)
+    const qrReference = this.generateQRReference(number);
 
     const created = await this.prisma.invoice.create({
       data: {
@@ -433,7 +448,7 @@ export class InvoicesService {
     }));
   }
 
-  async getStats(companyId: string) {
+  async getStatsAmounts(companyId: string) {
     const [totalAgg, paidAgg, pendingAgg, overdueAgg] = await Promise.all([
       this.prisma.invoice.aggregate({
         where: { companyId },
@@ -642,11 +657,44 @@ export class InvoicesService {
   private calculateMod10CheckDigit(reference: string): string {
     const table = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
     let carry = 0;
-    
     for (const char of reference) {
       carry = table[(carry + parseInt(char)) % 10];
     }
-    
     return String((10 - carry) % 10);
+  }
+
+  // Generiert eine Swiss QR-Referenz (QRR) nach SIX-Standard: 26 Stellen + 1 Prüfziffer
+  private generateQRReference(invoiceNumber: string): string {
+    // Nur Ziffern aus der Rechnungsnummer extrahieren (z.B. RE-2026-011 → 2026011)
+    const numericPart = invoiceNumber.replace(/\D/g, '').slice(-20).padStart(20, '0');
+    const base = numericPart.padStart(26, '0').slice(0, 25);
+    const checkDigit = this.calculateMod10CheckDigit(base);
+    return base + checkDigit;
+  }
+
+  // Rückgabe von Zählern (nicht CHF-Beträgen) – Frontend QRInvoice erwartet { total, paid, pending, overdue }
+  async getStats(companyId: string) {
+    const [total, paid, overdue] = await Promise.all([
+      this.prisma.invoice.count({ where: { companyId } }),
+      this.prisma.invoice.count({ where: { companyId, status: InvoiceStatus.PAID } }),
+      this.prisma.invoice.count({ where: { companyId, status: InvoiceStatus.OVERDUE } }),
+    ]);
+    const pending = Math.max(0, total - paid - overdue);
+    return { total, paid, pending, overdue };
+  }
+
+  // Bestehende Rechnungen ohne qrReference nachrüsten
+  async backfillQrReferences() {
+    const invoices = await this.prisma.invoice.findMany({
+      where: { qrReference: null },
+      select: { id: true, number: true },
+    });
+    let count = 0;
+    for (const inv of invoices) {
+      const qrReference = this.generateQRReference(inv.number);
+      await this.prisma.invoice.update({ where: { id: inv.id }, data: { qrReference } });
+      count++;
+    }
+    return { updated: count };
   }
 }

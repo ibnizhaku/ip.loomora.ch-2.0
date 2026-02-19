@@ -55,6 +55,13 @@ export class InvoicesController {
     return this.invoicesService.checkOverdue(user.companyId, user.userId);
   }
 
+  @Post('backfill-qr-references')
+  @RequirePermissions('invoices:write')
+  @ApiOperation({ summary: 'Backfill missing QR references on existing invoices' })
+  backfillQrReferences(@CurrentUser() user: CurrentUserPayload) {
+    return this.invoicesService.backfillQrReferences();
+  }
+
   @Get('stats')
   @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Get invoice statistics' })

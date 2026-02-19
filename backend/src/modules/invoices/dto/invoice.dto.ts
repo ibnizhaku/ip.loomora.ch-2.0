@@ -166,6 +166,9 @@ export class InvoiceResponseDto {
   qrReference?: string;
 
   @ApiPropertyOptional()
+  qrIban?: string;
+
+  @ApiPropertyOptional()
   notes?: string;
 
   @ApiProperty()
