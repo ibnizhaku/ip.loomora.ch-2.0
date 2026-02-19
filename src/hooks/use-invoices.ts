@@ -12,6 +12,7 @@ export interface Invoice {
   customer?: {
     id: string;
     name: string;
+    companyName?: string;
   };
   projectId?: string;
   project?: {

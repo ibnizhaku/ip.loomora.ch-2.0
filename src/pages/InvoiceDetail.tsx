@@ -694,6 +694,19 @@ const InvoiceDetail = () => {
                 <span className="text-muted-foreground">BIC</span>
                 <span className="font-medium">{bankDetails.bic}</span>
               </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">QR-Referenz</span>
+                {(rawInvoice as any)?.qrReference ? (
+                  <span className="font-mono text-xs text-emerald-600">
+                    {(rawInvoice as any).qrReference.replace(/(.{2})(.{5})(.{5})(.{5})(.{5})(.{5})/, '$1 $2 $3 $4 $5 $6')}
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="text-xs bg-warning/10 text-warning">
+                    Keine QR-Ref.
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
