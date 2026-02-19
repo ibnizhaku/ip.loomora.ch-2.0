@@ -355,6 +355,24 @@ const OrderDetail = () => {
     }
   };
 
+  const statusOptions = [
+    { value: "DRAFT",     label: "Neu",             color: "text-muted-foreground" },
+    { value: "SENT",      label: "In Arbeit",        color: "text-blue-600" },
+    { value: "CONFIRMED", label: "Abgeschlossen",    color: "text-green-600" },
+    { value: "CANCELLED", label: "Storniert",        color: "text-destructive" },
+  ];
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === orderData.rawStatus) return;
+    if (newStatus === "CANCELLED" && !confirm("Auftrag wirklich stornieren?")) return;
+    try {
+      await updateOrder.mutateAsync({ id: id!, data: { status: newStatus } as any });
+      toast.success(`Status geändert zu "${statusOptions.find(s => s.value === newStatus)?.label}"`);
+    } catch {
+      toast.error("Fehler beim Ändern des Status");
+    }
+  };
+
   const handleAssignUser = async (userId: string, userName: string) => {
     const currentIds: string[] = ((rawOrder as any)?.assignedUsers || []).map((u: any) => u.id || u);
     const isAlreadyAssigned = currentIds.includes(userId);
@@ -410,12 +428,28 @@ const OrderDetail = () => {
             <FileText className="h-4 w-4 mr-2" />
             Rechnung erstellen
           </Button>
-          {orderData.rawStatus !== "CONFIRMED" && orderData.rawStatus !== "CANCELLED" && (
-            <Button size="sm" onClick={handleMarkDone} disabled={updateOrder.isPending}>
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Als erledigt markieren
-            </Button>
-          )}
+          {/* Status manuell ändern */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={updateOrder.isPending}>
+                {updateOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Status ändern
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {statusOptions.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => handleStatusChange(opt.value)}
+                  disabled={opt.value === orderData.rawStatus}
+                  className={opt.value === orderData.rawStatus ? "font-semibold opacity-50 cursor-default" : opt.color}
+                >
+                  {opt.value === orderData.rawStatus && "✓ "}
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
