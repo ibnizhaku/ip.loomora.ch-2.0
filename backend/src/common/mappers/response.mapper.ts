@@ -3,6 +3,22 @@
  * Ensures API responses match Frontend interfaces exactly
  */
 
+/**
+ * Normalisiert ein Customer-Objekt für das Frontend:
+ * - contactPerson: Alias für name (Personenname, falls companyName gesetzt ist = Kontaktperson)
+ * - zip: Alias für zipCode (Frontend/PDF erwartet zip, DB speichert zipCode)
+ */
+function mapCustomer(customer: any): any {
+  if (!customer) return customer;
+  return {
+    ...customer,
+    // Alias: zip → zipCode (PDF-Service und ältere Frontend-Referenzen)
+    zip: customer.zipCode || customer.zip || null,
+    // Alias: contactPerson → name (Customer.name ist bei Firmen die Kontaktperson)
+    contactPerson: customer.contactPerson ?? customer.name ?? null,
+  };
+}
+
 // Invoice: Backend → Frontend
 export function mapInvoiceResponse(invoice: any) {
   if (!invoice) return invoice;
@@ -14,6 +30,7 @@ export function mapInvoiceResponse(invoice: any) {
     issueDate: date,
     total: totalAmount ? Number(totalAmount) : 0,
     paidDate: paidAt,
+    customer: mapCustomer(invoice.customer),
     // Keep computed fields
     openAmount: invoice.openAmount ?? (Number(totalAmount || 0) - Number(invoice.paidAmount || 0)),
     isOverdue: invoice.isOverdue,
@@ -33,6 +50,7 @@ export function mapQuoteResponse(quote: any) {
   return {
     ...rest,
     issueDate: date,
+    customer: mapCustomer(quote.customer),
     // Ensure numeric fields
     subtotal: quote.subtotal ? Number(quote.subtotal) : 0,
     vatAmount: quote.vatAmount ? Number(quote.vatAmount) : 0,
@@ -49,6 +67,7 @@ export function mapOrderResponse(order: any) {
   return {
     ...rest,
     orderDate: date,
+    customer: mapCustomer(order.customer),
     // Alias createdBy → createdByUser (Frontend-Konvention)
     createdByUser: order.createdBy || null,
     updatedByUser: order.updatedByUser || null,
@@ -169,7 +188,8 @@ export function mapDeliveryNoteResponse(deliveryNote: any) {
   return {
     ...deliveryNote,
     // deliveryDate bleibt wie es ist (Prisma-Feld heißt bereits deliveryDate, nicht date)
-    customerName: deliveryNote.customer?.name,
+    customer: mapCustomer(deliveryNote.customer),
+    customerName: deliveryNote.customer?.companyName || deliveryNote.customer?.name,
     orderNumber: deliveryNote.order?.number,
   };
 }
@@ -184,7 +204,8 @@ export function mapCreditNoteResponse(creditNote: any) {
     ...rest,
     issueDate: date,
     total: totalAmount ? Number(totalAmount) : 0,
-    customerName: creditNote.customer?.name,
+    customer: mapCustomer(creditNote.customer),
+    customerName: creditNote.customer?.companyName || creditNote.customer?.name,
     invoiceNumber: creditNote.invoice?.number,
     subtotal: creditNote.subtotal ? Number(creditNote.subtotal) : 0,
     vatAmount: creditNote.vatAmount ? Number(creditNote.vatAmount) : 0,
