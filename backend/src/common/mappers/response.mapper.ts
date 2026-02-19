@@ -49,6 +49,18 @@ export function mapOrderResponse(order: any) {
   return {
     ...rest,
     orderDate: date,
+    // Alias createdBy → createdByUser (Frontend-Konvention)
+    createdByUser: order.createdBy || null,
+    updatedByUser: order.updatedByUser || null,
+    // Sub-Items: createdBy → createdByUser
+    deliveryNotes: (order.deliveryNotes || []).map((dn: any) => ({
+      ...dn,
+      createdByUser: dn.createdBy || null,
+    })),
+    invoices: (order.invoices || []).map((inv: any) => ({
+      ...inv,
+      createdByUser: inv.createdBy || null,
+    })),
     // Ensure numeric fields
     subtotal: order.subtotal ? Number(order.subtotal) : 0,
     vatAmount: order.vatAmount ? Number(order.vatAmount) : 0,

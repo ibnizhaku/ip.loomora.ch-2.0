@@ -113,6 +113,7 @@ export class DeliveryNotesService {
           carrier: dto.carrier,
           trackingNumber: dto.trackingNumber,
           shippedAt: status === DeliveryNoteStatus.SHIPPED ? new Date() : undefined,
+          createdById: userId || undefined,
           items: {
             create: dto.items.map((item, index) => ({
               productId: item.productId || undefined,
@@ -196,6 +197,7 @@ export class DeliveryNotesService {
           status: DeliveryNoteStatus.DRAFT,
           deliveryDate: new Date(),
           deliveryAddress: deliveryAddress ? { address: deliveryAddress } : undefined,
+          createdById: userId || undefined,
           items: {
             create: selectedItems.map((item, index) => ({
               productId: item.productId || undefined,

@@ -11,12 +11,23 @@ const ORDER_FULL_INCLUDE = {
   project: { select: { id: true, name: true, number: true } },
   quote: { select: { id: true, number: true } },
   items: { orderBy: { position: 'asc' as const }, include: { product: true } },
-  invoices: { orderBy: { createdAt: 'desc' as const } },
-  deliveryNotes: { orderBy: { createdAt: 'desc' as const } },
+  invoices: {
+    orderBy: { createdAt: 'desc' as const },
+    include: {
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  },
+  deliveryNotes: {
+    orderBy: { createdAt: 'desc' as const },
+    include: {
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  },
   assignedUsers: {
     select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true },
   },
-  createdBy: { select: { id: true, firstName: true, lastName: true } },
+  createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+  updatedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
   _count: { select: { items: true, invoices: true, deliveryNotes: true } },
 } as const;
 
@@ -181,6 +192,7 @@ export class OrdersService {
       notes: rest.notes,
       internalNotes: rest.internalNotes,
     };
+    // updatedByUserId wird aus dem Controller mitgegeben wenn verfügbar
 
     // Undefinierte Felder entfernen (kein unnötiger Überschreiben)
     Object.keys(baseData).forEach((k) => baseData[k] === undefined && delete baseData[k]);
@@ -397,6 +409,7 @@ export class OrdersService {
           status: 'DRAFT' as any,
           date: new Date(),
           deliveryAddress: deliveryAddress ? { address: deliveryAddress } : undefined,
+          createdById: userId,
           companyId,
           items: {
             create: order.items.map((item, index) => ({
@@ -511,7 +524,7 @@ export class OrdersService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.order.update({
         where: { id },
-        data: { status },
+        data: { status, updatedByUserId: userId },
         include: ORDER_FULL_INCLUDE,
       });
 

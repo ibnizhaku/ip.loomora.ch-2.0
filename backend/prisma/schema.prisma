@@ -667,7 +667,9 @@ model User {
   mailAccount       UserMailAccount?
 
   // Assigned orders (M2M)
-  assignedOrders    Order[]   @relation("OrderAssignedUsers")
+  assignedOrders      Order[]         @relation("OrderAssignedUsers")
+  updatedOrders       Order[]         @relation("OrderUpdatedBy")
+  createdDeliveryNotes DeliveryNote[] @relation("DeliveryNoteCreator")
 
   @@index([companyId])
   @@index([email])
@@ -1089,6 +1091,9 @@ model Order {
   
   createdById     String
   createdBy       User     @relation("OrderCreator", fields: [createdById], references: [id])
+
+  updatedByUserId String?
+  updatedByUser   User?    @relation("OrderUpdatedBy", fields: [updatedByUserId], references: [id])
   
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1166,6 +1171,9 @@ model DeliveryNote {
   carrier         String?
   
   notes           String?
+
+  createdById     String?
+  createdBy       User?    @relation("DeliveryNoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
