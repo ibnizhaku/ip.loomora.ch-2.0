@@ -147,58 +147,69 @@ const DeliveryNoteDetail = () => {
   const status = statusConfig[deliveryNoteData.status] || statusConfig["Entwurf"];
   const StatusIcon = status.icon;
 
-  // Prepare PDF data for delivery note – rohe ISO-Daten verwenden (nicht vorformatiert)
-  const pdfData: SalesDocumentData = {
-    type: 'delivery-note',
-    number: (rawDn as any).number || deliveryNoteData.id,
-    date: (rawDn as any).deliveryDate || (rawDn as any).createdAt || new Date().toISOString(),
-    deliveryDate: (rawDn as any).shippedDate || (rawDn as any).deliveryDate,
-    orderNumber: deliveryNoteData.order,
-    company: {
-      name: "Loomora Metallbau AG",
-      street: "Industriestrasse 15",
-      postalCode: "8005",
-      city: "Zürich",
-      phone: "+41 44 123 45 67",
-      email: "info@loomora.ch",
-    },
-    customer: (() => {
-      const raw = rawDn as any;
-      const da = raw.deliveryAddress;
-      // Custom Lieferadresse (Toggle EIN): { company, street, zipCode, city, country }
-      if (da && typeof da === 'object' && da.street) {
-        return {
-          name: da.company || raw.customer?.companyName || raw.customer?.name || deliveryNoteData.customer.name,
-          contact: "",
-          street: da.street || "",
-          postalCode: da.zipCode || "",
-          city: da.city || "",
-        };
-      }
-      // Kein Toggle / Standard: Kundenstammdaten mit Firmenname
-      return {
+  // Prepare PDF data for delivery note
+  const pdfData: SalesDocumentData = (() => {
+    const raw = rawDn as any;
+    // Lieferadresse: vom Lieferschein selbst, sonst vom verknüpften Auftrag
+    const da = (raw.deliveryAddress && typeof raw.deliveryAddress === 'object' && raw.deliveryAddress.street)
+      ? raw.deliveryAddress
+      : (raw.order?.deliveryAddress && typeof raw.order.deliveryAddress === 'object' && raw.order.deliveryAddress.street)
+        ? raw.order.deliveryAddress
+        : null;
+
+    // Projekt vom Auftrag
+    const project = raw.order?.project;
+
+    return {
+      type: 'delivery-note' as const,
+      number: raw.number || deliveryNoteData.id,
+      date: raw.deliveryDate || raw.createdAt || new Date().toISOString(),
+      deliveryDate: raw.shippedDate || raw.deliveryDate,
+      orderNumber: deliveryNoteData.order,
+      // Projekt: "PKJ-2026-0001 – Projektname"
+      projectNumber: project
+        ? [project.number, project.name].filter(Boolean).join(' – ')
+        : undefined,
+      company: {
+        name: "Loomora Metallbau AG",
+        street: "Industriestrasse 15",
+        postalCode: "8005",
+        city: "Zürich",
+        phone: "+41 44 123 45 67",
+        email: "info@loomora.ch",
+      },
+      // Rechnungsadresse = immer Kundenstammdaten (Firmenname + Adresse)
+      customer: {
         name: raw.customer?.companyName || raw.customer?.name || deliveryNoteData.customer.name,
         contact: raw.customer?.contactPerson || "",
         street: raw.customer?.street || "",
         postalCode: raw.customer?.zipCode || "",
         city: raw.customer?.city || "",
-      };
-    })(),
-    positions: deliveryNoteData.positions.map((pos, idx) => ({
-      position: idx + 1,
-      description: `${pos.articleNo} - ${pos.description}`,
-      quantity: pos.delivered,
-      unit: "Stk",
-      unitPrice: 0,
+      },
+      // Lieferadresse als separate Sektion im PDF (nur wenn Toggle EIN war)
+      deliveryAddress: da ? {
+        company: da.company || "",
+        street: da.street || "",
+        zipCode: da.zipCode || "",
+        city: da.city || "",
+        country: da.country || "",
+      } : undefined,
+      positions: deliveryNoteData.positions.map((pos, idx) => ({
+        position: idx + 1,
+        description: `${pos.articleNo} - ${pos.description}`,
+        quantity: pos.delivered,
+        unit: "Stk",
+        unitPrice: 0,
+        total: 0,
+      })),
+      subtotal: 0,
+      vatRate: 0,
+      vatAmount: 0,
       total: 0,
-    })),
-    subtotal: 0,
-    vatRate: 0,
-    vatAmount: 0,
-    total: 0,
-    notes: deliveryNoteData.notes,
-    deliveryTerms: `Versand: ${deliveryNoteData.deliveredBy}`,
-  };
+      notes: deliveryNoteData.notes,
+      deliveryTerms: deliveryNoteData.deliveredBy !== "—" ? `Versand: ${deliveryNoteData.deliveredBy}` : undefined,
+    };
+  })();
 
   const handleDownloadPDF = () => {
     downloadSalesDocumentPDF(pdfData, `Lieferschein-${(rawDn as any).number || id}.pdf`);

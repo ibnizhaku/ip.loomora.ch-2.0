@@ -59,7 +59,14 @@ export class DeliveryNotesService {
       where: { id, companyId },
       include: {
         customer: true,
-        order: { select: { id: true, number: true } },
+        order: {
+          select: {
+            id: true,
+            number: true,
+            deliveryAddress: true,
+            project: { select: { id: true, name: true, number: true } },
+          },
+        },
         items: {
           orderBy: { position: 'asc' },
           include: {
