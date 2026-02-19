@@ -666,6 +666,9 @@ model User {
   // Mail account relation
   mailAccount       UserMailAccount?
 
+  // Assigned orders (M2M)
+  assignedOrders    Order[]   @relation("OrderAssignedUsers")
+
   @@index([companyId])
   @@index([email])
   @@index([status])
@@ -1098,6 +1101,7 @@ model Order {
   invoices        Invoice[]
   deliveryNotes   DeliveryNote[]
   productionOrders ProductionOrder[]
+  assignedUsers   User[]         @relation("OrderAssignedUsers")
   
   @@unique([companyId, number])
   @@index([companyId])

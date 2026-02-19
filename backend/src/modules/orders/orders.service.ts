@@ -5,6 +5,21 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 import { DocumentStatus, InvoiceStatus } from '@prisma/client';
 import { mapOrderResponse } from '../../common/mappers/response.mapper';
 
+// Gemeinsames Full-Include für alle Order-Abfragen
+const ORDER_FULL_INCLUDE = {
+  customer: true,
+  project: { select: { id: true, name: true, number: true } },
+  quote: { select: { id: true, number: true } },
+  items: { orderBy: { position: 'asc' as const }, include: { product: true } },
+  invoices: { orderBy: { createdAt: 'desc' as const } },
+  deliveryNotes: { orderBy: { createdAt: 'desc' as const } },
+  assignedUsers: {
+    select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true },
+  },
+  createdBy: { select: { id: true, firstName: true, lastName: true } },
+  _count: { select: { items: true, invoices: true, deliveryNotes: true } },
+} as const;
+
 @Injectable()
 export class OrdersService {
   private readonly VAT_RATE = 0.081;
@@ -70,24 +85,7 @@ export class OrdersService {
   async findOne(id: string, companyId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id, companyId },
-      include: {
-        customer: true,
-        project: true,
-        quote: true,
-        items: {
-          orderBy: { position: 'asc' },
-          include: { product: true },
-        },
-        invoices: {
-          orderBy: { createdAt: 'desc' },
-        },
-        deliveryNotes: {
-          orderBy: { createdAt: 'desc' },
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
+      include: ORDER_FULL_INCLUDE,
     });
 
     if (!order) {
@@ -156,10 +154,7 @@ export class OrdersService {
           })),
         },
       },
-      include: {
-        customer: true,
-        items: true,
-      },
+      include: ORDER_FULL_INCLUDE,
     });
     return mapOrderResponse(created);
   }
@@ -173,73 +168,69 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    if (dto.items) {
-      const items = dto.items.map((item) => {
+    const { assignedUserIds, items: dtoItems, ...rest } = dto;
+
+    // Basisdaten für das Update
+    const baseData: any = {
+      customerId: rest.customerId,
+      projectId: rest.projectId,
+      status: rest.status,
+      date: rest.orderDate ? new Date(rest.orderDate) : undefined,
+      deliveryDate: rest.deliveryDate ? new Date(rest.deliveryDate) : undefined,
+      deliveryAddress: (rest.deliveryAddress as any) ?? undefined,
+      notes: rest.notes,
+      internalNotes: rest.internalNotes,
+    };
+
+    // Undefinierte Felder entfernen (kein unnötiger Überschreiben)
+    Object.keys(baseData).forEach((k) => baseData[k] === undefined && delete baseData[k]);
+
+    // assignedUsers M2M setzen wenn übergeben
+    if (assignedUserIds !== undefined) {
+      baseData.assignedUsers = {
+        set: assignedUserIds.map((uid) => ({ id: uid })),
+      };
+    }
+
+    // Items neu erstellen wenn übergeben
+    if (dtoItems && dtoItems.length > 0) {
+      const mappedItems = dtoItems.map((item) => {
         const discount = item.discount || 0;
         const discountedPrice = item.unitPrice * (1 - discount / 100);
         const total = discountedPrice * item.quantity;
         return { ...item, total };
       });
 
-      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+      const subtotal = mappedItems.reduce((sum, item) => sum + item.total, 0);
       const vatAmount = subtotal * this.VAT_RATE;
       const total = subtotal + vatAmount;
 
       await this.prisma.orderItem.deleteMany({ where: { orderId: id } });
 
-      const updated = await this.prisma.order.update({
-        where: { id },
-        data: {
-          customerId: dto.customerId,
-          projectId: dto.projectId,
-          status: dto.status,
-          date: dto.orderDate ? new Date(dto.orderDate) : undefined,
-          deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-          deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
-          subtotal,
-          vatAmount,
-          total,
-          notes: dto.notes,
-          internalNotes: dto.internalNotes,
-          items: {
-            create: items.map((item, index) => ({
-              position: index + 1,
-              productId: item.productId,
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit || 'Stk',
-              unitPrice: item.unitPrice,
-              discount: item.discount,
-              vatRate: 'STANDARD',
-              total: item.total,
-            })),
-          },
-        },
-        include: {
-          customer: true,
-          items: true,
-        },
-      });
-      return mapOrderResponse(updated);
+      baseData.subtotal = subtotal;
+      baseData.vatAmount = vatAmount;
+      baseData.total = total;
+      baseData.items = {
+        create: mappedItems.map((item, index) => ({
+          position: index + 1,
+          productId: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit || 'Stk',
+          unitPrice: item.unitPrice,
+          discount: item.discount,
+          vatRate: 'STANDARD',
+          total: item.total,
+        })),
+      };
     }
 
     const updated = await this.prisma.order.update({
       where: { id },
-      data: {
-        customerId: dto.customerId,
-        projectId: dto.projectId,
-        status: dto.status,
-        date: dto.orderDate ? new Date(dto.orderDate) : undefined,
-        deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-        deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
-        notes: dto.notes,
-        internalNotes: dto.internalNotes,
-      },
-      include: {
-        customer: true,
-        items: true,
-      },
+      data: baseData,
+      include: ORDER_FULL_INCLUDE,
     });
+
     return mapOrderResponse(updated);
   }
 
@@ -487,11 +478,7 @@ export class OrdersService {
             })),
           },
         },
-        include: {
-          customer: true,
-          project: true,
-          items: { orderBy: { position: 'asc' } },
-        },
+        include: ORDER_FULL_INCLUDE,
       });
 
       await tx.auditLog.create({
@@ -525,10 +512,7 @@ export class OrdersService {
       const result = await tx.order.update({
         where: { id },
         data: { status },
-        include: {
-          customer: true,
-          items: true,
-        },
+        include: ORDER_FULL_INCLUDE,
       });
 
       await tx.auditLog.create({

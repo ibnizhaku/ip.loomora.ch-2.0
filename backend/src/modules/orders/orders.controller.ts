@@ -53,8 +53,19 @@ export class OrdersController {
 
   @Put(':id')
   @RequirePermissions('orders:write')
-  @ApiOperation({ summary: 'Update order' })
+  @ApiOperation({ summary: 'Update order (full)' })
   update(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ordersService.update(id, user.companyId, dto);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('orders:write')
+  @ApiOperation({ summary: 'Partial update order (status, assignedUsers, etc.)' })
+  patch(
     @Param('id') id: string,
     @Body() dto: UpdateOrderDto,
     @CurrentUser() user: CurrentUserPayload,

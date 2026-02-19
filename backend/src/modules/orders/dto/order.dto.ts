@@ -103,6 +103,12 @@ export class UpdateOrderDto extends PartialType(CreateOrderDto) {
   @IsEnum(DocumentStatus)
   @IsOptional()
   status?: DocumentStatus;
+
+  @ApiPropertyOptional({ type: [String], description: 'IDs der zugewiesenen Benutzer' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  assignedUserIds?: string[];
 }
 
 export class OrderResponseDto {
