@@ -117,21 +117,71 @@ export class PdfService {
         doc.text(`CHF ${Number(invoice.totalAmount || invoice.total || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
       }
 
-      // QR-Bill (simplified - full ISO 20022 implementation would be longer)
+      // QR-Bill – ISO 20022 / SIX Swiss Payment Standard (SPC 0200)
       if (invoice.qrReference) {
         doc.addPage();
         doc.fontSize(10).font('Helvetica');
         doc.text('Zahlteil', 50, 50);
-        
-        // Generate QR Code
-        const qrData = `SPC\\n0200\\n1\\nCH4431999123000889012\\nK\\nFirma AG\\nMusterstrasse 1\\n8000\\nZürich\\nCH\\n\\n\\n\\n\\n\\n\\n\\n${Number(invoice.totalAmount || 0).toFixed(2)}\\nCHF\\nK\\n${invoice.customer?.companyName || 'Kunde'}\\n${invoice.customer?.street || ''}\\n${invoice.customer?.zip || ''}\\n${invoice.customer?.city || ''}\\nCH\\nQRR\\n${invoice.qrReference}\\nEPD`;
-        
+
+        // SIX-konformer QR-Payload (echte Zeilenumbrüche, Adresstyp S, strukturiert)
+        const effectiveIban = (invoice.qrIban || invoice.iban || '').replace(/\s/g, '');
+        const creditorName   = (invoice.company?.name || invoice.creditorName || '').substring(0, 70);
+        const creditorStreet = (invoice.company?.street || invoice.creditorStreet || '').substring(0, 70);
+        const creditorHouse  = (invoice.company?.buildingNumber || '');
+        const creditorZip    = (invoice.company?.zip || invoice.creditorZip || '').substring(0, 16);
+        const creditorCity   = (invoice.company?.city || invoice.creditorCity || '').substring(0, 35);
+        const creditorCountry = (invoice.company?.country || 'CH');
+        const debtorName     = (invoice.customer?.companyName || invoice.customer?.name || '').substring(0, 70);
+        const debtorStreet   = (invoice.customer?.street || '').substring(0, 70);
+        const debtorZip      = (invoice.customer?.zip || '').substring(0, 16);
+        const debtorCity     = (invoice.customer?.city || '').substring(0, 35);
+        const debtorCountry  = (invoice.customer?.country || 'CH');
+        const amount         = Number(invoice.totalAmount || invoice.total || 0);
+        const additionalInfo = (invoice.additionalInfo || invoice.notes || '').substring(0, 140);
+
+        const qrLines = [
+          'SPC',                          // QR-Typ
+          '0200',                         // Version
+          '1',                            // Zeichensatz (UTF-8)
+          effectiveIban,                  // IBAN / QR-IBAN
+          'S',                            // Adresstyp Kreditor (S = strukturiert)
+          creditorName,
+          creditorStreet,
+          creditorHouse,
+          creditorZip,
+          creditorCity,
+          creditorCountry,
+          '', '', '', '', '', '', '',      // Ultimate Creditor (7 leer – nicht genutzt)
+          amount > 0 ? amount.toFixed(2) : '', // Betrag (leer = offen)
+          'CHF',                          // Währung
+          'S',                            // Adresstyp Debitor (S = strukturiert)
+          debtorName,
+          debtorStreet,
+          '',                             // Hausnummer (leer wenn in Strasse enthalten)
+          debtorZip,
+          debtorCity,
+          debtorCountry,
+          'QRR',                          // Referenztyp
+          (invoice.qrReference || '').replace(/\s/g, ''), // 27-stellige QR-Referenz
+          additionalInfo,                 // Zusatzinformationen
+          'EPD',                          // End Payment Data
+          '',                             // AV1 (leer)
+          '',                             // AV2 (leer)
+        ];
+        const qrData = qrLines.join('\n');
+
         QRCode.toDataURL(qrData, { errorCorrectionLevel: 'M', width: 150 }, (err, url) => {
           if (!err && url) {
-            doc.image(url, 50, 100, { width: 150 });
+            doc.image(url, 50, 80, { width: 150 });
           }
-          doc.text(`Referenz: ${invoice.qrReference}`, 220, 120);
-          doc.text(`Betrag: CHF ${Number(invoice.totalAmount || 0).toFixed(2)}`, 220, 140);
+          doc.text(`Konto / Zahlbar an: ${effectiveIban}`, 220, 90);
+          doc.text(`${creditorName}`, 220, 105);
+          doc.text(`${creditorStreet}, ${creditorZip} ${creditorCity}`, 220, 120);
+          doc.moveDown();
+          doc.text(`Währung: CHF`, 220, 145);
+          doc.text(`Betrag: CHF ${amount.toFixed(2)}`, 220, 160);
+          doc.moveDown();
+          doc.text(`Referenz: ${(invoice.qrReference || '').replace(/(\d{2})(\d{5})(\d{5})(\d{5})(\d{5})(\d{5})/, '$1 $2 $3 $4 $5 $6')}`, 50, 245);
           doc.end();
         });
       } else {

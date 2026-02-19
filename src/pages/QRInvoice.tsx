@@ -50,9 +50,15 @@ interface QRInvoiceListItem {
   id: string;
   invoiceNumber: string;
   customer: string;
+  // Customer address – used for the debtor block in the QR-bill
+  customerStreet?: string;
+  customerPostalCode?: string;
+  customerCity?: string;
+  customerCountry?: string;
   amount: number;
   currency: "CHF" | "EUR";
   iban: string;
+  qrIban?: string;
   reference: string;
   referenceType: "QRR" | "SCOR" | "NON";
   status: "draft" | "generated" | "sent" | "paid";
@@ -66,9 +72,14 @@ const qrInvoices: QRInvoiceListItem[] = [
     id: "1",
     invoiceNumber: "RE-2024-0156",
     customer: "Bauherr AG",
+    customerStreet: "Industriestrasse 45",
+    customerPostalCode: "8005",
+    customerCity: "Zürich",
+    customerCountry: "CH",
     amount: 31970,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
+    qrIban: "CH44 3199 9123 0008 8901 2",
     reference: generateQRReference("RE-2024-0156"),
     referenceType: "QRR",
     status: "sent",
@@ -80,9 +91,14 @@ const qrInvoices: QRInvoiceListItem[] = [
     id: "2",
     invoiceNumber: "RE-2024-0157",
     customer: "Immobilien Müller",
+    customerStreet: "Bahnhofstrasse 10",
+    customerPostalCode: "8001",
+    customerCity: "Zürich",
+    customerCountry: "CH",
     amount: 8760,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
+    qrIban: "CH44 3199 9123 0008 8901 2",
     reference: generateQRReference("RE-2024-0157"),
     referenceType: "QRR",
     status: "paid",
@@ -94,9 +110,14 @@ const qrInvoices: QRInvoiceListItem[] = [
     id: "3",
     invoiceNumber: "RE-2024-0158",
     customer: "Logistik Center Zürich",
+    customerStreet: "Hagenholzstrasse 83",
+    customerPostalCode: "8050",
+    customerCity: "Zürich",
+    customerCountry: "CH",
     amount: 15700,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
+    qrIban: "CH44 3199 9123 0008 8901 2",
     reference: generateQRReference("RE-2024-0158"),
     referenceType: "QRR",
     status: "generated",
@@ -108,6 +129,10 @@ const qrInvoices: QRInvoiceListItem[] = [
     id: "4",
     invoiceNumber: "RE-2024-0159",
     customer: "Privat Schneider",
+    customerStreet: "Dorfstrasse 7",
+    customerPostalCode: "8400",
+    customerCity: "Winterthur",
+    customerCountry: "CH",
     amount: 4250,
     currency: "CHF",
     iban: "CH93 0076 2011 6238 5295 7",
@@ -188,7 +213,7 @@ export default function QRInvoice() {
         vatAmount: invoice.amount * 0.081 / 1.081,
         subtotal: invoice.amount / 1.081,
         iban: invoice.iban,
-        qrIban: "CH44 3199 9123 0008 8901 2",
+        qrIban: invoice.qrIban,
         reference: invoice.reference || generateQRReference(invoice.invoiceNumber),
         referenceType: invoice.referenceType,
         additionalInfo: `Rechnung ${invoice.invoiceNumber}`,
@@ -199,12 +224,13 @@ export default function QRInvoice() {
           city: "Zürich",
           country: "CH",
         },
+        // Use real customer address data from the list item
         debtor: {
           name: invoice.customer,
-          street: "Kundenstrasse 1",
-          postalCode: "8000",
-          city: "Zürich",
-          country: "CH",
+          street: invoice.customerStreet,
+          postalCode: invoice.customerPostalCode,
+          city: invoice.customerCity,
+          country: invoice.customerCountry || "CH",
         },
         positions: [
           { 

@@ -98,7 +98,7 @@ const SCISSORS_Y = 297 - PAYMENT_PART_HEIGHT;
 // QR Code Data String Builder
 // ============================================
 
-function buildQRCodeData(data: QRInvoiceData): string {
+export function buildQRCodeData(data: QRInvoiceData): string {
   const lines: string[] = [];
   
   // Header
@@ -130,8 +130,8 @@ function buildQRCodeData(data: QRInvoiceData): string {
   lines.push(""); // City
   lines.push(""); // Country
   
-  // Payment Amount
-  lines.push(data.amount.toFixed(2));
+  // Payment Amount (empty string if amount is 0 – SIX-Spec: open amount)
+  lines.push(data.amount > 0 ? data.amount.toFixed(2) : "");
   lines.push(data.currency);
   
   // Ultimate Debtor
@@ -164,8 +164,9 @@ function buildQRCodeData(data: QRInvoiceData): string {
   // Trailer
   lines.push("EPD"); // End Payment Data
   
-  // Alternative procedures (empty)
-  lines.push("");
+  // Alternative procedures (SIX-Spec requires exactly 2 AV lines)
+  lines.push(""); // AV1
+  lines.push(""); // AV2
   
   return lines.join("\n");
 }
@@ -193,30 +194,30 @@ async function generateQRCodeWithSwissCross(data: string): Promise<string> {
 // Swiss Cross Drawing
 // ============================================
 
-function drawSwissCross(doc: jsPDF, x: number, y: number, size: number): void {
-  const crossWidth = size * 0.6;
-  const crossHeight = size * 0.2;
-  const centerX = x + size / 2;
-  const centerY = y + size / 2;
-  
-  // White background
+/**
+ * Draws the Swiss Cross centered at (centerX, centerY)
+ * Exact SIX dimensions:
+ *   Total cross area:     7.0 × 7.0 mm
+ *   White background sq:  6.0 × 6.0 mm (1mm margin)
+ *   Red square:           4.8 × 4.8 mm
+ *   Vertical arm:         1.0 × 2.8 mm
+ *   Horizontal arm:       2.8 × 1.0 mm
+ */
+function drawSwissCross(doc: jsPDF, centerX: number, centerY: number): void {
+  // White background square: 6×6mm
   doc.setFillColor(255, 255, 255);
-  doc.rect(centerX - size / 2 * 0.45, centerY - size / 2 * 0.45, size * 0.45, size * 0.45, "F");
-  
-  // Red background square
-  doc.setFillColor(255, 0, 0);
-  const bgSize = size * 0.36;
-  doc.rect(centerX - bgSize / 2, centerY - bgSize / 2, bgSize, bgSize, "F");
-  
-  // White cross
+  doc.rect(centerX - 3, centerY - 3, 6, 6, "F");
+
+  // Red square: 4.8×4.8mm  (#DC0000)
+  doc.setFillColor(220, 0, 0);
+  doc.rect(centerX - 2.4, centerY - 2.4, 4.8, 4.8, "F");
+
+  // White cross – vertical arm: 1.0×2.8mm
   doc.setFillColor(255, 255, 255);
-  const armWidth = bgSize * 0.2;
-  const armLength = bgSize * 0.6;
-  
-  // Vertical arm
-  doc.rect(centerX - armWidth / 2, centerY - armLength / 2, armWidth, armLength, "F");
-  // Horizontal arm
-  doc.rect(centerX - armLength / 2, centerY - armWidth / 2, armLength, armWidth, "F");
+  doc.rect(centerX - 0.5, centerY - 1.4, 1.0, 2.8, "F");
+
+  // White cross – horizontal arm: 2.8×1.0mm
+  doc.rect(centerX - 1.4, centerY - 0.5, 2.8, 1.0, "F");
 }
 
 // ============================================
@@ -421,7 +422,9 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
   receiptY += 3;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text(formatIBAN(data.iban), receiptX, receiptY);
+  // SIX-Spec: QR-IBAN must be displayed when referenceType is QRR
+  const displayIbanReceipt = (data.referenceType === "QRR" && data.qrIban) ? data.qrIban : data.iban;
+  doc.text(formatIBAN(displayIbanReceipt), receiptX, receiptY);
   receiptY += 3.5;
   doc.text(data.creditor.name, receiptX, receiptY);
   receiptY += 3.5;
@@ -508,8 +511,8 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
   const qrCodeImage = await generateQRCodeWithSwissCross(qrData);
   doc.addImage(qrCodeImage, "PNG", qrX, qrY, QR_CODE_SIZE, QR_CODE_SIZE);
   
-  // Draw Swiss Cross on top of QR code
-  drawSwissCross(doc, qrX, qrY, QR_CODE_SIZE);
+  // Draw Swiss Cross centered on QR code (exact SIX dimensions)
+  drawSwissCross(doc, qrX + QR_CODE_SIZE / 2, qrY + QR_CODE_SIZE / 2);
   
   // Text information (right of QR code)
   const infoX = paymentX + QR_CODE_SIZE + 5;
@@ -536,7 +539,9 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
   infoY += 3;
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(formatIBAN(data.iban), paymentX, infoY);
+  // SIX-Spec: QR-IBAN must be displayed when referenceType is QRR
+  const displayIbanPayment = (data.referenceType === "QRR" && data.qrIban) ? data.qrIban : data.iban;
+  doc.text(formatIBAN(displayIbanPayment), paymentX, infoY);
   infoY += 3.5;
   doc.text(data.creditor.name, paymentX, infoY);
   infoY += 3.5;
@@ -571,8 +576,8 @@ export async function generateSwissQRInvoicePDF(data: QRInvoiceData): Promise<vo
     doc.text(data.additionalInfo.substring(0, 50), paymentX, infoY);
   }
   
-  // Payable by (right column)
-  const debtorX = paymentX + 80;
+  // Payable by (right column) – SIX-Spec: 80mm from left of payment part
+  const debtorX = paymentX + 75; // 67+75 = 142mm, gives ~68mm width until 210mm
   let debtorY = qrY;
   
   doc.setFontSize(6);
