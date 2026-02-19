@@ -50,6 +50,7 @@ import {
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { generateSwissQRInvoicePDF, type QRInvoiceData } from "@/lib/pdf/swiss-qr-invoice";
 import { useInvoice } from "@/hooks/use-invoices";
 import { useRecordPayment, useSendInvoice, useCancelInvoice } from "@/hooks/use-sales";
 import { useCompany } from "@/hooks/use-company";
@@ -233,9 +234,67 @@ const InvoiceDetail = () => {
     paymentTerms: "30 Tage netto",
   };
 
-  const handleDownloadPDF = () => {
-    downloadSalesDocumentPDF(pdfData, `Rechnung-${invoiceData.id}.pdf`);
-    toast.success("PDF wird heruntergeladen");
+  const handleDownloadPDF = async () => {
+    const qrRef = (rawInvoice as any)?.qrReference;
+    const hasIban = !!(companyData?.iban || companyData?.qrIban);
+
+    if (qrRef && hasIban) {
+      try {
+        const qrData: QRInvoiceData = {
+          invoiceNumber: invoiceData.id,
+          invoiceDate: invoiceData.createdAt,
+          dueDate: invoiceData.dueDate,
+          currency: "CHF",
+          amount: invoiceData.total,
+          vatRate: 8.1,
+          vatAmount: invoiceData.tax,
+          subtotal: invoiceData.subtotal,
+          iban: companyData?.iban || "",
+          qrIban: companyData?.qrIban || undefined,
+          reference: qrRef,
+          referenceType: companyData?.qrIban ? "QRR" : "SCOR",
+          additionalInfo: `Rechnung ${invoiceData.id}`,
+          creditor: {
+            name: companyData?.name || "",
+            street: companyData?.street || "",
+            postalCode: companyData?.zipCode || "",
+            city: companyData?.city || "",
+            country: "CH",
+          },
+          debtor: {
+            name: (rawInvoice as any)?.customer?.companyName || (rawInvoice as any)?.customer?.name || "",
+            street: (rawInvoice as any)?.customer?.street || "",
+            postalCode: (rawInvoice as any)?.customer?.zipCode || "",
+            city: (rawInvoice as any)?.customer?.city || "",
+            country: "CH",
+          },
+          positions: invoiceData.positions.map((pos, idx) => ({
+            position: idx + 1,
+            description: pos.description,
+            quantity: pos.quantity,
+            unit: pos.unit,
+            unitPrice: pos.price,
+            total: pos.total,
+          })),
+          paymentTermDays: 30,
+          orderNumber: invoiceData.order || undefined,
+        };
+        await generateSwissQRInvoicePDF(qrData);
+        toast.success("QR-Rechnung PDF wird heruntergeladen");
+      } catch (err) {
+        console.error("QR PDF error:", err);
+        toast.error("Fehler beim Erstellen des QR-PDFs");
+      }
+    } else {
+      downloadSalesDocumentPDF(pdfData, `Rechnung-${invoiceData.id}.pdf`);
+      if (!hasIban) {
+        toast.warning("Kein Zahlteil: IBAN fehlt – bitte in Einstellungen → Firma konfigurieren");
+      } else if (!qrRef) {
+        toast.warning("Kein Zahlteil: QR-Referenz fehlt (wird vom Backend automatisch generiert)");
+      } else {
+        toast.success("PDF wird heruntergeladen");
+      }
+    }
   };
 
   const handleSendEmail = () => {

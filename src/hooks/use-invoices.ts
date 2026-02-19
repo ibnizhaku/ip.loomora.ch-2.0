@@ -26,6 +26,8 @@ export interface Invoice {
   total: number;
   paidAmount?: number;
   notes?: string;
+  qrReference?: string;
+  qrIban?: string;
   createdAt: string;
   updatedAt: string;
   items?: InvoiceItem[];

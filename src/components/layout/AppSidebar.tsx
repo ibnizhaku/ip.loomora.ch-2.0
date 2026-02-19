@@ -53,6 +53,7 @@ import {
   Wrench,
   Shield,
   Settings,
+  QrCode,
 } from "lucide-react";
 import {
   Sidebar,
@@ -161,6 +162,13 @@ const salesItems: NavItem[] = [
     url: "/invoices",
     icon: Receipt,
     keywords: ["invoice", "faktura", "rechnung"],
+    permission: "invoices",
+  },
+  {
+    title: "QR-Rechnungen",
+    url: "/qr-invoice",
+    icon: QrCode,
+    keywords: ["qr", "iso20022", "swiss payment", "zahlteil"],
     permission: "invoices",
   },
   {
