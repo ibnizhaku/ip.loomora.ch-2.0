@@ -174,7 +174,6 @@ export class ProductsService {
           stockBefore,
           stockAfter,
           reason: dto.reason || 'Manuelle Korrektur',
-          notes: dto.notes,
           companyId,
           ...(userId ? { userId } : {}),
         },

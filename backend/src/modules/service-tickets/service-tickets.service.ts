@@ -104,7 +104,7 @@ export class ServiceTicketsService {
     const totalTravelTime = ticket.reports.reduce((sum, r) => sum + Number(r.travelTime || 0), 0);
     const totalMaterialCost = ticket.reports.reduce((sum, r) => sum + Number(r.materialCost || 0), 0);
 
-    const rates = await this.getHourlyRates(ticket.serviceTicketId ? companyId : (ticket as any).companyId || companyId);
+    const rates = await this.getHourlyRates(companyId);
     const laborCost = totalHours * rates.standard;
     const travelCost = totalTravelTime * rates.travel;
     const totalCost = laborCost + travelCost + totalMaterialCost;

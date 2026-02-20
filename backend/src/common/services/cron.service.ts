@@ -175,7 +175,7 @@ export class CronService {
                 type: 'WARNING' as any,
                 category: 'contract',
                 actionUrl: `/contracts/${contract.id}`,
-                isRead: false,
+                read: false,
               },
             });
             notified++;

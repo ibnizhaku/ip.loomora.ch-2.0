@@ -67,7 +67,7 @@ export class ContractsController {
       `Startdatum: ${contract.startDate ? new Date(contract.startDate).toLocaleDateString('de-CH') : '–'}`,
       `Enddatum: ${contract.endDate ? new Date(contract.endDate).toLocaleDateString('de-CH') : '–'}`,
       `Wert: CHF ${Number(contract.value || 0).toFixed(2)}`,
-      `Automatische Verlängerung: ${contract.autoRenewal ? 'Ja' : 'Nein'}`,
+      `Automatische Verlängerung: ${(contract as any).autoRenewal ?? (contract as any).autoRenew ? 'Ja' : 'Nein'}`,
       '',
       `Beschreibung: ${contract.description || '–'}`,
     ];
