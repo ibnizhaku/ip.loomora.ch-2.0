@@ -81,7 +81,7 @@ export class QuotesController {
     @Body() dto: UpdateQuoteDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.quotesService.update(id, user.companyId, dto);
+    return this.quotesService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/send')

@@ -156,10 +156,26 @@ export class QuotesService {
         items: true,
       },
     });
+
+    // Audit log for creation
+    await this.prisma.auditLog.create({
+      data: {
+        module: 'QUOTES',
+        entityType: 'QUOTE',
+        entityId: created.id,
+        action: 'CREATE',
+        description: `Angebot ${created.number} erstellt`,
+        newValues: { number: created.number, status: created.status, total: created.total },
+        retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+        companyId,
+        userId,
+      },
+    });
+
     return mapQuoteResponse(created);
   }
 
-  async update(id: string, companyId: string, dto: UpdateQuoteDto) {
+  async update(id: string, companyId: string, dto: UpdateQuoteDto, userId?: string) {
     const quote = await this.prisma.quote.findFirst({
       where: { id, companyId },
     });
@@ -167,6 +183,8 @@ export class QuotesService {
     if (!quote) {
       throw new NotFoundException('Quote not found');
     }
+
+    let updated;
 
     // If items are being updated, recalculate totals
     if (dto.items) {
@@ -184,7 +202,7 @@ export class QuotesService {
       // Delete existing items and create new ones
       await this.prisma.quoteItem.deleteMany({ where: { quoteId: id } });
 
-      const updated = await this.prisma.quote.update({
+      updated = await this.prisma.quote.update({
         where: { id },
         data: {
           customerId: dto.customerId,
@@ -217,26 +235,44 @@ export class QuotesService {
           items: true,
         },
       });
-      return mapQuoteResponse(updated);
+    } else {
+      updated = await this.prisma.quote.update({
+        where: { id },
+        data: {
+          customerId: dto.customerId,
+          projectId: dto.projectId,
+          status: dto.status,
+          date: dto.issueDate ? new Date(dto.issueDate) : undefined,
+          validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
+          notes: dto.notes,
+          internalNotes: dto.internalNotes,
+          deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
+        },
+        include: {
+          customer: true,
+          items: true,
+        },
+      });
     }
 
-    const updated = await this.prisma.quote.update({
-      where: { id },
-      data: {
-        customerId: dto.customerId,
-        projectId: dto.projectId,
-        status: dto.status,
-        date: dto.issueDate ? new Date(dto.issueDate) : undefined,
-        validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
-        notes: dto.notes,
-        internalNotes: dto.internalNotes,
-        deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
-      },
-      include: {
-        customer: true,
-        items: true,
-      },
-    });
+    // Audit log for update
+    if (userId) {
+      await this.prisma.auditLog.create({
+        data: {
+          module: 'QUOTES',
+          entityType: 'QUOTE',
+          entityId: id,
+          action: 'UPDATE',
+          description: `Angebot ${updated.number} bearbeitet`,
+          oldValues: { status: quote.status, total: quote.total },
+          newValues: { status: updated.status, total: updated.total },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+    }
+
     return mapQuoteResponse(updated);
   }
 
