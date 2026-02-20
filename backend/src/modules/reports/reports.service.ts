@@ -51,6 +51,20 @@ export class ReportsService {
         return this.generateSalesAnalysisReport(companyId, startDate, endDate, dto);
       case ReportType.COST_CENTER_ANALYSIS:
         return this.generateCostCenterReport(companyId, startDate, endDate, dto);
+      case ReportType.VAT_SUMMARY:
+        return this.generateVatSummaryReport(companyId, startDate, endDate, dto);
+      case ReportType.EMPLOYEE_COSTS:
+        return this.generateEmployeeCostsReport(companyId, startDate, endDate, dto);
+      case ReportType.ABSENCE_OVERVIEW:
+        return this.generateAbsenceOverviewReport(companyId, startDate, endDate, dto);
+      case ReportType.PRODUCTION_OVERVIEW:
+        return this.generateProductionOverviewReport(companyId, startDate, endDate, dto);
+      case ReportType.INVENTORY_VALUATION:
+        return this.generateInventoryValuationReport(companyId, dto);
+      case ReportType.PURCHASE_ANALYSIS:
+        return this.generatePurchaseAnalysisReport(companyId, startDate, endDate, dto);
+      case ReportType.CASH_FLOW:
+        return this.generateCashFlowReport(companyId, startDate, endDate, dto);
       default:
         throw new BadRequestException(`Berichtstyp ${dto.type} nicht unterstützt`);
     }
@@ -813,19 +827,229 @@ export class ReportsService {
     };
   }
 
-  // Get available report types
+  private async generateVatSummaryReport(companyId: string, startDate: Date, endDate: Date, dto: GenerateReportDto) {
+    const periodStr = `${startDate.toLocaleDateString('de-CH')} – ${endDate.toLocaleDateString('de-CH')}`;
+    const metadata = await this.getMetadata(companyId, ReportType.VAT_SUMMARY, periodStr);
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: { companyId, date: { gte: startDate, lte: endDate }, status: { not: 'CANCELLED' } },
+    });
+
+    const totalRevenue = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+    const totalVat = invoices.reduce((sum, inv) => sum + Number(inv.vatAmount || 0), 0);
+    const netRevenue = totalRevenue - totalVat;
+
+    const purchaseInvoices = await this.prisma.purchaseInvoice.findMany({
+      where: { companyId, invoiceDate: { gte: startDate, lte: endDate } },
+    });
+    const inputVat = purchaseInvoices.reduce((sum, pi) => sum + Number(pi.totalAmount || 0) * 0.081, 0);
+    const vatPayable = totalVat - inputVat;
+
+    return {
+      metadata,
+      summary: {
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        netRevenue: Math.round(netRevenue * 100) / 100,
+        outputVat: Math.round(totalVat * 100) / 100,
+        inputVat: Math.round(inputVat * 100) / 100,
+        vatPayable: Math.round(vatPayable * 100) / 100,
+        vatRate: 8.1,
+        invoiceCount: invoices.length,
+        purchaseInvoiceCount: purchaseInvoices.length,
+      },
+    };
+  }
+
+  private async generateEmployeeCostsReport(companyId: string, startDate: Date, endDate: Date, dto: GenerateReportDto) {
+    const periodStr = `${startDate.toLocaleDateString('de-CH')} – ${endDate.toLocaleDateString('de-CH')}`;
+    const metadata = await this.getMetadata(companyId, ReportType.EMPLOYEE_COSTS, periodStr);
+
+    const employees = await this.prisma.employee.findMany({
+      where: { companyId, status: 'ACTIVE' },
+      select: { id: true, firstName: true, lastName: true, baseSalary: true, department: true },
+    });
+
+    const employeeCosts = employees.map(emp => {
+      const baseSalary = Number(emp.baseSalary || 0);
+      const ahvRate = this.SWISS_SOCIAL_RATES.AHV_IV_EO;
+      const alvRate = this.SWISS_SOCIAL_RATES.ALV;
+      const socialCosts = baseSalary * (ahvRate + alvRate + this.SWISS_SOCIAL_RATES.BVG + this.SWISS_SOCIAL_RATES.BUV + this.SWISS_SOCIAL_RATES.FAK);
+      return {
+        name: `${emp.firstName} ${emp.lastName}`,
+        department: emp.department || 'Ohne Abteilung',
+        baseSalary,
+        socialCosts: Math.round(socialCosts * 100) / 100,
+        totalCost: Math.round((baseSalary + socialCosts) * 100) / 100,
+      };
+    });
+
+    const totalBaseSalary = employeeCosts.reduce((sum, e) => sum + e.baseSalary, 0);
+    const totalSocialCosts = employeeCosts.reduce((sum, e) => sum + e.socialCosts, 0);
+    const totalCosts = employeeCosts.reduce((sum, e) => sum + e.totalCost, 0);
+
+    return {
+      metadata,
+      summary: { totalBaseSalary, totalSocialCosts, totalCosts, employeeCount: employees.length },
+      employees: employeeCosts,
+    };
+  }
+
+  private async generateAbsenceOverviewReport(companyId: string, startDate: Date, endDate: Date, dto: GenerateReportDto) {
+    const periodStr = `${startDate.toLocaleDateString('de-CH')} – ${endDate.toLocaleDateString('de-CH')}`;
+    const metadata = await this.getMetadata(companyId, ReportType.ABSENCE_OVERVIEW, periodStr);
+
+    const absences = await this.prisma.absence.findMany({
+      where: { companyId, startDate: { gte: startDate }, endDate: { lte: endDate } },
+      include: { employee: { select: { firstName: true, lastName: true, department: true } } },
+    });
+
+    const byType: Record<string, { count: number; days: number }> = {};
+    for (const absence of absences) {
+      const type = absence.type || 'OTHER';
+      const days = Math.ceil((new Date(absence.endDate).getTime() - new Date(absence.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (!byType[type]) byType[type] = { count: 0, days: 0 };
+      byType[type].count++;
+      byType[type].days += days;
+    }
+
+    const totalDays = Object.values(byType).reduce((sum, t) => sum + t.days, 0);
+
+    return {
+      metadata,
+      summary: { totalAbsences: absences.length, totalDays, byType },
+      absences: absences.map(a => ({
+        employee: a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : 'Unbekannt',
+        department: a.employee?.department || '',
+        type: a.type,
+        startDate: a.startDate,
+        endDate: a.endDate,
+        status: a.status,
+      })),
+    };
+  }
+
+  private async generateProductionOverviewReport(companyId: string, startDate: Date, endDate: Date, dto: GenerateReportDto) {
+    const periodStr = `${startDate.toLocaleDateString('de-CH')} – ${endDate.toLocaleDateString('de-CH')}`;
+    const metadata = await this.getMetadata(companyId, ReportType.PRODUCTION_OVERVIEW, periodStr);
+
+    const orders = await this.prisma.productionOrder.findMany({
+      where: { companyId, createdAt: { gte: startDate, lte: endDate } },
+    });
+
+    const byStatus: Record<string, number> = {};
+    for (const order of orders) {
+      const status = order.status || 'UNKNOWN';
+      byStatus[status] = (byStatus[status] || 0) + 1;
+    }
+
+    const totalPlannedQty = orders.reduce((sum, o) => sum + (o.plannedQuantity || 0), 0);
+    const totalCompletedQty = orders.reduce((sum, o) => sum + (o.completedQuantity || 0), 0);
+
+    return {
+      metadata,
+      summary: { totalOrders: orders.length, byStatus, totalPlannedQty, totalCompletedQty, completionRate: totalPlannedQty > 0 ? Math.round((totalCompletedQty / totalPlannedQty) * 100) : 0 },
+    };
+  }
+
+  private async generateInventoryValuationReport(companyId: string, dto: GenerateReportDto) {
+    const periodStr = new Date().toLocaleDateString('de-CH');
+    const metadata = await this.getMetadata(companyId, ReportType.INVENTORY_VALUATION, periodStr);
+
+    const products = await this.prisma.product.findMany({
+      where: { companyId, isActive: true },
+      select: { id: true, name: true, sku: true, price: true, stock: true, category: true },
+    });
+
+    const items = products.map(p => ({
+      name: p.name,
+      sku: p.sku || '',
+      category: p.category || '',
+      stock: p.stock || 0,
+      unitPrice: Number(p.price || 0),
+      totalValue: (p.stock || 0) * Number(p.price || 0),
+    }));
+
+    const totalValue = items.reduce((sum, i) => sum + i.totalValue, 0);
+    const totalItems = items.reduce((sum, i) => sum + i.stock, 0);
+
+    return {
+      metadata,
+      summary: { totalProducts: products.length, totalItems, totalValue: Math.round(totalValue * 100) / 100 },
+      items,
+    };
+  }
+
+  private async generatePurchaseAnalysisReport(companyId: string, startDate: Date, endDate: Date, dto: GenerateReportDto) {
+    const periodStr = `${startDate.toLocaleDateString('de-CH')} – ${endDate.toLocaleDateString('de-CH')}`;
+    const metadata = await this.getMetadata(companyId, ReportType.PURCHASE_ANALYSIS, periodStr);
+
+    const purchaseInvoices = await this.prisma.purchaseInvoice.findMany({
+      where: { companyId, invoiceDate: { gte: startDate, lte: endDate } },
+      include: { supplier: { select: { companyName: true, name: true } } },
+    });
+
+    const totalAmount = purchaseInvoices.reduce((sum, pi) => sum + Number(pi.totalAmount || 0), 0);
+    const bySupplier: Record<string, { count: number; total: number }> = {};
+    for (const pi of purchaseInvoices) {
+      const name = pi.supplier?.companyName || pi.supplier?.name || 'Unbekannt';
+      if (!bySupplier[name]) bySupplier[name] = { count: 0, total: 0 };
+      bySupplier[name].count++;
+      bySupplier[name].total += Number(pi.totalAmount || 0);
+    }
+
+    return {
+      metadata,
+      summary: { totalInvoices: purchaseInvoices.length, totalAmount: Math.round(totalAmount * 100) / 100 },
+      bySupplier: Object.entries(bySupplier).map(([name, data]) => ({ name, ...data, total: Math.round(data.total * 100) / 100 })).sort((a, b) => b.total - a.total),
+    };
+  }
+
+  private async generateCashFlowReport(companyId: string, startDate: Date, endDate: Date, dto: GenerateReportDto) {
+    const periodStr = `${startDate.toLocaleDateString('de-CH')} – ${endDate.toLocaleDateString('de-CH')}`;
+    const metadata = await this.getMetadata(companyId, ReportType.CASH_FLOW, periodStr);
+
+    const [payments, invoices, purchaseInvoices] = await Promise.all([
+      this.prisma.payment.findMany({ where: { companyId, paymentDate: { gte: startDate, lte: endDate } } }),
+      this.prisma.invoice.findMany({ where: { companyId, date: { gte: startDate, lte: endDate }, status: 'PAID' } }),
+      this.prisma.purchaseInvoice.findMany({ where: { companyId, invoiceDate: { gte: startDate, lte: endDate }, status: 'PAID' } }),
+    ]);
+
+    const incomingPayments = payments.filter(p => p.type === 'INCOMING').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const outgoingPayments = payments.filter(p => p.type === 'OUTGOING').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const paidInvoices = invoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0);
+    const paidPurchases = purchaseInvoices.reduce((sum, pi) => sum + Number(pi.totalAmount || 0), 0);
+
+    return {
+      metadata,
+      summary: {
+        incomingPayments: Math.round(incomingPayments * 100) / 100,
+        outgoingPayments: Math.round(outgoingPayments * 100) / 100,
+        paidInvoices: Math.round(paidInvoices * 100) / 100,
+        paidPurchases: Math.round(paidPurchases * 100) / 100,
+        netCashFlow: Math.round((incomingPayments - outgoingPayments) * 100) / 100,
+      },
+    };
+  }
+
   getAvailableReports() {
     return [
       { type: ReportType.PROFIT_LOSS, name: 'Erfolgsrechnung', category: 'Finanzen' },
       { type: ReportType.BALANCE_SHEET, name: 'Bilanz', category: 'Finanzen' },
+      { type: ReportType.VAT_SUMMARY, name: 'MwSt-Übersicht', category: 'Finanzen' },
+      { type: ReportType.CASH_FLOW, name: 'Geldflussrechnung', category: 'Finanzen' },
       { type: ReportType.BUDGET_COMPARISON, name: 'Budget-Vergleich', category: 'Finanzen' },
       { type: ReportType.OPEN_ITEMS, name: 'Offene Posten', category: 'Finanzen' },
       { type: ReportType.COST_CENTER_ANALYSIS, name: 'Kostenstellenanalyse', category: 'Finanzen' },
       { type: ReportType.SALES_ANALYSIS, name: 'Verkaufsanalyse', category: 'Finanzen' },
+      { type: ReportType.PURCHASE_ANALYSIS, name: 'Einkaufsanalyse', category: 'Finanzen' },
       { type: ReportType.PAYROLL_SUMMARY, name: 'Lohnübersicht', category: 'Personal' },
       { type: ReportType.GAV_COMPLIANCE, name: 'GAV-Compliance', category: 'Personal' },
       { type: ReportType.WITHHOLDING_TAX, name: 'Quellensteuer', category: 'Personal' },
+      { type: ReportType.EMPLOYEE_COSTS, name: 'Personalkosten', category: 'Personal' },
+      { type: ReportType.ABSENCE_OVERVIEW, name: 'Abwesenheiten', category: 'Personal' },
       { type: ReportType.PROJECT_PROFITABILITY, name: 'Projekt-Rentabilität', category: 'Projekte' },
+      { type: ReportType.PRODUCTION_OVERVIEW, name: 'Produktionsübersicht', category: 'Projekte' },
+      { type: ReportType.INVENTORY_VALUATION, name: 'Lagerbewertung', category: 'Projekte' },
     ];
   }
 }
