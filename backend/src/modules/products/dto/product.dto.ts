@@ -56,6 +56,18 @@ export class CreateProductDto {
   @Min(0)
   maxStock?: number;
 
+  @ApiPropertyOptional({ description: 'Nachbestellpunkt: Alert wenn Bestand darunter fällt' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  reorderPoint?: number;
+
+  @ApiPropertyOptional({ description: 'Empfohlene Bestellmenge bei Nachbestellung' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  reorderQuantity?: number;
+
   @ApiPropertyOptional()
   @IsBoolean()
   @IsOptional()

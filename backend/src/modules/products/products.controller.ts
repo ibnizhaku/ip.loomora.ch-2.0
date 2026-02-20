@@ -89,7 +89,14 @@ export class ProductsController {
     @Body() dto: AdjustStockDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.productsService.adjustStock(id, user.companyId, dto);
+    return this.productsService.adjustStock(id, user.companyId, dto, user.userId);
+  }
+
+  @Get('low-stock')
+  @RequirePermissions('products:read')
+  @ApiOperation({ summary: 'Get products below reorder point (Nachbestellliste)' })
+  getLowStock(@CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.getLowStockProducts(user.companyId);
   }
 
   @Delete(':id')

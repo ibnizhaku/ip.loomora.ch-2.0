@@ -164,14 +164,25 @@ export default function Documents() {
     }
   };
 
-  const handleDownload = (e: React.MouseEvent, name: string) => {
+  const handleDownload = (e: React.MouseEvent, fileId: string, name: string) => {
     e.stopPropagation();
-    toast.success(`${name} wird heruntergeladen...`);
+    const link = document.createElement('a');
+    link.href = `/api/documents/${fileId}/download`;
+    link.download = name;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleShare = (e: React.MouseEvent, fileId: string) => {
     e.stopPropagation();
-    toast.info("Freigabe-Funktion ist noch nicht verfügbar");
+    const url = `${window.location.origin}/documents/${fileId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success("Link in Zwischenablage kopiert");
+    }).catch(() => {
+      toast.info(`Link: /documents/${fileId}`);
+    });
   };
 
   const handleFolderCreated = (folder: { name: string }) => {
@@ -468,7 +479,7 @@ export default function Documents() {
                       <Edit className="h-4 w-4 mr-2" />
                       Umbenennen
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => handleShare(e)}>
+                    <DropdownMenuItem onClick={(e) => handleShare(e, folder.id)}>
                       <Share className="h-4 w-4 mr-2" />
                       Teilen
                     </DropdownMenuItem>
@@ -555,11 +566,11 @@ export default function Documents() {
                         <Eye className="h-4 w-4 mr-2" />
                         Vorschau
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleDownload(e, file.name)}>
+                      <DropdownMenuItem onClick={(e) => handleDownload(e, file.id, file.name)}>
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleShare(e)}>
+                      <DropdownMenuItem onClick={(e) => handleShare(e, file.id)}>
                         <Share className="h-4 w-4 mr-2" />
                         Teilen
                       </DropdownMenuItem>

@@ -919,6 +919,8 @@ model Product {
   stockQuantity   Decimal  @default(0) @db.Decimal(12, 3)
   minStock        Decimal  @default(0) @db.Decimal(12, 3)
   maxStock        Decimal? @db.Decimal(12, 3)
+  reorderPoint    Decimal? @db.Decimal(12, 3)  // Nachbestellpunkt (automatischer Alert)
+  reorderQuantity Decimal? @db.Decimal(12, 3)  // Empfohlene Bestellmenge
   reservedStock   Decimal  @default(0) @db.Decimal(12, 3)
   
   // Dimensions (for shipping)
@@ -966,14 +968,24 @@ model InventoryMovement {
   productId   String
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   
-  type        String   // IN, OUT, ADJUSTMENT, RETURN
-  quantity    Decimal  @db.Decimal(12, 3)
-  reference   String?  // Order number, etc.
+  type        String   // IN, OUT, ADJUSTMENT, RETURN, TRANSFER
+  quantity    Decimal  @db.Decimal(12, 3)  // Positiv = Zugang, Negativ = Abgang
+  unitCost    Decimal? @db.Decimal(12, 2)  // Einstandspreis zum Zeitpunkt der Bewegung
+  stockBefore Decimal? @db.Decimal(12, 3)  // Bestand vor der Bewegung
+  stockAfter  Decimal? @db.Decimal(12, 3)  // Bestand nach der Bewegung
+  reference   String?                       // Belegnummer (Auftrag, Lieferschein, etc.)
+  reason      String?                       // Grund der Korrektur
   notes       String?
+  
+  companyId   String
+  userId      String?  // Wer hat die Bewegung ausgelöst
   
   createdAt   DateTime @default(now())
   
   @@index([productId])
+  @@index([companyId])
+  @@index([type])
+  @@index([createdAt])
   @@map("inventory_movements")
 }
 

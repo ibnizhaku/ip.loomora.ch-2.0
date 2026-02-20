@@ -143,7 +143,7 @@ export class ProductsService {
     });
   }
 
-  async adjustStock(id: string, companyId: string, dto: AdjustStockDto) {
+  async adjustStock(id: string, companyId: string, dto: AdjustStockDto, userId?: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, companyId },
     });
@@ -152,16 +152,66 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    const newQuantity = Number(product.stockQuantity) + dto.quantity;
-    
-    if (newQuantity < 0) {
-      throw new Error('Stock cannot be negative');
-    }
+    const stockBefore = Number(product.stockQuantity);
+    // dto.quantity kann absoluter Zielbestand oder relative Änderung sein
+    // Wenn > 0 immer relative Interpretation: stockBefore + dto.quantity
+    const stockAfter = dto.quantity;  // Bestand wird auf diesen Wert gesetzt (absolut)
+    const delta = stockAfter - stockBefore;
 
-    return this.prisma.product.update({
-      where: { id },
-      data: { stockQuantity: newQuantity },
+    return this.prisma.$transaction(async (tx) => {
+      // Produkt-Bestand aktualisieren
+      const updated = await tx.product.update({
+        where: { id },
+        data: { stockQuantity: stockAfter },
+      });
+
+      // Lagerbewegung protokollieren
+      await (tx as any).inventoryMovement.create({
+        data: {
+          productId: id,
+          type: delta >= 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+          quantity: delta,
+          stockBefore,
+          stockAfter,
+          reason: dto.reason || 'Manuelle Korrektur',
+          notes: dto.notes,
+          companyId,
+          ...(userId ? { userId } : {}),
+        },
+      });
+
+      // Reorder-Point Alert prüfen
+      const reorderPoint = Number((product as any).reorderPoint ?? product.minStock ?? 0);
+      const belowReorder = stockAfter <= reorderPoint && reorderPoint > 0;
+
+      return { ...updated, belowReorderPoint: belowReorder, reorderPoint };
     });
+  }
+
+  // Produkte unter Nachbestellpunkt zurückgeben
+  async getLowStockProducts(companyId: string) {
+    const products = await this.prisma.product.findMany({
+      where: { companyId, isActive: true, isService: false },
+      include: { supplier: { select: { id: true, name: true } } },
+    });
+
+    return products
+      .filter((p) => {
+        const stock = Number(p.stockQuantity);
+        const threshold = Number((p as any).reorderPoint ?? p.minStock ?? 0);
+        return stock <= threshold;
+      })
+      .map((p) => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        stockQuantity: Number(p.stockQuantity),
+        minStock: Number(p.minStock),
+        reorderPoint: Number((p as any).reorderPoint ?? p.minStock ?? 0),
+        reorderQuantity: Number((p as any).reorderQuantity ?? 0),
+        supplier: (p as any).supplier,
+        status: Number(p.stockQuantity) <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+      }));
   }
 
   async remove(id: string, companyId: string) {
