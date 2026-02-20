@@ -210,6 +210,9 @@ export class CalculationsService {
       data: {
         name: dto.name,
         description: dto.description,
+        customerId: dto.customerId,
+        projectId: dto.projectId,
+        bomId: dto.bomId,
         status: dto.status,
         materialMarkup: dto.materialMarkup,
         laborMarkup: dto.laborMarkup,

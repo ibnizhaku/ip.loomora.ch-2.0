@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calculator, Clock, Users, Package, Truck, FileText, TrendingUp, Loader2 } from "lucide-react";
+import { ArrowLeft, Calculator, Clock, Users, Package, Truck, FileText, TrendingUp, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { useCalculation, useTransferCalculationToQuote } from "@/hooks/use-calculations";
+import { useCalculation, useTransferCalculationToQuote, useUpdateCalculation } from "@/hooks/use-calculations";
+import { useCustomers } from "@/hooks/use-customers";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
@@ -27,8 +30,12 @@ const statusLabels: Record<string, string> = {
 export default function CalculationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data: calculation, isLoading, error } = useCalculation(id || "");
+  const { data: calculation, isLoading, error, refetch } = useCalculation(id || "");
   const transferToQuote = useTransferCalculationToQuote();
+  const updateCalc = useUpdateCalculation();
+  const { data: customersData } = useCustomers({ pageSize: 100 });
+  const apiCustomers = (customersData as any)?.data || [];
+  const [showCustomerSelect, setShowCustomerSelect] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -164,6 +171,70 @@ export default function CalculationDetail() {
             {transferToQuote.isPending ? "Wird erstellt..." : "Angebot erstellen"}
           </Button>
         </div>
+      </div>
+
+      {/* Kunde & Projekt Info */}
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Kunde:</span>
+          {calc.customerId && !showCustomerSelect ? (
+            <span
+              className="font-medium cursor-pointer hover:underline"
+              onClick={() => setShowCustomerSelect(true)}
+            >
+              {kalkulationData.kunde || "Unbekannt"}
+            </span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Select
+                value={calc.customerId || ""}
+                onValueChange={(value) => {
+                  updateCalc.mutate(
+                    { id: calc.id, data: { customerId: value } as any },
+                    {
+                      onSuccess: () => {
+                        toast.success("Kunde zugewiesen");
+                        setShowCustomerSelect(false);
+                        refetch();
+                      },
+                      onError: () => toast.error("Fehler beim Zuweisen"),
+                    }
+                  );
+                }}
+              >
+                <SelectTrigger className="h-8 w-[220px]">
+                  <SelectValue placeholder="Kunde wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {apiCustomers.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.companyName || c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showCustomerSelect && (
+                <Button variant="ghost" size="sm" onClick={() => setShowCustomerSelect(false)}>
+                  Abbrechen
+                </Button>
+              )}
+            </div>
+          )}
+          {!calc.customerId && !showCustomerSelect && (
+            <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setShowCustomerSelect(true)}>
+              <UserPlus className="h-3 w-3" />
+              Kunde zuweisen
+            </Button>
+          )}
+        </div>
+        {kalkulationData.projekt && (
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Projekt:</span>
+            <span className="font-medium">{kalkulationData.projekt}</span>
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
