@@ -52,7 +52,7 @@ export class SuppliersController {
   @RequirePermissions('suppliers:write')
   @ApiOperation({ summary: 'Create new supplier' })
   create(@Body() dto: CreateSupplierDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.suppliersService.create(user.companyId, dto);
+    return this.suppliersService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -63,13 +63,13 @@ export class SuppliersController {
     @Body() dto: UpdateSupplierDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.suppliersService.update(id, user.companyId, dto);
+    return this.suppliersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Delete(':id')
   @RequirePermissions('suppliers:delete')
   @ApiOperation({ summary: 'Deactivate supplier' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.suppliersService.remove(id, user.companyId);
+    return this.suppliersService.remove(id, user.companyId, user.userId);
   }
 }

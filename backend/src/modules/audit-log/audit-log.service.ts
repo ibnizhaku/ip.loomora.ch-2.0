@@ -158,8 +158,13 @@ export class AuditLogService {
 
   // Get audit trail for specific entity
   async getEntityHistory(companyId: string, entityType: string, entityId: string) {
+    const normalizedType = entityType.toUpperCase().replace(/-/g, '_');
     return this.prisma.auditLog.findMany({
-      where: { companyId, entityType, entityId },
+      where: {
+        companyId,
+        entityId,
+        entityType: { equals: normalizedType, mode: 'insensitive' as any },
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { id: true, firstName: true, lastName: true } },

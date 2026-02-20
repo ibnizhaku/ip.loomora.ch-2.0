@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   "Offen": { color: "bg-muted text-muted-foreground", icon: CheckSquare },

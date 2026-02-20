@@ -124,7 +124,7 @@ export class PaymentsService {
     };
   }
 
-  async create(companyId: string, dto: CreatePaymentDto) {
+  async create(companyId: string, dto: CreatePaymentDto, userId?: string) {
     // Validate invoice/purchase invoice exists
     if (dto.invoiceId) {
       const invoice = await this.prisma.invoice.findFirst({
@@ -186,6 +186,25 @@ export class PaymentsService {
 
     if (dto.purchaseInvoiceId) {
       await this.updatePurchaseInvoicePaymentStatus(dto.purchaseInvoiceId);
+    }
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PAYMENTS' as any,
+            entityType: 'PAYMENT',
+            entityId: payment.id,
+            entityName: payment.reference || '',
+            action: 'CREATE' as any,
+            description: `Zahlung "${payment.reference || ''}" erfasst`,
+            newValues: { number: payment.number, amount: payment.amount, reference: payment.reference },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
     }
 
     return payment;

@@ -57,6 +57,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePayslips } from "@/hooks/use-payroll";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 import { CreditCard } from "lucide-react";
 
 // Onboarding checklist items
@@ -86,6 +87,7 @@ const EmployeeDetail = () => {
   });
 
   const { data: payslipsData } = usePayslips({ employeeId: id });
+  const { data: auditHistory } = useEntityHistory("EMPLOYEE", id || "");
 
   const [onboardingItems, setOnboardingItems] = useState<OnboardingItem[]>([]);
   const [showOffboardingDialog, setShowOffboardingDialog] = useState(false);

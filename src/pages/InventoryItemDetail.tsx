@@ -22,6 +22,7 @@ import {
   Plus,
   Minus,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +76,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useInventoryItem, useUpdateInventoryItem, useAdjustInventory, useTransferInventory, useDeleteInventoryItem } from "@/hooks/use-inventory";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 import { api } from "@/lib/api";
 
 const defaultWarehouses = [
@@ -93,6 +95,7 @@ const InventoryItemDetail = () => {
 
   // API hooks
   const { data: apiData, isLoading, error } = useInventoryItem(id || "");
+  const { data: auditHistory } = useEntityHistory("INVENTORY", id || "");
   const { data: warehousesApi } = useQuery({
     queryKey: ['warehouses'],
     queryFn: () => api.get<{ id: string; name: string }[]>('/warehouses'),
@@ -587,6 +590,41 @@ const InventoryItemDetail = () => {
                     <span className="text-muted-foreground">Maximalbestand</span>
                     <span className="font-medium">{itemData.stock.maximum}</span>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Verlauf */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Clock className="h-4 w-4" />
+                    Verlauf
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(!auditHistory || auditHistory.length === 0) ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Noch keine Einträge</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {auditHistory.map((log: any, index: number) => (
+                        <div key={log.id || index} className="flex items-start gap-4">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">
+                              {log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "DELETE" ? "Gelöscht" : log.action === "SEND" ? "Versendet" : log.action === "APPROVE" ? "Genehmigt" : log.action === "REJECT" ? "Abgelehnt" : log.description || log.action}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{new Date(log.createdAt || log.timestamp).toLocaleString("de-CH")}</span>
+                              <span>•</span>
+                              <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

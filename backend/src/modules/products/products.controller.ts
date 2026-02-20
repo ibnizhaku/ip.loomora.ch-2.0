@@ -67,7 +67,7 @@ export class ProductsController {
   @RequirePermissions('products:write')
   @ApiOperation({ summary: 'Create new product' })
   create(@Body() dto: CreateProductDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.productsService.create(user.companyId, dto);
+    return this.productsService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -78,7 +78,7 @@ export class ProductsController {
     @Body() dto: UpdateProductDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.productsService.update(id, user.companyId, dto);
+    return this.productsService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/adjust-stock')
@@ -103,6 +103,6 @@ export class ProductsController {
   @RequirePermissions('products:delete')
   @ApiOperation({ summary: 'Deactivate product' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.productsService.remove(id, user.companyId);
+    return this.productsService.remove(id, user.companyId, user.userId);
   }
 }

@@ -41,12 +41,12 @@ export class ContractsController {
   @Post()
   @RequirePermissions('contracts:write')
   @ApiOperation({ summary: 'Create new contract' })
-  create(@Body() dto: CreateContractDto, @CurrentUser() user: CurrentUserPayload) { return this.contractsService.create(user.companyId, dto); }
+  create(@Body() dto: CreateContractDto, @CurrentUser() user: CurrentUserPayload) { return this.contractsService.create(user.companyId, dto, user.userId); }
 
   @Put(':id')
   @RequirePermissions('contracts:write')
   @ApiOperation({ summary: 'Update contract' })
-  update(@Param('id') id: string, @Body() dto: UpdateContractDto, @CurrentUser() user: CurrentUserPayload) { return this.contractsService.update(id, user.companyId, dto); }
+  update(@Param('id') id: string, @Body() dto: UpdateContractDto, @CurrentUser() user: CurrentUserPayload) { return this.contractsService.update(id, user.companyId, dto, user.userId); }
 
   @Delete(':id')
   @RequirePermissions('contracts:delete')

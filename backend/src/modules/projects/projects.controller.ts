@@ -63,7 +63,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
   ) {
-    return this.projectsService.update(id, user.companyId, dto);
+    return this.projectsService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/duplicate')
@@ -77,7 +77,7 @@ export class ProjectsController {
   @RequirePermissions('projects:delete')
   @ApiOperation({ summary: 'Delete project' })
   delete(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
-    return this.projectsService.delete(id, user.companyId);
+    return this.projectsService.delete(id, user.companyId, user.userId);
   }
 
   @Post(':id/members')

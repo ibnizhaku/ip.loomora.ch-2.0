@@ -61,7 +61,7 @@ export class PurchaseOrdersController {
   @RequirePermissions('purchase-orders:write')
   @ApiOperation({ summary: 'Create new purchase order' })
   create(@Body() dto: CreatePurchaseOrderDto, @CurrentUser() user: any) {
-    return this.purchaseOrdersService.create(user.companyId, dto);
+    return this.purchaseOrdersService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -72,7 +72,7 @@ export class PurchaseOrdersController {
     @Body() dto: UpdatePurchaseOrderDto,
     @CurrentUser() user: any,
   ) {
-    return this.purchaseOrdersService.update(id, user.companyId, dto);
+    return this.purchaseOrdersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/send')
@@ -90,6 +90,6 @@ export class PurchaseOrdersController {
   @RequirePermissions('purchase-orders:delete')
   @ApiOperation({ summary: 'Delete purchase order' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.purchaseOrdersService.delete(id, user.companyId);
+    return this.purchaseOrdersService.delete(id, user.companyId, user.userId);
   }
 }

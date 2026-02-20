@@ -47,7 +47,7 @@ export class CalculationsController {
   @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Create new calculation' })
   create(@Body() dto: CreateCalculationDto, @CurrentUser() user: any) {
-    return this.calculationsService.create(user.companyId, dto);
+    return this.calculationsService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -58,20 +58,20 @@ export class CalculationsController {
     @Body() dto: UpdateCalculationDto,
     @CurrentUser() user: any,
   ) {
-    return this.calculationsService.update(id, user.companyId, dto);
+    return this.calculationsService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/transfer-to-quote')
   @RequirePermissions('quotes:write')
   @ApiOperation({ summary: 'Transfer calculation to quote' })
   transferToQuote(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.calculationsService.transferToQuote(id, user.companyId, user.id);
+    return this.calculationsService.transferToQuote(id, user.companyId, user.userId);
   }
 
   @Delete(':id')
   @RequirePermissions('quotes:delete')
   @ApiOperation({ summary: 'Delete calculation' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.calculationsService.delete(id, user.companyId);
+    return this.calculationsService.delete(id, user.companyId, user.userId);
   }
 }

@@ -164,10 +164,27 @@ export class TasksService {
       });
     }
 
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          module: 'TASKS' as any,
+          entityType: 'TASK',
+          entityId: task.id,
+          entityName: task.title || '',
+          action: 'CREATE' as any,
+          description: `Aufgabe "${task.title}" erstellt`,
+          newValues: { title: task.title, status: task.status },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+    } catch (e) { /* audit log failure should not break main operation */ }
+
     return task;
   }
 
-  async update(id: string, companyId: string, dto: UpdateTaskDto) {
+  async update(id: string, companyId: string, dto: UpdateTaskDto, userId?: string) {
     const task = await this.prisma.task.findFirst({
       where: { id, companyId },
     });
@@ -175,6 +192,8 @@ export class TasksService {
     if (!task) {
       throw new NotFoundException('Task not found');
     }
+
+    const oldValues = { title: task.title, status: task.status, priority: task.priority };
 
     // Handle tags update: löschen und neu erstellen (upsert via skipDuplicates)
     if (dto.tags !== undefined) {
@@ -188,7 +207,7 @@ export class TasksService {
       }
     }
 
-    return this.prisma.task.update({
+    const updated = await this.prisma.task.update({
       where: { id },
       data: {
         title: dto.title,
@@ -206,9 +225,35 @@ export class TasksService {
         tags: true,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'TASKS' as any,
+            entityType: 'TASK',
+            entityId: updated.id,
+            entityName: updated.title || '',
+            action: 'UPDATE' as any,
+            description: `Aufgabe "${updated.title}" aktualisiert`,
+            oldValues,
+            newValues: {
+              title: updated.title,
+              status: updated.status,
+              priority: updated.priority,
+            },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const task = await this.prisma.task.findFirst({
       where: { id, companyId },
     });
@@ -218,6 +263,26 @@ export class TasksService {
     }
 
     await this.prisma.task.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'TASKS' as any,
+            entityType: 'TASK',
+            entityId: task.id,
+            entityName: task.title || '',
+            action: 'DELETE' as any,
+            description: `Aufgabe "${task.title}" gelöscht`,
+            oldValues: { title: task.title, status: task.status },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return { success: true };
   }
 

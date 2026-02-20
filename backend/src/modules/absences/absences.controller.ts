@@ -76,8 +76,8 @@ export class AbsencesController {
   @Put(':id')
   @RequirePermissions('absences:write')
   @ApiOperation({ summary: 'Update absence' })
-  update(@Param('id') id: string, @Body() dto: UpdateAbsenceDto) {
-    return this.absencesService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateAbsenceDto, @CurrentUser() user: CurrentUserPayload) {
+    return this.absencesService.update(id, dto, user);
   }
 
   @Delete(':id')

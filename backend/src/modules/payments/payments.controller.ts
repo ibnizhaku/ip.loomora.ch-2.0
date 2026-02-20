@@ -43,7 +43,7 @@ export class PaymentsController {
   @Post()
   @RequirePermissions('payments:write')
   @ApiOperation({ summary: 'Create new payment' })
-  create(@Body() dto: CreatePaymentDto, @CurrentUser() user: any) { return this.paymentsService.create(user.companyId, dto); }
+  create(@Body() dto: CreatePaymentDto, @CurrentUser() user: any) { return this.paymentsService.create(user.companyId, dto, user.userId); }
 
   @Put(':id')
   @RequirePermissions('payments:write')

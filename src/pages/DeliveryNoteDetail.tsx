@@ -40,6 +40,7 @@ import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { SalesDocumentData, downloadSalesDocumentPDF, getSalesDocumentPDFBlobUrl } from "@/lib/pdf/sales-document";
 import { useDeliveryNote, useUpdateDeliveryNote } from "@/hooks/use-delivery-notes";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 // Status mapping from backend enum to German display labels
 const dnStatusMap: Record<string, string> = {
@@ -108,6 +109,7 @@ const DeliveryNoteDetail = () => {
   const navigate = useNavigate();
   const { data: rawDn, isLoading, error } = useDeliveryNote(id || "");
   const updateDeliveryNote = useUpdateDeliveryNote();
+  const { data: auditHistory } = useEntityHistory("DELIVERY_NOTE", id || "");
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
 
@@ -414,46 +416,55 @@ const DeliveryNoteDetail = () => {
             </Card>
           )}
 
-          {/* Timeline */}
-          {deliveryNoteData.timeline.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Sendungsverlauf</CardTitle>
-              </CardHeader>
-              <CardContent>
+          {/* Sendungsverlauf (Audit-Log) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Sendungsverlauf
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(!auditHistory || auditHistory.length === 0) ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Noch keine Einträge</p>
+              ) : (
                 <div className="space-y-4">
-                  {deliveryNoteData.timeline.map((entry, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                          index === deliveryNoteData.timeline.length - 1 
-                            ? "bg-success text-success-foreground" 
-                            : "bg-muted"
-                        }`}>
-                          {index === deliveryNoteData.timeline.length - 1 ? (
-                            <CheckCircle2 className="h-4 w-4" />
-                          ) : (
-                            <Clock className="h-4 w-4" />
+                  {auditHistory.map((log: any, index: number) => {
+                    const actionLabel = log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "DELETE" ? "Gelöscht" : log.action === "SEND" ? "Versendet" : log.action === "APPROVE" ? "Genehmigt" : log.action === "REJECT" ? "Abgelehnt" : log.description || log.action;
+                    const dateStr = new Date(log.createdAt || log.timestamp).toLocaleString("de-CH");
+                    const userStr = log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System";
+                    const isLast = index === auditHistory.length - 1;
+                    return (
+                      <div key={log.id || index} className="flex gap-4">
+                        <div className="flex flex-col items-center">
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
+                            isLast ? "bg-success text-success-foreground" : "bg-muted"
+                          }`}>
+                            {isLast ? (
+                              <CheckCircle2 className="h-4 w-4" />
+                            ) : (
+                              <Clock className="h-4 w-4" />
+                            )}
+                          </div>
+                          {!isLast && (
+                            <div className="w-px h-8 bg-border" />
                           )}
                         </div>
-                        {index < deliveryNoteData.timeline.length - 1 && (
-                          <div className="w-px h-8 bg-border" />
-                        )}
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <p className="text-sm font-medium">{entry.action}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{entry.date}</span>
-                          <span>•</span>
-                          <span>{entry.user}</span>
+                        <div className="flex-1 pb-4">
+                          <p className="text-sm font-medium">{actionLabel}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{dateStr}</span>
+                            <span>•</span>
+                            <span>{userStr}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}

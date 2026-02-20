@@ -100,7 +100,7 @@ export class CalculationsService {
     };
   }
 
-  async create(companyId: string, dto: CreateCalculationDto) {
+  async create(companyId: string, dto: CreateCalculationDto, userId?: string) {
     // Generate number
     const count = await this.prisma.calculation.count({ where: { companyId } });
     const year = new Date().getFullYear();
@@ -175,11 +175,31 @@ export class CalculationsService {
       },
     });
 
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CALCULATIONS' as any,
+            entityType: 'CALCULATION',
+            entityId: calculation.id,
+            entityName: calculation.name || calculation.number || '',
+            action: 'CREATE' as any,
+            description: `Kalkulation "${calculation.name || calculation.number || ''}" erstellt`,
+            newValues: { name: calculation.name, number: calculation.number },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return { ...calculation, result };
   }
 
-  async update(id: string, companyId: string, dto: UpdateCalculationDto) {
+  async update(id: string, companyId: string, dto: UpdateCalculationDto, userId?: string) {
     const calculation = await this.findOne(id, companyId);
+    const oldValues = { name: calculation.name, number: calculation.number };
 
     if (calculation.status === CalculationStatus.TRANSFERRED) {
       throw new BadRequestException('Übertragene Kalkulation kann nicht bearbeitet werden');
@@ -236,17 +256,59 @@ export class CalculationsService {
       },
     });
 
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CALCULATIONS' as any,
+            entityType: 'CALCULATION',
+            entityId: updated.id,
+            entityName: updated.name || updated.number || '',
+            action: 'UPDATE' as any,
+            description: `Kalkulation "${updated.name || updated.number || ''}" aktualisiert`,
+            oldValues,
+            newValues: { name: updated.name, number: updated.number },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return { ...updated, result };
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const calculation = await this.findOne(id, companyId);
+    const entityName = calculation.name || calculation.number || '';
 
     if (calculation.status === CalculationStatus.TRANSFERRED) {
       throw new BadRequestException('Übertragene Kalkulation kann nicht gelöscht werden');
     }
 
-    return this.prisma.calculation.delete({ where: { id } });
+    const deleted = await this.prisma.calculation.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CALCULATIONS' as any,
+            entityType: 'CALCULATION',
+            entityId: deleted.id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Kalkulation "${entityName}" gelöscht`,
+            oldValues: { name: calculation.name, number: calculation.number },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   // Transfer calculation to quote
@@ -310,6 +372,25 @@ export class CalculationsService {
         where: { id: companyId },
         data: { quoteCounter: { increment: 1 } },
       });
+
+      if (userId) {
+        try {
+          await this.prisma.auditLog.create({
+            data: {
+              module: 'CALCULATIONS' as any,
+              entityType: 'CALCULATION',
+              entityId: calculation.id,
+              entityName: calculation.name || calculation.number || '',
+              action: 'CREATE' as any,
+              description: `Kalkulation "${calculation.name || calculation.number || ''}" zu Angebot übertragen`,
+              newValues: { quoteId: quote.id, quoteNumber: quote.number },
+              retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+              companyId,
+              userId,
+            },
+          });
+        } catch (e) { /* audit log failure should not break main operation */ }
+      }
 
       return {
         calculation: await this.findOne(id, companyId),

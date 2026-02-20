@@ -21,6 +21,7 @@ import {
   Truck,
   ShoppingCart,
   CheckSquare,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCustomer, useDeleteCustomer, useCreateCustomerContact, useUpdateCustomer } from "@/hooks/use-customers";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -84,6 +87,7 @@ export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: customer, isLoading, error } = useCustomer(id);
+  const { data: auditHistory } = useEntityHistory("CUSTOMER", id || "");
   const deleteCustomer = useDeleteCustomer();
   const createContact = useCreateCustomerContact();
   const updateCustomer = useUpdateCustomer();
@@ -251,8 +255,8 @@ export default function CustomerDetail() {
         </DropdownMenu>
       </div>
 
-      {/* Top Row: Übersicht (left) + Kontaktdaten (right) */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Top Row: Übersicht (left) + Kontaktdaten (center) + Verlauf (right) */}
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Left - Übersicht */}
         <div className="rounded-2xl border border-border bg-card p-6">
           <h3 className="font-semibold mb-4">Übersicht</h3>
@@ -380,6 +384,41 @@ export default function CustomerDetail() {
             )}
           </div>
         </div>
+
+        {/* Verlauf */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Verlauf
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(!auditHistory || auditHistory.length === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Noch keine Einträge</p>
+            ) : (
+              <div className="space-y-4">
+                {auditHistory.map((log: any, index: number) => (
+                  <div key={log.id || index} className="flex items-start gap-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "DELETE" ? "Gelöscht" : log.action === "SEND" ? "Versendet" : log.action === "APPROVE" ? "Genehmigt" : log.action === "REJECT" ? "Abgelehnt" : log.description || log.action}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{new Date(log.createdAt || log.timestamp).toLocaleString("de-CH")}</span>
+                        <span>•</span>
+                        <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Ansprechpartner Section */}

@@ -86,7 +86,7 @@ export class RemindersController {
     @Body() dto: UpdateReminderDto,
     @CurrentUser() user: any,
   ) {
-    return this.remindersService.update(id, user.companyId, dto);
+    return this.remindersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/send')
@@ -97,13 +97,13 @@ export class RemindersController {
     @Body() dto: SendReminderDto,
     @CurrentUser() user: any,
   ) {
-    return this.remindersService.send(id, user.companyId, dto);
+    return this.remindersService.send(id, user.companyId, dto, user.userId);
   }
 
   @Delete(':id')
   @RequirePermissions('reminders:delete')
   @ApiOperation({ summary: 'Delete reminder' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.remindersService.delete(id, user.companyId);
+    return this.remindersService.delete(id, user.companyId, user.userId);
   }
 }

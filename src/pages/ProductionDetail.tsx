@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { useProductionOrder, useUpdateProductionOrder, useDeleteProductionOrder, useBookProductionTime, useCompleteProductionOperation } from "@/hooks/use-production-orders";
 import { useEmployees } from "@/hooks/use-employees";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   "offen": { label: "Offen", color: "bg-muted text-muted-foreground", icon: Clock },
@@ -60,6 +61,7 @@ export default function ProductionDetail() {
   const navigate = useNavigate();
   const { data: apiData, isLoading } = useProductionOrder(id || "");
   const { data: employeesData } = useEmployees({ pageSize: 200 });
+  const { data: auditHistory } = useEntityHistory("PRODUCTION_ORDER", id || "");
   const updateMutation = useUpdateProductionOrder();
   const deleteMutation = useDeleteProductionOrder();
   const bookTimeMutation = useBookProductionTime();
@@ -564,6 +566,41 @@ export default function ProductionDetail() {
               })}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Verlauf */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Verlauf
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(!auditHistory || auditHistory.length === 0) ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Noch keine Einträge</p>
+          ) : (
+            <div className="space-y-4">
+              {auditHistory.map((log: any, index: number) => (
+                <div key={log.id || index} className="flex items-start gap-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "DELETE" ? "Gelöscht" : log.action === "SEND" ? "Versendet" : log.action === "APPROVE" ? "Genehmigt" : log.action === "REJECT" ? "Abgelehnt" : log.description || log.action}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(log.createdAt || log.timestamp).toLocaleString("de-CH")}</span>
+                      <span>•</span>
+                      <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

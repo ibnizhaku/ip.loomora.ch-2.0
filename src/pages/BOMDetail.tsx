@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useBom } from "@/hooks/use-bom";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 interface BOMPosition {
   id: string;
@@ -65,6 +66,7 @@ export default function BOMDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: apiBom, isLoading } = useBom(id || "");
+  const { data: auditHistory } = useEntityHistory("BOM", id || "");
   const [showProductionDialog, setShowProductionDialog] = useState(false);
   const [productionStep, setProductionStep] = useState(1);
   const [operations, setOperations] = useState<ProductionOperation[]>(defaultOperations);
@@ -383,6 +385,41 @@ export default function BOMDetail() {
               <span className="ml-2">{bomData.geändertAm}</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Verlauf */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Verlauf
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(!auditHistory || auditHistory.length === 0) ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Noch keine Einträge</p>
+          ) : (
+            <div className="space-y-4">
+              {auditHistory.map((log: any, index: number) => (
+                <div key={log.id || index} className="flex items-start gap-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {log.action === "CREATE" ? "Erstellt" : log.action === "UPDATE" ? "Bearbeitet" : log.action === "DELETE" ? "Gelöscht" : log.action === "SEND" ? "Versendet" : log.action === "APPROVE" ? "Genehmigt" : log.action === "REJECT" ? "Abgelehnt" : log.description || log.action}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(log.createdAt || log.timestamp).toLocaleString("de-CH")}</span>
+                      <span>•</span>
+                      <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

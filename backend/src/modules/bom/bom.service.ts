@@ -120,7 +120,7 @@ export class BomService {
     };
   }
 
-  async create(companyId: string, dto: CreateBomDto) {
+  async create(companyId: string, dto: CreateBomDto, userId?: string) {
     if (dto.projectId) {
       const project = await this.prisma.project.findFirst({
         where: { id: dto.projectId, companyId },
@@ -157,7 +157,7 @@ export class BomService {
       throw new BadRequestException('Name ist erforderlich');
     }
 
-    return this.prisma.billOfMaterial.create({
+    const created = await this.prisma.billOfMaterial.create({
       data: {
         companyId,
         name,
@@ -185,10 +185,32 @@ export class BomService {
         items: { orderBy: { sortOrder: 'asc' } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'BOM' as any,
+            entityType: 'BOM',
+            entityId: created.id,
+            entityName: created.name || '',
+            action: 'CREATE' as any,
+            description: `Stückliste "${created.name}" erstellt`,
+            newValues: { name: created.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return created;
   }
 
-  async update(id: string, companyId: string, dto: UpdateBomDto) {
+  async update(id: string, companyId: string, dto: UpdateBomDto, userId?: string) {
     const bom = await this.findOne(id, companyId);
+    const oldValues = { name: bom.name, description: bom.description };
 
     // Update base data
     const updateData: any = {
@@ -219,7 +241,7 @@ export class BomService {
       });
     }
 
-    return this.prisma.billOfMaterial.update({
+    const updated = await this.prisma.billOfMaterial.update({
       where: { id },
       data: updateData,
       include: {
@@ -227,11 +249,56 @@ export class BomService {
         items: { orderBy: { sortOrder: 'asc' } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'BOM' as any,
+            entityType: 'BOM',
+            entityId: updated.id,
+            entityName: updated.name || '',
+            action: 'UPDATE' as any,
+            description: `Stückliste "${updated.name}" aktualisiert`,
+            oldValues,
+            newValues: { name: updated.name, description: updated.description },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
-  async delete(id: string, companyId: string) {
-    await this.findOne(id, companyId);
-    return this.prisma.billOfMaterial.delete({ where: { id } });
+  async delete(id: string, companyId: string, userId?: string) {
+    const bom = await this.findOne(id, companyId);
+    const entityName = bom.name || '';
+
+    const deleted = await this.prisma.billOfMaterial.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'BOM' as any,
+            entityType: 'BOM',
+            entityId: deleted.id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Stückliste "${entityName}" gelöscht`,
+            oldValues: { name: bom.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   async duplicate(id: string, companyId: string, newName?: string) {

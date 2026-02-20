@@ -235,10 +235,27 @@ export class ProjectsService {
       });
     }
 
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          module: 'PROJECTS' as any,
+          entityType: 'PROJECT',
+          entityId: project.id,
+          entityName: project.name || '',
+          action: 'CREATE' as any,
+          description: `Projekt "${project.name}" erstellt`,
+          newValues: { name: project.name },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+    } catch (e) { /* audit log failure should not break main operation */ }
+
     return project;
   }
 
-  async update(id: string, companyId: string, dto: UpdateProjectDto) {
+  async update(id: string, companyId: string, dto: UpdateProjectDto, userId?: string) {
     const project = await this.prisma.project.findFirst({
       where: { id, companyId },
     });
@@ -256,6 +273,12 @@ export class ProjectsService {
         throw new NotFoundException('Manager nicht gefunden oder nicht Mitglied dieser Company');
       }
     }
+
+    const oldValues = {
+      name: project.name,
+      status: project.status,
+      priority: project.priority,
+    };
 
     const updated = await this.prisma.project.update({
       where: { id },
@@ -287,10 +310,30 @@ export class ProjectsService {
       });
     }
 
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PROJECTS' as any,
+            entityType: 'PROJECT',
+            entityId: updated.id,
+            entityName: updated.name || '',
+            action: 'UPDATE' as any,
+            description: `Projekt "${updated.name}" aktualisiert`,
+            oldValues,
+            newValues: { name: updated.name, status: updated.status, priority: updated.priority },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return updated;
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const project = await this.prisma.project.findFirst({
       where: { id, companyId },
     });
@@ -299,7 +342,33 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
+    const oldValues = {
+      name: project.name,
+      status: project.status,
+      priority: project.priority,
+    };
+
     await this.prisma.project.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PROJECTS' as any,
+            entityType: 'PROJECT',
+            entityId: project.id,
+            entityName: project.name || '',
+            action: 'DELETE' as any,
+            description: `Projekt "${project.name}" gelöscht`,
+            oldValues,
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return { success: true };
   }
 

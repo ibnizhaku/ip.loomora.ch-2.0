@@ -217,6 +217,25 @@ export class AbsencesService {
       await this.notifyHrUsers(user.companyId, absence);
     }
 
+    if (user.userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'ABSENCES' as any,
+            entityType: 'ABSENCE',
+            entityId: absence.id,
+            entityName: absence.type || '',
+            action: 'CREATE' as any,
+            description: `Abwesenheit "${absence.type || ''}" erstellt`,
+            newValues: { type: absence.type, startDate: absence.startDate, endDate: absence.endDate, days: absence.days },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId: user.companyId,
+            userId: user.userId,
+          },
+        });
+      } catch (e) {}
+    }
+
     return {
       ...absence,
       employee: absence.employee ? {
@@ -250,6 +269,28 @@ export class AbsencesService {
         approvedAt: new Date(),
       },
     });
+
+    if (user.userId) {
+      try {
+        const companyId = (absence.employee as any)?.companyId;
+        if (companyId) {
+          await this.prisma.auditLog.create({
+            data: {
+              module: 'ABSENCES' as any,
+              entityType: 'ABSENCE',
+              entityId: id,
+              entityName: absence.type || '',
+              action: 'APPROVE' as any,
+              description: `Abwesenheit "${absence.type || ''}" genehmigt`,
+              newValues: { status: 'APPROVED' },
+              retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+              companyId,
+              userId: user.userId,
+            },
+          });
+        }
+      } catch (e) {}
+    }
 
     // Notify the employee
     if (absence.employee?.user?.id) {
@@ -292,6 +333,28 @@ export class AbsencesService {
       },
     });
 
+    if (user.userId) {
+      try {
+        const companyId = (absence.employee as any)?.companyId;
+        if (companyId) {
+          await this.prisma.auditLog.create({
+            data: {
+              module: 'ABSENCES' as any,
+              entityType: 'ABSENCE',
+              entityId: id,
+              entityName: absence.type || '',
+              action: 'REJECT' as any,
+              description: `Abwesenheit "${absence.type || ''}" abgelehnt`,
+              newValues: { status: 'REJECTED', rejectionReason: reason },
+              retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+              companyId,
+              userId: user.userId,
+            },
+          });
+        }
+      } catch (e) {}
+    }
+
     // Notify the employee
     if (absence.employee?.user?.id) {
       await this.notificationsService.create(absence.employee.companyId, {
@@ -327,7 +390,7 @@ export class AbsencesService {
   }
 
   // ─── UPDATE (generic PUT) ─────────────────────────────
-  async update(id: string, dto: UpdateAbsenceDto) {
+  async update(id: string, dto: UpdateAbsenceDto, user?: CurrentUserPayload) {
     const absence = await this.prisma.absence.findUnique({
       where: { id },
       include: {
@@ -355,6 +418,29 @@ export class AbsencesService {
         approvedAt: normalizedStatus === 'APPROVED' ? new Date() : undefined,
       },
     });
+
+    if (user?.userId) {
+      try {
+        const companyId = (absence.employee as any)?.companyId;
+        if (companyId) {
+          await this.prisma.auditLog.create({
+            data: {
+              module: 'ABSENCES' as any,
+              entityType: 'ABSENCE',
+              entityId: id,
+              entityName: updated.type || absence.type || '',
+              action: 'UPDATE' as any,
+              description: `Abwesenheit "${updated.type || absence.type || ''}" aktualisiert`,
+              oldValues: { type: absence.type, status: absence.status },
+              newValues: { type: updated.type, status: updated.status },
+              retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+              companyId,
+              userId: user.userId,
+            },
+          });
+        }
+      } catch (e) {}
+    }
 
     // Send notification if status changed
     if (normalizedStatus && absence.status !== normalizedStatus && absence.employee?.user?.id) {

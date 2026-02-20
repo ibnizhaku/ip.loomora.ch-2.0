@@ -95,7 +95,7 @@ export class ProductsService {
     return { data: mapped };
   }
 
-  async create(companyId: string, dto: CreateProductDto) {
+  async create(companyId: string, dto: CreateProductDto, userId?: string) {
     // Generate SKU if not provided
     let sku = dto.sku;
     if (!sku) {
@@ -111,7 +111,7 @@ export class ProductsService {
       sku = `${prefix}-${String(lastNum + 1).padStart(4, '0')}`;
     }
 
-    return this.prisma.product.create({
+    const created = await this.prisma.product.create({
       data: {
         ...dto,
         sku,
@@ -122,9 +122,30 @@ export class ProductsService {
         supplier: true,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PRODUCTS' as any,
+            entityType: 'PRODUCT',
+            entityId: created.id,
+            entityName: created.name || '',
+            action: 'CREATE' as any,
+            description: `Produkt "${created.name}" erstellt`,
+            newValues: { name: created.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return created;
   }
 
-  async update(id: string, companyId: string, dto: UpdateProductDto) {
+  async update(id: string, companyId: string, dto: UpdateProductDto, userId?: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, companyId },
     });
@@ -133,7 +154,12 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return this.prisma.product.update({
+    const oldValues = {
+      name: product.name,
+      sku: product.sku,
+    };
+
+    const updated = await this.prisma.product.update({
       where: { id },
       data: dto,
       include: {
@@ -141,6 +167,28 @@ export class ProductsService {
         supplier: true,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PRODUCTS' as any,
+            entityType: 'PRODUCT',
+            entityId: updated.id,
+            entityName: updated.name || '',
+            action: 'UPDATE' as any,
+            description: `Produkt "${updated.name}" aktualisiert`,
+            oldValues,
+            newValues: { name: updated.name, sku: updated.sku },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
   async adjustStock(id: string, companyId: string, dto: AdjustStockDto, userId?: string) {
@@ -213,7 +261,7 @@ export class ProductsService {
       }));
   }
 
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId: string, userId?: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, companyId },
     });
@@ -222,11 +270,36 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    // Soft delete by setting isActive to false
-    return this.prisma.product.update({
+    const oldValues = {
+      name: product.name,
+      sku: product.sku,
+    };
+
+    const updated = await this.prisma.product.update({
       where: { id },
       data: { isActive: false },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PRODUCTS' as any,
+            entityType: 'PRODUCT',
+            entityId: updated.id,
+            entityName: product.name || '',
+            action: 'DELETE' as any,
+            description: `Produkt "${product.name}" deaktiviert`,
+            oldValues,
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
   // Categories

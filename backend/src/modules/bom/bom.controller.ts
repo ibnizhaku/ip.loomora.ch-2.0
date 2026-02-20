@@ -61,7 +61,7 @@ export class BomController {
   @RequirePermissions('products:write')
   @ApiOperation({ summary: 'Create new BOM' })
   create(@Body() dto: CreateBomDto, @CurrentUser() user: any) {
-    return this.bomService.create(user.companyId, dto);
+    return this.bomService.create(user.companyId, dto, user.userId);
   }
 
   @Post(':id/duplicate')
@@ -83,13 +83,13 @@ export class BomController {
     @Body() dto: UpdateBomDto,
     @CurrentUser() user: any,
   ) {
-    return this.bomService.update(id, user.companyId, dto);
+    return this.bomService.update(id, user.companyId, dto, user.userId);
   }
 
   @Delete(':id')
   @RequirePermissions('products:delete')
   @ApiOperation({ summary: 'Delete BOM' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.bomService.delete(id, user.companyId);
+    return this.bomService.delete(id, user.companyId, user.userId);
   }
 }

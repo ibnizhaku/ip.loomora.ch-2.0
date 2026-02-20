@@ -52,7 +52,7 @@ export class CustomersController {
   @RequirePermissions('customers:write')
   @ApiOperation({ summary: 'Create new customer' })
   create(@Body() dto: CreateCustomerDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.customersService.create(user.companyId, dto);
+    return this.customersService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -63,14 +63,14 @@ export class CustomersController {
     @Body() dto: UpdateCustomerDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.customersService.update(id, user.companyId, dto);
+    return this.customersService.update(id, user.companyId, dto, user.userId);
   }
 
   @Delete(':id')
   @RequirePermissions('customers:delete')
   @ApiOperation({ summary: 'Deactivate customer' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.customersService.remove(id, user.companyId);
+    return this.customersService.remove(id, user.companyId, user.userId);
   }
 
   // ========================

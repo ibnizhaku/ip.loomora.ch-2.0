@@ -152,7 +152,7 @@ export class EmployeesService {
     };
   }
 
-  async create(companyId: string, dto: CreateEmployeeDto) {
+  async create(companyId: string, dto: CreateEmployeeDto, userId?: string) {
     // Validate departmentId if provided (skip if empty string or null)
     if (dto.departmentId && dto.departmentId.trim() !== '') {
       const department = await this.prisma.department.findFirst({
@@ -209,10 +209,29 @@ export class EmployeesService {
       },
     });
 
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'EMPLOYEES' as any,
+            entityType: 'EMPLOYEE',
+            entityId: employee.id,
+            entityName: `${employee.firstName} ${employee.lastName}`,
+            action: 'CREATE' as any,
+            description: `Mitarbeiter "${employee.firstName} ${employee.lastName}" erstellt`,
+            newValues: { firstName: employee.firstName, lastName: employee.lastName },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
     return employee;
   }
 
-  async update(id: string, companyId: string, dto: UpdateEmployeeDto) {
+  async update(id: string, companyId: string, dto: UpdateEmployeeDto, userId?: string) {
     const employee = await this.prisma.employee.findFirst({
       where: { id, companyId },
     });
@@ -235,7 +254,8 @@ export class EmployeesService {
       dto.departmentId = undefined;
     }
 
-    return this.prisma.employee.update({
+    const oldValues = { firstName: employee.firstName, lastName: employee.lastName };
+    const updated = await this.prisma.employee.update({
       where: { id },
       data: {
         firstName: dto.firstName,
@@ -266,6 +286,28 @@ export class EmployeesService {
         education: dto.education !== undefined ? dto.education : undefined,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'EMPLOYEES' as any,
+            entityType: 'EMPLOYEE',
+            entityId: id,
+            entityName: `${updated.firstName} ${updated.lastName}`,
+            action: 'UPDATE' as any,
+            description: `Mitarbeiter "${updated.firstName} ${updated.lastName}" aktualisiert`,
+            oldValues,
+            newValues: { firstName: updated.firstName, lastName: updated.lastName },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
+    return updated;
   }
 
   async delete(id: string, companyId: string) {

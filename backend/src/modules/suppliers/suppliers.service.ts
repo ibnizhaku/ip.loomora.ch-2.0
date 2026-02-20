@@ -113,7 +113,7 @@ export class SuppliersService {
     };
   }
 
-  async create(companyId: string, dto: CreateSupplierDto) {
+  async create(companyId: string, dto: CreateSupplierDto, userId?: string) {
     // Generate supplier number if not provided
     let number = dto.number;
     if (!number) {
@@ -128,16 +128,37 @@ export class SuppliersService {
       number = `L-${String(lastNum + 1).padStart(3, '0')}`;
     }
 
-    return this.prisma.supplier.create({
+    const supplier = await this.prisma.supplier.create({
       data: {
         ...dto,
         number,
         companyId,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'SUPPLIERS' as any,
+            entityType: 'SUPPLIER',
+            entityId: supplier.id,
+            entityName: (supplier as any).companyName || (supplier as any).name || '',
+            action: 'CREATE' as any,
+            description: `Lieferant "${(supplier as any).companyName || (supplier as any).name || ''}" erstellt`,
+            newValues: { number: supplier.number, companyName: (supplier as any).companyName, name: (supplier as any).name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
+    return supplier;
   }
 
-  async update(id: string, companyId: string, dto: UpdateSupplierDto) {
+  async update(id: string, companyId: string, dto: UpdateSupplierDto, userId?: string) {
     const supplier = await this.prisma.supplier.findFirst({
       where: { id, companyId },
     });
@@ -146,10 +167,33 @@ export class SuppliersService {
       throw new NotFoundException('Supplier not found');
     }
 
-    return this.prisma.supplier.update({
+    const entityName = (supplier as any).companyName || (supplier as any).name || '';
+    const updated = await this.prisma.supplier.update({
       where: { id },
       data: dto,
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'SUPPLIERS' as any,
+            entityType: 'SUPPLIER',
+            entityId: id,
+            entityName: (updated as any).companyName || (updated as any).name || entityName,
+            action: 'UPDATE' as any,
+            description: `Lieferant "${(updated as any).companyName || (updated as any).name || entityName}" aktualisiert`,
+            oldValues: { companyName: (supplier as any).companyName, name: (supplier as any).name },
+            newValues: { companyName: (updated as any).companyName, name: (updated as any).name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
+    return updated;
   }
 
   async getStats(companyId: string) {
@@ -176,7 +220,7 @@ export class SuppliersService {
     };
   }
 
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId: string, userId?: string) {
     const supplier = await this.prisma.supplier.findFirst({
       where: { id, companyId },
       include: {
@@ -204,10 +248,33 @@ export class SuppliersService {
       );
     }
 
+    const entityName = (supplier as any).companyName || (supplier as any).name || '';
+
     // Hard delete - safe now
-    return this.prisma.supplier.delete({
+    const deleted = await this.prisma.supplier.delete({
       where: { id },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'SUPPLIERS' as any,
+            entityType: 'SUPPLIER',
+            entityId: id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Lieferant "${entityName}" gelöscht`,
+            oldValues: { companyName: (supplier as any).companyName, name: (supplier as any).name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
+    return deleted;
   }
   async findCreditors(companyId: string) {
     const suppliers = await this.prisma.supplier.findMany({

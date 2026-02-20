@@ -63,7 +63,7 @@ export class EmployeesController {
   @RequirePermissions('employees:write')
   @ApiOperation({ summary: 'Create new employee' })
   create(@CurrentUser() user: CurrentUserPayload, @Body() dto: CreateEmployeeDto) {
-    return this.employeesService.create(user.companyId, dto);
+    return this.employeesService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -74,7 +74,7 @@ export class EmployeesController {
     @Param('id') id: string,
     @Body() dto: UpdateEmployeeDto,
   ) {
-    return this.employeesService.update(id, user.companyId, dto);
+    return this.employeesService.update(id, user.companyId, dto, user.userId);
   }
 
   @Delete(':id')

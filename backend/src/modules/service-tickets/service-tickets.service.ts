@@ -120,7 +120,7 @@ export class ServiceTicketsService {
     };
   }
 
-  async create(companyId: string, dto: CreateServiceTicketDto) {
+  async create(companyId: string, dto: CreateServiceTicketDto, userId?: string) {
     // Validate customer
     const customer = await this.prisma.customer.findFirst({
       where: { id: dto.customerId, companyId },
@@ -157,11 +157,31 @@ export class ServiceTicketsService {
       },
     });
 
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'SERVICE_TICKETS' as any,
+            entityType: 'SERVICE_TICKET',
+            entityId: ticket.id,
+            entityName: ticket.number || ticket.title || '',
+            action: 'CREATE' as any,
+            description: `Service-Ticket "${ticket.number || ticket.title || ''}" erstellt`,
+            newValues: { number: ticket.number, title: ticket.title },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return ticket;
   }
 
-  async update(id: string, companyId: string, dto: UpdateServiceTicketDto) {
+  async update(id: string, companyId: string, dto: UpdateServiceTicketDto, userId?: string) {
     const ticket = await this.findOne(id, companyId);
+    const oldValues = { number: ticket.number, title: ticket.title };
 
     if (ticket.status === ServiceTicketStatus.CLOSED) {
       throw new BadRequestException('Geschlossenes Ticket kann nicht bearbeitet werden');
@@ -174,7 +194,7 @@ export class ServiceTicketsService {
       newStatus = undefined;
     }
 
-    return this.prisma.serviceTicket.update({
+    const updated = await this.prisma.serviceTicket.update({
       where: { id },
       data: {
         title: dto.title,
@@ -194,16 +214,60 @@ export class ServiceTicketsService {
         assignedTechnician: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'SERVICE_TICKETS' as any,
+            entityType: 'SERVICE_TICKET',
+            entityId: updated.id,
+            entityName: updated.number || updated.title || '',
+            action: 'UPDATE' as any,
+            description: `Service-Ticket "${updated.number || updated.title || ''}" aktualisiert`,
+            oldValues,
+            newValues: { number: updated.number, title: updated.title },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const ticket = await this.findOne(id, companyId);
+    const entityName = ticket.number || ticket.title || '';
 
     if (ticket.status !== ServiceTicketStatus.OPEN) {
       throw new BadRequestException('Nur offene Tickets können gelöscht werden');
     }
 
-    return this.prisma.serviceTicket.delete({ where: { id } });
+    const deleted = await this.prisma.serviceTicket.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'SERVICE_TICKETS' as any,
+            entityType: 'SERVICE_TICKET',
+            entityId: deleted.id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Service-Ticket "${entityName}" gelöscht`,
+            oldValues: { number: ticket.number, title: ticket.title },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   // Add service report

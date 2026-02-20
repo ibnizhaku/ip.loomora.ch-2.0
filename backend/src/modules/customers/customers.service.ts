@@ -139,7 +139,7 @@ export class CustomersService {
     };
   }
 
-  async create(companyId: string, dto: CreateCustomerDto) {
+  async create(companyId: string, dto: CreateCustomerDto, userId?: string) {
     // Generate customer number if not provided
     let number = dto.number;
     if (!number) {
@@ -166,12 +166,33 @@ export class CustomersService {
       companyId,
     };
 
-    return this.prisma.customer.create({
+    const created = await this.prisma.customer.create({
       data: createData,
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CUSTOMERS' as any,
+            entityType: 'CUSTOMER',
+            entityId: created.id,
+            entityName: created.companyName || created.name || '',
+            action: 'CREATE' as any,
+            description: `Kunde "${created.companyName || created.name || ''}" erstellt`,
+            newValues: { name: created.companyName || created.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return created;
   }
 
-  async update(id: string, companyId: string, dto: UpdateCustomerDto) {
+  async update(id: string, companyId: string, dto: UpdateCustomerDto, userId?: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { id, companyId },
     });
@@ -180,13 +201,41 @@ export class CustomersService {
       throw new NotFoundException('Customer not found');
     }
 
-    return this.prisma.customer.update({
+    const oldValues = {
+      name: customer.name,
+      companyName: customer.companyName,
+      email: customer.email,
+    };
+
+    const updated = await this.prisma.customer.update({
       where: { id },
       data: dto,
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CUSTOMERS' as any,
+            entityType: 'CUSTOMER',
+            entityId: updated.id,
+            entityName: updated.companyName || updated.name || '',
+            action: 'UPDATE' as any,
+            description: `Kunde "${updated.companyName || updated.name || ''}" aktualisiert`,
+            oldValues,
+            newValues: { name: updated.companyName || updated.name, email: updated.email },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId: string, userId?: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { id, companyId },
       include: {
@@ -216,10 +265,37 @@ export class CustomersService {
       );
     }
 
-    // Hard delete - safe now
-    return this.prisma.customer.delete({
+    const oldValues = {
+      name: customer.name,
+      companyName: customer.companyName,
+      email: customer.email,
+    };
+    const entityName = customer.companyName || customer.name || '';
+
+    const deleted = await this.prisma.customer.delete({
       where: { id },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CUSTOMERS' as any,
+            entityType: 'CUSTOMER',
+            entityId: deleted.id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Kunde "${entityName}" gelöscht`,
+            oldValues,
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   async getStats(companyId: string) {

@@ -436,7 +436,7 @@ export class OrdersService {
           action: 'CREATE',
           module: 'DOCUMENTS',
           entityId: deliveryNote.id,
-          entityType: 'DeliveryNote',
+          entityType: 'DELIVERY_NOTE',
           entityName: deliveryNote.number,
           description: `Lieferschein ${deliveryNote.number} aus Auftrag ${order.number} erstellt`,
           userId,

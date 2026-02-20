@@ -78,7 +78,7 @@ export class ContractsService {
     return contract;
   }
 
-  async create(companyId: string, dto: CreateContractDto) {
+  async create(companyId: string, dto: CreateContractDto, userId?: string) {
     // Generate contract number if not provided
     let contractNumber = dto.contractNumber;
     if (!contractNumber) {
@@ -106,7 +106,7 @@ export class ContractsService {
     const { title, ...restDto } = dto as any;
     const contractName = dto.name || title || 'Unbenannter Vertrag';
 
-    return this.prisma.contract.create({
+    const contract = await this.prisma.contract.create({
       data: {
         name: contractName,
         description: dto.description,
@@ -132,9 +132,30 @@ export class ContractsService {
         customer: { select: { id: true, name: true, companyName: true } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CONTRACTS' as any,
+            entityType: 'CONTRACT',
+            entityId: contract.id,
+            entityName: contract.contractNumber || contract.name || '',
+            action: 'CREATE' as any,
+            description: `Vertrag "${contract.contractNumber || contract.name || ''}" erstellt`,
+            newValues: { contractNumber: contract.contractNumber, name: contract.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
+    return contract;
   }
 
-  async update(id: string, companyId: string, dto: UpdateContractDto) {
+  async update(id: string, companyId: string, dto: UpdateContractDto, userId?: string) {
     const contract = await this.prisma.contract.findFirst({
       where: { id, companyId },
     });
@@ -143,13 +164,36 @@ export class ContractsService {
       throw new NotFoundException('Contract not found');
     }
 
-    return this.prisma.contract.update({
+    const entityName = contract.contractNumber || contract.name || '';
+    const updated = await this.prisma.contract.update({
       where: { id },
       data: dto,
       include: {
         customer: { select: { id: true, name: true, companyName: true } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'CONTRACTS' as any,
+            entityType: 'CONTRACT',
+            entityId: id,
+            entityName: updated.contractNumber || updated.name || entityName,
+            action: 'UPDATE' as any,
+            description: `Vertrag "${updated.contractNumber || updated.name || entityName}" aktualisiert`,
+            oldValues: { contractNumber: contract.contractNumber, name: contract.name },
+            newValues: { contractNumber: updated.contractNumber, name: updated.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) {}
+    }
+
+    return updated;
   }
 
   async remove(id: string, companyId: string) {

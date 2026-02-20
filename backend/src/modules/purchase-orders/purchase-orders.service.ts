@@ -73,7 +73,7 @@ export class PurchaseOrdersService {
     return mapPurchaseOrderResponse(purchaseOrder);
   }
 
-  async create(companyId: string, dto: CreatePurchaseOrderDto) {
+  async create(companyId: string, dto: CreatePurchaseOrderDto, userId?: string) {
     // Validate supplier
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: dto.supplierId, companyId },
@@ -129,11 +129,32 @@ export class PurchaseOrdersService {
         items: true,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PURCHASE_ORDERS' as any,
+            entityType: 'PURCHASE_ORDER',
+            entityId: created.id,
+            entityName: created.number || '',
+            action: 'CREATE' as any,
+            description: `Einkaufsbestellung "${created.number}" erstellt`,
+            newValues: { number: created.number },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return mapPurchaseOrderResponse(created);
   }
 
-  async update(id: string, companyId: string, dto: UpdatePurchaseOrderDto) {
+  async update(id: string, companyId: string, dto: UpdatePurchaseOrderDto, userId?: string) {
     const purchaseOrder = await this.findOne(id, companyId);
+    const oldValues = { number: purchaseOrder.number };
 
     // Check if status is a final state (CONFIRMED is the closest to "completed" in DocumentStatus)
     if (purchaseOrder.status === 'CONFIRMED') {
@@ -195,11 +216,33 @@ export class PurchaseOrdersService {
         items: true,
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PURCHASE_ORDERS' as any,
+            entityType: 'PURCHASE_ORDER',
+            entityId: updated.id,
+            entityName: updated.number || '',
+            action: 'UPDATE' as any,
+            description: `Einkaufsbestellung "${updated.number}" aktualisiert`,
+            oldValues,
+            newValues: { number: updated.number },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     return mapPurchaseOrderResponse(updated);
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const purchaseOrder = await this.findOne(id, companyId);
+    const entityName = purchaseOrder.number || '';
 
     if (purchaseOrder.status !== 'DRAFT') {
       throw new BadRequestException('Nur Entwürfe können gelöscht werden');
@@ -209,7 +252,28 @@ export class PurchaseOrdersService {
       where: { purchaseOrderId: id },
     });
 
-    return this.prisma.purchaseOrder.delete({ where: { id } });
+    const deleted = await this.prisma.purchaseOrder.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PURCHASE_ORDERS' as any,
+            entityType: 'PURCHASE_ORDER',
+            entityId: deleted.id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Einkaufsbestellung "${entityName}" gelöscht`,
+            oldValues: { number: purchaseOrder.number },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   // Send purchase order

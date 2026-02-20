@@ -100,7 +100,7 @@ export class ServiceTicketsController {
   @RequirePermissions('service-tickets:write')
   @ApiOperation({ summary: 'Create new service ticket' })
   create(@Body() dto: CreateServiceTicketDto, @CurrentUser() user: any) {
-    return this.serviceTicketsService.create(user.companyId, dto);
+    return this.serviceTicketsService.create(user.companyId, dto, user.userId);
   }
 
   @Put(':id')
@@ -111,7 +111,7 @@ export class ServiceTicketsController {
     @Body() dto: UpdateServiceTicketDto,
     @CurrentUser() user: any,
   ) {
-    return this.serviceTicketsService.update(id, user.companyId, dto);
+    return this.serviceTicketsService.update(id, user.companyId, dto, user.userId);
   }
 
   @Post(':id/report')
@@ -140,6 +140,6 @@ export class ServiceTicketsController {
   @RequirePermissions('service-tickets:delete')
   @ApiOperation({ summary: 'Delete service ticket' })
   delete(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.serviceTicketsService.delete(id, user.companyId);
+    return this.serviceTicketsService.delete(id, user.companyId, user.userId);
   }
 }

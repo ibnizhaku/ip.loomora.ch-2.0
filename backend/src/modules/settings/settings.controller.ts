@@ -25,7 +25,7 @@ export class SettingsController {
   @RequirePermissions('settings:write')
   @ApiOperation({ summary: 'Update company settings' })
   updateSettings(@CurrentUser() user: CurrentUserPayload, @Body() dto: UpdateSettingsDto) {
-    return this.settingsService.updateSettings(user.companyId, dto);
+    return this.settingsService.updateSettings(user.companyId, dto, user.userId);
   }
 
   @Post('generate-api-key')

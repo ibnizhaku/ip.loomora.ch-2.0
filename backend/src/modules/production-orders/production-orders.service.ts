@@ -101,7 +101,7 @@ export class ProductionOrdersService {
     };
   }
 
-  async create(companyId: string, dto: CreateProductionOrderDto) {
+  async create(companyId: string, dto: CreateProductionOrderDto, userId?: string) {
     // Generate number
     const count = await this.prisma.productionOrder.count({ where: { companyId } });
     const year = new Date().getFullYear();
@@ -123,7 +123,7 @@ export class ProductionOrdersService {
       plannedEndDate.setDate(plannedEndDate.getDate() + Math.ceil(totalHours / 8)); // 8h workday
     }
 
-    return this.prisma.productionOrder.create({
+    const created = await this.prisma.productionOrder.create({
       data: {
         companyId,
         number,
@@ -156,10 +156,32 @@ export class ProductionOrdersService {
         operations: { orderBy: { sortOrder: 'asc' } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PRODUCTION' as any,
+            entityType: 'PRODUCTION_ORDER',
+            entityId: created.id,
+            entityName: created.number || '',
+            action: 'CREATE' as any,
+            description: `Produktionsauftrag "${created.number}" erstellt`,
+            newValues: { number: created.number, name: created.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return created;
   }
 
-  async update(id: string, companyId: string, dto: UpdateProductionOrderDto) {
+  async update(id: string, companyId: string, dto: UpdateProductionOrderDto, userId?: string) {
     const order = await this.findOne(id, companyId);
+    const oldValues = { number: order.number, name: order.name };
 
     if (order.status === ProductionOrderStatus.COMPLETED) {
       throw new BadRequestException('Abgeschlossener Auftrag kann nicht bearbeitet werden');
@@ -194,7 +216,7 @@ export class ProductionOrdersService {
       });
     }
 
-    return this.prisma.productionOrder.update({
+    const updated = await this.prisma.productionOrder.update({
       where: { id },
       data: {
         name: dto.name,
@@ -212,16 +234,60 @@ export class ProductionOrdersService {
         operations: { orderBy: { sortOrder: 'asc' } },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PRODUCTION' as any,
+            entityType: 'PRODUCTION_ORDER',
+            entityId: updated.id,
+            entityName: updated.number || '',
+            action: 'UPDATE' as any,
+            description: `Produktionsauftrag "${updated.number}" aktualisiert`,
+            oldValues,
+            newValues: { number: updated.number, name: updated.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const order = await this.findOne(id, companyId);
+    const entityName = order.number || '';
 
     if (order.status === ProductionOrderStatus.IN_PROGRESS) {
       throw new BadRequestException('Laufender Auftrag kann nicht gelöscht werden');
     }
 
-    return this.prisma.productionOrder.delete({ where: { id } });
+    const deleted = await this.prisma.productionOrder.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'PRODUCTION' as any,
+            entityType: 'PRODUCTION_ORDER',
+            entityId: deleted.id,
+            entityName,
+            action: 'DELETE' as any,
+            description: `Produktionsauftrag "${entityName}" gelöscht`,
+            oldValues: { number: order.number, name: order.name },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   // Book time to an operation

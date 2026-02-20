@@ -168,7 +168,7 @@ export class RemindersService {
       ? new Date(dto.dueDate) 
       : new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
 
-    return this.prisma.reminder.create({
+    const reminder = await this.prisma.reminder.create({
       data: {
         companyId,
         invoiceId: dto.invoiceId,
@@ -190,16 +190,39 @@ export class RemindersService {
         },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'REMINDERS' as any,
+            entityType: 'REMINDER',
+            entityId: reminder.id,
+            entityName: reminder.number || '',
+            action: 'CREATE' as any,
+            description: `Mahnung "${reminder.number}" erstellt`,
+            newValues: { number: reminder.number, level: reminder.level, status: reminder.status },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return reminder;
   }
 
-  async update(id: string, companyId: string, dto: UpdateReminderDto) {
+  async update(id: string, companyId: string, dto: UpdateReminderDto, userId?: string) {
     const reminder = await this.findOne(id, companyId);
 
     if (reminder.status === ReminderStatus.SENT) {
       throw new BadRequestException('Versendete Mahnung kann nicht bearbeitet werden');
     }
 
-    return this.prisma.reminder.update({
+    const oldValues = { status: reminder.status, dueDate: reminder.dueDate, notes: reminder.notes };
+
+    const updated = await this.prisma.reminder.update({
       where: { id },
       data: {
         status: dto.status,
@@ -212,9 +235,35 @@ export class RemindersService {
         },
       },
     });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'REMINDERS' as any,
+            entityType: 'REMINDER',
+            entityId: updated.id,
+            entityName: updated.number || '',
+            action: 'UPDATE' as any,
+            description: `Mahnung "${updated.number}" aktualisiert`,
+            oldValues,
+            newValues: {
+              status: updated.status,
+              dueDate: updated.dueDate,
+              notes: updated.notes,
+            },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updated;
   }
 
-  async send(id: string, companyId: string, dto: SendReminderDto) {
+  async send(id: string, companyId: string, dto: SendReminderDto, userId?: string) {
     const reminder = await this.findOne(id, companyId);
 
     if (reminder.status === ReminderStatus.SENT) {
@@ -242,6 +291,29 @@ export class RemindersService {
       },
     });
 
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'REMINDERS' as any,
+            entityType: 'REMINDER',
+            entityId: updatedReminder.id,
+            entityName: updatedReminder.number || '',
+            action: 'SEND' as any,
+            description: `Mahnung "${updatedReminder.number}" versendet`,
+            newValues: {
+              status: updatedReminder.status,
+              sentAt: updatedReminder.sentAt,
+              sendMethod: updatedReminder.sendMethod,
+            },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
     // In a real implementation, this would:
     // - Generate PDF letter with QR-Rechnung
     // - Send email if method is EMAIL or BOTH
@@ -253,14 +325,35 @@ export class RemindersService {
     };
   }
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string, userId?: string) {
     const reminder = await this.findOne(id, companyId);
 
     if (reminder.status === ReminderStatus.SENT) {
       throw new BadRequestException('Versendete Mahnung kann nicht gelöscht werden');
     }
 
-    return this.prisma.reminder.delete({ where: { id } });
+    const deleted = await this.prisma.reminder.delete({ where: { id } });
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'REMINDERS' as any,
+            entityType: 'REMINDER',
+            entityId: deleted.id,
+            entityName: deleted.number || '',
+            action: 'DELETE' as any,
+            description: `Mahnung "${deleted.number}" gelöscht`,
+            oldValues: { number: deleted.number, level: deleted.level, status: deleted.status },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return deleted;
   }
 
   // Get overdue invoices that need reminders
