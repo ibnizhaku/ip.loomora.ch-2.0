@@ -113,10 +113,9 @@ export class RemindersService {
 
   async create(companyId: string, dto: CreateReminderDto, userId?: string) {
     // Get invoice (inkl. projectId für automatische Übernahme)
-    const invoice = await this.prisma.invoice.findFirst({
+    const invoice = await (this.prisma.invoice as any).findFirst({
       where: { id: dto.invoiceId, companyId },
       include: { customer: true },
-      select: { id: true, status: true, totalAmount: true, projectId: true, customer: true } as any,
     });
 
     if (!invoice) {
