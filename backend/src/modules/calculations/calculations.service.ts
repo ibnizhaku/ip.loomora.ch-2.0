@@ -56,13 +56,19 @@ export class CalculationsService {
           project: { select: { id: true, name: true, number: true } },
           customer: { select: { id: true, name: true } },
           bom: { select: { id: true, name: true } },
+          items: { orderBy: { sortOrder: 'asc' } },
         },
       }),
       this.prisma.calculation.count({ where }),
     ]);
 
+    const enriched = data.map(calc => {
+      const result = this.calculateResult(calc);
+      return { ...calc, result };
+    });
+
     return {
-      data,
+      data: enriched,
       total,
       page,
       pageSize,

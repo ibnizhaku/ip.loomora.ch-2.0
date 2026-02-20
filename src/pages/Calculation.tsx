@@ -135,20 +135,28 @@ export default function Calculation() {
     queryKey: ["/bom"],
     queryFn: () => api.get<any>("/bom"),
   });
-  const calcList: Calculation[] = (apiData?.data || []).map((raw: any) => ({
-    id: raw.id,
-    number: raw.number || "",
-    name: raw.name || "",
-    customer: raw.customer?.name || raw.customerId || "",
-    project: raw.project?.name || raw.projectId || "",
-    status: (raw.status || "draft").toLowerCase() as Calculation["status"],
-    materialCosts: Number(raw.materialCost || 0),
-    laborCosts: Number(raw.laborCost || 0),
-    totalCost: Number(raw.costTotal || raw.total || 0),
-    sellingPrice: Number(raw.sellingPrice || raw.total || 0),
-    profitMargin: Number(raw.profitMargin || 0),
-    createdAt: raw.createdAt ? new Date(raw.createdAt).toLocaleDateString("de-CH") : "",
-  }));
+  const calcList: Calculation[] = (apiData?.data || []).map((raw: any) => {
+    const r = raw.result || {};
+    return {
+      id: raw.id,
+      number: raw.number || "",
+      name: raw.name || "",
+      customer: raw.customer?.name || raw.customerId || "",
+      project: raw.project?.name || raw.projectId || "",
+      status: (raw.status || "draft").toLowerCase() as Calculation["status"],
+      materialCost: Number(r.materialCost || 0),
+      laborCost: Number(r.laborCost || 0),
+      laborHours: 0,
+      externalCost: Number(r.externalCost || 0),
+      overhead: Number(r.overheadAmount || 0),
+      margin: Number(raw.profitMargin || 0),
+      discount: Number(raw.discount || 0),
+      totalCost: Number(r.directCosts || raw.totalCost || 0),
+      sellingPrice: Number(r.grandTotal || raw.totalPrice || 0),
+      profitMargin: Number(r.marginPercent || raw.profitMargin || 0),
+      createdAt: raw.createdAt ? new Date(raw.createdAt).toLocaleDateString("de-CH") : "",
+    };
+  });
   const apiBOMs: BOM[] = (bomApiData?.data || []).map((raw: any) => ({
     id: raw.id,
     number: raw.number || "",
@@ -221,15 +229,16 @@ export default function Calculation() {
   });
 
   const createQuoteMutation = useMutation({
-    mutationFn: (calcId: string) => api.post(`/calculations/${calcId}/transfer`),
+    mutationFn: (calcId: string) => api.post(`/calculations/${calcId}/transfer-to-quote`),
     onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/calculations"] });
       queryClient.invalidateQueries({ queryKey: ["/quotes"] });
-      navigate(data?.quoteId ? `/quotes/${data.quoteId}` : "/quotes/new");
+      const quoteId = data?.quote?.id;
+      navigate(quoteId ? `/quotes/${quoteId}` : "/quotes");
       toast.success("Angebot aus Kalkulation erstellt");
     },
     onError: () => {
-      navigate("/quotes/new");
-      toast.info("Angebot wird manuell erstellt...");
+      toast.error("Fehler beim Erstellen des Angebots. Ist ein Kunde hinterlegt?");
     },
   });
 
