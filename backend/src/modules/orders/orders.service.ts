@@ -556,12 +556,20 @@ export class OrdersService {
   async remove(id: string, companyId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id, companyId },
-      include: { _count: { select: { invoices: true, deliveryNotes: true } } },
+      include: {
+        _count: { select: { invoices: true, deliveryNotes: true } },
+        invoices: { select: { id: true, number: true, status: true } },
+        deliveryNotes: { select: { id: true, number: true, status: true } },
+      },
     });
 
     if (!order) {
       throw new NotFoundException('Order not found');
     }
+
+    // #region agent log
+    console.error('[DEBUG_ORDER_REMOVE]', JSON.stringify({ location: 'orders.service.ts:remove', orderId: id, orderStatus: order.status, invoiceCount: order._count.invoices, deliveryNoteCount: order._count.deliveryNotes, invoices: (order as any).invoices?.map((i: any) => ({ id: i.id, status: i.status })), deliveryNotes: (order as any).deliveryNotes?.map((d: any) => ({ id: d.id, status: d.status })), timestamp: Date.now() }));
+    // #endregion
 
     if (order._count.invoices > 0 || order._count.deliveryNotes > 0) {
       throw new BadRequestException('Cannot delete order with linked invoices or delivery notes');
