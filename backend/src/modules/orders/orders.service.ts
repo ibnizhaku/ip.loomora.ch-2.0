@@ -292,6 +292,10 @@ export class OrdersService {
       const invoiceCount = await tx.invoice.count({ where: { companyId } });
       const qrReference = generateSwissQrReference(invoiceCount + 1);
 
+      // #region agent log
+      console.error('[DEBUG_CREATE_INVOICE_FROM_ORDER]', JSON.stringify({ orderId: id, orderProjectId: order.projectId, hasDeliveryAddress: !!(order as any).deliveryAddress, deliveryAddress: (order as any).deliveryAddress, hasBillingAddress: !!(order as any).billingAddress, timestamp: Date.now() }));
+      // #endregion
+
       const invoice = await tx.invoice.create({
         data: {
           number: invoiceNumber,
