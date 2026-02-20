@@ -68,7 +68,6 @@ export class AuditLogController {
   }
 
   @Get('entity/:entityType/:entityId')
-  @RequirePermissions('settings:read')
   async getEntityHistory(
     @CurrentUser() user: any,
     @Param('entityType') entityType: string,

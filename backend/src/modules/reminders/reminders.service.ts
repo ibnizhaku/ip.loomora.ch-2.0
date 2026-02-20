@@ -11,6 +11,7 @@ import {
   INKASSO_FEE,
   SendMethod,
 } from './dto/reminder.dto';
+import { mapReminderResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
 export class RemindersService {
@@ -60,6 +61,7 @@ export class RemindersService {
               dueDate: true,
               date: true,
               status: true,
+              projectId: true,
               customer: {
                 select: {
                   id: true,
@@ -82,7 +84,7 @@ export class RemindersService {
     ]);
 
     return {
-      data,
+      data: data.map(mapReminderResponse),
       total,
       page,
       pageSize,

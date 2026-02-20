@@ -216,6 +216,19 @@ export function mapCreditNoteResponse(creditNote: any) {
   };
 }
 
+// Reminder: Backend → Frontend
+export function mapReminderResponse(reminder: any) {
+  if (!reminder) return reminder;
+  return {
+    ...reminder,
+    createdByUser: reminder.createdBy || null,
+    // Projekt via verknüpfte Rechnung
+    projectId: reminder.projectId || reminder.invoice?.projectId || null,
+    // Kundendaten: direkt aus invoice.customer (Reminder hat kein eigenes customer-Feld)
+    customer: mapCustomer(reminder.invoice?.customer) || mapCustomer(reminder.customer) || null,
+  };
+}
+
 // PurchaseOrder: Backend → Frontend
 export function mapPurchaseOrderResponse(purchaseOrder: any) {
   if (!purchaseOrder) return purchaseOrder;
