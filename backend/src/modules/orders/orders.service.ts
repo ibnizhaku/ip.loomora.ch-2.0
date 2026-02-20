@@ -568,14 +568,30 @@ export class OrdersService {
     }
 
     // #region agent log
-    console.error('[DEBUG_ORDER_REMOVE]', JSON.stringify({ location: 'orders.service.ts:remove', orderId: id, orderStatus: order.status, invoiceCount: order._count.invoices, deliveryNoteCount: order._count.deliveryNotes, invoices: (order as any).invoices?.map((i: any) => ({ id: i.id, status: i.status })), deliveryNotes: (order as any).deliveryNotes?.map((d: any) => ({ id: d.id, status: d.status })), timestamp: Date.now() }));
+    console.error('[DEBUG_ORDER_REMOVE_V2]', JSON.stringify({ location: 'orders.service.ts:remove', orderId: id, orderStatus: order.status, invoices: (order as any).invoices?.map((i: any) => ({ id: i.id, status: i.status })), deliveryNotes: (order as any).deliveryNotes?.map((d: any) => ({ id: d.id, status: d.status })), timestamp: Date.now() }));
     // #endregion
 
-    if (order._count.invoices > 0 || order._count.deliveryNotes > 0) {
-      throw new BadRequestException('Cannot delete order with linked invoices or delivery notes');
+    const paidInvoices = ((order as any).invoices as { status: InvoiceStatus }[])
+      .filter((i) => [InvoiceStatus.PAID, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE].includes(i.status));
+
+    if (paidInvoices.length > 0) {
+      throw new BadRequestException(
+        'Aufträge mit bezahlten oder teilbezahlten Rechnungen können nicht gelöscht werden',
+      );
     }
 
-    await this.prisma.orderItem.deleteMany({ where: { orderId: id } });
-    return this.prisma.order.delete({ where: { id } });
+    const invoiceIds = ((order as any).invoices as { id: string }[]).map((i) => i.id);
+    const deliveryNoteIds = ((order as any).deliveryNotes as { id: string }[]).map((d) => d.id);
+
+    await this.prisma.$transaction([
+      this.prisma.deliveryNoteItem.deleteMany({ where: { deliveryNoteId: { in: deliveryNoteIds } } }),
+      this.prisma.deliveryNote.deleteMany({ where: { id: { in: deliveryNoteIds } } }),
+      this.prisma.invoiceItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } }),
+      this.prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } }),
+      this.prisma.orderItem.deleteMany({ where: { orderId: id } }),
+      this.prisma.order.delete({ where: { id } }),
+    ]);
+
+    return { deleted: true };
   }
 }
