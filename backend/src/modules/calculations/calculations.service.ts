@@ -280,17 +280,12 @@ export class CalculationsService {
         };
       });
 
-      console.log('transferToQuote: quoteNumber=', quoteNumber);
-      console.log('transferToQuote: customerId=', calculation.customerId);
-      console.log('transferToQuote: result=', JSON.stringify(result));
-      console.log('transferToQuote: quoteItems=', JSON.stringify(quoteItems));
-
       const quote = await this.prisma.quote.create({
         data: {
-          companyId,
+          company: { connect: { id: companyId } },
           number: quoteNumber,
-          customerId: calculation.customerId,
-          createdById: userId,
+          customer: { connect: { id: calculation.customerId } },
+          createdBy: { connect: { id: userId } },
           status: 'DRAFT',
           validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           subtotal: result.netTotal || 0,
