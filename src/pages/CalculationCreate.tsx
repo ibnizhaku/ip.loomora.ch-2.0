@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useCreateCalculation } from "@/hooks/use-calculations";
 import { useBoms } from "@/hooks/use-bom";
 import { useCustomers } from "@/hooks/use-customers";
+import { useProjects } from "@/hooks/use-projects";
 
 interface Position {
   id: number;
@@ -54,12 +55,14 @@ export default function CalculationCreate() {
   const createCalc = useCreateCalculation();
   const { data: bomsData } = useBoms({ pageSize: 100 });
   const { data: customersData } = useCustomers({ pageSize: 100 });
+  const { data: projectsData } = useProjects({ pageSize: 100 });
   const apiBOMs = (bomsData as any)?.data || [];
   const apiCustomers = (customersData as any)?.data || [];
+  const apiProjects = (projectsData as any)?.data || [];
 
   const [name, setName] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [project, setProject] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [selectedBomId, setSelectedBomId] = useState<string | null>(null);
   const [bomReference, setBomReference] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([
@@ -101,7 +104,6 @@ export default function CalculationCreate() {
       try {
         const bomData = JSON.parse(bomDataStr);
         setName(bomData.bomName || "");
-        setProject(bomData.projektNr || "");
         setBomReference(bomData.bomId);
         
         // Convert BOM positions to calculation positions
@@ -172,6 +174,7 @@ export default function CalculationCreate() {
       {
         name,
         customerId: customerId || undefined,
+        projectId: projectId || undefined,
         bomId: selectedBomId || undefined,
         overheadPercent,
         profitMargin: marginPercent,
@@ -312,11 +315,18 @@ export default function CalculationCreate() {
               </div>
               <div className="space-y-2">
                 <Label>Projekt (optional)</Label>
-                <Input
-                  placeholder="PRJ-2024-XXX"
-                  value={project}
-                  onChange={(e) => setProject(e.target.value)}
-                />
+                <Select value={projectId} onValueChange={setProjectId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Projekt wählen (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apiProjects.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.number} - {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>

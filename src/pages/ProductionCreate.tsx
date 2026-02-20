@@ -23,7 +23,7 @@ export default function ProductionCreate() {
   const [name, setName] = useState("");
   const [projectId, setProjectId] = useState("");
   const [bomId, setBomId] = useState("");
-  const [priority, setPriority] = useState("NORMAL");
+  const [priority, setPriority] = useState("MEDIUM");
   const [plannedStart, setPlannedStart] = useState("");
   const [plannedEnd, setPlannedEnd] = useState("");
   const [plannedHours, setPlannedHours] = useState("");
@@ -41,6 +41,13 @@ export default function ProductionCreate() {
       return;
     }
 
+    const extraInfo = [
+      workstation && `Arbeitsplatz: ${workstation}`,
+      team && `Team: ${team}`,
+      plannedHours && `Geplante Stunden: ${plannedHours}`,
+    ].filter(Boolean).join('\n');
+    const fullNotes = [notes, extraInfo].filter(Boolean).join('\n---\n') || undefined;
+
     createOrder.mutate(
       {
         name,
@@ -49,7 +56,7 @@ export default function ProductionCreate() {
         priority,
         plannedStartDate: plannedStart,
         plannedEndDate: plannedEnd || undefined,
-        notes: notes || undefined,
+        notes: fullNotes,
       } as any,
       {
         onSuccess: (data: any) => {
@@ -130,9 +137,8 @@ export default function ProductionCreate() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="LOW">Niedrig</SelectItem>
-                  <SelectItem value="NORMAL">Normal</SelectItem>
+                  <SelectItem value="MEDIUM">Normal</SelectItem>
                   <SelectItem value="HIGH">Hoch</SelectItem>
-                  <SelectItem value="URGENT">Dringend</SelectItem>
                 </SelectContent>
               </Select>
             </div>
