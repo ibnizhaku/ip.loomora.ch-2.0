@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -69,6 +70,7 @@ const currentYear = new Date().getFullYear();
 
 export default function Reports() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
   const [selectedReport, setSelectedReport] = useState<AvailableReport | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -97,9 +99,12 @@ export default function Reports() {
     return acc;
   }, {} as Record<string, AvailableReport[]>);
 
-  const handleRefreshReport = (reportName: string) => {
+  const handleRefreshReport = useCallback((reportName: string) => {
+    queryClient.invalidateQueries({ queryKey: ['/reports'] });
+    queryClient.invalidateQueries({ queryKey: ['/gav-compliance'] });
+    queryClient.invalidateQueries({ queryKey: ['/open-items'] });
     toast.success(`${reportName} wird aktualisiert...`);
-  };
+  }, [queryClient]);
 
   // KPI Cards with live data
   const kpiCards = [

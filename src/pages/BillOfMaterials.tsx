@@ -145,17 +145,43 @@ export default function BillOfMaterials() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch data from API
+  // Fetch BOMs from API
   const { data: apiData } = useQuery({
     queryKey: ["/bom"],
     queryFn: () => api.get<any>("/bom"),
   });
-  const initialBoms = apiData?.data || [];
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [expandedBOM, setExpandedBOM] = useState<string | null>("1");
-  const [bomList, setBomList] = useState<BOM[]>(initialBoms);
+  // Fetch BOM-Templates from API
+  const { data: templatesData } = useQuery({
+    queryKey: ["/bom/templates"],
+    queryFn: () => api.get<any>("/bom/templates"),
+  });
+  const bomList: BOM[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id,
+    number: raw.number || "",
+    name: raw.name || "",
+    project: raw.project?.name || raw.projectId || "",
+    status: (raw.status || "draft").toLowerCase() as BOM["status"],
+    totalMaterial: Number(raw.materialCost || raw.totalMaterial || 0),
+    totalWork: Number(raw.laborCost || raw.totalWork || 0),
+    totalExternal: Number(raw.subtotal || raw.totalExternal || 0),
+    items: (raw.items || []).map((item: any) => ({
+      id: item.id,
+      articleNumber: item.productId || "",
+      name: item.description || "",
+      quantity: Number(item.quantity || 0),
+      unit: item.unit || "Stk",
+      unitPrice: Number(item.unitPrice || 0),
+      type: item.type === "LABOR" ? "work" : item.type === "SUBCONTRACT" ? "external" : "material",
+    })),
+    createdAt: raw.createdAt ? new Date(raw.createdAt).toLocaleDateString("de-CH") : "",
+  }));
+  const apiTemplates: Array<{ id: string; name: string; description?: string }> =
+    Array.isArray(templatesData) ? templatesData : [];
 
-  // Delete mutation
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [expandedBOM, setExpandedBOM] = useState<string | null>(null);
+
+  // Mutations
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/bom/${id}`),
     onSuccess: () => {
@@ -165,6 +191,27 @@ export default function BillOfMaterials() {
     onError: () => {
       toast.error("Fehler beim Löschen der Stückliste");
     },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      api.post(`/bom/${id}/duplicate`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/bom"] });
+      toast.success("Stückliste dupliziert");
+    },
+    onError: () => toast.error("Fehler beim Duplizieren"),
+  });
+
+  const createFromTemplateMutation = useMutation({
+    mutationFn: (templateId: string) =>
+      api.post("/bom", { templateId, status: "DRAFT" }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/bom"] });
+      setExpandedBOM(data?.id || null);
+      toast.success("Stückliste aus Vorlage erstellt");
+    },
+    onError: () => toast.error("Fehler beim Erstellen aus Vorlage"),
   });
 
   const totalBOMs = bomList.length;
@@ -189,15 +236,7 @@ export default function BillOfMaterials() {
 
   const handleDuplicate = (e: React.MouseEvent, bom: BOM) => {
     e.stopPropagation();
-    const newBom: BOM = {
-      ...bom,
-      id: Date.now().toString(),
-      number: `STL-2024-${String(bomList.length + 1).padStart(3, '0')}`,
-      name: `${bom.name} (Kopie)`,
-      status: "draft",
-    };
-    setBomList([...bomList, newBom]);
-    toast.success("Stückliste dupliziert");
+    duplicateMutation.mutate({ id: bom.id, name: `${bom.name} (Kopie)` });
   };
 
   const handleViewDetails = (e: React.MouseEvent, bomId: string) => {
@@ -235,76 +274,7 @@ export default function BillOfMaterials() {
   };
 
   const handleCreateFromTemplate = (templateId: string) => {
-    const templates: Record<string, { name: string; items: BOMItem[] }> = {
-      treppe: {
-        name: "Metalltreppe",
-        items: [
-          { id: "t1", articleNumber: "ART-001", name: "Stahlträger HEB 200", quantity: 12, unit: "lfm", unitPrice: 85, type: "material" },
-          { id: "t2", articleNumber: "ART-002", name: "Treppenstufen Gitterrost", quantity: 18, unit: "Stk", unitPrice: 125, type: "material" },
-          { id: "t3", articleNumber: "ART-003", name: "Geländer Edelstahl", quantity: 12, unit: "lfm", unitPrice: 180, type: "material" },
-          { id: "t4", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 24, unit: "Std", unitPrice: 125, type: "work" },
-        ],
-      },
-      gelaender: {
-        name: "Geländer / Balkon",
-        items: [
-          { id: "g1", articleNumber: "ART-010", name: "Pfosten Edelstahl 40x40", quantity: 8, unit: "Stk", unitPrice: 95, type: "material" },
-          { id: "g2", articleNumber: "ART-011", name: "Handlauf Edelstahl Ø42", quantity: 10, unit: "lfm", unitPrice: 65, type: "material" },
-          { id: "g3", articleNumber: "ART-012", name: "Glasfüllung VSG", quantity: 5, unit: "m²", unitPrice: 280, type: "material" },
-          { id: "g4", articleNumber: "DL-002", name: "Montagearbeiten", quantity: 8, unit: "Std", unitPrice: 125, type: "work" },
-        ],
-      },
-      tor: {
-        name: "Tor / Zaun",
-        items: [
-          { id: "z1", articleNumber: "ART-020", name: "Rahmenrohr 60x40", quantity: 15, unit: "lfm", unitPrice: 28, type: "material" },
-          { id: "z2", articleNumber: "ART-021", name: "Füllung Stabgitter", quantity: 6, unit: "m²", unitPrice: 120, type: "material" },
-          { id: "z3", articleNumber: "ART-022", name: "Beschläge Set", quantity: 1, unit: "Set", unitPrice: 350, type: "material" },
-          { id: "z4", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 12, unit: "Std", unitPrice: 125, type: "work" },
-        ],
-      },
-      vordach: {
-        name: "Vordach / Carport",
-        items: [
-          { id: "v1", articleNumber: "ART-030", name: "Stützen HEB 140", quantity: 4, unit: "Stk", unitPrice: 280, type: "material" },
-          { id: "v2", articleNumber: "ART-031", name: "Träger IPE 180", quantity: 8, unit: "lfm", unitPrice: 95, type: "material" },
-          { id: "v3", articleNumber: "ART-032", name: "Trapezblech verzinkt", quantity: 20, unit: "m²", unitPrice: 35, type: "material" },
-          { id: "v4", articleNumber: "DL-001", name: "Montagearbeiten", quantity: 16, unit: "Std", unitPrice: 125, type: "work" },
-        ],
-      },
-      brandschutz: {
-        name: "Brandschutztür T90",
-        items: [
-          { id: "b1", articleNumber: "ART-040", name: "Stahlzarge T90", quantity: 1, unit: "Stk", unitPrice: 450, type: "material" },
-          { id: "b2", articleNumber: "ART-041", name: "Türblatt T90", quantity: 1, unit: "Stk", unitPrice: 680, type: "material" },
-          { id: "b3", articleNumber: "ART-042", name: "Beschläge Panikset", quantity: 1, unit: "Set", unitPrice: 380, type: "material" },
-          { id: "b4", articleNumber: "DL-003", name: "Einbau inkl. Prüfung", quantity: 4, unit: "Std", unitPrice: 135, type: "work" },
-        ],
-      },
-    };
-
-    const template = templates[templateId];
-    if (!template) return;
-
-    const totalMaterial = template.items.filter(i => i.type === "material").reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-    const totalWork = template.items.filter(i => i.type === "work").reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-    const totalExternal = template.items.filter(i => i.type === "external").reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-
-    const newBom: BOM = {
-      id: Date.now().toString(),
-      number: `STL-2024-${String(bomList.length + 1).padStart(3, '0')}`,
-      name: template.name,
-      status: "draft",
-      totalMaterial,
-      totalWork,
-      totalExternal,
-      createdAt: new Date().toLocaleDateString('de-CH'),
-      items: template.items,
-    };
-
-    setBomList([...bomList, newBom]);
-    setExpandedBOM(newBom.id);
-    toast.success(`Stückliste "${template.name}" aus Vorlage erstellt`);
+    createFromTemplateMutation.mutate(templateId);
   };
 
   return (
@@ -327,41 +297,21 @@ export default function BillOfMaterials() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onClick={() => handleCreateFromTemplate("treppe")}>
-                <Layers className="h-4 w-4 mr-2" />
-                <div>
-                  <p className="font-medium">Metalltreppe Standard</p>
-                  <p className="text-xs text-muted-foreground">Träger, Stufen, Geländer</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateFromTemplate("gelaender")}>
-                <Layers className="h-4 w-4 mr-2" />
-                <div>
-                  <p className="font-medium">Geländer / Balkon</p>
-                  <p className="text-xs text-muted-foreground">Pfosten, Handlauf, Füllung</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateFromTemplate("tor")}>
-                <Layers className="h-4 w-4 mr-2" />
-                <div>
-                  <p className="font-medium">Tor / Zaun</p>
-                  <p className="text-xs text-muted-foreground">Rahmen, Füllung, Beschläge</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateFromTemplate("vordach")}>
-                <Layers className="h-4 w-4 mr-2" />
-                <div>
-                  <p className="font-medium">Vordach / Carport</p>
-                  <p className="text-xs text-muted-foreground">Stützen, Träger, Dach</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateFromTemplate("brandschutz")}>
-                <Layers className="h-4 w-4 mr-2" />
-                <div>
-                  <p className="font-medium">Brandschutztür</p>
-                  <p className="text-xs text-muted-foreground">Zarge, Türblatt, Beschläge</p>
-                </div>
-              </DropdownMenuItem>
+              {apiTemplates.length > 0 ? apiTemplates.map((tmpl) => (
+                <DropdownMenuItem key={tmpl.id} onClick={() => handleCreateFromTemplate(tmpl.id)}>
+                  <Layers className="h-4 w-4 mr-2" />
+                  <div>
+                    <p className="font-medium">{tmpl.name}</p>
+                    {tmpl.description && (
+                      <p className="text-xs text-muted-foreground">{tmpl.description}</p>
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              )) : (
+                <DropdownMenuItem disabled>
+                  <p className="text-sm text-muted-foreground">Keine Vorlagen vorhanden</p>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button className="gap-2" onClick={() => navigate("/bom/new")}>

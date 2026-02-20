@@ -103,10 +103,10 @@ export default function Contracts() {
     autoRenewal: raw.autoRenewal || false,
     daysLeft: raw.daysLeft,
   }));
+  const contractList: Contract[] = initialContracts;
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [autoRenewalFilter, setAutoRenewalFilter] = useState<boolean | null>(null);
-  const [contractList, setContractList] = useState<Contract[]>(initialContracts);
 
   const hasActiveFilters = typeFilters.length > 0 || autoRenewalFilter !== null;
 
@@ -132,6 +132,22 @@ export default function Contracts() {
     },
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/contracts/${id}/duplicate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/contracts"] });
+      toast.success("Vertrag dupliziert");
+    },
+    onError: () => toast.error("Fehler beim Duplizieren"),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.put(`/contracts/${id}`, { status: status.toUpperCase() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/contracts"] }),
+    onError: () => toast.error("Fehler beim Statuswechsel"),
+  });
+
   const handleDelete = (e: React.MouseEvent, contractId: string) => {
     e.stopPropagation();
     deleteMutation.mutate(contractId);
@@ -139,30 +155,18 @@ export default function Contracts() {
 
   const handleDuplicate = (e: React.MouseEvent, contract: Contract) => {
     e.stopPropagation();
-    const newContract: Contract = {
-      ...contract,
-      id: Date.now().toString(),
-      number: `VTR-2024-${String(contractList.length + 1).padStart(3, '0')}`,
-      title: `${contract.title} (Kopie)`,
-      status: "draft",
-    };
-    setContractList([...contractList, newContract]);
-    toast.success("Vertrag dupliziert");
+    duplicateMutation.mutate(contract.id);
   };
 
   const handleRenew = (e: React.MouseEvent, contract: Contract) => {
     e.stopPropagation();
-    setContractList(contractList.map(c => 
-      c.id === contract.id ? { ...c, status: "active" as const, daysLeft: 365 } : c
-    ));
+    statusMutation.mutate({ id: contract.id, status: "ACTIVE" });
     toast.success("Vertrag verlängert");
   };
 
   const handleTerminate = (e: React.MouseEvent, contractId: string) => {
     e.stopPropagation();
-    setContractList(contractList.map(c => 
-      c.id === contractId ? { ...c, status: "terminated" as const } : c
-    ));
+    statusMutation.mutate({ id: contractId, status: "TERMINATED" });
     toast.success("Vertrag gekündigt");
   };
 

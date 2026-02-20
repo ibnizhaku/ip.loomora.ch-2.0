@@ -107,61 +107,6 @@ interface BOM {
   items: BOMItem[];
 }
 
-const availableBOMs: BOM[] = [
-  {
-    id: "1",
-    number: "STL-2024-001",
-    name: "Metalltreppe 3-geschossig",
-    project: "PRJ-2024-015",
-    status: "active",
-    totalMaterial: 12450,
-    totalWork: 8600,
-    items: [
-      { id: "1-1", articleNumber: "ART-001", name: "Stahlträger HEB 200", quantity: 24, unit: "lfm", unitPrice: 85, type: "material" },
-      { id: "1-2", articleNumber: "ART-002", name: "Treppenstufen Gitterrost", quantity: 36, unit: "Stk", unitPrice: 125, type: "material" },
-      { id: "1-3", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 48, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-  {
-    id: "2",
-    number: "STL-2024-002",
-    name: "Geländer Balkon 15m",
-    project: "PRJ-2024-018",
-    status: "active",
-    totalMaterial: 3200,
-    totalWork: 2400,
-    items: [
-      { id: "2-1", articleNumber: "ART-003", name: "Edelstahl Rundrohr 42mm", quantity: 45, unit: "lfm", unitPrice: 28, type: "material" },
-      { id: "2-2", articleNumber: "DL-002", name: "Montagearbeiten", quantity: 16, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-  {
-    id: "3",
-    number: "STL-2024-003",
-    name: "Brandschutztür T90",
-    status: "draft",
-    totalMaterial: 1800,
-    totalWork: 960,
-    items: [
-      { id: "3-1", articleNumber: "ART-004", name: "Stahlzarge T90", quantity: 1, unit: "Stk", unitPrice: 450, type: "material" },
-      { id: "3-2", articleNumber: "ART-005", name: "Türblatt T90", quantity: 1, unit: "Stk", unitPrice: 680, type: "material" },
-      { id: "3-3", articleNumber: "DL-003", name: "Einbau", quantity: 6, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-  {
-    id: "4",
-    number: "STL-2024-004",
-    name: "Vordach Stahl verzinkt",
-    status: "active",
-    totalMaterial: 4500,
-    totalWork: 2100,
-    items: [
-      { id: "4-1", articleNumber: "ART-006", name: "Stützen HEB 140", quantity: 4, unit: "Stk", unitPrice: 320, type: "material" },
-      { id: "4-2", articleNumber: "ART-007", name: "Träger IPE 180", quantity: 12, unit: "lfm", unitPrice: 95, type: "material" },
-      { id: "4-3", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 14, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-];
 
 const bomStatusStyles = {
   draft: "bg-muted text-muted-foreground",
@@ -180,14 +125,50 @@ export default function Calculation() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch data from API
+  // Fetch calculations from API
   const { data: apiData } = useQuery({
     queryKey: ["/calculations"],
     queryFn: () => api.get<any>("/calculations"),
   });
-  const initialCalculations = apiData?.data || [];
+  // Fetch BOMs from API for BOM-Auswahl-Dialog
+  const { data: bomApiData } = useQuery({
+    queryKey: ["/bom"],
+    queryFn: () => api.get<any>("/bom"),
+  });
+  const calcList: Calculation[] = (apiData?.data || []).map((raw: any) => ({
+    id: raw.id,
+    number: raw.number || "",
+    name: raw.name || "",
+    customer: raw.customer?.name || raw.customerId || "",
+    project: raw.project?.name || raw.projectId || "",
+    status: (raw.status || "draft").toLowerCase() as Calculation["status"],
+    materialCosts: Number(raw.materialCost || 0),
+    laborCosts: Number(raw.laborCost || 0),
+    totalCost: Number(raw.costTotal || raw.total || 0),
+    sellingPrice: Number(raw.sellingPrice || raw.total || 0),
+    profitMargin: Number(raw.profitMargin || 0),
+    createdAt: raw.createdAt ? new Date(raw.createdAt).toLocaleDateString("de-CH") : "",
+  }));
+  const apiBOMs: BOM[] = (bomApiData?.data || []).map((raw: any) => ({
+    id: raw.id,
+    number: raw.number || "",
+    name: raw.name || "",
+    project: raw.project?.name || raw.projectId || "",
+    status: (raw.status || "draft").toLowerCase() as BOM["status"],
+    totalMaterial: Number(raw.materialCost || 0),
+    totalWork: Number(raw.laborCost || 0),
+    items: (raw.items || []).map((item: any) => ({
+      id: item.id,
+      articleNumber: item.productId || "",
+      name: item.description || "",
+      quantity: Number(item.quantity || 0),
+      unit: item.unit || "Stk",
+      unitPrice: Number(item.unitPrice || 0),
+      type: item.type === "LABOR" ? "work" : item.type === "SUBCONTRACT" ? "external" : "material",
+    })),
+  }));
+
   const [statusFilter, setStatusFilter] = useState("all");
-  const [calcList, setCalcList] = useState<Calculation[]>(initialCalculations);
   const [bomDialogOpen, setBomDialogOpen] = useState(false);
   const [bomSearchQuery, setBomSearchQuery] = useState("");
 
@@ -220,7 +201,7 @@ export default function Calculation() {
     return matchesSearch && matchesStatus;
   });
 
-  const filteredBOMs = availableBOMs.filter((bom) =>
+  const filteredBOMs = apiBOMs.filter((bom) =>
     (bom.name || "").toLowerCase().includes(bomSearchQuery.toLowerCase()) ||
     (bom.number || "").toLowerCase().includes(bomSearchQuery.toLowerCase())
   );
@@ -230,23 +211,36 @@ export default function Calculation() {
     deleteMutation.mutate(calcId);
   };
 
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/calculations/${id}/duplicate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/calculations"] });
+      toast.success("Kalkulation dupliziert");
+    },
+    onError: () => toast.error("Fehler beim Duplizieren"),
+  });
+
+  const createQuoteMutation = useMutation({
+    mutationFn: (calcId: string) => api.post(`/calculations/${calcId}/transfer`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/quotes"] });
+      navigate(data?.quoteId ? `/quotes/${data.quoteId}` : "/quotes/new");
+      toast.success("Angebot aus Kalkulation erstellt");
+    },
+    onError: () => {
+      navigate("/quotes/new");
+      toast.info("Angebot wird manuell erstellt...");
+    },
+  });
+
   const handleDuplicate = (e: React.MouseEvent, calc: Calculation) => {
     e.stopPropagation();
-    const newCalc: Calculation = {
-      ...calc,
-      id: Date.now().toString(),
-      number: `KALK-2024-${String(calcList.length + 1).padStart(3, '0')}`,
-      name: `${calc.name} (Kopie)`,
-      status: "draft",
-    };
-    setCalcList([...calcList, newCalc]);
-    toast.success("Kalkulation dupliziert");
+    duplicateMutation.mutate(calc.id);
   };
 
   const handleCreateQuote = (e: React.MouseEvent, calc: Calculation) => {
     e.stopPropagation();
-    navigate("/quotes/new");
-    toast.info("Angebot wird erstellt...");
+    createQuoteMutation.mutate(calc.id);
   };
 
   const handleSelectBOM = (bom: BOM) => {

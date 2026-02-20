@@ -121,8 +121,8 @@ export default function Production() {
     assignedTeam: raw.assignedTeam || [],
     workstation: raw.workstation || "–",
   }));
+  const orderList: ProductionOrder[] = initialOrders;
   const [statusFilter, setStatusFilter] = useState("all");
-  const [orderList, setOrderList] = useState<ProductionOrder[]>(initialOrders);
 
   const totalOrders = orderList.length;
   const inProgressOrders = orderList.filter((o) => o.status === "in_progress").length;
@@ -138,29 +138,12 @@ export default function Production() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStart = (e: React.MouseEvent, orderId: string) => {
-    e.stopPropagation();
-    setOrderList(orderList.map(o => 
-      o.id === orderId ? { ...o, status: "in_progress" as const, actualStart: new Date().toLocaleDateString("de-CH") } : o
-    ));
-    toast.success("Auftrag gestartet");
-  };
-
-  const handlePause = (e: React.MouseEvent, orderId: string) => {
-    e.stopPropagation();
-    setOrderList(orderList.map(o => 
-      o.id === orderId ? { ...o, status: "paused" as const } : o
-    ));
-    toast.info("Auftrag pausiert");
-  };
-
-  const handleResume = (e: React.MouseEvent, orderId: string) => {
-    e.stopPropagation();
-    setOrderList(orderList.map(o => 
-      o.id === orderId ? { ...o, status: "in_progress" as const } : o
-    ));
-    toast.success("Auftrag fortgesetzt");
-  };
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.patch(`/production-orders/${id}`, { status: status.toUpperCase().replace("_", "-") }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/production-orders"] }),
+    onError: () => toast.error("Fehler beim Statuswechsel"),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/production-orders/${id}`),
@@ -170,6 +153,33 @@ export default function Production() {
     },
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/production-orders/${id}/duplicate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/production-orders"] });
+      toast.success("Auftrag dupliziert");
+    },
+    onError: () => toast.error("Fehler beim Duplizieren"),
+  });
+
+  const handleStart = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    statusMutation.mutate({ id: orderId, status: "IN_PROGRESS" });
+    toast.success("Auftrag gestartet");
+  };
+
+  const handlePause = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    statusMutation.mutate({ id: orderId, status: "PAUSED" });
+    toast.info("Auftrag pausiert");
+  };
+
+  const handleResume = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    statusMutation.mutate({ id: orderId, status: "IN_PROGRESS" });
+    toast.success("Auftrag fortgesetzt");
+  };
+
   const handleDelete = (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation();
     deleteMutation.mutate(orderId);
@@ -177,25 +187,12 @@ export default function Production() {
 
   const handleDuplicate = (e: React.MouseEvent, order: ProductionOrder) => {
     e.stopPropagation();
-    const newOrder: ProductionOrder = {
-      ...order,
-      id: Date.now().toString(),
-      number: `WA-2024-${String(orderList.length + 1).padStart(3, '0')}`,
-      name: `${order.name} (Kopie)`,
-      status: "planned",
-      progress: 0,
-      actualHours: 0,
-      actualStart: undefined,
-      actualEnd: undefined,
-    };
-    setOrderList([...orderList, newOrder]);
-    toast.success("Auftrag dupliziert");
+    duplicateMutation.mutate(order.id);
   };
 
   const handleTimeTracking = (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation();
-    navigate("/time-tracking");
-    toast.info("Zur Zeiterfassung");
+    navigate(`/time-tracking?productionOrderId=${orderId}`);
   };
 
   return (

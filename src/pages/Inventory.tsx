@@ -88,27 +88,35 @@ export default function Inventory() {
     };
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [productList, setProductList] = useState<Product[]>(products);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [stockAdjustment, setStockAdjustment] = useState(0);
+  const [adjustReason, setAdjustReason] = useState("");
 
-  const filteredProducts = productList.filter(
+  const filteredProducts = products.filter(
     (p) =>
       (p.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.sku || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.category || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalValue = productList.reduce((acc, p) => acc + (p.stock || 0) * (p.price || 0), 0);
-  const lowStockCount = productList.filter((p) => p.status === "low-stock").length;
-  const outOfStockCount = productList.filter((p) => p.status === "out-of-stock").length;
+  const totalValue = products.reduce((acc, p) => acc + (p.stock || 0) * (p.price || 0), 0);
+  const lowStockCount = products.filter((p) => p.status === "low-stock").length;
+  const outOfStockCount = products.filter((p) => p.status === "out-of-stock").length;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/products/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/products"] });
       toast.success("Produkt erfolgreich gelöscht");
+    },
+  });
+
+  const adjustStockMutation = useMutation({
+    mutationFn: ({ id, quantity, reason }: { id: string; quantity: number; reason: string }) =>
+      api.post(`/products/${id}/adjust-stock`, { quantity, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/products"] });
     },
   });
 
@@ -121,33 +129,29 @@ export default function Inventory() {
     e.stopPropagation();
     setSelectedProduct(product);
     setStockAdjustment(product.stock);
+    setAdjustReason("");
     setStockDialogOpen(true);
   };
 
-  const handleStockAdjustment = () => {
+  const handleStockAdjustment = async () => {
     if (!selectedProduct) return;
-    
-    setProductList(productList.map(p => {
-      if (p.id === selectedProduct.id) {
-        const newStock = stockAdjustment;
-        let newStatus: Product["status"] = "in-stock";
-        if (newStock === 0) newStatus = "out-of-stock";
-        else if (newStock < p.minStock) newStatus = "low-stock";
-        
-        return { ...p, stock: newStock, status: newStatus, lastUpdate: "gerade eben" };
-      }
-      return p;
-    }));
-    
-    toast.success(`Bestand von ${selectedProduct.name} auf ${stockAdjustment} angepasst`);
-    setStockDialogOpen(false);
-    setSelectedProduct(null);
+    try {
+      await adjustStockMutation.mutateAsync({
+        id: selectedProduct.id,
+        quantity: stockAdjustment,
+        reason: adjustReason || "Manuelle Korrektur",
+      });
+      toast.success(`Bestand von ${selectedProduct.name} auf ${stockAdjustment} angepasst`);
+      setStockDialogOpen(false);
+      setSelectedProduct(null);
+    } catch {
+      toast.error("Bestandskorrektur fehlgeschlagen");
+    }
   };
 
   const handleReorder = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
-    toast.success(`Nachbestellung für ${product.name} wurde ausgelöst`);
-    navigate("/purchase-orders/new");
+    navigate(`/purchase-orders/new?productId=${product.id}&productName=${encodeURIComponent(product.name)}`);
   };
 
   return (
@@ -177,7 +181,7 @@ export default function Inventory() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Produkte</p>
-              <p className="text-2xl font-bold">{productList.length}</p>
+              <p className="text-2xl font-bold">{products.length}</p>
             </div>
           </div>
         </div>
@@ -359,6 +363,14 @@ export default function Inventory() {
                 <p className="text-sm text-muted-foreground">
                   Aktueller Bestand: {selectedProduct.stock} | Mindestbestand: {selectedProduct.minStock}
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Grund der Korrektur</Label>
+                <Input
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="z.B. Inventur, Schwund, Retoure..."
+                />
               </div>
             </div>
           )}

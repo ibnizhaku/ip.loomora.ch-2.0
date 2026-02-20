@@ -81,12 +81,6 @@ interface ServiceTicket {
 }
 
 
-const technicians = [
-  { id: "1", name: "T. Brunner", kürzel: "TB" },
-  { id: "2", name: "A. Meier", kürzel: "AM" },
-  { id: "3", name: "M. Keller", kürzel: "MK" },
-  { id: "4", name: "P. Schmidt", kürzel: "PS" },
-];
 
 const typeStyles = {
   repair: "bg-destructive/10 text-destructive",
@@ -138,12 +132,23 @@ export default function Service() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch data from API
+  // Fetch service tickets from API
   const { data: apiData } = useQuery({
     queryKey: ["/service-tickets"],
     queryFn: () => api.get<any>("/service-tickets"),
   });
-  const initialTickets: ServiceTicket[] = (apiData?.data || []).map((raw: any) => ({
+  // Fetch users for technician assignment
+  const { data: usersData } = useQuery({
+    queryKey: ["/users"],
+    queryFn: () => api.get<any>("/users"),
+  });
+  const technicians = (usersData?.data || []).map((u: any) => ({
+    id: u.id,
+    name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email || u.name || u.id,
+    kürzel: `${(u.firstName || "?")[0]}${(u.lastName || "?")[0]}`.toUpperCase(),
+  }));
+
+  const ticketList: ServiceTicket[] = (apiData?.data || []).map((raw: any) => ({
     id: raw.id || "",
     number: raw.number || "",
     title: raw.title || raw.subject || "–",
@@ -158,10 +163,10 @@ export default function Service() {
     actualHours: raw.actualHours != null ? Number(raw.actualHours) : undefined,
     description: raw.description || "",
   }));
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [ticketList, setTicketList] = useState<ServiceTicket[]>(initialTickets);
 
-  // Delete mutation
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Mutations
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/service-tickets/${id}`),
     onSuccess: () => {
@@ -171,6 +176,48 @@ export default function Service() {
     onError: () => {
       toast.error("Fehler beim Löschen des Tickets");
     },
+  });
+
+  const statusChangeMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.patch(`/service-tickets/${id}`, { status: status.toUpperCase() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/service-tickets"] });
+    },
+    onError: () => toast.error("Fehler beim Statuswechsel"),
+  });
+
+  const assignTechnicianMutation = useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      api.patch(`/service-tickets/${id}`, { assignedUserId: userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/service-tickets"] });
+    },
+    onError: () => toast.error("Fehler bei Zuweisung"),
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/service-tickets/${id}/duplicate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/service-tickets"] });
+      toast.success("Ticket dupliziert");
+    },
+    onError: () => toast.error("Fehler beim Duplizieren"),
+  });
+
+  const timeEntryMutation = useMutation({
+    mutationFn: ({ ticketId, hours, notes, date }: { ticketId: string; hours: number; notes: string; date: string }) =>
+      api.post("/time-entries", {
+        taskId: ticketId,
+        hours,
+        notes,
+        date,
+        type: "service",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/service-tickets"] });
+    },
+    onError: () => toast.error("Fehler bei Zeiterfassung"),
   });
   
   // Dialog states
@@ -210,28 +257,23 @@ export default function Service() {
     setTimeTrackingOpen(true);
   };
 
-  const handleTimeTracking = () => {
+  const handleTimeTracking = async () => {
     if (!selectedTicket || (!timeHours && !timeMinutes)) {
       toast.error("Bitte Zeit eingeben");
       return;
     }
-    
     const totalHours = (parseFloat(timeHours || "0")) + (parseFloat(timeMinutes || "0") / 60);
-    
-    setTicketList(prev => prev.map(t => {
-      if (t.id === selectedTicket.id) {
-        return {
-          ...t,
-          actualHours: (t.actualHours || 0) + totalHours,
-          status: t.status === "open" ? "in_progress" : t.status,
-        };
-      }
-      return t;
-    }));
-    
-    toast.success(`${totalHours.toFixed(2)} Std. auf ${selectedTicket.number} erfasst`);
-    setTimeTrackingOpen(false);
-    setSelectedTicket(null);
+    try {
+      await timeEntryMutation.mutateAsync({
+        ticketId: selectedTicket.id,
+        hours: totalHours,
+        notes: timeNotes,
+        date: timeDate,
+      });
+      toast.success(`${totalHours.toFixed(2)} Std. auf ${selectedTicket.number} erfasst`);
+      setTimeTrackingOpen(false);
+      setSelectedTicket(null);
+    } catch { /* error already handled in mutation */ }
   };
 
   // Status ändern
@@ -242,23 +284,14 @@ export default function Service() {
     setStatusChangeOpen(true);
   };
 
-  const handleStatusChange = () => {
+  const handleStatusChange = async () => {
     if (!selectedTicket) return;
-    
-    setTicketList(prev => prev.map(t => {
-      if (t.id === selectedTicket.id) {
-        return {
-          ...t,
-          status: newStatus as ServiceTicket["status"],
-          completedDate: newStatus === "completed" ? new Date().toLocaleDateString("de-CH") : t.completedDate,
-        };
-      }
-      return t;
-    }));
-    
-    toast.success(`Status von ${selectedTicket.number} geändert`);
-    setStatusChangeOpen(false);
-    setSelectedTicket(null);
+    try {
+      await statusChangeMutation.mutateAsync({ id: selectedTicket.id, status: newStatus });
+      toast.success(`Status von ${selectedTicket.number} geändert`);
+      setStatusChangeOpen(false);
+      setSelectedTicket(null);
+    } catch { /* error already handled */ }
   };
 
   // Techniker zuweisen
@@ -269,24 +302,18 @@ export default function Service() {
     setAssignTechnicianOpen(true);
   };
 
-  const handleAssignTechnician = () => {
+  const handleAssignTechnician = async () => {
     if (!selectedTicket || !selectedTechnician) {
       toast.error("Bitte Techniker auswählen");
       return;
     }
-    
     const tech = technicians.find(t => t.id === selectedTechnician);
-    
-    setTicketList(prev => prev.map(t => {
-      if (t.id === selectedTicket.id) {
-        return { ...t, assignedTo: tech?.name };
-      }
-      return t;
-    }));
-    
-    toast.success(`${tech?.name} zu ${selectedTicket.number} zugewiesen`);
-    setAssignTechnicianOpen(false);
-    setSelectedTicket(null);
+    try {
+      await assignTechnicianMutation.mutateAsync({ id: selectedTicket.id, userId: selectedTechnician });
+      toast.success(`${tech?.name} zu ${selectedTicket.number} zugewiesen`);
+      setAssignTechnicianOpen(false);
+      setSelectedTicket(null);
+    } catch { /* error already handled */ }
   };
 
   // Löschen
@@ -305,27 +332,17 @@ export default function Service() {
 
   const handleDuplicate = (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
-    const newTicket: ServiceTicket = {
-      ...ticket,
-      id: Date.now().toString(),
-      number: `SRV-2024-${String(ticketList.length + 1).padStart(3, '0')}`,
-      status: "open",
-      actualHours: undefined,
-      completedDate: undefined,
-    };
-    setTicketList([...ticketList, newTicket]);
-    toast.success("Ticket dupliziert");
+    duplicateMutation.mutate(ticket.id);
   };
 
   const handleCreateReport = (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
-    toast.success(`Rapport für ${ticket.number} wird erstellt...`);
+    navigate(`/service/${ticket.id}/report`);
   };
 
   const handlePrint = (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
-    toast.info(`Drucke ${ticket.number}...`);
-    window.print();
+    window.open(`/api/service-tickets/${ticket.id}/pdf`, "_blank");
   };
 
   return (
