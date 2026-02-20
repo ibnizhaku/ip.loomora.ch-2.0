@@ -334,4 +334,55 @@ export class ContractsService {
       orderBy: { endDate: 'asc' },
     });
   }
+
+  /**
+   * Prüft alle aktiven Verträge aller Firmen auf bevorstehenden Ablauf.
+   * Wird täglich via Cron aufgerufen.
+   * Erstellt Notifications für 90, 60 und 30 Tage vor Ablauf.
+   */
+  async checkExpiringContractsAllCompanies(): Promise<{ notified: number }> {
+    const thresholds = [90, 60, 30];
+    let notified = 0;
+
+    for (const days of thresholds) {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + days);
+      const dayStart = new Date(futureDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(futureDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const contracts = await this.prisma.contract.findMany({
+        where: {
+          status: ContractStatus.ACTIVE,
+          endDate: { gte: dayStart, lte: dayEnd },
+        },
+        include: {
+          customer: { select: { id: true, name: true, companyName: true } },
+        },
+      });
+
+      for (const contract of contracts) {
+        const customerName = (contract.customer as any)?.companyName || (contract.customer as any)?.name || '–';
+        try {
+          await this.prisma.notification.create({
+            data: {
+              companyId: contract.companyId,
+              title: `Vertrag läuft in ${days} Tagen ab`,
+              message: `Vertrag ${contract.contractNumber} (${contract.name}) mit ${customerName} läuft am ${new Date(contract.endDate!).toLocaleDateString('de-CH')} ab.`,
+              type: 'WARNING' as any,
+              category: 'contract',
+              actionUrl: `/contracts/${contract.id}`,
+              isRead: false,
+            },
+          });
+          notified++;
+        } catch {
+          // Notification konnte nicht erstellt werden (z.B. already exists)
+        }
+      }
+    }
+
+    return { notified };
+  }
 }

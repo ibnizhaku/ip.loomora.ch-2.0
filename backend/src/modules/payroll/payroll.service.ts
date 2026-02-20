@@ -3,21 +3,23 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePayslipDto, UpdatePayslipDto } from './dto/payroll.dto';
 
 // ============================================
-// SWISS SOCIAL INSURANCE RATES 2024/2025
+// SWISS SOCIAL INSURANCE RATES – Default-Werte (Fallback)
+// Werden durch PayrollSettings in der DB überschrieben
 // ============================================
-const RATES = {
-  AHV_IV_EO: 5.3,      // Arbeitnehmer-Anteil
-  ALV: 1.1,             // Arbeitslosenversicherung (bis CHF 148'200)
-  BVG: 7.0,             // BVG Pensionskasse (altersabhängig, Durchschnitt)
-  NBU: 1.227,           // Nichtberufsunfall
-  KTG: 0.5,             // Krankentaggeld
-  // Arbeitgeber-Anteile
+const DEFAULT_RATES = {
+  AHV_IV_EO: 5.3,
+  ALV: 1.1,
+  BVG: 7.0,
+  NBU: 1.227,
+  KTG: 0.5,
   AHV_IV_EO_AG: 5.3,
   ALV_AG: 1.1,
-  FAK: 2.4,             // Familienausgleichskasse
-  UVG_BU: 0.87,         // Berufsunfall (AG)
-  BVG_AG: 7.0,          // BVG AG (mind. = AN)
+  FAK: 2.4,
+  UVG_BU: 0.87,
+  BVG_AG: 7.0,
 };
+// Für Rückwärtskompatibilität
+const RATES = DEFAULT_RATES;
 
 const MONTH_NAMES_DE = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -935,5 +937,45 @@ export class PayrollService {
       )
       .reduce((s: number, item: any) => s + Math.abs(Number(item.amount)), 0);
     return round2(sum);
+  }
+
+  // ============================================
+  // PAYROLL SETTINGS – Konfigurierbare SVS-Sätze
+  // ============================================
+
+  async getPayrollSettings(companyId: string) {
+    const year = new Date().getFullYear();
+    const settings = await (this.prisma as any).payrollSettings.findFirst({
+      where: { companyId, year, isActive: true },
+    });
+    if (!settings) {
+      return { year, isDefault: true, ...DEFAULT_RATES, companyId };
+    }
+    return {
+      id: settings.id,
+      year: settings.year,
+      isDefault: false,
+      AHV_IV_EO: Number(settings.ahvIvEo),
+      ALV: Number(settings.alv),
+      BVG: Number(settings.bvgEmployee),
+      NBU: Number(settings.nbu),
+      KTG: Number(settings.ktg),
+      AHV_IV_EO_AG: Number(settings.ahvIvEoEmployer),
+      ALV_AG: Number(settings.alvEmployer),
+      FAK: Number(settings.fak),
+      UVG_BU: Number(settings.buv),
+      BVG_AG: Number(settings.bvgEmployer),
+    };
+  }
+
+  async upsertPayrollSettings(companyId: string, year: number, dto: {
+    ahvIvEo?: number; alv?: number; bvgEmployee?: number; nbu?: number; ktg?: number;
+    ahvIvEoEmployer?: number; alvEmployer?: number; bvgEmployer?: number; buv?: number; fak?: number;
+  }) {
+    return (this.prisma as any).payrollSettings.upsert({
+      where: { companyId_year: { companyId, year } },
+      create: { companyId, year, isActive: true, ...dto },
+      update: { isActive: true, ...dto },
+    });
   }
 }

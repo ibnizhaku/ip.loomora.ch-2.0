@@ -463,7 +463,7 @@ export default function Contracts() {
                           <Copy className="h-4 w-4 mr-2" />
                           Duplizieren
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast.success("PDF wird heruntergeladen...")}>
+                        <DropdownMenuItem onClick={() => window.open(`/api/contracts/${contract.id}/pdf`, '_blank')}>
                           <Download className="h-4 w-4 mr-2" />
                           Herunterladen
                         </DropdownMenuItem>

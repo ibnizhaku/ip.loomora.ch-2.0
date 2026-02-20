@@ -123,4 +123,22 @@ export class PayrollController {
   removeRun(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     return this.payrollService.removeRun(id, user.companyId);
   }
+
+  @Get('settings')
+  @RequirePermissions('payroll:read')
+  @ApiOperation({ summary: 'Get SVS/social insurance rates for current year' })
+  getSettings(@CurrentUser() user: CurrentUserPayload) {
+    return this.payrollService.getPayrollSettings(user.companyId);
+  }
+
+  @Put('settings')
+  @RequirePermissions('payroll:write')
+  @ApiOperation({ summary: 'Update SVS/social insurance rates' })
+  upsertSettings(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: { year?: number; ahvIvEo?: number; alv?: number; bvgEmployee?: number; nbu?: number; ktg?: number; ahvIvEoEmployer?: number; alvEmployer?: number; bvgEmployer?: number; buv?: number; fak?: number },
+  ) {
+    const year = dto.year || new Date().getFullYear();
+    return this.payrollService.upsertPayrollSettings(user.companyId, year, dto);
+  }
 }

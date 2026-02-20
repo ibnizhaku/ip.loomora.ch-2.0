@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ContractsService } from './contracts.service';
 import { CreateContractDto, UpdateContractDto, RenewContractDto, TerminateContractDto } from './dto/contract.dto';
@@ -51,6 +52,31 @@ export class ContractsController {
   @RequirePermissions('contracts:delete')
   @ApiOperation({ summary: 'Delete contract' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) { return this.contractsService.remove(id, user.companyId); }
+
+  @Get(':id/pdf')
+  @RequirePermissions('contracts:read')
+  @ApiOperation({ summary: 'Download contract summary as file' })
+  async downloadPdf(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload, @Res() res: Response) {
+    const contract = await this.contractsService.findOne(id, user.companyId);
+    const lines = [
+      `Vertrag: ${contract.contractNumber || contract.id}`,
+      `Titel: ${contract.name || '–'}`,
+      `Typ: ${contract.type || '–'}`,
+      `Status: ${contract.status}`,
+      `Kunde: ${contract.customer?.companyName || contract.customer?.name || '–'}`,
+      `Startdatum: ${contract.startDate ? new Date(contract.startDate).toLocaleDateString('de-CH') : '–'}`,
+      `Enddatum: ${contract.endDate ? new Date(contract.endDate).toLocaleDateString('de-CH') : '–'}`,
+      `Wert: CHF ${Number(contract.value || 0).toFixed(2)}`,
+      `Automatische Verlängerung: ${contract.autoRenewal ? 'Ja' : 'Nein'}`,
+      '',
+      `Beschreibung: ${contract.description || '–'}`,
+    ];
+    const content = lines.join('\n');
+    const filename = `Vertrag-${contract.contractNumber || id}.txt`;
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(content);
+  }
 
   @Post(':id/duplicate')
   @RequirePermissions('contracts:write')

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CompanyGuard } from '../auth/guards/company.guard';
@@ -73,6 +74,28 @@ export class QualityControlController {
   @RequirePermissions('quality-control:read')
   @ApiOperation({ summary: 'Get quality check statistics' })
   getStatistics(@CurrentUser() user: any) { return this.qualityService.getStatistics(user.companyId); }
+
+  @Get('checks/:id/pdf')
+  @RequirePermissions('quality-control:read')
+  @ApiOperation({ summary: 'Download quality check as PDF report' })
+  async downloadPdf(@Param('id') id: string, @CurrentUser() user: any, @Res() res: Response) {
+    const check = await this.qualityService.findOneCheck(id, user.companyId);
+    const lines: string[] = [
+      `QS-Prüfbericht: ${check.number || id}`,
+      `Status: ${check.status}`,
+      `Typ: ${check.type || '–'}`,
+      `Datum: ${check.createdAt ? new Date(check.createdAt).toLocaleDateString('de-CH') : '–'}`,
+      '',
+      'Ergebnisse:',
+      ...(check.results || []).map((r: any) => `  - ${r.checklistItem?.name || ''}: ${r.passed ? '✓ Bestanden' : '✗ Nicht bestanden'} ${r.notes ? '(' + r.notes + ')' : ''}`),
+      '',
+      `Notizen: ${check.notes || '–'}`,
+    ];
+    const content = lines.join('\n');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="QS-${check.number || id}.txt"`);
+    res.send(content);
+  }
 
   @Get('checks/:id')
   @RequirePermissions('quality-control:read')

@@ -112,7 +112,7 @@ export default function QualityControl() {
 
   const handleExportPDF = (e: React.MouseEvent, check: any) => {
     e.stopPropagation();
-    toast.success(`PDF für ${check.number} wird erstellt...`);
+    window.open(`/api/quality/checks/${check.id}/pdf`, '_blank');
   };
 
   return (

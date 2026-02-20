@@ -127,7 +127,34 @@ export default function Products() {
   };
 
   const handleExportPriceList = () => {
-    toast.success("Preisliste wird als PDF exportiert...");
+    const activeProducts = products.filter((p: any) => p.isActive !== false);
+    if (activeProducts.length === 0) {
+      toast.error("Keine Produkte vorhanden");
+      return;
+    }
+
+    // Einfache CSV-Preisliste als Download-Fallback
+    const rows = [
+      ['Artikelnummer', 'Bezeichnung', 'Einheit', 'Preis CHF', 'MwSt'],
+      ...activeProducts.map((p: any) => [
+        p.sku || '',
+        p.name || '',
+        p.unit || 'Stk',
+        Number(p.salePrice || 0).toFixed(2),
+        p.vatRate === 'STANDARD' ? '8.1%' : p.vatRate === 'REDUCED' ? '2.6%' : '0%',
+      ]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Preisliste_${new Date().toLocaleDateString('de-CH').replace(/\./g, '-')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Preisliste mit ${activeProducts.length} Produkten exportiert`);
   };
 
   return (

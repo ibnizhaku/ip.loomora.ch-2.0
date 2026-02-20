@@ -137,4 +137,55 @@ export class CronService {
       this.logger.error(`[Cron] Low stock check failed: ${error.message}`);
     }
   }
+
+  // Daily at 08:00 – Check for expiring contracts (30/60/90 days before end)
+  @Cron('0 8 * * *')
+  async checkExpiringContracts() {
+    this.logger.log('[Cron] Starting expiring contracts check...');
+    try {
+      const thresholds = [90, 60, 30];
+      let notified = 0;
+
+      for (const days of thresholds) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + days);
+        const dayStart = new Date(futureDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(futureDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const contracts = await (this.prisma.contract as any).findMany({
+          where: {
+            status: 'ACTIVE',
+            endDate: { gte: dayStart, lte: dayEnd },
+          },
+          include: {
+            customer: { select: { id: true, name: true, companyName: true } },
+          },
+        });
+
+        for (const contract of contracts) {
+          const customerName = contract.customer?.companyName || contract.customer?.name || '–';
+          try {
+            await this.prisma.notification.create({
+              data: {
+                companyId: contract.companyId,
+                title: `Vertrag läuft in ${days} Tagen ab`,
+                message: `Vertrag ${contract.contractNumber} (${contract.name}) mit ${customerName} läuft am ${new Date(contract.endDate).toLocaleDateString('de-CH')} ab.`,
+                type: 'WARNING' as any,
+                category: 'contract',
+                actionUrl: `/contracts/${contract.id}`,
+                isRead: false,
+              },
+            });
+            notified++;
+          } catch { /* skip duplicates */ }
+        }
+      }
+
+      this.logger.log(`[Cron] Expiring contracts check: ${notified} notifications created`);
+    } catch (error) {
+      this.logger.error(`[Cron] Expiring contracts check failed: ${error.message}`);
+    }
+  }
 }

@@ -12,12 +12,21 @@ import { ServiceTicketStatus, ServiceTicketPriority } from '@prisma/client';
 export class ServiceTicketsService {
   constructor(private prisma: PrismaService) {}
 
-  // Swiss Metallbau hourly rates
-  private readonly HOURLY_RATES = {
-    standard: 95,
-    travel: 65,
-    emergency: 145,
-  };
+  // Default-Stundensätze (Fallback wenn CompanySettings leer)
+  private readonly DEFAULT_RATES = { standard: 95, travel: 65, emergency: 145 };
+
+  private async getHourlyRates(companyId: string) {
+    const settings = await this.prisma.companySettings.findUnique({
+      where: { companyId },
+      select: { serviceHourlyRates: true },
+    });
+    const stored = settings?.serviceHourlyRates as any;
+    return {
+      standard: Number(stored?.standard ?? this.DEFAULT_RATES.standard),
+      travel: Number(stored?.travel ?? this.DEFAULT_RATES.travel),
+      emergency: Number(stored?.emergency ?? this.DEFAULT_RATES.emergency),
+    };
+  }
 
   async findAll(companyId: string, params: {
     page?: number;
@@ -95,8 +104,9 @@ export class ServiceTicketsService {
     const totalTravelTime = ticket.reports.reduce((sum, r) => sum + Number(r.travelTime || 0), 0);
     const totalMaterialCost = ticket.reports.reduce((sum, r) => sum + Number(r.materialCost || 0), 0);
 
-    const laborCost = totalHours * this.HOURLY_RATES.standard;
-    const travelCost = totalTravelTime * this.HOURLY_RATES.travel;
+    const rates = await this.getHourlyRates(ticket.serviceTicketId ? companyId : (ticket as any).companyId || companyId);
+    const laborCost = totalHours * rates.standard;
+    const travelCost = totalTravelTime * rates.travel;
     const totalCost = laborCost + travelCost + totalMaterialCost;
 
     return {
@@ -204,9 +214,10 @@ export class ServiceTicketsService {
       throw new BadRequestException('Geschlossenes Ticket kann keine Rapporte erhalten');
     }
 
-    // Calculate labor cost
-    const laborCost = (dto.hoursWorked || 0) * this.HOURLY_RATES.standard;
-    const travelCost = (dto.travelTime || 0) * this.HOURLY_RATES.travel;
+    // Stundensätze aus CompanySettings laden
+    const rates = await this.getHourlyRates(companyId);
+    const laborCost = (dto.hoursWorked || 0) * rates.standard;
+    const travelCost = (dto.travelTime || 0) * rates.travel;
     const totalCost = laborCost + travelCost + (dto.materialCost || 0);
 
     const report = await this.prisma.serviceReport.create({

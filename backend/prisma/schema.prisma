@@ -259,10 +259,41 @@ model Company {
   payrollRuns   PayrollRun[]
   userPermissionOverrides UserPermissionOverride[]
   mailAccounts  UserMailAccount[]
+  payrollSettings PayrollSettings[]
   
   @@index([status])
   @@index([slug])
   @@map("companies")
+}
+
+// Konfigurierbare SVS-Sätze pro Firma und Jahr
+model PayrollSettings {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  year        Int      // Gültigkeitsjahr (z.B. 2026)
+  
+  // Arbeitnehmer-Anteile (%)
+  ahvIvEo     Decimal  @default(5.3)  @db.Decimal(5, 3)  // AHV/IV/EO Arbeitnehmer
+  alv         Decimal  @default(1.1)  @db.Decimal(5, 3)  // Arbeitslosenversicherung
+  bvgEmployee Decimal  @default(7.0)  @db.Decimal(5, 3)  // BVG Arbeitnehmer
+  nbu         Decimal  @default(1.227) @db.Decimal(5, 3)  // Nicht-Berufsunfall
+  ktg         Decimal  @default(0.5)  @db.Decimal(5, 3)  // Krankentaggeld
+  
+  // Arbeitgeber-Anteile (%)
+  ahvIvEoEmployer Decimal @default(5.3)  @db.Decimal(5, 3)
+  alvEmployer     Decimal @default(1.1)  @db.Decimal(5, 3)
+  bvgEmployer     Decimal @default(5.0)  @db.Decimal(5, 3)
+  buv             Decimal @default(0.7)  @db.Decimal(5, 3)  // Berufsunfall
+  fak             Decimal @default(1.2)  @db.Decimal(5, 3)  // Familienausgleichskasse
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([companyId, year])
+  @@index([companyId])
+  @@map("payroll_settings")
 }
 
 model CompanyTeamMember {
@@ -336,6 +367,12 @@ model CompanySettings {
   twoFactorEnabled    Boolean @default(false)
   sessionTimeoutMin   Int     @default(480)
   passwordMinLength   Int     @default(8)
+
+  // Service-Stundensätze (CHF/h) – konfigurierbar pro Firma
+  serviceHourlyRates  Json?   // { standard: 95, travel: 65, emergency: 145 }
+
+  // Kalkulationsparameter
+  calculationDefaults Json?   // { materialMarkup: 15, laborMarkup: 10, profitMargin: 12, vatRate: 8.1 }
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
