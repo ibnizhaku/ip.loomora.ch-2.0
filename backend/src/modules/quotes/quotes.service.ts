@@ -42,11 +42,14 @@ export class QuotesService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           customer: {
-            select: { id: true, name: true, companyName: true },
+            select: { id: true, name: true, companyName: true, email: true, phone: true, street: true, zipCode: true, city: true, country: true },
           },
-          // project: {
-          //   select: { id: true, number: true, name: true },
-          // },
+          project: {
+            select: { id: true, number: true, name: true },
+          },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
           items: {
             select: { id: true, description: true, quantity: true, unitPrice: true, total: true, vatRate: true },
           },
@@ -72,15 +75,13 @@ export class QuotesService {
       where: { id, companyId },
       include: {
         customer: true,
-        // project: true,
+        project: { select: { id: true, number: true, name: true } },
         items: {
           orderBy: { position: 'asc' },
-          include: {
-            product: true,
-          },
+          include: { product: true },
         },
         createdBy: {
-          select: { id: true, firstName: true, lastName: true },
+          select: { id: true, firstName: true, lastName: true, email: true },
         },
       },
     });

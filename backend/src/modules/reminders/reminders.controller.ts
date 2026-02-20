@@ -68,7 +68,7 @@ export class RemindersController {
   @RequirePermissions('reminders:write')
   @ApiOperation({ summary: 'Create new reminder' })
   create(@Body() dto: CreateReminderDto, @CurrentUser() user: any) {
-    return this.remindersService.create(user.companyId, dto);
+    return this.remindersService.create(user.companyId, dto, user.userId);
   }
 
   @Post('batch')

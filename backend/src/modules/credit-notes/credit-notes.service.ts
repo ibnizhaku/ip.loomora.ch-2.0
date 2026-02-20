@@ -37,8 +37,11 @@ export class CreditNotesService {
         take: pageSize,
         orderBy: { createdAt: 'desc' },
         include: {
-          customer: { select: { id: true, name: true } },
+          customer: {
+            select: { id: true, name: true, companyName: true, email: true, phone: true, street: true, zipCode: true, city: true, country: true },
+          },
           invoice: { select: { id: true, number: true } },
+          createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true } },
@@ -64,10 +67,9 @@ export class CreditNotesService {
       include: {
         customer: true,
         invoice: { select: { id: true, number: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         items: {
-          include: {
-            product: true,
-          },
+          include: { product: true },
         },
       },
     });

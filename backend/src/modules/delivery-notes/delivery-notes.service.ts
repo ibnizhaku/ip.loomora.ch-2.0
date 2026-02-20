@@ -36,8 +36,11 @@ export class DeliveryNotesService {
         take: pageSize,
         orderBy: { createdAt: 'desc' },
         include: {
-          customer: { select: { id: true, name: true } },
+          customer: {
+            select: { id: true, name: true, companyName: true, email: true, phone: true, street: true, zipCode: true, city: true, country: true },
+          },
           order: { select: { id: true, number: true } },
+          createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
           items: { select: { id: true } },
           _count: { select: { items: true } },
         },
@@ -67,6 +70,7 @@ export class DeliveryNotesService {
             project: { select: { id: true, name: true, number: true } },
           },
         },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         items: {
           orderBy: { position: 'asc' },
           include: {

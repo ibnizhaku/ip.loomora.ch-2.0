@@ -661,6 +661,8 @@ model User {
   assignedOrders      Order[]         @relation("OrderAssignedUsers")
   updatedOrders       Order[]         @relation("OrderUpdatedBy")
   createdDeliveryNotes DeliveryNote[] @relation("DeliveryNoteCreator")
+  createdCreditNotes   CreditNote[]  @relation("CreditNoteCreator")
+  createdReminders     Reminder[]    @relation("ReminderCreator")
 
   @@index([companyId])
   @@index([email])
@@ -1314,6 +1316,9 @@ model Reminder {
   
   companyId   String
   
+  createdById String?
+  createdBy   User?   @relation("ReminderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  
   createdAt   DateTime @default(now())
   
   @@unique([companyId, number])
@@ -1367,6 +1372,9 @@ model CreditNote {
   
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdById     String?
+  createdBy       User?    @relation("CreditNoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

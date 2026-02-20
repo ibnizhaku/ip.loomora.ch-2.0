@@ -31,6 +31,7 @@ export function mapInvoiceResponse(invoice: any) {
     total: totalAmount ? Number(totalAmount) : 0,
     paidDate: paidAt,
     customer: mapCustomer(invoice.customer),
+    createdByUser: invoice.createdBy || null,
     // Keep computed fields
     openAmount: invoice.openAmount ?? (Number(totalAmount || 0) - Number(invoice.paidAmount || 0)),
     isOverdue: invoice.isOverdue,
@@ -51,6 +52,7 @@ export function mapQuoteResponse(quote: any) {
     ...rest,
     issueDate: date,
     customer: mapCustomer(quote.customer),
+    createdByUser: quote.createdBy || null,
     // Ensure numeric fields
     subtotal: quote.subtotal ? Number(quote.subtotal) : 0,
     vatAmount: quote.vatAmount ? Number(quote.vatAmount) : 0,
@@ -191,6 +193,7 @@ export function mapDeliveryNoteResponse(deliveryNote: any) {
     customer: mapCustomer(deliveryNote.customer),
     customerName: deliveryNote.customer?.companyName || deliveryNote.customer?.name,
     orderNumber: deliveryNote.order?.number,
+    createdByUser: deliveryNote.createdBy || null,
   };
 }
 
@@ -207,6 +210,7 @@ export function mapCreditNoteResponse(creditNote: any) {
     customer: mapCustomer(creditNote.customer),
     customerName: creditNote.customer?.companyName || creditNote.customer?.name,
     invoiceNumber: creditNote.invoice?.number,
+    createdByUser: creditNote.createdBy || null,
     subtotal: creditNote.subtotal ? Number(creditNote.subtotal) : 0,
     vatAmount: creditNote.vatAmount ? Number(creditNote.vatAmount) : 0,
   };

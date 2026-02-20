@@ -75,6 +75,7 @@ export class RemindersService {
               },
             },
           },
+          createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
       }),
       this.prisma.reminder.count({ where }),
@@ -99,6 +100,7 @@ export class RemindersService {
             items: { include: { product: true } },
           },
         },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -109,11 +111,12 @@ export class RemindersService {
     return reminder;
   }
 
-  async create(companyId: string, dto: CreateReminderDto) {
-    // Get invoice
+  async create(companyId: string, dto: CreateReminderDto, userId?: string) {
+    // Get invoice (inkl. projectId für automatische Übernahme)
     const invoice = await this.prisma.invoice.findFirst({
       where: { id: dto.invoiceId, companyId },
       include: { customer: true },
+      select: { id: true, status: true, totalAmount: true, projectId: true, customer: true } as any,
     });
 
     if (!invoice) {
@@ -166,6 +169,7 @@ export class RemindersService {
         totalWithFee,
         dueDate,
         notes: dto.notes,
+        ...(userId ? { createdById: userId } : {}),
       },
       include: {
         invoice: {
