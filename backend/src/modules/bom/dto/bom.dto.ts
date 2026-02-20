@@ -43,8 +43,9 @@ export class BomItemDto {
 }
 
 export class CreateBomDto {
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
   @IsOptional()
   @IsString()
@@ -56,7 +57,7 @@ export class CreateBomDto {
 
   @IsOptional()
   @IsString()
-  templateId?: string;  // Base on existing BOM
+  templateId?: string;
 
   @IsOptional()
   @IsBoolean()
@@ -64,12 +65,17 @@ export class CreateBomDto {
 
   @IsOptional()
   @IsString()
-  category?: string;  // Metalltreppe, Geländer, Tor, etc.
+  category?: string;
 
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BomItemDto)
-  items: BomItemDto[];
+  items?: BomItemDto[];
 }
 
 export class UpdateBomDto extends PartialType(CreateBomDto) {}

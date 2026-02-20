@@ -121,7 +121,6 @@ export class BomService {
   }
 
   async create(companyId: string, dto: CreateBomDto) {
-    // Validate project if provided
     if (dto.projectId) {
       const project = await this.prisma.project.findFirst({
         where: { id: dto.projectId, companyId },
@@ -131,10 +130,16 @@ export class BomService {
       }
     }
 
-    // If based on template, copy items
-    let items = dto.items;
+    let items = dto.items || [];
+    let name = dto.name;
+    let category = dto.category;
+    let description = dto.description;
+
     if (dto.templateId) {
       const template = await this.findOne(dto.templateId, companyId);
+      if (!name) name = `${template.name} (Kopie)`;
+      if (!category) category = (template as any).category;
+      if (!description) description = (template as any).description;
       items = template.items.map((item, index) => ({
         type: item.type as BomItemType,
         productId: item.productId ?? undefined,
@@ -148,14 +153,18 @@ export class BomService {
       }));
     }
 
+    if (!name) {
+      throw new BadRequestException('Name ist erforderlich');
+    }
+
     return this.prisma.billOfMaterial.create({
       data: {
         companyId,
-        name: dto.name,
-        description: dto.description,
+        name,
+        description,
         projectId: dto.projectId,
         isTemplate: dto.isTemplate || false,
-        category: dto.category,
+        category,
         items: {
           create: items.map((item, index) => ({
             type: item.type,
