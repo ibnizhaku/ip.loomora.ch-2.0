@@ -24,9 +24,10 @@ export class CreateJobPostingDto {
   @IsString()
   title: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  description: string;
+  @IsOptional()
+  description?: string;
 
   @ApiPropertyOptional()
   @IsString()
@@ -53,14 +54,15 @@ export class CreateJobPostingDto {
   @IsOptional()
   remoteAllowed?: boolean;
 
-  @ApiProperty({ enum: EmploymentType })
-  @IsEnum(EmploymentType)
-  employmentType: EmploymentType;
-
-  @ApiPropertyOptional({ enum: JobStatus })
-  @IsEnum(JobStatus)
+  @ApiPropertyOptional()
+  @IsString()
   @IsOptional()
-  status?: JobStatus;
+  employmentType?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  status?: string;
 
   @ApiPropertyOptional()
   @IsNumber()

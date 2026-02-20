@@ -97,19 +97,43 @@ export class RecruitingService {
     return posting;
   }
 
+  private normalizeEmploymentType(value?: string): string {
+    if (!value) return 'FULL_TIME';
+    const map: Record<string, string> = {
+      fulltime: 'FULL_TIME', full_time: 'FULL_TIME',
+      parttime: 'PART_TIME', part_time: 'PART_TIME',
+      temporary: 'TEMPORARY',
+      contract: 'CONTRACT',
+      internship: 'INTERNSHIP',
+      apprentice: 'APPRENTICESHIP', apprenticeship: 'APPRENTICESHIP',
+    };
+    return map[value.toLowerCase()] || value.toUpperCase().replace(/\s+/g, '_');
+  }
+
+  private normalizeJobStatus(value?: string): string {
+    if (!value) return 'DRAFT';
+    const map: Record<string, string> = {
+      aktiv: 'PUBLISHED', active: 'PUBLISHED', published: 'PUBLISHED',
+      draft: 'DRAFT', entwurf: 'DRAFT',
+      paused: 'PAUSED', pausiert: 'PAUSED',
+      closed: 'CLOSED', geschlossen: 'CLOSED',
+      filled: 'FILLED', besetzt: 'FILLED',
+    };
+    return map[value.toLowerCase()] || 'DRAFT';
+  }
+
   async createJobPosting(companyId: string, dto: CreateJobPostingDto & Record<string, any>) {
-    // Map frontend field aliases to schema fields
     const data: any = {
       companyId,
       title: dto.title,
-      description: dto.description,
+      description: dto.description || '',
       requirements: dto.requirements,
       benefits: (dto as any).responsibilities || dto.benefits,
       department: dto.department,
       location: dto.location,
       remoteAllowed: dto.remoteAllowed,
-      employmentType: dto.employmentType,
-      status: dto.status,
+      employmentType: this.normalizeEmploymentType(dto.employmentType),
+      status: this.normalizeJobStatus(dto.status),
       salaryMin: dto.salaryMin,
       salaryMax: dto.salaryMax,
       workloadPercent: dto.workloadPercent,
@@ -119,7 +143,6 @@ export class RecruitingService {
       requiredSkills: dto.requiredSkills,
     };
 
-    // Remove undefined values
     Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
 
     return this.prisma.jobPosting.create({ data });
@@ -134,9 +157,21 @@ export class RecruitingService {
       throw new NotFoundException('Job posting not found');
     }
 
+    const updateData: any = { ...dto };
+    if (updateData.employmentType) updateData.employmentType = this.normalizeEmploymentType(updateData.employmentType);
+    if (updateData.status) updateData.status = this.normalizeJobStatus(updateData.status);
+    if ((updateData as any).responsibilities) {
+      updateData.benefits = (updateData as any).responsibilities;
+      delete (updateData as any).responsibilities;
+    }
+    if ((updateData as any).closingDate) {
+      updateData.applicationDeadline = (updateData as any).closingDate;
+      delete (updateData as any).closingDate;
+    }
+
     return this.prisma.jobPosting.update({
       where: { id },
-      data: dto,
+      data: updateData,
     });
   }
 

@@ -51,15 +51,20 @@ const JobPostingCreate = () => {
       return;
     }
 
+    const salaryParts = formData.salary.replace(/['']/g, '').split(/[-–]/).map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
     createJob.mutate({
       title: formData.title,
       department: formData.department,
       location: formData.location,
       employmentType: formData.employmentType,
-      description: formData.description,
-      requirements: formData.requirements,
-      responsibilities: formData.benefits,
+      description: formData.description || undefined,
+      requirements: formData.requirements || undefined,
+      responsibilities: formData.benefits || undefined,
       closingDate: formData.deadline || undefined,
+      workloadPercent: formData.workload ? parseInt(formData.workload) || undefined : undefined,
+      salaryMin: salaryParts[0] || undefined,
+      salaryMax: salaryParts[1] || salaryParts[0] || undefined,
       status: "Aktiv",
     } as any, {
       onSuccess: () => {

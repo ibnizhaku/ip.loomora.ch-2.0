@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { RecruitingService } from './recruiting.service';
 import { CreateJobPostingDto, UpdateJobPostingDto, CreateCandidateDto, UpdateCandidateDto, CreateInterviewDto, UpdateInterviewDto } from './dto/recruiting.dto';
@@ -74,6 +74,11 @@ export class RecruitingController {
   @RequirePermissions('recruiting:write')
   @ApiOperation({ summary: 'Update candidate' })
   updateCandidate(@Param('id') id: string, @Body() dto: UpdateCandidateDto, @CurrentUser() user: CurrentUserPayload) { return this.recruitingService.updateCandidate(id, user.companyId, dto); }
+
+  @Patch('candidates/:id')
+  @RequirePermissions('recruiting:write')
+  @ApiOperation({ summary: 'Partially update candidate' })
+  patchCandidate(@Param('id') id: string, @Body() dto: UpdateCandidateDto, @CurrentUser() user: CurrentUserPayload) { return this.recruitingService.updateCandidate(id, user.companyId, dto); }
 
   @Delete('candidates/:id')
   @RequirePermissions('recruiting:delete')
