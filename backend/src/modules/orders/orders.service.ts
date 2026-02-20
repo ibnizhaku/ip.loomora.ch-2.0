@@ -567,10 +567,6 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    // #region agent log
-    console.error('[DEBUG_ORDER_REMOVE_V2]', JSON.stringify({ location: 'orders.service.ts:remove', orderId: id, orderStatus: order.status, invoices: (order as any).invoices?.map((i: any) => ({ id: i.id, status: i.status })), deliveryNotes: (order as any).deliveryNotes?.map((d: any) => ({ id: d.id, status: d.status })), timestamp: Date.now() }));
-    // #endregion
-
     const paidInvoices = ((order as any).invoices as { status: string }[])
       .filter((i) => ['PAID', 'PARTIAL', 'OVERDUE'].includes(i.status));
 
