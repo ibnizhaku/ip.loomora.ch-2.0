@@ -76,7 +76,7 @@ export class RemindersService {
             },
           },
           createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
-        },
+        } as any,
       }),
       this.prisma.reminder.count({ where }),
     ]);
@@ -101,7 +101,7 @@ export class RemindersService {
           },
         },
         createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
-      },
+      } as any,
     });
 
     if (!reminder) {

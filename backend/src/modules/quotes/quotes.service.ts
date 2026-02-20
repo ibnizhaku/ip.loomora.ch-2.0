@@ -56,7 +56,7 @@ export class QuotesService {
           _count: {
             select: { items: true },
           },
-        },
+        } as any,
       }),
       this.prisma.quote.count({ where }),
     ]);
@@ -83,7 +83,7 @@ export class QuotesService {
         createdBy: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
-      },
+      } as any,
     });
 
     if (!quote) {
