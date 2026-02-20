@@ -239,6 +239,9 @@ export default function ProjectDetail() {
           </Button>
         </Link>
         <div className="flex-1">
+          {project.number && (
+            <span className="text-sm font-mono text-muted-foreground">{project.number}</span>
+          )}
           <div className="flex items-center gap-3">
             <h1 className="font-display text-3xl font-bold tracking-tight">
               {project.name}

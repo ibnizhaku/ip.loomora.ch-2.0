@@ -592,10 +592,16 @@ const QuoteDetail = () => {
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {quoteData.project && (
-                <div className="flex items-center justify-between">
+              {rawQuote.project && (
+                <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Projekt</span>
-                  <span className="text-sm font-medium">{quoteData.project}</span>
+                  <span className="text-sm font-medium">{(rawQuote as any).project.number ? `${(rawQuote as any).project.number} – ` : ''}{(rawQuote as any).project.name}</span>
+                </div>
+              )}
+              {(rawQuote as any).paymentTerms && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Zahlungsbedingungen</span>
+                  <span className="text-sm font-medium">{(rawQuote as any).paymentTerms}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">

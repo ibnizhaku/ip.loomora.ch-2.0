@@ -49,6 +49,10 @@ export class CreateCreditNoteDto {
   invoiceId?: string;
 
   @IsOptional()
+  @IsString()
+  projectId?: string;
+
+  @IsOptional()
   @IsEnum(CreditNoteStatus)
   status?: CreditNoteStatus;
 
@@ -62,6 +66,9 @@ export class CreateCreditNoteDto {
   @IsOptional()
   @IsDateString()
   issueDate?: string;
+
+  @IsOptional()
+  billingAddress?: any;
 
   @IsOptional()
   @IsString()

@@ -158,6 +158,14 @@ export default function ReminderDetail() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-w-md">
+            {(r.interestRate || r.interestAmount) && (
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Verzugszins</span>
+                <span className="text-sm font-medium">
+                  {r.interestRate}% p.a. = CHF {Number(r.interestAmount || 0).toFixed(2)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Rechnungsbetrag</span>
               <span>{formatCurrency(r.invoice?.total || r.totalAmount - (r.fee || 0) - (r.interestAmount || 0))}</span>

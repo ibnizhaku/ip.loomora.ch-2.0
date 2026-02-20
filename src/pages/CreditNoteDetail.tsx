@@ -389,6 +389,26 @@ const CreditNoteDetail = () => {
                   {creditNoteData.originalInvoice}
                 </Link>
               </div>
+              {cn.billingAddress && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Rechnungsadresse</span>
+                  <span className="text-sm font-medium text-right">
+                    {typeof cn.billingAddress === 'object' ? (
+                      <>
+                        {cn.billingAddress.company && <>{cn.billingAddress.company}<br /></>}
+                        {cn.billingAddress.street && <>{cn.billingAddress.street}<br /></>}
+                        {cn.billingAddress.zipCode} {cn.billingAddress.city}
+                      </>
+                    ) : String(cn.billingAddress)}
+                  </span>
+                </div>
+              )}
+              {cn.project && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Projekt</span>
+                  <span className="text-sm font-medium">{cn.project?.number ? `${cn.project.number} – ` : ''}{cn.project?.name}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Erstellt am</span>
                 <span className="font-medium">{creditNoteData.createdAt}</span>

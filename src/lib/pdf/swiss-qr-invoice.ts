@@ -74,6 +74,18 @@ export interface QRInvoiceData {
   orderNumber?: string;
   projectNumber?: string;
   paymentTermDays?: number;
+
+  // Swiss compliance additions
+  creditorUid?: string;
+  creditorPhone?: string;
+  creditorEmail?: string;
+  deliveryAddress?: { company?: string; street?: string; zipCode?: string; city?: string; country?: string };
+  servicePeriodFrom?: string;
+  servicePeriodTo?: string;
+  earlyPaymentDiscount?: number;
+  earlyPaymentDays?: number;
+  discountAmount?: number;
+  discountPercent?: number;
 }
 
 // ============================================
@@ -277,6 +289,22 @@ async function generateSwissQRInvoicePDFDoc(data: QRInvoiceData): Promise<jsPDF>
   doc.setFont("helvetica", "normal");
   doc.text(data.creditor.street, pageWidth - margin, 25, { align: "right" });
   doc.text(`${data.creditor.postalCode} ${data.creditor.city}`, pageWidth - margin, 30, { align: "right" });
+  let headerY = 35;
+  if (data.creditorPhone) {
+    doc.setFontSize(8);
+    doc.text(`Tel: ${data.creditorPhone}`, pageWidth - margin, headerY, { align: "right" });
+    headerY += 4;
+  }
+  if (data.creditorEmail) {
+    doc.setFontSize(8);
+    doc.text(data.creditorEmail, pageWidth - margin, headerY, { align: "right" });
+    headerY += 4;
+  }
+  if (data.creditorUid) {
+    doc.setFontSize(8);
+    doc.text(`UID: ${data.creditorUid}`, pageWidth - margin, headerY, { align: "right" });
+  }
+  doc.setFontSize(10);
   
   // Debtor Address (Left side, window position)
   let yPos = 50;
@@ -313,6 +341,19 @@ async function generateSwissQRInvoicePDFDoc(data: QRInvoiceData): Promise<jsPDF>
   if (data.projectNumber) {
     yPos += 5;
     doc.text(`Projektnummer: ${data.projectNumber}`, margin, yPos);
+  }
+  if (data.servicePeriodFrom || data.servicePeriodTo) {
+    yPos += 5;
+    const from = data.servicePeriodFrom || '–';
+    const to = data.servicePeriodTo || '–';
+    doc.text(`Leistungszeitraum: ${from} – ${to}`, margin, yPos);
+  }
+  if (data.deliveryAddress && (data.deliveryAddress.street || data.deliveryAddress.city)) {
+    yPos += 5;
+    const parts = [data.deliveryAddress.company, data.deliveryAddress.street, 
+      `${data.deliveryAddress.zipCode || ''} ${data.deliveryAddress.city || ''}`.trim()
+    ].filter(Boolean);
+    doc.text(`Lieferadresse: ${parts.join(', ')}`, margin, yPos);
   }
   
   // Positions Table
@@ -358,8 +399,16 @@ async function generateSwissQRInvoicePDFDoc(data: QRInvoiceData): Promise<jsPDF>
   let totalsY = finalY;
   
   doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
   doc.text("Zwischensumme:", totalsX, totalsY);
   doc.text(`CHF ${formatAmount(data.subtotal)}`, pageWidth - margin, totalsY, { align: "right" });
+  
+  if (data.discountAmount && data.discountAmount > 0) {
+    totalsY += 6;
+    const discountLabel = data.discountPercent ? `Rabatt ${data.discountPercent}%:` : 'Rabatt:';
+    doc.text(discountLabel, totalsX, totalsY);
+    doc.text(`- CHF ${formatAmount(data.discountAmount)}`, pageWidth - margin, totalsY, { align: "right" });
+  }
   
   totalsY += 6;
   doc.text(`MwSt. ${data.vatRate}%:`, totalsX, totalsY);
@@ -378,6 +427,10 @@ async function generateSwissQRInvoicePDFDoc(data: QRInvoiceData): Promise<jsPDF>
   doc.setTextColor(100);
   if (data.paymentTermDays) {
     doc.text(`Zahlungsbedingungen: ${data.paymentTermDays} Tage netto`, margin, totalsY);
+  }
+  if (data.earlyPaymentDiscount && data.earlyPaymentDays) {
+    totalsY += 5;
+    doc.text(`${data.earlyPaymentDiscount}% Skonto bei Zahlung innert ${data.earlyPaymentDays} Tagen`, margin, totalsY);
   }
   totalsY += 5;
   doc.text("Bitte verwenden Sie den beigefügten Einzahlungsschein für die Zahlung.", margin, totalsY);

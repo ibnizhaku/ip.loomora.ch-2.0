@@ -307,6 +307,9 @@ export class OrdersService {
           paidAmount: 0,
           qrReference,
           notes: order.notes,
+          deliveryAddress: order.deliveryAddress ?? undefined,
+          billingAddress: order.billingAddress ?? undefined,
+          shippingAddress: order.shippingAddress ?? undefined,
           companyId,
           createdById: userId,
           items: {
@@ -390,21 +393,25 @@ export class OrdersService {
 
       const dnNumber = `LS-${new Date().getFullYear()}-${String(company.deliveryCounter).padStart(4, '0')}`;
 
-      const deliveryAddress = [
-        order.customer?.street,
-        order.customer?.zipCode && order.customer?.city
-          ? `${order.customer.zipCode} ${order.customer.city}`
-          : order.customer?.city,
-      ].filter(Boolean).join(', ');
+      const deliveryAddress = order.deliveryAddress || (() => {
+        const addr = [
+          order.customer?.street,
+          order.customer?.zipCode && order.customer?.city
+            ? `${order.customer.zipCode} ${order.customer.city}`
+            : order.customer?.city,
+        ].filter(Boolean).join(', ');
+        return addr ? { address: addr } : undefined;
+      })();
 
       const deliveryNote = await tx.deliveryNote.create({
         data: {
           number: dnNumber,
           customerId: order.customerId,
           orderId: order.id,
+          projectId: order.projectId ?? undefined,
           status: 'DRAFT' as any,
           date: new Date(),
-          deliveryAddress: deliveryAddress ? { address: deliveryAddress } : undefined,
+          deliveryAddress: deliveryAddress ?? undefined,
           createdById: userId,
           companyId,
           items: {

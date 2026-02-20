@@ -1059,6 +1059,7 @@ model Quote {
   notes           String?
   internalNotes   String?
   terms           String?
+  paymentTerms    String?
   
   createdById     String
   createdBy       User     @relation("QuoteCreator", fields: [createdById], references: [id])
@@ -1204,6 +1205,9 @@ model DeliveryNote {
   orderId         String
   order           Order    @relation(fields: [orderId], references: [id])
   
+  projectId       String?
+  project         Project? @relation("DeliveryNoteProject", fields: [projectId], references: [id])
+  
   status          DeliveryNoteStatus @default(DRAFT)
   date            DateTime @default(now())
   deliveryDate    DateTime?
@@ -1276,6 +1280,12 @@ model Invoice {
   status          InvoiceStatus @default(DRAFT)
   
   billingAddress  Json?
+  deliveryAddress Json?
+  shippingAddress Json?
+  
+  // Service period (MWSTG Art. 26)
+  servicePeriodFrom DateTime?
+  servicePeriodTo   DateTime?
   
   subtotal        Decimal  @db.Decimal(12, 2)
   discountPercent Decimal? @db.Decimal(5, 2)
@@ -1284,6 +1294,10 @@ model Invoice {
   vatAmount       Decimal  @db.Decimal(12, 2)
   totalAmount     Decimal  @db.Decimal(12, 2)
   paidAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  
+  // Skonto
+  earlyPaymentDiscount Decimal? @db.Decimal(5, 2)
+  earlyPaymentDays     Int?
   
   // Swiss QR-Rechnung
   qrReference     String?  // 26-digit reference
@@ -1364,6 +1378,8 @@ model Reminder {
   dueDate     DateTime
   fee         Decimal  @default(0) @db.Decimal(10, 2)  // Mahngebühr
   totalWithFee Decimal @default(0) @db.Decimal(12, 2) // Original + fee
+  interestRate  Decimal @default(5) @db.Decimal(5, 2)  // OR Art. 104: 5% p.a.
+  interestAmount Decimal @default(0) @db.Decimal(12, 2)
   notes       String?
   
   companyId   String
@@ -1414,10 +1430,15 @@ model CreditNote {
   invoiceId       String?
   invoice         Invoice? @relation(fields: [invoiceId], references: [id])
   
+  projectId       String?
+  project         Project? @relation("CreditNoteProject", fields: [projectId], references: [id])
+  
   status          CreditNoteStatus @default(DRAFT)
   reason          CreditNoteReason?
   reasonText      String?
   issueDate       DateTime @default(now())
+  
+  billingAddress  Json?
   
   subtotal        Decimal  @db.Decimal(12, 2)
   vatRate         Decimal  @default(8.1) @db.Decimal(5, 2)
@@ -1859,6 +1880,8 @@ model Project {
   
   // Sales relations
   quotes          Quote[]       @relation("QuoteProject")
+  deliveryNotesProject DeliveryNote[] @relation("DeliveryNoteProject")
+  creditNotesProject   CreditNote[]  @relation("CreditNoteProject")
   reminders       Reminder[]    @relation("ReminderProject")
   
   @@unique([companyId, number])

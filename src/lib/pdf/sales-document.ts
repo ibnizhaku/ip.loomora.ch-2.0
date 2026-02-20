@@ -69,6 +69,8 @@ export interface SalesDocumentData {
   positions: DocumentPosition[];
   
   subtotal: number;
+  discountPercent?: number;
+  discountAmount?: number;
   vatRate: number;
   vatAmount: number;
   total: number;
@@ -76,6 +78,12 @@ export interface SalesDocumentData {
   notes?: string;
   paymentTerms?: string;
   deliveryTerms?: string;
+
+  servicePeriodFrom?: string;
+  servicePeriodTo?: string;
+  earlyPaymentDiscount?: number;
+  earlyPaymentDays?: number;
+  originalInvoiceNumber?: string;
 }
 
 const documentTitles: Record<string, { de: string }> = {
@@ -214,6 +222,14 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
   if (data.createdBy) {
     metaLines.push(`Erstellt von: ${data.createdBy}`);
   }
+  if (data.servicePeriodFrom || data.servicePeriodTo) {
+    const from = data.servicePeriodFrom ? formatDate(data.servicePeriodFrom) : '–';
+    const to = data.servicePeriodTo ? formatDate(data.servicePeriodTo) : '–';
+    metaLines.push(`Leistungszeitraum: ${from} – ${to}`);
+  }
+  if (data.originalInvoiceNumber) {
+    metaLines.push(`Bezug auf Rechnung: ${data.originalInvoiceNumber}`);
+  }
   
   metaLines.forEach((line, idx) => {
     doc.text(line, margin, yPos + idx * 5);
@@ -291,8 +307,18 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
     let totalsY = finalY;
     
     doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
     doc.text("Zwischensumme netto:", totalsX, totalsY);
     doc.text(`CHF ${formatAmount(data.subtotal)}`, pageWidth - margin, totalsY, { align: "right" });
+    
+    if (data.discountAmount && data.discountAmount > 0) {
+      totalsY += 5;
+      const discountLabel = data.discountPercent
+        ? `Rabatt ${data.discountPercent}%:`
+        : 'Rabatt:';
+      doc.text(discountLabel, totalsX, totalsY);
+      doc.text(`- CHF ${formatAmount(data.discountAmount)}`, pageWidth - margin, totalsY, { align: "right" });
+    }
     
     totalsY += 5;
     doc.text(`MwSt. ${data.vatRate}%:`, totalsX, totalsY);
@@ -333,6 +359,13 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
   if (data.deliveryTerms) {
     notesY += 5;
     doc.text(`Lieferbedingungen: ${data.deliveryTerms}`, margin, notesY);
+  }
+  if (data.earlyPaymentDiscount && data.earlyPaymentDays) {
+    notesY += 5;
+    doc.text(
+      `${data.earlyPaymentDiscount}% Skonto bei Zahlung innert ${data.earlyPaymentDays} Tagen`,
+      margin, notesY
+    );
   }
   
   // Bank Details for Invoice

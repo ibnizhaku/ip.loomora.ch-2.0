@@ -715,6 +715,38 @@ const InvoiceDetail = () => {
                   </Link>
                 </div>
               )}
+              {(rawInv.servicePeriodFrom || rawInv.servicePeriodTo) && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Leistungszeitraum</span>
+                  <span className="text-sm font-medium">
+                    {rawInv.servicePeriodFrom ? new Date(rawInv.servicePeriodFrom).toLocaleDateString('de-CH') : '–'}
+                    {' – '}
+                    {rawInv.servicePeriodTo ? new Date(rawInv.servicePeriodTo).toLocaleDateString('de-CH') : '–'}
+                  </span>
+                </div>
+              )}
+              {(rawInv.earlyPaymentDiscount || rawInv.earlyPaymentDays) && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Skonto</span>
+                  <span className="text-sm font-medium">
+                    {rawInv.earlyPaymentDiscount ?? '–'}% innert {rawInv.earlyPaymentDays ?? '–'} Tagen
+                  </span>
+                </div>
+              )}
+              {rawInv.deliveryAddress && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Lieferadresse</span>
+                  <span className="text-sm font-medium text-right">
+                    {typeof rawInv.deliveryAddress === 'object' ? (
+                      <>
+                        {rawInv.deliveryAddress.company && <>{rawInv.deliveryAddress.company}<br /></>}
+                        {rawInv.deliveryAddress.street && <>{rawInv.deliveryAddress.street}<br /></>}
+                        {rawInv.deliveryAddress.zipCode} {rawInv.deliveryAddress.city}
+                      </>
+                    ) : String(rawInv.deliveryAddress)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Rechnungsdatum</span>
                 <span className="font-medium">{invoiceData.createdAt}</span>

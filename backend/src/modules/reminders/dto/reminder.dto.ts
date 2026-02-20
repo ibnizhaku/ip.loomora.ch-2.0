@@ -46,6 +46,10 @@ export class CreateReminderDto {
   dueDate?: string;
 
   @IsOptional()
+  @IsNumber()
+  interestRate?: number;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }

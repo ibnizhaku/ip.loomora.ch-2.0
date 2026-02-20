@@ -134,6 +134,7 @@ export class QuotesService {
         total,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
+        paymentTerms: dto.paymentTerms ?? undefined,
         deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
         companyId,
         createdById: userId,
@@ -212,6 +213,7 @@ export class QuotesService {
           total,
           notes: dto.notes,
           internalNotes: dto.internalNotes,
+          paymentTerms: dto.paymentTerms ?? undefined,
           deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
           items: {
             create: items.map((item, index) => ({
@@ -261,6 +263,7 @@ export class QuotesService {
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
         internalNotes: dto.internalNotes,
+        paymentTerms: dto.paymentTerms ?? undefined,
         deliveryAddress: (dto.deliveryAddress as any) ?? undefined,
       },
       include: {
@@ -293,7 +296,23 @@ export class QuotesService {
     return this.prisma.$transaction(async (tx) => {
       const quote = await tx.quote.findFirst({
         where: { id, companyId },
-        include: { items: true, customer: true },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          customerId: true,
+          projectId: true,
+          subtotal: true,
+          vatAmount: true,
+          total: true,
+          notes: true,
+          internalNotes: true,
+          deliveryAddress: true,
+          billingAddress: true,
+          shippingAddress: true,
+          items: true,
+          customer: true,
+        },
       });
 
       if (!quote) {
@@ -331,12 +350,17 @@ export class QuotesService {
           number: orderNumber,
           customerId: quote.customerId,
           quoteId: quote.id,
+          projectId: quote.projectId ?? undefined,
           status: DocumentStatus.CONFIRMED,
           date: new Date(),
           subtotal: quote.subtotal,
           vatAmount: quote.vatAmount,
           total: quote.total,
           notes: quote.notes,
+          deliveryAddress: quote.deliveryAddress ?? undefined,
+          billingAddress: quote.billingAddress ?? undefined,
+          shippingAddress: quote.shippingAddress ?? undefined,
+          internalNotes: quote.internalNotes ?? undefined,
           companyId,
           createdById: userId,
           items: {
@@ -389,7 +413,23 @@ export class QuotesService {
     return this.prisma.$transaction(async (tx) => {
       const quote = await tx.quote.findFirst({
         where: { id, companyId },
-        include: { items: true, customer: true },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          customerId: true,
+          projectId: true,
+          subtotal: true,
+          vatAmount: true,
+          total: true,
+          notes: true,
+          deliveryAddress: true,
+          billingAddress: true,
+          shippingAddress: true,
+          paymentTerms: true,
+          items: true,
+          customer: true,
+        },
       });
 
       if (!quote) throw new NotFoundException('Quote not found');
@@ -413,6 +453,7 @@ export class QuotesService {
         data: {
           number: invoiceNumber,
           customerId: quote.customerId,
+          projectId: quote.projectId ?? undefined,
           status: DocumentStatus.DRAFT,
           date: new Date(),
           dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -420,6 +461,10 @@ export class QuotesService {
           vatAmount: quote.vatAmount,
           totalAmount: quote.total,
           notes: quote.notes,
+          deliveryAddress: quote.deliveryAddress ?? undefined,
+          billingAddress: quote.billingAddress ?? undefined,
+          shippingAddress: quote.shippingAddress ?? undefined,
+          paymentTerms: quote.paymentTerms ?? undefined,
           companyId,
           createdById: userId,
           items: {

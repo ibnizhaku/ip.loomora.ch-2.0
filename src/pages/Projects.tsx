@@ -321,9 +321,12 @@ export default function Projects() {
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <div className={cn("flex-1", view === "list" && "flex items-center gap-6")}>
-                  <div className="flex-1">
+                    <div className="flex-1">
                     <div className="flex items-start justify-between mb-2">
                       <div>
+                        {project.number && (
+                          <span className="text-xs font-mono text-muted-foreground">{project.number}</span>
+                        )}
                         <h3 className="font-semibold group-hover:text-primary transition-colors">
                           {project.name}
                         </h3>

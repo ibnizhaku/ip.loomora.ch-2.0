@@ -87,6 +87,11 @@ export class CreateQuoteDto {
   internalNotes?: string;
 
   @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  paymentTerms?: string;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
   @ValidateNested()

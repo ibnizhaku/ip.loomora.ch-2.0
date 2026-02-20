@@ -83,6 +83,43 @@ export class CreateInvoiceDto {
   @IsOptional()
   internalNotes?: string;
 
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  paymentTerms?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  deliveryAddress?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  shippingAddress?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  billingAddress?: any;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  servicePeriodFrom?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  servicePeriodTo?: string;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  earlyPaymentDiscount?: number;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  earlyPaymentDays?: number;
+
   @ApiProperty({ type: [InvoiceItemDto] })
   @IsArray()
   @ValidateNested({ each: true })

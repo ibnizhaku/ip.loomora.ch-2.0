@@ -67,6 +67,7 @@ export class CreditNotesService {
       include: {
         customer: true,
         invoice: { select: { id: true, number: true } },
+        project: { select: { id: true, number: true, name: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         items: {
           include: { product: true },
@@ -276,6 +277,9 @@ export class CreditNotesService {
           companyId,
           customerId: invoice.customerId,
           invoiceId: invoice.id,
+          projectId: invoice.projectId ?? undefined,
+          billingAddress: invoice.billingAddress ?? undefined,
+          notes: invoice.notes ?? undefined,
           number,
           status: CreditNoteStatus.DRAFT,
           reason: reason as any,

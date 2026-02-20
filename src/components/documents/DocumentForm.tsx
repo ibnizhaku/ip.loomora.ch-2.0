@@ -406,17 +406,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       return;
     }
 
-    if (type === "quote" && !selectedProjectId) {
-      toast.error("Bitte Projekt hinzufügen");
-      return;
-    }
-
-    if (type === "order" && !selectedProjectId) {
-      toast.error("Bitte wählen Sie ein Projekt aus");
-      return;
-    }
-
-    if (type === "invoice" && !selectedProjectId) {
+    if (!selectedProjectId) {
       toast.error("Bitte wählen Sie ein Projekt aus");
       return;
     }
@@ -456,18 +446,29 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     // Type-specific fields
     if (type === "quote") {
       payload.issueDate = documentDate;
-      // validUntil is required by the backend – default to 30 days
       const days = parseInt(validDays) || 30;
       const valid = new Date(documentDate);
       valid.setDate(valid.getDate() + days);
       payload.validUntil = valid.toISOString().split("T")[0];
+      if (paymentDays) {
+        payload.paymentTerms = `${paymentDays} Tage netto`;
+      }
     } else if (type === "invoice") {
       payload.issueDate = documentDate;
       if (paymentDays) {
         const due = new Date(documentDate);
         due.setDate(due.getDate() + parseInt(paymentDays));
         payload.dueDate = due.toISOString().split("T")[0];
+        payload.paymentTerms = `${paymentDays} Tage netto`;
       }
+      const spFrom = (document.getElementById('servicePeriodFrom') as HTMLInputElement)?.value;
+      const spTo = (document.getElementById('servicePeriodTo') as HTMLInputElement)?.value;
+      if (spFrom) payload.servicePeriodFrom = spFrom;
+      if (spTo) payload.servicePeriodTo = spTo;
+      const epDiscount = (document.getElementById('earlyPaymentDiscount') as HTMLInputElement)?.value;
+      const epDays = (document.getElementById('earlyPaymentDays') as HTMLInputElement)?.value;
+      if (epDiscount && parseFloat(epDiscount) > 0) payload.earlyPaymentDiscount = parseFloat(epDiscount);
+      if (epDays && parseInt(epDays) > 0) payload.earlyPaymentDays = parseInt(epDays);
     } else if (type === "order") {
       payload.orderDate = documentDate;
       if (assignedUserIds.length > 0) {
@@ -691,7 +692,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
           </Card>
 
           {/* Delivery Address */}
-          {(type === "quote" || type === "order" || type === "delivery-note") && (
+          {(type === "quote" || type === "order" || type === "delivery-note" || type === "invoice") && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1133,20 +1134,37 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
               </div>
 
               {isQuote ? (
-                <div className="space-y-2">
-                  <Label>Gültigkeitsdauer</Label>
-                  <Select value={validDays} onValueChange={setValidDays}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="14">14 Tage</SelectItem>
-                      <SelectItem value="30">30 Tage</SelectItem>
-                      <SelectItem value="60">60 Tage</SelectItem>
-                      <SelectItem value="90">90 Tage</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label>Gültigkeitsdauer</Label>
+                    <Select value={validDays} onValueChange={setValidDays}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="14">14 Tage</SelectItem>
+                        <SelectItem value="30">30 Tage</SelectItem>
+                        <SelectItem value="60">60 Tage</SelectItem>
+                        <SelectItem value="90">90 Tage</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Zahlungsbedingungen</Label>
+                    <Select value={paymentDays} onValueChange={setPaymentDays}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 Tage netto</SelectItem>
+                        <SelectItem value="20">20 Tage netto</SelectItem>
+                        <SelectItem value="30">30 Tage netto</SelectItem>
+                        <SelectItem value="45">45 Tage netto</SelectItem>
+                        <SelectItem value="60">60 Tage netto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               ) : isInvoice ? (
                 <>
                   <div className="space-y-2">
@@ -1163,6 +1181,24 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                         <SelectItem value="60">60 Tage netto</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Leistungszeitraum</Label>
+                    <div className="flex gap-2">
+                      <Input type="date" id="servicePeriodFrom" placeholder="Von" />
+                      <Input type="date" id="servicePeriodTo" placeholder="Bis" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Skonto</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input type="number" id="earlyPaymentDiscount" placeholder="%" className="w-20" step="0.1" min="0" max="10" />
+                      <span className="text-sm text-muted-foreground">% innert</span>
+                      <Input type="number" id="earlyPaymentDays" placeholder="Tage" className="w-20" min="1" max="30" />
+                      <span className="text-sm text-muted-foreground">Tagen</span>
+                    </div>
                   </div>
 
                   <div className="rounded-lg border border-info/30 bg-info/5 p-3 text-xs text-info">
@@ -1190,11 +1226,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
               <div className="space-y-2">
                 <Label>
                   Projekt
-                  {(type === "order" || type === "quote") ? (
-                    <span className="text-destructive ml-1">*</span>
-                  ) : (
-                    <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
-                  )}
+                  <span className="text-destructive ml-1">*</span>
                 </Label>
                 <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
                   <SelectTrigger>
@@ -1203,7 +1235,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
                   <SelectContent>
                     {projects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id}>
-                        {project.name}
+                        {project.number ? `${project.number} – ` : ''}{project.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -142,7 +142,16 @@ export class RemindersService {
 
     // Calculate fee based on level
     const fee = REMINDER_FEES[level] || 0;
-    const totalWithFee = Number(invoice.totalAmount) + fee;
+
+    // Calculate interest (OR Art. 104: default 5% p.a.)
+    const interestRate = dto.interestRate ?? 5;
+    const invoiceDueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date();
+    const overdueDays = Math.max(0, Math.floor((Date.now() - invoiceDueDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const openAmount = Number(invoice.totalAmount) - Number(invoice.paidAmount || 0);
+    const interestAmount = overdueDays > 0 ? openAmount * (interestRate / 100) * (overdueDays / 365) : 0;
+    const interestAmountRounded = Math.round(interestAmount * 100) / 100;
+
+    const totalWithFee = openAmount + fee + interestAmountRounded;
 
     // Generate reminder number – atomischer Counter via Raw SQL (reminderCounter Spalte)
     const year = new Date().getFullYear();
@@ -168,6 +177,8 @@ export class RemindersService {
         status: ReminderStatus.DRAFT,
         fee,
         totalWithFee,
+        interestRate,
+        interestAmount: interestAmountRounded,
         dueDate,
         notes: dto.notes,
         ...(userId ? { createdById: userId } : {}),

@@ -196,24 +196,26 @@ export class DeliveryNotesService {
 
       const number = `LS-${new Date().getFullYear()}-${String(company.deliveryCounter).padStart(4, '0')}`;
 
-      const deliveryAddress = [
-        order.customer.street,
-        order.customer.zipCode && order.customer.city
-          ? `${order.customer.zipCode} ${order.customer.city}`
-          : order.customer.city,
-      ]
-        .filter(Boolean)
-        .join(', ');
+      const deliveryAddress = order.deliveryAddress || (() => {
+        const addr = [
+          order.customer?.street,
+          order.customer?.zipCode && order.customer?.city
+            ? `${order.customer.zipCode} ${order.customer.city}`
+            : order.customer?.city,
+        ].filter(Boolean).join(', ');
+        return addr ? { address: addr } : undefined;
+      })();
 
       const deliveryNote = await tx.deliveryNote.create({
         data: {
           companyId,
           customerId: order.customerId,
           orderId: order.id,
+          projectId: order.projectId ?? undefined,
           number,
           status: DeliveryNoteStatus.DRAFT,
           deliveryDate: new Date(),
-          deliveryAddress: deliveryAddress ? { address: deliveryAddress } : undefined,
+          deliveryAddress: deliveryAddress ?? undefined,
           createdById: userId || undefined,
           items: {
             create: selectedItems.map((item, index) => ({
