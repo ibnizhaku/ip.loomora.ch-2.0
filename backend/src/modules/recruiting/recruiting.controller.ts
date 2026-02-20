@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { RecruitingService } from './recruiting.service';
+// #region agent log
+const _dbgCtrl = (data: object) => { try { console.error('[DEBUG_CTRL]', JSON.stringify({ ...data, timestamp: Date.now() })); } catch {} };
+// #endregion
 import { CreateJobPostingDto, UpdateJobPostingDto, CreateCandidateDto, UpdateCandidateDto, CreateInterviewDto, UpdateInterviewDto } from './dto/recruiting.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CompanyGuard } from '../auth/guards/company.guard';
@@ -33,7 +36,12 @@ export class RecruitingController {
   @Post('jobs')
   @RequirePermissions('recruiting:write')
   @ApiOperation({ summary: 'Create new job posting' })
-  createJobPosting(@Body() dto: CreateJobPostingDto, @CurrentUser() user: CurrentUserPayload) { return this.recruitingService.createJobPosting(user.companyId, dto); }
+  createJobPosting(@Body() dto: CreateJobPostingDto, @CurrentUser() user: CurrentUserPayload) {
+    // #region agent log
+    _dbgCtrl({ location: 'recruiting.controller.ts:createJobPosting', hypothesisId: 'H-B,H-C,H-D', message: 'DTO after ValidationPipe (validation PASSED)', data: { dto, dtoTypes: Object.fromEntries(Object.entries(dto as any).map(([k, v]) => [k, typeof v])) } });
+    // #endregion
+    return this.recruitingService.createJobPosting(user.companyId, dto);
+  }
 
   @Put('jobs/:id')
   @RequirePermissions('recruiting:write')
