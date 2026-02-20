@@ -254,61 +254,68 @@ export class CalculationsService {
     const calculation = await this.findOne(id, companyId);
     const result = calculation.result;
 
-    // Get company for counter
+    if (!calculation.customerId) {
+      throw new BadRequestException('Kein Kunde hinterlegt. Bitte zuerst Kunde zuweisen.');
+    }
+
     const company = await this.prisma.company.findUnique({ where: { id: companyId } });
     const year = new Date().getFullYear();
     const quoteNumber = `AN-${year}-${String((company?.quoteCounter || 0) + 1).padStart(4, '0')}`;
 
-    // Create quote from calculation
-    const quote = await this.prisma.quote.create({
-      data: {
-        companyId,
-        number: quoteNumber,
-        customerId: calculation.customerId!,
-        createdById: userId,
-        status: 'DRAFT',
-        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        subtotal: result.netTotal,
-        vatAmount: result.vatAmount,
-        total: result.grandTotal,
-        notes: `Basierend auf Kalkulation ${calculation.number}`,
-        items: {
-          create: calculation.items.map((item: any, index: number) => ({
-            position: index + 1,
-            productId: item.productId || null,
-            description: item.description,
-            quantity: Number(item.quantity),
-            unit: item.unit || 'Stk',
-            unitPrice: Number(item.unitCost) * (1 + (
-              item.type === 'MATERIAL' ? Number(calculation.materialMarkup) :
-              item.type === 'LABOR' ? Number(calculation.laborMarkup) : 0
-            ) / 100),
-            discount: 0,
-            total: Number(item.total),
-          })),
+    try {
+      const quoteItems = calculation.items.map((item: any, index: number) => ({
+        position: index + 1,
+        productId: item.productId && item.productId.length > 0 ? item.productId : undefined,
+        description: item.description || 'Position',
+        quantity: Number(item.quantity) || 1,
+        unit: item.unit || 'Stk',
+        unitPrice: Number(item.unitCost) * (1 + (
+          item.type === 'MATERIAL' ? Number(calculation.materialMarkup) :
+          item.type === 'LABOR' ? Number(calculation.laborMarkup) : 0
+        ) / 100),
+        discount: 0,
+        total: Number(item.total) || 0,
+      }));
+
+      const quote = await this.prisma.quote.create({
+        data: {
+          companyId,
+          number: quoteNumber,
+          customerId: calculation.customerId,
+          createdById: userId,
+          status: 'DRAFT',
+          validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          subtotal: result.netTotal || 0,
+          vatAmount: result.vatAmount || 0,
+          total: result.grandTotal || 0,
+          notes: `Basierend auf Kalkulation ${calculation.number}`,
+          items: {
+            create: quoteItems,
+          },
         },
-      },
-    });
+      });
 
-    // Update calculation status
-    await this.prisma.calculation.update({
-      where: { id },
-      data: { 
-        status: CalculationStatus.TRANSFERRED,
-        quoteId: quote.id,
-      },
-    });
+      await this.prisma.calculation.update({
+        where: { id },
+        data: { 
+          status: CalculationStatus.TRANSFERRED,
+          quoteId: quote.id,
+        },
+      });
 
-    // Update company counter
-    await this.prisma.company.update({
-      where: { id: companyId },
-      data: { quoteCounter: { increment: 1 } },
-    });
+      await this.prisma.company.update({
+        where: { id: companyId },
+        data: { quoteCounter: { increment: 1 } },
+      });
 
-    return {
-      calculation: await this.findOne(id, companyId),
-      quote,
-    };
+      return {
+        calculation: await this.findOne(id, companyId),
+        quote,
+      };
+    } catch (error) {
+      console.error('transferToQuote error:', error?.message || error);
+      throw new BadRequestException(`Fehler beim Erstellen des Angebots: ${error?.message || 'Unbekannter Fehler'}`);
+    }
   }
 
   // Calculate all costs and prices
