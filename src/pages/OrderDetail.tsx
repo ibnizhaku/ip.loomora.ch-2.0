@@ -309,6 +309,7 @@ const OrderDetail = () => {
     total: orderData.total,
     deliveryTerms: "Lieferung frei Haus",
     paymentTerms: "30 Tage netto",
+    createdBy: getUserName((rawOrder as any)?.createdByUser),
   };
 
   const handleDownloadPDF = () => {

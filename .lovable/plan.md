@@ -29,7 +29,7 @@ Nach gruendlicher Pruefung aller Dateien ist der aktuelle Stand wie folgt:
 | 2.1 | Darf nicht ohne Projekt erstellt werden | ERLEDIGT | `DocumentForm.tsx` validiert fuer `type === "order"` |
 | 2.2 | Zuweisung von + Neuer Auftrag | ERLEDIGT | `DocumentForm.tsx` hat User-Zuweisung Sidebar fuer `type === "order"` mit `assignedUserIds` |
 | 2.3 | Verlauf mit User-Anzeige | ERLEDIGT | `OrderDetail.tsx` `buildActivityLog()` zeigt `createdByUser`, `updatedByUser` |
-| 2.4 | User im PDF | TEILWEISE | `OrderDetail.tsx` pdfData hat KEIN `createdBy` Feld gesetzt -- **FEHLT** |
+| 2.4 | User im PDF | ERLEDIGT | `pdfData.createdBy = getUserName((rawOrder as any)?.createdByUser)` hinzugefügt |
 | 2.5 | Projekt im PDF | ERLEDIGT | `pdfData.projectNumber = orderData.projectNumber` |
 | 2.6 | Orders-Liste: Projekt-Spalte | ERLEDIGT | `OrderRaw` hat `project?`, Tabelle zeigt `order.project` |
 
@@ -70,7 +70,7 @@ Nach gruendlicher Pruefung aller Dateien ist der aktuelle Stand wie folgt:
 | 5.4 | companyName priorisiert | ERLEDIGT | `cn.customer?.companyName \|\| cn.customer?.name` |
 | 5.5 | Verlauf-Card | ERLEDIGT | `HistoryCard` Komponente mit `useEntityHistory` |
 | 5.6 | Ersteller anzeigen | ERLEDIGT | `cn.createdByUser` in Details-Card angezeigt |
-| 5.7 | Drucken-Button nutzt window.print() | OFFEN | Zeile 232: `onClick={() => window.print()}` statt PDF-basiert -- **FEHLT** |
+| 5.7 | Drucken-Button nutzt window.print() | ERLEDIGT | PDF-basierter Druck mit `getSalesDocumentPDFBlobUrl` implementiert |
 
 ---
 
@@ -96,34 +96,9 @@ Nach gruendlicher Pruefung aller Dateien ist der aktuelle Stand wie folgt:
 
 ---
 
-## Zusammenfassung: Was noch im Frontend fehlt
+## Zusammenfassung: Alle Frontend-Punkte erledigt
 
-Es gibt genau **2 offene Frontend-Punkte**:
-
-### 1. OrderDetail.tsx: `createdBy` im PDF fehlt (Punkt 2.4)
-`pdfData` in `OrderDetail.tsx` hat kein `createdBy`-Feld. Die Variable `createdByUser` wird zwar in `buildActivityLog` genutzt, aber nicht an `pdfData` uebergeben.
-
-**Fix**: `createdBy` Feld zu `pdfData` in OrderDetail.tsx hinzufuegen:
-```
-createdBy: getUserName((rawOrder as any)?.createdByUser),
-```
-
-### 2. CreditNoteDetail.tsx: Drucken-Button nutzt window.print() (Punkt 5.7)
-Zeile 232 nutzt `window.print()` statt PDF-basiertes Drucken. Alle anderen Module nutzen bereits die Blob-URL Methode.
-
-**Fix**: Drucken-Button in CreditNoteDetail.tsx aendern zu PDF-basiertem Druck analog zu QuoteDetail.tsx:
-```typescript
-onClick={() => {
-  const blobUrl = getSalesDocumentPDFBlobUrl(pdfData);
-  const printWindow = window.open(blobUrl);
-  if (printWindow) {
-    printWindow.onload = () => {
-      printWindow.print();
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-    };
-  }
-}}
-```
+Alle Frontend-Punkte sind abgeschlossen. Verbleibende Items warten auf Backend-Fixes (siehe Backend-Abhaengigkeiten unten).
 
 ---
 

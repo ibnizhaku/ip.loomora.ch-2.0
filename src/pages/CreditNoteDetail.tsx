@@ -41,7 +41,7 @@ import { useCreditNote } from "@/hooks/use-credit-notes";
 import { useCompany } from "@/hooks/use-company";
 import { useEntityHistory } from "@/hooks/use-audit-log";
 import { PDFPreviewDialog } from "@/components/documents/PDFPreviewDialog";
-import { SalesDocumentData, downloadSalesDocumentPDF } from "@/lib/pdf/sales-document";
+import { SalesDocumentData, downloadSalesDocumentPDF, getSalesDocumentPDFBlobUrl } from "@/lib/pdf/sales-document";
 
 const statusMap: Record<string, string> = {
   DRAFT: "Entwurf",
@@ -229,7 +229,16 @@ const CreditNoteDetail = () => {
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={() => {
+            const blobUrl = getSalesDocumentPDFBlobUrl(pdfData);
+            const printWindow = window.open(blobUrl);
+            if (printWindow) {
+              printWindow.onload = () => {
+                printWindow.print();
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+              };
+            }
+          }}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
