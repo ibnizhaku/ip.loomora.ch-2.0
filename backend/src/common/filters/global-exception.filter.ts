@@ -8,9 +8,6 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { Prisma } from '@prisma/client';
-// #region agent log
-const _debugLog = (data: object) => { try { console.error('[DEBUG_FILTER]', JSON.stringify({ ...data, timestamp: Date.now() })); } catch {} };
-// #endregion
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -85,22 +82,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : exception,
       );
     }
-
-    // #region agent log
-    if (request.url?.includes('/recruiting/jobs') && request.method === 'POST') {
-      _debugLog({
-        location: 'global-exception.filter.ts:catch',
-        hypothesisId: 'H-A,H-B,H-C,H-D',
-        message: 'Exception caught for POST /recruiting/jobs',
-        data: {
-          exceptionType: (exception as any)?.constructor?.name,
-          exceptionMessage: exception instanceof Error ? exception.message?.substring(0, 500) : String(exception),
-          httpStatus: status,
-          responseMessage: message,
-        },
-      });
-    }
-    // #endregion
 
     response.status(status).json({
       statusCode: status,

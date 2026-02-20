@@ -246,10 +246,6 @@ export class RecruitingService {
 
     Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
 
-    // #region agent log
-    console.error('[DEBUG_SVC]', JSON.stringify({ location: 'createJobPosting:before-prisma', hypothesisId: 'H-A', data: { keys: Object.keys(data), applicationDeadlineType: typeof data.applicationDeadline, applicationDeadlineIsDate: data.applicationDeadline instanceof Date, applicationDeadlineValue: data.applicationDeadline?.toString?.(), startDateType: typeof data.startDate }, timestamp: Date.now() }));
-    // #endregion
-
     return this.prisma.jobPosting.create({ data });
   }
 
