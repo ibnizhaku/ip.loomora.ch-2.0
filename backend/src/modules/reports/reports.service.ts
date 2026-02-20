@@ -840,7 +840,7 @@ export class ReportsService {
     const netRevenue = totalRevenue - totalVat;
 
     const purchaseInvoices = await this.prisma.purchaseInvoice.findMany({
-      where: { companyId, invoiceDate: { gte: startDate, lte: endDate } },
+      where: { companyId, date: { gte: startDate, lte: endDate } },
     });
     const inputVat = purchaseInvoices.reduce((sum, pi) => sum + Number(pi.totalAmount || 0) * 0.081, 0);
     const vatPayable = totalVat - inputVat;
@@ -866,17 +866,17 @@ export class ReportsService {
 
     const employees = await this.prisma.employee.findMany({
       where: { companyId, status: 'ACTIVE' },
-      select: { id: true, firstName: true, lastName: true, baseSalary: true, department: true },
+      include: { department: { select: { name: true } }, contracts: { take: 1, orderBy: { startDate: 'desc' as any } } },
     });
 
     const employeeCosts = employees.map(emp => {
-      const baseSalary = Number(emp.baseSalary || 0);
-      const ahvRate = this.SWISS_SOCIAL_RATES.AHV_IV_EO;
-      const alvRate = this.SWISS_SOCIAL_RATES.ALV;
-      const socialCosts = baseSalary * (ahvRate + alvRate + this.SWISS_SOCIAL_RATES.BVG + this.SWISS_SOCIAL_RATES.BUV + this.SWISS_SOCIAL_RATES.FAK);
+      const baseSalary = Number((emp.contracts?.[0] as any)?.salary || 0);
+      const ahvRate = this.EMPLOYER_RATES.AHV_IV_EO;
+      const alvRate = this.EMPLOYER_RATES.ALV;
+      const socialCosts = baseSalary * (ahvRate + alvRate + this.EMPLOYER_RATES.BVG + this.EMPLOYER_RATES.BUV + this.EMPLOYER_RATES.FAK);
       return {
         name: `${emp.firstName} ${emp.lastName}`,
-        department: emp.department || 'Ohne Abteilung',
+        department: emp.department?.name || 'Ohne Abteilung',
         baseSalary,
         socialCosts: Math.round(socialCosts * 100) / 100,
         totalCost: Math.round((baseSalary + socialCosts) * 100) / 100,
@@ -899,8 +899,8 @@ export class ReportsService {
     const metadata = await this.getMetadata(companyId, ReportType.ABSENCE_OVERVIEW, periodStr);
 
     const absences = await this.prisma.absence.findMany({
-      where: { companyId, startDate: { gte: startDate }, endDate: { lte: endDate } },
-      include: { employee: { select: { firstName: true, lastName: true, department: true } } },
+      where: { employee: { companyId }, startDate: { gte: startDate }, endDate: { lte: endDate } },
+      include: { employee: { select: { firstName: true, lastName: true, departmentId: true } } },
     });
 
     const byType: Record<string, { count: number; days: number }> = {};
@@ -918,8 +918,8 @@ export class ReportsService {
       metadata,
       summary: { totalAbsences: absences.length, totalDays, byType },
       absences: absences.map(a => ({
-        employee: a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : 'Unbekannt',
-        department: a.employee?.department || '',
+        employee: (a as any).employee ? `${(a as any).employee.firstName} ${(a as any).employee.lastName}` : 'Unbekannt',
+        department: (a as any).employee?.departmentId || '',
         type: a.type,
         startDate: a.startDate,
         endDate: a.endDate,
@@ -942,8 +942,9 @@ export class ReportsService {
       byStatus[status] = (byStatus[status] || 0) + 1;
     }
 
-    const totalPlannedQty = orders.reduce((sum, o) => sum + (o.plannedQuantity || 0), 0);
-    const totalCompletedQty = orders.reduce((sum, o) => sum + (o.completedQuantity || 0), 0);
+    const totalPlannedQty = orders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+    const completedOrders = orders.filter(o => o.status === 'COMPLETED');
+    const totalCompletedQty = completedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
 
     return {
       metadata,
@@ -957,16 +958,16 @@ export class ReportsService {
 
     const products = await this.prisma.product.findMany({
       where: { companyId, isActive: true },
-      select: { id: true, name: true, sku: true, price: true, stock: true, category: true },
+      select: { id: true, name: true, sku: true, salePrice: true, stockQuantity: true, categoryId: true },
     });
 
     const items = products.map(p => ({
       name: p.name,
       sku: p.sku || '',
-      category: p.category || '',
-      stock: p.stock || 0,
-      unitPrice: Number(p.price || 0),
-      totalValue: (p.stock || 0) * Number(p.price || 0),
+      category: p.categoryId || '',
+      stock: Number(p.stockQuantity || 0),
+      unitPrice: Number(p.salePrice || 0),
+      totalValue: Number(p.stockQuantity || 0) * Number(p.salePrice || 0),
     }));
 
     const totalValue = items.reduce((sum, i) => sum + i.totalValue, 0);
@@ -984,14 +985,14 @@ export class ReportsService {
     const metadata = await this.getMetadata(companyId, ReportType.PURCHASE_ANALYSIS, periodStr);
 
     const purchaseInvoices = await this.prisma.purchaseInvoice.findMany({
-      where: { companyId, invoiceDate: { gte: startDate, lte: endDate } },
+      where: { companyId, date: { gte: startDate, lte: endDate } },
       include: { supplier: { select: { companyName: true, name: true } } },
     });
 
     const totalAmount = purchaseInvoices.reduce((sum, pi) => sum + Number(pi.totalAmount || 0), 0);
     const bySupplier: Record<string, { count: number; total: number }> = {};
     for (const pi of purchaseInvoices) {
-      const name = pi.supplier?.companyName || pi.supplier?.name || 'Unbekannt';
+      const name = (pi as any).supplier?.companyName || (pi as any).supplier?.name || 'Unbekannt';
       if (!bySupplier[name]) bySupplier[name] = { count: 0, total: 0 };
       bySupplier[name].count++;
       bySupplier[name].total += Number(pi.totalAmount || 0);
@@ -1011,7 +1012,7 @@ export class ReportsService {
     const [payments, invoices, purchaseInvoices] = await Promise.all([
       this.prisma.payment.findMany({ where: { companyId, paymentDate: { gte: startDate, lte: endDate } } }),
       this.prisma.invoice.findMany({ where: { companyId, date: { gte: startDate, lte: endDate }, status: 'PAID' } }),
-      this.prisma.purchaseInvoice.findMany({ where: { companyId, invoiceDate: { gte: startDate, lte: endDate }, status: 'PAID' } }),
+      this.prisma.purchaseInvoice.findMany({ where: { companyId, date: { gte: startDate, lte: endDate }, status: 'PAID' } }),
     ]);
 
     const incomingPayments = payments.filter(p => p.type === 'INCOMING').reduce((sum, p) => sum + Number(p.amount || 0), 0);
