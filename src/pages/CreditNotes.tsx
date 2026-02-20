@@ -6,9 +6,7 @@ import {
   Plus, 
   Search, 
   Filter,
-  Receipt,
   Building2,
-  CheckCircle2,
   Clock,
   Euro,
   MoreHorizontal,
@@ -52,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, downloadPdf } from "@/lib/api";
+import { CreateCreditNoteFromInvoiceDialog } from "@/components/documents/CreateCreditNoteFromInvoiceDialog";
 
 // Map backend status (UPPERCASE) to UI labels
 function mapCreditNoteStatus(s: string): string {
@@ -120,6 +119,7 @@ const CreditNotes = () => {
   const [reasonFilters, setReasonFilters] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [emailModal, setEmailModal] = useState<{ id: string; number: string } | null>(null);
+  const [fromInvoiceOpen, setFromInvoiceOpen] = useState(false);
 
   const toggleStatusFilter = (status: string) => {
     setStatusFilters((prev) =>
@@ -181,10 +181,16 @@ const CreditNotes = () => {
           <p className="text-muted-foreground">Verwalten Sie Ihre Gutschriften und Erstattungen</p>
         </div>
         {canWrite('credit-notes') && (
-          <Button onClick={() => navigate("/credit-notes/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Neue Gutschrift
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setFromInvoiceOpen(true)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Aus Rechnung
+            </Button>
+            <Button onClick={() => navigate("/credit-notes/new")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Neue Gutschrift
+            </Button>
+          </div>
         )}
       </div>
 
@@ -485,6 +491,11 @@ const CreditNotes = () => {
           documentNumber={emailModal.number}
         />
       )}
+
+      <CreateCreditNoteFromInvoiceDialog
+        open={fromInvoiceOpen}
+        onOpenChange={setFromInvoiceOpen}
+      />
     </div>
   );
 };

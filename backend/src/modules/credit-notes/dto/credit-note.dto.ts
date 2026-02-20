@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum CreditNoteStatus {
@@ -79,6 +79,30 @@ export class CreateCreditNoteDto {
   @ValidateNested({ each: true })
   @Type(() => CreditNoteItemDto)
   items: CreditNoteItemDto[];
+}
+
+export class CreditNoteFromInvoiceItemDto {
+  @IsString()
+  invoiceItemId: string;
+
+  @IsNumber()
+  @Min(0.001)
+  quantity: number;
+}
+
+export class CreateCreditNoteFromInvoiceDto {
+  @IsEnum(CreditNoteReason)
+  reason: CreditNoteReason;
+
+  @IsOptional()
+  @IsString()
+  reasonText?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreditNoteFromInvoiceItemDto)
+  items?: CreditNoteFromInvoiceItemDto[];
 }
 
 export class UpdateCreditNoteDto {

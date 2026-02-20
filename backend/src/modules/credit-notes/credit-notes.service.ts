@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto';
+import { CreateCreditNoteDto, UpdateCreditNoteDto, CreateCreditNoteFromInvoiceDto } from './dto/credit-note.dto';
 import { CreditNoteStatus } from '@prisma/client';
 import { mapCreditNoteResponse } from '../../common/mappers/response.mapper';
 
@@ -251,8 +251,8 @@ export class CreditNotesService {
     return this.prisma.creditNote.delete({ where: { id } });
   }
 
-  // Create credit note from invoice (for returns/corrections)
-  async createFromInvoice(invoiceId: string, companyId: string, reason: string, userId?: string) {
+  // Gutschrift aus Rechnung erstellen (gesamt oder partielle Positionen)
+  async createFromInvoice(invoiceId: string, companyId: string, dto: CreateCreditNoteFromInvoiceDto, userId?: string) {
     return this.prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findFirst({
         where: { id: invoiceId, companyId },
@@ -262,6 +262,69 @@ export class CreditNotesService {
       if (!invoice) {
         throw new NotFoundException('Rechnung nicht gefunden');
       }
+
+      // Positionen auswählen: Falls keine Items angegeben → alle übernehmen
+      let selectedItems: Array<{
+        productId: string | null;
+        quantity: number;
+        unitPrice: number;
+        unit: string;
+        description: string | null;
+        vatRate: number;
+      }>;
+
+      if (!dto.items || dto.items.length === 0) {
+        // Gesamte Gutschrift
+        selectedItems = invoice.items.map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          unit: item.unit || 'Stk',
+          description: item.description,
+          vatRate: Number(item.vatRate),
+        }));
+      } else {
+        // Partielle Gutschrift – nur gewählte Positionen mit ggf. angepasster Menge
+        const itemMap = new Map(invoice.items.map((i) => [i.id, i]));
+        selectedItems = dto.items.map(({ invoiceItemId, quantity }) => {
+          const item = itemMap.get(invoiceItemId);
+          if (!item) throw new BadRequestException(`Rechnungsposition ${invoiceItemId} nicht gefunden`);
+          if (quantity > Number(item.quantity)) {
+            throw new BadRequestException(
+              `Menge (${quantity}) darf Rechnungsmenge (${item.quantity}) nicht überschreiten`,
+            );
+          }
+          return {
+            productId: item.productId,
+            quantity,
+            unitPrice: Number(item.unitPrice),
+            unit: item.unit || 'Stk',
+            description: item.description,
+            vatRate: Number(item.vatRate),
+          };
+        });
+      }
+
+      // Totals berechnen
+      let subtotal = 0;
+      const itemsWithTotals = selectedItems.map((item, index) => {
+        const lineTotal = item.quantity * item.unitPrice;
+        const vatAmount = lineTotal * (item.vatRate / 100);
+        subtotal += lineTotal;
+        return {
+          productId: item.productId ?? undefined,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unit: item.unit,
+          description: item.description,
+          vatRate: item.vatRate,
+          vatAmount,
+          total: lineTotal + vatAmount,
+          position: index + 1,
+        };
+      });
+      const vatAmount = subtotal * (this.VAT_RATE / 100);
+      const totalAmount = subtotal + vatAmount;
 
       // Atomare Nummerierung via Company-Counter
       const company = await tx.company.update({
@@ -282,35 +345,24 @@ export class CreditNotesService {
           notes: invoice.notes ?? undefined,
           number,
           status: CreditNoteStatus.DRAFT,
-          reason: reason as any,
-          reasonText: reason,
+          reason: dto.reason,
+          reasonText: dto.reasonText || String(dto.reason),
           issueDate: new Date(),
-          subtotal: invoice.subtotal,
+          subtotal,
           vatRate: this.VAT_RATE,
-          vatAmount: invoice.vatAmount,
-          totalAmount: invoice.totalAmount,
-          items: {
-            create: invoice.items.map((item, index) => ({
-              productId: item.productId,
-              quantity: Number(item.quantity),
-              unitPrice: Number(item.unitPrice),
-              unit: item.unit || 'Stk',
-              description: item.description,
-              vatRate: Number(item.vatRate),
-              vatAmount: Number(item.vatAmount),
-              total: Number(item.total),
-              position: index + 1,
-            })),
-          },
+          vatAmount,
+          totalAmount,
+          createdById: userId ?? undefined,
+          items: { create: itemsWithTotals },
         },
         include: {
           customer: true,
           invoice: { select: { id: true, number: true } },
+          project: { select: { id: true, name: true, number: true } },
           items: { include: { product: true } },
         },
       });
 
-      // Audit log
       if (userId) {
         await tx.auditLog.create({
           data: {
@@ -318,9 +370,9 @@ export class CreditNotesService {
             entityType: 'CREDIT_NOTE',
             entityId: creditNote.id,
             action: 'CREATE',
-            description: `Credit Note ${creditNote.number} created from Invoice ${invoice.number}. Reason: ${reason}`,
-            oldValues: { sourceType: 'INVOICE', invoiceId: invoice.id, invoiceNumber: invoice.number },
-            newValues: { creditNoteId: creditNote.id, creditNoteNumber: creditNote.number, reason },
+            description: `Gutschrift ${creditNote.number} aus Rechnung ${invoice.number} erstellt. Grund: ${dto.reason}`,
+            oldValues: { invoiceId: invoice.id, invoiceNumber: invoice.number },
+            newValues: { creditNoteId: creditNote.id, number, reason: dto.reason, itemCount: itemsWithTotals.length },
             retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
             companyId,
             userId,
@@ -328,7 +380,7 @@ export class CreditNotesService {
         });
       }
 
-      return creditNote;
+      return mapCreditNoteResponse(creditNote);
     });
   }
 }

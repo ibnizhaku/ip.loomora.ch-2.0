@@ -77,8 +77,18 @@ export function useCreateCreditNote() {
 export function useCreateCreditNoteFromInvoice() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ invoiceId, reason }: { invoiceId: string; reason: string }) =>
-      api.post<CreditNote>(`/credit-notes/from-invoice/${invoiceId}?reason=${encodeURIComponent(reason)}`),
+    mutationFn: ({
+      invoiceId,
+      reason,
+      reasonText,
+      items,
+    }: {
+      invoiceId: string;
+      reason: string;
+      reasonText?: string;
+      items?: Array<{ invoiceItemId: string; quantity: number }>;
+    }) =>
+      api.post<CreditNote>(`/credit-notes/from-invoice/${invoiceId}`, { reason, reasonText, items }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });

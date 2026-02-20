@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -7,7 +7,7 @@ import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.g
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreditNotesService } from './credit-notes.service';
 import { PdfService } from '../../common/services/pdf.service';
-import { CreateCreditNoteDto, UpdateCreditNoteDto } from './dto/credit-note.dto';
+import { CreateCreditNoteDto, UpdateCreditNoteDto, CreateCreditNoteFromInvoiceDto } from './dto/credit-note.dto';
 
 @ApiTags('Credit Notes')
 @ApiBearerAuth()
@@ -72,13 +72,13 @@ export class CreditNotesController {
 
   @Post('from-invoice/:invoiceId')
   @RequirePermissions('credit-notes:write')
-  @ApiOperation({ summary: 'Create credit note from invoice' })
+  @ApiOperation({ summary: 'Create credit note from invoice (full or partial positions)' })
   createFromInvoice(
     @Param('invoiceId') invoiceId: string,
-    @Query('reason') reason: string,
+    @Body() dto: CreateCreditNoteFromInvoiceDto,
     @CurrentUser() user: any,
   ) {
-    return this.creditNotesService.createFromInvoice(invoiceId, user.companyId, reason, user.userId);
+    return this.creditNotesService.createFromInvoice(invoiceId, user.companyId, dto, user.userId);
   }
 
   @Post(':id/send')
