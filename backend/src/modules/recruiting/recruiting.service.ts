@@ -199,6 +199,18 @@ export class RecruitingService {
     return map[value.toLowerCase()] || value.toUpperCase();
   }
 
+  /**
+   * Konvertiert einen Datums-String (z.B. "2026-03-15" aus HTML <input type="date">)
+   * in ein JavaScript Date-Objekt, das Prisma korrekt als DateTime akzeptiert.
+   * Gibt undefined zurück wenn kein Wert vorhanden.
+   */
+  private toDate(value?: string | Date | null): Date | undefined {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+
   private normalizeJobStatus(value?: string): string {
     if (!value) return 'DRAFT';
     const map: Record<string, string> = {
@@ -226,8 +238,8 @@ export class RecruitingService {
       salaryMin: dto.salaryMin,
       salaryMax: dto.salaryMax,
       workloadPercent: dto.workloadPercent,
-      startDate: dto.startDate,
-      applicationDeadline: (dto as any).closingDate || dto.applicationDeadline,
+      startDate: this.toDate(dto.startDate),
+      applicationDeadline: this.toDate((dto as any).closingDate ?? dto.applicationDeadline),
       contactPersonId: dto.contactPersonId,
       requiredSkills: dto.requiredSkills,
     };
@@ -253,9 +265,15 @@ export class RecruitingService {
       updateData.benefits = (updateData as any).responsibilities;
       delete (updateData as any).responsibilities;
     }
-    if ((updateData as any).closingDate) {
-      updateData.applicationDeadline = (updateData as any).closingDate;
+    if ((updateData as any).closingDate !== undefined) {
+      updateData.applicationDeadline = this.toDate((updateData as any).closingDate);
       delete (updateData as any).closingDate;
+    }
+    if (updateData.applicationDeadline !== undefined && !(updateData.applicationDeadline instanceof Date)) {
+      updateData.applicationDeadline = this.toDate(updateData.applicationDeadline);
+    }
+    if (updateData.startDate !== undefined && !(updateData.startDate instanceof Date)) {
+      updateData.startDate = this.toDate(updateData.startDate);
     }
 
     return this.prisma.jobPosting.update({
