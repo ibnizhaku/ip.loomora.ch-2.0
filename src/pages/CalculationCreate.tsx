@@ -20,6 +20,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCreateCalculation } from "@/hooks/use-calculations";
+import { useBoms } from "@/hooks/use-bom";
+import { useCustomers } from "@/hooks/use-customers";
 
 interface Position {
   id: number;
@@ -30,101 +33,34 @@ interface Position {
   unitPrice: number;
 }
 
-// Available BOMs for selection
-interface BOMItem {
-  id: string;
-  articleNumber: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  unitPrice: number;
-  type: "material" | "work" | "external";
-}
-
-interface BOM {
-  id: string;
-  number: string;
-  name: string;
-  project?: string;
-  status: "draft" | "active" | "archived";
-  totalMaterial: number;
-  totalWork: number;
-  items: BOMItem[];
-}
-
-const availableBOMs: BOM[] = [
-  {
-    id: "1",
-    number: "STL-2024-001",
-    name: "Metalltreppe 3-geschossig",
-    project: "PRJ-2024-015",
-    status: "active",
-    totalMaterial: 12450,
-    totalWork: 8600,
-    items: [
-      { id: "1-1", articleNumber: "ART-001", name: "Stahlträger HEB 200", quantity: 24, unit: "lfm", unitPrice: 85, type: "material" },
-      { id: "1-2", articleNumber: "ART-002", name: "Treppenstufen Gitterrost", quantity: 36, unit: "Stk", unitPrice: 125, type: "material" },
-      { id: "1-3", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 48, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-  {
-    id: "2",
-    number: "STL-2024-002",
-    name: "Geländer Balkon 15m",
-    project: "PRJ-2024-018",
-    status: "active",
-    totalMaterial: 3200,
-    totalWork: 2400,
-    items: [
-      { id: "2-1", articleNumber: "ART-003", name: "Edelstahl Rundrohr 42mm", quantity: 45, unit: "lfm", unitPrice: 28, type: "material" },
-      { id: "2-2", articleNumber: "DL-002", name: "Montagearbeiten", quantity: 16, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-  {
-    id: "3",
-    number: "STL-2024-003",
-    name: "Brandschutztür T90",
-    status: "draft",
-    totalMaterial: 1800,
-    totalWork: 960,
-    items: [
-      { id: "3-1", articleNumber: "ART-004", name: "Stahlzarge T90", quantity: 1, unit: "Stk", unitPrice: 450, type: "material" },
-      { id: "3-2", articleNumber: "ART-005", name: "Türblatt T90", quantity: 1, unit: "Stk", unitPrice: 680, type: "material" },
-      { id: "3-3", articleNumber: "DL-003", name: "Einbau", quantity: 6, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-  {
-    id: "4",
-    number: "STL-2024-004",
-    name: "Vordach Stahl verzinkt",
-    status: "active",
-    totalMaterial: 4500,
-    totalWork: 2100,
-    items: [
-      { id: "4-1", articleNumber: "ART-006", name: "Stützen HEB 140", quantity: 4, unit: "Stk", unitPrice: 320, type: "material" },
-      { id: "4-2", articleNumber: "ART-007", name: "Träger IPE 180", quantity: 12, unit: "lfm", unitPrice: 95, type: "material" },
-      { id: "4-3", articleNumber: "DL-001", name: "Schweissarbeiten", quantity: 14, unit: "Std", unitPrice: 125, type: "work" },
-    ],
-  },
-];
-
 const bomStatusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   active: "bg-success/10 text-success",
   archived: "bg-secondary text-secondary-foreground",
+  DRAFT: "bg-muted text-muted-foreground",
+  ACTIVE: "bg-success/10 text-success",
 };
 
 const bomStatusLabels: Record<string, string> = {
   draft: "Entwurf",
   active: "Aktiv",
   archived: "Archiviert",
+  DRAFT: "Entwurf",
+  ACTIVE: "Aktiv",
 };
 
 export default function CalculationCreate() {
   const navigate = useNavigate();
+  const createCalc = useCreateCalculation();
+  const { data: bomsData } = useBoms({ pageSize: 100 });
+  const { data: customersData } = useCustomers({ pageSize: 100 });
+  const apiBOMs = (bomsData as any)?.data || [];
+  const apiCustomers = (customersData as any)?.data || [];
+
   const [name, setName] = useState("");
-  const [customer, setCustomer] = useState("");
+  const [customerId, setCustomerId] = useState("");
   const [project, setProject] = useState("");
+  const [selectedBomId, setSelectedBomId] = useState<string | null>(null);
   const [bomReference, setBomReference] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([
     { id: 1, type: "material", description: "", quantity: 1, unit: "Stk", unitPrice: 0 },
@@ -135,24 +71,23 @@ export default function CalculationCreate() {
   const [bomDialogOpen, setBomDialogOpen] = useState(false);
   const [bomSearchQuery, setBomSearchQuery] = useState("");
 
-  const filteredBOMs = availableBOMs.filter((bom) =>
-    bom.name.toLowerCase().includes(bomSearchQuery.toLowerCase()) ||
-    bom.number.toLowerCase().includes(bomSearchQuery.toLowerCase())
+  const filteredBOMs = apiBOMs.filter((bom: any) =>
+    (bom.name || "").toLowerCase().includes(bomSearchQuery.toLowerCase()) ||
+    (bom.number || "").toLowerCase().includes(bomSearchQuery.toLowerCase())
   );
 
-  const handleSelectBOM = (bom: BOM) => {
+  const handleSelectBOM = (bom: any) => {
     setName(bom.name);
-    setProject(bom.project || "");
-    setBomReference(bom.number);
-    
-    // Convert BOM items to calculation positions
-    const calcPositions: Position[] = bom.items.map((item, index) => ({
+    setSelectedBomId(bom.id);
+    setBomReference(bom.number || bom.id);
+
+    const calcPositions: Position[] = (bom.items || []).map((item: any, index: number) => ({
       id: Date.now() + index,
-      type: item.type === "work" ? "labor" : item.type === "external" ? "external" : "material",
-      description: `${item.articleNumber} - ${item.name}`,
-      quantity: item.quantity,
-      unit: item.unit,
-      unitPrice: item.unitPrice,
+      type: item.type === "LABOR" ? "labor" : item.type === "EXTERNAL" ? "external" : "material",
+      description: item.description || item.name || "",
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || "Stk",
+      unitPrice: Number(item.unitPrice) || Number(item.hourlyRate) || 0,
     }));
     setPositions(calcPositions);
     setBomDialogOpen(false);
@@ -227,8 +162,36 @@ export default function CalculationCreate() {
       toast.error("Bitte geben Sie eine Bezeichnung ein");
       return;
     }
-    toast.success("Kalkulation erstellt");
-    navigate("/calculation");
+    const validPositions = positions.filter((p) => p.description.trim());
+    if (validPositions.length === 0) {
+      toast.error("Mindestens eine Position erforderlich");
+      return;
+    }
+
+    createCalc.mutate(
+      {
+        name,
+        customerId: customerId || undefined,
+        bomId: selectedBomId || undefined,
+        overheadPercent,
+        profitMargin: marginPercent,
+        discount: discountPercent,
+        items: validPositions.map((p) => ({
+          type: p.type === "labor" ? "LABOR" : p.type === "external" ? "EXTERNAL" : "MATERIAL",
+          description: p.description,
+          quantity: p.quantity,
+          unit: p.unit,
+          unitCost: p.unitPrice,
+        })),
+      } as any,
+      {
+        onSuccess: (data: any) => {
+          toast.success("Kalkulation erstellt");
+          navigate(data?.id ? `/calculation/${data.id}` : "/calculation");
+        },
+        onError: () => toast.error("Fehler beim Erstellen der Kalkulation"),
+      }
+    );
   };
 
   return (
@@ -274,7 +237,7 @@ export default function CalculationCreate() {
                 </div>
                 <ScrollArea className="h-[300px]">
                   <div className="space-y-2">
-                    {filteredBOMs.map((bom) => (
+                    {filteredBOMs.map((bom: any) => (
                       <div
                         key={bom.id}
                         className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 hover:bg-muted/50 cursor-pointer transition-all"
@@ -286,18 +249,17 @@ export default function CalculationCreate() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium truncate">{bom.name}</p>
-                            <Badge className={bomStatusStyles[bom.status]} variant="secondary">
-                              {bomStatusLabels[bom.status]}
+                            <Badge className={bomStatusStyles[bom.status] || "bg-muted"} variant="secondary">
+                              {bomStatusLabels[bom.status] || bom.status}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            <span className="font-mono">{bom.number}</span>
-                            {bom.project && <> • {bom.project}</>}
+                            {bom.project?.name && <>{bom.project.name}</>}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-sm">CHF {(bom.totalMaterial + bom.totalWork).toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">{bom.items.length} Positionen</p>
+                          <p className="font-mono text-sm">CHF {(Number(bom.grandTotal) || 0).toLocaleString("de-CH")}</p>
+                          <p className="text-xs text-muted-foreground">{bom.items?.length || 0} Positionen</p>
                         </div>
                       </div>
                     ))}
@@ -334,11 +296,18 @@ export default function CalculationCreate() {
                 </div>
                 <div className="space-y-2">
                   <Label>Kunde</Label>
-                  <Input
-                    placeholder="Kundenname"
-                    value={customer}
-                    onChange={(e) => setCustomer(e.target.value)}
-                  />
+                  <Select value={customerId} onValueChange={setCustomerId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Kunde wählen (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {apiCustomers.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.companyName || c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="space-y-2">
@@ -605,9 +574,9 @@ export default function CalculationCreate() {
         <Button variant="outline" onClick={() => navigate(-1)}>
           Abbrechen
         </Button>
-        <Button className="gap-2" onClick={handleSave}>
+        <Button className="gap-2" onClick={handleSave} disabled={createCalc.isPending}>
           <Save className="h-4 w-4" />
-          Kalkulation speichern
+          {createCalc.isPending ? "Wird gespeichert..." : "Kalkulation speichern"}
         </Button>
       </div>
     </div>

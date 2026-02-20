@@ -65,6 +65,7 @@ import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useProjects } from "@/hooks/use-projects";
 import { useProducts } from "@/hooks/use-products";
+import { useCreatePurchaseOrder, useSendPurchaseOrder } from "@/hooks/use-purchase-orders";
 
 // Types for API data
 interface SupplierData {
@@ -125,7 +126,9 @@ export default function PurchaseOrderCreate() {
   const [sendingProgress, setSendingProgress] = useState(0);
   const [orderNumber, setOrderNumber] = useState("");
 
-  // Fetch data from API
+  const createOrder = useCreatePurchaseOrder();
+  const sendOrder = useSendPurchaseOrder();
+
   const { data: suppliersData, isLoading: suppliersLoading } = useSuppliers({ pageSize: 100 });
   const { data: projectsData, isLoading: projectsLoading } = useProjects({ pageSize: 100 });
   const { data: productsData, isLoading: productsLoading } = useProducts({ 
@@ -222,10 +225,6 @@ export default function PurchaseOrderCreate() {
       toast.error("Bitte fügen Sie mindestens eine Position hinzu");
       return;
     }
-    
-    // Generate order number
-    const num = Math.floor(Math.random() * 9000) + 1000;
-    setOrderNumber(`EK-2024-${num}`);
     setShowDeliveryDialog(true);
     setDeliveryStep("select");
     setSelectedDeliveryMethods([]);
@@ -239,79 +238,66 @@ export default function PurchaseOrderCreate() {
     }
 
     setDeliveryStep("sending");
-    setSendingProgress(0);
+    setSendingProgress(20);
 
-    // Simulate processing each delivery method
-    const steps = selectedDeliveryMethods.length * 2;
-    for (let i = 1; i <= steps; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setSendingProgress((i / steps) * 100);
-    }
+    try {
+      const created: any = await createOrder.mutateAsync({
+        supplierId: selectedSupplier!.id,
+        projectId: selectedProject && selectedProject !== "none" ? selectedProject : undefined,
+        expectedDate: expectedDelivery || undefined,
+        notes: notes || undefined,
+        items: items.map((item) => ({
+          productId: item.productId,
+          description: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+        })),
+      });
 
-    // Simulate final actions
-    if (selectedDeliveryMethods.includes("pdf")) {
-      toast.info("PDF wird generiert...");
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Generate actual PDF
+      const createdNumber = created?.number || created?.id || "";
+      setOrderNumber(createdNumber);
+      setSendingProgress(60);
+
       const projectData = selectedProject && selectedProject !== "none"
         ? projects.find(p => p.id === selectedProject) || null
         : null;
-      
-      generatePurchaseOrderPDF({
-        orderNumber,
-        supplier: {
-          name: selectedSupplier!.name,
-          number: selectedSupplier!.number || '',
-          city: selectedSupplier!.city || '',
-        },
-        items,
-        subtotal,
-        vat,
-        total,
-        expectedDelivery: expectedDelivery || undefined,
-        reference: reference || undefined,
-        notes: notes || undefined,
-        project: projectData,
-      });
-    }
-    
-    if (selectedDeliveryMethods.includes("print")) {
-      toast.info("Druckdialog wird geöffnet...");
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Generate PDF and trigger print
-      const projectData = selectedProject && selectedProject !== "none"
-        ? projects.find(p => p.id === selectedProject) || null
-        : null;
-      
-      generatePurchaseOrderPDF({
-        orderNumber,
-        supplier: {
-          name: selectedSupplier!.name,
-          number: selectedSupplier!.number || '',
-          city: selectedSupplier!.city || '',
-        },
-        items,
-        subtotal,
-        vat,
-        total,
-        expectedDelivery: expectedDelivery || undefined,
-        reference: reference || undefined,
-        notes: notes || undefined,
-        project: projectData,
-      });
-      // Note: For print, we'd ideally open PDF in new tab and trigger print
-      // This is a limitation - real print would need different approach
-    }
 
-    if (selectedDeliveryMethods.includes("email")) {
-      // Simulate email sending (would need backend)
-      toast.info(`E-Mail an ${selectedSupplier?.name} wird gesendet (Simulation)...`);
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+      if (selectedDeliveryMethods.includes("pdf") || selectedDeliveryMethods.includes("print")) {
+        generatePurchaseOrderPDF({
+          orderNumber: createdNumber,
+          supplier: {
+            name: selectedSupplier!.name,
+            number: selectedSupplier!.number || '',
+            city: selectedSupplier!.city || '',
+          },
+          items,
+          subtotal,
+          vat,
+          total,
+          expectedDelivery: expectedDelivery || undefined,
+          reference: reference || undefined,
+          notes: notes || undefined,
+          project: projectData,
+        });
+      }
 
-    setDeliveryStep("done");
+      setSendingProgress(80);
+
+      if (selectedDeliveryMethods.includes("email") && created?.id) {
+        try {
+          await sendOrder.mutateAsync({ id: created.id, method: "EMAIL" });
+        } catch {
+          toast.error("E-Mail konnte nicht gesendet werden");
+        }
+      }
+
+      setSendingProgress(100);
+      setDeliveryStep("done");
+    } catch (err) {
+      toast.error("Fehler beim Erstellen der Bestellung");
+      setDeliveryStep("select");
+    }
   };
 
   const finishOrder = () => {

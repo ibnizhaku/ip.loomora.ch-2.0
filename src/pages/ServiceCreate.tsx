@@ -12,20 +12,22 @@ import { TechnicianScheduleDialog } from "@/components/service/TechnicianSchedul
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-
-const technicianNames: Record<string, string> = {
-  mueller: "Thomas Müller",
-  schmidt: "Peter Schmidt",
-  weber: "Michael Weber",
-  bauer: "Stefan Bauer",
-};
+import { useCreateServiceTicket } from "@/hooks/use-service-tickets";
+import { useCustomers } from "@/hooks/use-customers";
+import { useUsers } from "@/hooks/use-users";
 
 export default function ServiceCreate() {
   const navigate = useNavigate();
+  const createTicket = useCreateServiceTicket();
+  const { data: customersData } = useCustomers({ pageSize: 100 });
+  const { data: usersData } = useUsers();
+  const apiCustomers = (customersData as any)?.data || [];
+  const apiUsers = Array.isArray(usersData) ? usersData : (usersData as any)?.data || [];
+
   const [title, setTitle] = useState("");
-  const [customer, setCustomer] = useState("");
+  const [customerId, setCustomerId] = useState("");
   const [category, setCategory] = useState("");
-  const [priority, setPriority] = useState("medium");
+  const [priority, setPriority] = useState("MEDIUM");
   const [assignee, setAssignee] = useState("");
   const [description, setDescription] = useState("");
   const [equipment, setEquipment] = useState("");
@@ -55,15 +57,38 @@ export default function ServiceCreate() {
   };
 
   const handleSave = () => {
-    if (!title || !customer || !category) {
+    if (!title || !customerId || !category) {
       toast.error("Bitte füllen Sie die Pflichtfelder aus");
       return;
     }
-    // Generate a new ticket ID (in real app would come from backend)
-    const newTicketId = Date.now().toString();
-    toast.success("Service-Ticket erstellt");
-    // Navigate to the new ticket's detail page for further actions
-    navigate(`/service/${newTicketId}`);
+
+    const categoryMap: Record<string, string> = {
+      repair: "REPAIR",
+      maintenance: "MAINTENANCE",
+      installation: "INSTALLATION",
+      consultation: "INSPECTION",
+      complaint: "WARRANTY",
+    };
+
+    createTicket.mutate(
+      {
+        title,
+        description: description || title,
+        customerId,
+        serviceType: categoryMap[category] || "REPAIR",
+        priority: priority as any,
+        assignedTechnicianId: assignee || undefined,
+        scheduledDate: scheduledDate ? scheduledDate.toISOString() : undefined,
+        equipmentInfo: equipment || undefined,
+      } as any,
+      {
+        onSuccess: (data: any) => {
+          toast.success("Service-Ticket erstellt");
+          navigate(data?.id ? `/service/${data.id}` : "/service");
+        },
+        onError: () => toast.error("Fehler beim Erstellen des Tickets"),
+      }
+    );
   };
 
   return (
@@ -97,15 +122,16 @@ export default function ServiceCreate() {
             </div>
             <div className="space-y-2">
               <Label>Kunde *</Label>
-              <Select value={customer} onValueChange={setCustomer}>
+              <Select value={customerId} onValueChange={setCustomerId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Kunde wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tech-innovations">Tech Innovations GmbH</SelectItem>
-                  <SelectItem value="machinery-ag">Machinery AG</SelectItem>
-                  <SelectItem value="precision-tools">Precision Tools</SelectItem>
-                  <SelectItem value="industrial-systems">Industrial Systems AG</SelectItem>
+                  {apiCustomers.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.companyName || c.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -131,10 +157,10 @@ export default function ServiceCreate() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Niedrig</SelectItem>
-                  <SelectItem value="medium">Mittel</SelectItem>
-                  <SelectItem value="high">Hoch</SelectItem>
-                  <SelectItem value="urgent">Dringend</SelectItem>
+                  <SelectItem value="LOW">Niedrig</SelectItem>
+                  <SelectItem value="MEDIUM">Mittel</SelectItem>
+                  <SelectItem value="HIGH">Hoch</SelectItem>
+                  <SelectItem value="URGENT">Dringend</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -153,10 +179,11 @@ export default function ServiceCreate() {
                   <SelectValue placeholder="Techniker wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mueller">Thomas Müller</SelectItem>
-                  <SelectItem value="schmidt">Peter Schmidt</SelectItem>
-                  <SelectItem value="weber">Michael Weber</SelectItem>
-                  <SelectItem value="bauer">Stefan Bauer</SelectItem>
+                  {apiUsers.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -174,7 +201,7 @@ export default function ServiceCreate() {
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {scheduledTime} Uhr • {technicianNames[assignee]}
+                        {scheduledTime} Uhr • {(() => { const u = apiUsers.find((u: any) => u.id === assignee); return u ? `${u.firstName} ${u.lastName}` : assignee; })()}
                       </p>
                     </div>
                     <Button 
@@ -222,9 +249,9 @@ export default function ServiceCreate() {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => navigate("/service")}>Abbrechen</Button>
-        <Button className="gap-2" onClick={handleSave}>
+        <Button className="gap-2" onClick={handleSave} disabled={createTicket.isPending}>
           <Save className="h-4 w-4" />
-          Ticket erstellen
+          {createTicket.isPending ? "Wird erstellt..." : "Ticket erstellen"}
         </Button>
       </div>
 
