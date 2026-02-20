@@ -201,11 +201,10 @@ export function mapDeliveryNoteResponse(deliveryNote: any) {
 export function mapCreditNoteResponse(creditNote: any) {
   if (!creditNote) return creditNote;
   
-  const { date, totalAmount, ...rest } = creditNote;
+  const { totalAmount, ...rest } = creditNote;
   
   return {
     ...rest,
-    issueDate: date,
     total: totalAmount ? Number(totalAmount) : 0,
     customer: mapCustomer(creditNote.customer),
     customerName: creditNote.customer?.companyName || creditNote.customer?.name,
@@ -213,6 +212,7 @@ export function mapCreditNoteResponse(creditNote: any) {
     createdByUser: creditNote.createdBy || null,
     subtotal: creditNote.subtotal ? Number(creditNote.subtotal) : 0,
     vatAmount: creditNote.vatAmount ? Number(creditNote.vatAmount) : 0,
+    issueDate: creditNote.issueDate ?? null,
   };
 }
 

@@ -67,7 +67,7 @@ export class CreditNotesController {
   @RequirePermissions('credit-notes:write')
   @ApiOperation({ summary: 'Create new credit note' })
   create(@Body() dto: CreateCreditNoteDto, @CurrentUser() user: any) {
-    return this.creditNotesService.create(user.companyId, dto);
+    return this.creditNotesService.create(user.companyId, dto, user.userId);
   }
 
   @Post('from-invoice/:invoiceId')

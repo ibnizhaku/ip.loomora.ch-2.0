@@ -18,8 +18,9 @@ export enum CreditNoteReason {
 }
 
 export class CreditNoteItemDto {
+  @IsOptional()
   @IsString()
-  productId: string;
+  productId?: string;
 
   @IsNumber()
   quantity: number;

@@ -82,7 +82,7 @@ export class CreditNotesService {
     return mapCreditNoteResponse(creditNote);
   }
 
-  async create(companyId: string, dto: CreateCreditNoteDto) {
+  async create(companyId: string, dto: CreateCreditNoteDto, userId?: string) {
     // Calculate totals
     let subtotal = 0;
     const itemsWithTotals = dto.items.map((item, index) => {
@@ -92,7 +92,7 @@ export class CreditNotesService {
       subtotal += lineTotal;
       
       return {
-        productId: item.productId,
+        productId: item.productId ?? undefined,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         unit: item.unit || 'Stk',
@@ -107,10 +107,15 @@ export class CreditNotesService {
     const vatAmount = subtotal * (this.VAT_RATE / 100);
     const totalAmount = subtotal + vatAmount;
 
-    // Generate credit note number
-    const count = await this.prisma.creditNote.count({ where: { companyId } });
+    // Atomare Nummerierung via Company-Counter
+    const company = await this.prisma.company.update({
+      where: { id: companyId },
+      data: { creditNoteCounter: { increment: 1 } },
+      select: { creditNoteCounter: true, creditNotePrefix: true },
+    });
+    const prefix = company.creditNotePrefix || 'GS-';
     const year = new Date().getFullYear();
-    const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
+    const number = `${prefix}${year}-${String(company.creditNoteCounter).padStart(4, '0')}`;
 
     const created = await this.prisma.creditNote.create({
       data: {
@@ -127,6 +132,7 @@ export class CreditNotesService {
         vatAmount,
         totalAmount,
         notes: dto.notes,
+        createdById: userId ?? undefined,
         items: {
           create: itemsWithTotals,
         },
@@ -167,7 +173,7 @@ export class CreditNotesService {
         subtotal += lineTotal;
         
         return {
-          productId: item.productId,
+          productId: item.productId ?? undefined,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           unit: item.unit || 'Stk',
@@ -258,19 +264,15 @@ export class CreditNotesService {
         throw new NotFoundException('Rechnung nicht gefunden');
       }
 
-      // Check if credit note already exists for this invoice
-      const existingCreditNote = await tx.creditNote.findFirst({
-        where: { invoiceId, companyId },
+      // Atomare Nummerierung via Company-Counter
+      const company = await tx.company.update({
+        where: { id: companyId },
+        data: { creditNoteCounter: { increment: 1 } },
+        select: { creditNoteCounter: true, creditNotePrefix: true },
       });
-
-      if (existingCreditNote) {
-        throw new BadRequestException(`Credit note ${existingCreditNote.number} already exists for invoice ${invoice.number}`);
-      }
-
-      // Generate credit note number
-      const count = await tx.creditNote.count({ where: { companyId } });
+      const prefix = company.creditNotePrefix || 'GS-';
       const year = new Date().getFullYear();
-      const number = `GS-${year}-${String(count + 1).padStart(4, '0')}`;
+      const number = `${prefix}${year}-${String(company.creditNoteCounter).padStart(4, '0')}`;
 
       const creditNote = await tx.creditNote.create({
         data: {
