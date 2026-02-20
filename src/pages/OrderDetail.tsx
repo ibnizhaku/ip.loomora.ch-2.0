@@ -675,6 +675,31 @@ const OrderDetail = () => {
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <span>{orderData.customer.address}</span>
               </div>
+              {orderData.deliveryAddress && (
+                <>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Truck className="h-3 w-3" />
+                      Lieferadresse
+                    </p>
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="space-y-0.5">
+                        {orderData.deliveryAddress.company && (
+                          <p className="font-medium">{orderData.deliveryAddress.company}</p>
+                        )}
+                        {orderData.deliveryAddress.street && (
+                          <p>{orderData.deliveryAddress.street}</p>
+                        )}
+                        {(orderData.deliveryAddress.zipCode || orderData.deliveryAddress.city) && (
+                          <p>{orderData.deliveryAddress.zipCode} {orderData.deliveryAddress.city}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
