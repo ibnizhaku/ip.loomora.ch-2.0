@@ -47,20 +47,24 @@ const JobPostingCreate = () => {
 
   const buildPayload = (status: string) => {
     const salaryParts = formData.salary.replace(/['']/g, '').split(/[-–]/).map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-    return {
+    const payload: Record<string, any> = {
       title: formData.title,
       department: formData.department,
       location: formData.location,
       employmentType: formData.employmentType,
-      description: formData.description || undefined,
-      requirements: formData.requirements || undefined,
-      responsibilities: formData.benefits || undefined,
-      closingDate: formData.deadline || undefined,
-      workloadPercent: formData.workload ? parseInt(formData.workload) || undefined : undefined,
-      salaryMin: salaryParts[0] || undefined,
-      salaryMax: salaryParts[1] || salaryParts[0] || undefined,
       status,
-    } as any;
+    };
+    if (formData.description?.trim()) payload.description = formData.description;
+    if (formData.requirements?.trim()) payload.requirements = formData.requirements;
+    if (formData.benefits?.trim()) payload.benefits = formData.benefits;
+    if (formData.deadline?.trim()) payload.closingDate = formData.deadline;
+    if (formData.workload) {
+      const wl = parseInt(formData.workload);
+      if (!isNaN(wl)) payload.workloadPercent = wl;
+    }
+    if (salaryParts[0]) payload.salaryMin = salaryParts[0];
+    if (salaryParts[1] || salaryParts[0]) payload.salaryMax = salaryParts[1] || salaryParts[0];
+    return payload;
   };
 
   const handleSubmit = () => {
@@ -74,7 +78,7 @@ const JobPostingCreate = () => {
         toast.success("Stellenausschreibung erstellt", { description: formData.title });
         navigate("/recruiting");
       },
-      onError: () => toast.error("Fehler beim Erstellen"),
+      onError: (err: any) => toast.error("Fehler beim Erstellen", { description: err?.message || "Unbekannter Fehler" }),
     });
   };
 
@@ -89,7 +93,7 @@ const JobPostingCreate = () => {
         toast.success("Entwurf gespeichert", { description: formData.title });
         navigate("/recruiting");
       },
-      onError: () => toast.error("Fehler beim Speichern"),
+      onError: (err: any) => toast.error("Fehler beim Speichern", { description: err?.message || "Unbekannter Fehler" }),
     });
   };
 

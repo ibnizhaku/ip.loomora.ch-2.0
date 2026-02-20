@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsString, IsOptional, IsNumber, IsDateString, IsEnum, IsBoolean, IsArray, IsEmail, Min, Max } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 // ============== JOB POSTINGS ==============
 export enum JobStatus {
@@ -84,11 +85,13 @@ export class CreateJobPostingDto {
   workloadPercent?: number;
 
   @ApiPropertyOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsDateString()
   @IsOptional()
   startDate?: string;
 
   @ApiPropertyOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsDateString()
   @IsOptional()
   applicationDeadline?: string;
@@ -111,9 +114,10 @@ export class CreateJobPostingDto {
   responsibilities?: string; // Alias for benefits
 
   @ApiPropertyOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsDateString()
   @IsOptional()
-  closingDate?: string; // Alias for applicationDeadline
+  closingDate?: string;
 }
 
 export class UpdateJobPostingDto extends PartialType(CreateJobPostingDto) {}
