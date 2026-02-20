@@ -50,13 +50,14 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, downloadPdf } from "@/lib/api";
 
 // Map backend status (UPPERCASE) to UI labels
 function mapCreditNoteStatus(s: string): string {
   const upper = (s || "DRAFT").toUpperCase();
-  if (upper === "POSTED" || upper === "BOOKED") return "Verbucht";
+  if (upper === "ISSUED") return "Ausgestellt";
+  if (upper === "APPLIED" || upper === "POSTED" || upper === "BOOKED") return "Verbucht";
   if (upper === "CANCELLED") return "Storniert";
   return "Entwurf";
 }
@@ -65,9 +66,11 @@ function mapCreditNoteReason(s: string): string {
   const upper = (s || "").toUpperCase();
   if (upper === "RETURN" || upper === "GOODS_RETURN") return "Warenrückgabe";
   if (upper === "PRICE_ADJUSTMENT") return "Preisanpassung";
+  if (upper === "QUANTITY_DIFFERENCE") return "Mengendifferenz";
+  if (upper === "QUALITY_ISSUE" || upper === "COMPLAINT" || upper === "RECLAMATION") return "Qualitätsmangel";
   if (upper === "GOODWILL") return "Kulanz";
   if (upper === "PARTIAL_DELIVERY") return "Teillieferung";
-  if (upper === "COMPLAINT" || upper === "RECLAMATION") return "Reklamation";
+  if (upper === "OTHER") return "Sonstiges";
   return s || "–";
 }
 
@@ -88,8 +91,8 @@ function mapCreditNote(raw: any): CreditNote {
     number: raw.number || raw.id || "",
     customer: raw.customer?.companyName || raw.customer?.name || "–",
     invoice: raw.invoice?.number || raw.invoiceId || "–",
-    date: raw.date || raw.createdAt
-      ? new Date(raw.date || raw.createdAt).toLocaleDateString("de-CH")
+    date: (raw.issueDate || raw.createdAt)
+      ? new Date(raw.issueDate || raw.createdAt).toLocaleDateString("de-CH")
       : "–",
     reason: mapCreditNoteReason(raw.reason || ""),
     total: Number(raw.total || raw.amount || 0),
@@ -99,13 +102,15 @@ function mapCreditNote(raw: any): CreditNote {
 
 const statusConfig: Record<string, { color: string }> = {
   "Entwurf": { color: "bg-muted text-muted-foreground" },
+  "Ausgestellt": { color: "bg-blue-500/10 text-blue-600" },
   "Verbucht": { color: "bg-success/10 text-success" },
   "Storniert": { color: "bg-destructive/10 text-destructive" },
 };
 
-const reasonConfig = ["Warenrückgabe", "Preisanpassung", "Kulanz", "Teillieferung", "Reklamation"];
+const reasonConfig = ["Warenrückgabe", "Preisanpassung", "Mengendifferenz", "Qualitätsmangel", "Kulanz", "Teillieferung", "Sonstiges"];
 
 const CreditNotes = () => {
+  const queryClient = useQueryClient();
   const { data: apiData } = useQuery({ queryKey: ["/credit-notes"], queryFn: () => api.get<any>("/credit-notes") });
   const creditNotes: CreditNote[] = (apiData?.data || []).map(mapCreditNote);
   const navigate = useNavigate();
@@ -144,16 +149,27 @@ const CreditNotes = () => {
     return matchesSearch && matchesStatus && matchesReason;
   });
 
-  const handleDownloadPdf = (note: typeof creditNotes[0]) => {
-    toast.success(`PDF für ${note.id} wird heruntergeladen...`);
+  const handleDownloadPdf = async (note: typeof creditNotes[0]) => {
+    try {
+      await downloadPdf('credit-notes', note.id, `Gutschrift-${note.number}.pdf`);
+      toast.success(`PDF wird heruntergeladen`);
+    } catch {
+      toast.error("PDF-Generierung fehlgeschlagen");
+    }
   };
 
   const handleSendEmail = (note: typeof creditNotes[0]) => {
     setEmailModal({ id: note.id, number: note.number });
   };
 
-  const handleCancel = (note: typeof creditNotes[0]) => {
-    toast.success(`${note.id} wurde storniert`);
+  const handleCancel = async (note: typeof creditNotes[0]) => {
+    try {
+      await api.put(`/credit-notes/${note.id}`, { status: "CANCELLED" });
+      toast.success(`Gutschrift ${note.number} wurde storniert`);
+      queryClient.invalidateQueries({ queryKey: ["/credit-notes"] });
+    } catch {
+      toast.error("Fehler beim Stornieren");
+    }
   };
 
   return (
