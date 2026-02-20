@@ -171,7 +171,8 @@ export class RemindersService {
         dueDate,
         notes: dto.notes,
         ...(userId ? { createdById: userId } : {}),
-      },
+        ...(invoice.projectId ? { projectId: invoice.projectId } : {}),
+      } as any,
       include: {
         invoice: {
           include: { customer: true },

@@ -74,6 +74,12 @@ export class OrdersService {
           project: {
             select: { id: true, number: true, name: true },
           },
+          assignedUsers: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
           items: {
             select: { id: true, description: true, quantity: true, unitPrice: true, total: true, vatRate: true },
           },

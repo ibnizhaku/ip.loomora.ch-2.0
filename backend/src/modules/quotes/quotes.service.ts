@@ -125,7 +125,7 @@ export class QuotesService {
       data: {
         number,
         customerId: dto.customerId,
-        // projectId: dto.projectId,
+        projectId: dto.projectId,
         status: dto.status || DocumentStatus.DRAFT,
         date: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         validUntil: dto.validUntil ? new Date(dto.validUntil) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -188,7 +188,7 @@ export class QuotesService {
         where: { id },
         data: {
           customerId: dto.customerId,
-          // projectId: dto.projectId,
+          projectId: dto.projectId,
           status: dto.status,
           date: dto.issueDate ? new Date(dto.issueDate) : undefined,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
@@ -224,7 +224,7 @@ export class QuotesService {
       where: { id },
       data: {
         customerId: dto.customerId,
-        // projectId: dto.projectId,
+        projectId: dto.projectId,
         status: dto.status,
         date: dto.issueDate ? new Date(dto.issueDate) : undefined,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,

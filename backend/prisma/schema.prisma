@@ -1319,6 +1319,9 @@ model Reminder {
   
   companyId   String
   
+  projectId   String?
+  project     Project? @relation("ReminderProject", fields: [projectId], references: [id], onDelete: SetNull)
+  
   createdById String?
   createdBy   User?   @relation("ReminderCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
@@ -1327,6 +1330,7 @@ model Reminder {
   @@unique([companyId, number])
   @@index([invoiceId])
   @@index([companyId])
+  @@index([projectId])
   @@index([status])
   @@map("reminders")
 }
@@ -1806,6 +1810,7 @@ model Project {
   
   // Sales relations
   quotes          Quote[]       @relation("QuoteProject")
+  reminders       Reminder[]    @relation("ReminderProject")
   
   @@unique([companyId, number])
   @@index([companyId])
