@@ -57,13 +57,18 @@ const statusConfig: Record<string, { color: string }> = {
   "Aktiv": { color: "bg-success/10 text-success" },
   "Entwurf": { color: "bg-muted text-muted-foreground" },
   "Geschlossen": { color: "bg-muted text-muted-foreground" },
+  "Pausiert": { color: "bg-warning/10 text-warning" },
   "Neu": { color: "bg-info/10 text-info" },
   "In Prüfung": { color: "bg-warning/10 text-warning" },
   "Interview geplant": { color: "bg-primary/10 text-primary" },
+  "Assessment": { color: "bg-primary/10 text-primary" },
   "Angebot gesendet": { color: "bg-success/10 text-success" },
   "Abgelehnt": { color: "bg-destructive/10 text-destructive" },
   "Eingestellt": { color: "bg-success/10 text-success" },
+  "Zurückgezogen": { color: "bg-muted text-muted-foreground" },
 };
+
+const defaultStatusColor = "bg-muted text-muted-foreground";
 
 const Recruiting = () => {
   const navigate = useNavigate();
@@ -394,7 +399,7 @@ const Recruiting = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredApplicants.map((applicant) => {
-                    const status = statusConfig[applicant.status];
+                    const statusColor = statusConfig[applicant.status]?.color ?? defaultStatusColor;
                     return (
                       <TableRow 
                         key={applicant.id}
@@ -405,7 +410,7 @@ const Recruiting = () => {
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="text-xs">
-                                {applicant.name.split(" ").map(n => n[0]).join("")}
+                                {applicant.name?.split(" ").map((n: string) => n[0]).join("") || "?"}
                               </AvatarFallback>
                             </Avatar>
                             <span className="font-medium hover:text-primary">{applicant.name}</span>
@@ -424,7 +429,7 @@ const Recruiting = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{applicant.appliedDate}</TableCell>
                         <TableCell>
-                          <Badge className={status.color}>{applicant.status}</Badge>
+                          <Badge className={statusColor}>{applicant.status}</Badge>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -494,7 +499,7 @@ const Recruiting = () => {
                 </TableHeader>
                 <TableBody>
                   {jobPostings.map((job) => {
-                    const status = statusConfig[job.status];
+                    const jobStatusColor = statusConfig[job.status]?.color ?? defaultStatusColor;
                     return (
                       <TableRow 
                         key={job.id}
@@ -513,7 +518,7 @@ const Recruiting = () => {
                         <TableCell className="text-muted-foreground">{job.postedDate}</TableCell>
                         <TableCell>{job.deadline}</TableCell>
                         <TableCell>
-                          <Badge className={status?.color}>{job.status}</Badge>
+                          <Badge className={jobStatusColor}>{job.status}</Badge>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
