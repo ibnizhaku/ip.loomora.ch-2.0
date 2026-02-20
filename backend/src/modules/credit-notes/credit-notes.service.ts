@@ -47,7 +47,7 @@ export class CreditNotesService {
               product: { select: { id: true, name: true, sku: true } },
             },
           },
-        },
+        } as any,
       }),
       this.prisma.creditNote.count({ where }),
     ]);
@@ -71,7 +71,7 @@ export class CreditNotesService {
         items: {
           include: { product: true },
         },
-      },
+      } as any,
     });
 
     if (!creditNote) {

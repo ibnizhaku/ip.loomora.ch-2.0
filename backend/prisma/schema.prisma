@@ -987,6 +987,9 @@ model Quote {
   
   customerId      String
   customer        Customer @relation(fields: [customerId], references: [id])
+
+  projectId       String?
+  project         Project? @relation("QuoteProject", fields: [projectId], references: [id])
   
   date            DateTime @default(now())
   validUntil      DateTime
@@ -1800,6 +1803,9 @@ model Project {
   
   // Chat relations
   chatMessages    ChatMessage[] @relation("ProjectChatMessages")
+  
+  // Sales relations
+  quotes          Quote[]       @relation("QuoteProject")
   
   @@unique([companyId, number])
   @@index([companyId])
