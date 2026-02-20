@@ -111,11 +111,10 @@ export class CreditNotesService {
     const company = await this.prisma.company.update({
       where: { id: companyId },
       data: { creditNoteCounter: { increment: 1 } },
-      select: { creditNoteCounter: true, creditNotePrefix: true },
+      select: { creditNoteCounter: true },
     });
-    const prefix = company.creditNotePrefix || 'GS-';
     const year = new Date().getFullYear();
-    const number = `${prefix}${year}-${String(company.creditNoteCounter).padStart(4, '0')}`;
+    const number = `GS-${year}-${String(company.creditNoteCounter).padStart(4, '0')}`;
 
     const created = await this.prisma.creditNote.create({
       data: {
@@ -268,11 +267,10 @@ export class CreditNotesService {
       const company = await tx.company.update({
         where: { id: companyId },
         data: { creditNoteCounter: { increment: 1 } },
-        select: { creditNoteCounter: true, creditNotePrefix: true },
+        select: { creditNoteCounter: true },
       });
-      const prefix = company.creditNotePrefix || 'GS-';
       const year = new Date().getFullYear();
-      const number = `${prefix}${year}-${String(company.creditNoteCounter).padStart(4, '0')}`;
+      const number = `GS-${year}-${String(company.creditNoteCounter).padStart(4, '0')}`;
 
       const creditNote = await tx.creditNote.create({
         data: {
