@@ -136,6 +136,9 @@ function mapQuoteToView(quote: any) {
     tax: Number(quote.vatAmount) || 0,
     total: Number(quote.total) || 0,
     notes: quote.notes || "",
+    deliveryAddress: quote.deliveryAddress && typeof quote.deliveryAddress === 'object' && (quote.deliveryAddress.street || quote.deliveryAddress.company || quote.deliveryAddress.city)
+      ? quote.deliveryAddress
+      : null,
     history: [] as { date: string; action: string; user: string }[],
   };
 }
@@ -243,6 +246,13 @@ const QuoteDetail = () => {
     vatAmount: quoteData.tax,
     total: quoteData.total,
     notes: quoteData.notes,
+    deliveryAddress: quoteData.deliveryAddress ? {
+      company: quoteData.deliveryAddress.company,
+      street: quoteData.deliveryAddress.street,
+      zipCode: quoteData.deliveryAddress.zipCode,
+      city: quoteData.deliveryAddress.city,
+      country: quoteData.deliveryAddress.country,
+    } : undefined,
     createdBy: createdByName,
   };
 
@@ -551,6 +561,28 @@ const QuoteDetail = () => {
                   <span>{quoteData.customer.phone}</span>
                 </div>
               </div>
+              {quoteData.deliveryAddress && (
+                <>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Package className="h-3 w-3" />
+                      Lieferadresse
+                    </p>
+                    <div className="text-sm space-y-0.5">
+                      {quoteData.deliveryAddress.company && (
+                        <p className="font-medium">{quoteData.deliveryAddress.company}</p>
+                      )}
+                      {quoteData.deliveryAddress.street && (
+                        <p>{quoteData.deliveryAddress.street}</p>
+                      )}
+                      {(quoteData.deliveryAddress.zipCode || quoteData.deliveryAddress.city) && (
+                        <p>{quoteData.deliveryAddress.zipCode} {quoteData.deliveryAddress.city}</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
