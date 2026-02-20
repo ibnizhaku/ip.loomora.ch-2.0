@@ -263,19 +263,27 @@ export class CalculationsService {
     const quoteNumber = `AN-${year}-${String((company?.quoteCounter || 0) + 1).padStart(4, '0')}`;
 
     try {
-      const quoteItems = calculation.items.map((item: any, index: number) => ({
-        position: index + 1,
-        productId: item.productId && item.productId.length > 0 ? item.productId : undefined,
-        description: item.description || 'Position',
-        quantity: Number(item.quantity) || 1,
-        unit: item.unit || 'Stk',
-        unitPrice: Number(item.unitCost) * (1 + (
-          item.type === 'MATERIAL' ? Number(calculation.materialMarkup) :
-          item.type === 'LABOR' ? Number(calculation.laborMarkup) : 0
-        ) / 100),
-        discount: 0,
-        total: Number(item.total) || 0,
-      }));
+      const quoteItems = calculation.items.map((item: any, index: number) => {
+        const pid = item.productId && String(item.productId).trim().length > 0 ? String(item.productId).trim() : undefined;
+        return {
+          position: index + 1,
+          ...(pid ? { productId: pid } : {}),
+          description: item.description || 'Position',
+          quantity: Number(item.quantity) || 1,
+          unit: item.unit || 'Stk',
+          unitPrice: Number(item.unitCost) * (1 + (
+            item.type === 'MATERIAL' ? Number(calculation.materialMarkup) :
+            item.type === 'LABOR' ? Number(calculation.laborMarkup) : 0
+          ) / 100),
+          discount: 0,
+          total: Number(item.total) || 0,
+        };
+      });
+
+      console.log('transferToQuote: quoteNumber=', quoteNumber);
+      console.log('transferToQuote: customerId=', calculation.customerId);
+      console.log('transferToQuote: result=', JSON.stringify(result));
+      console.log('transferToQuote: quoteItems=', JSON.stringify(quoteItems));
 
       const quote = await this.prisma.quote.create({
         data: {
