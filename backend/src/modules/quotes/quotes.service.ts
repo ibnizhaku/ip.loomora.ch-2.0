@@ -601,12 +601,12 @@ export class QuotesService {
       throw new NotFoundException('Quote not found');
     }
 
-    // #region agent log
-    console.error('[DEBUG_QUOTES_REMOVE]', JSON.stringify({ location: 'quotes.service.ts:remove', hypothesisId: 'H-A', quoteId: id, quoteStatus: quote.status, isDraft: quote.status === DocumentStatus.DRAFT, allStatuses: Object.values(DocumentStatus), timestamp: Date.now() }));
+    // #region agent log (post-fix verification)
+    console.error('[DEBUG_QUOTES_REMOVE_POSTFIX]', JSON.stringify({ location: 'quotes.service.ts:remove', quoteId: id, quoteStatus: quote.status, isConfirmed: quote.status === DocumentStatus.CONFIRMED, timestamp: Date.now() }));
     // #endregion
 
-    if (quote.status !== DocumentStatus.DRAFT) {
-      throw new BadRequestException('Only draft quotes can be deleted');
+    if (quote.status === DocumentStatus.CONFIRMED) {
+      throw new BadRequestException('Bestätigte Angebote können nicht gelöscht werden, da sie in einen Auftrag oder eine Rechnung umgewandelt wurden');
     }
 
     await this.prisma.quoteItem.deleteMany({ where: { quoteId: id } });
