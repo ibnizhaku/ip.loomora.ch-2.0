@@ -601,10 +601,6 @@ export class QuotesService {
       throw new NotFoundException('Quote not found');
     }
 
-    // #region agent log (post-fix verification)
-    console.error('[DEBUG_QUOTES_REMOVE_POSTFIX]', JSON.stringify({ location: 'quotes.service.ts:remove', quoteId: id, quoteStatus: quote.status, isConfirmed: quote.status === DocumentStatus.CONFIRMED, timestamp: Date.now() }));
-    // #endregion
-
     if (quote.status === DocumentStatus.CONFIRMED) {
       throw new BadRequestException('Bestätigte Angebote können nicht gelöscht werden, da sie in einen Auftrag oder eine Rechnung umgewandelt wurden');
     }
