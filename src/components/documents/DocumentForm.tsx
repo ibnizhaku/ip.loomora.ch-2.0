@@ -296,7 +296,7 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     "purchase-order": "Bestellung bearbeiten",
   };
   const typeConfig: Record<string, { title: string; backPath: string; sendLabel: string }> = {
-    quote: { title: editMode ? editTitleConfig.quote : "Neues Angebot", backPath: "/quotes", sendLabel: "Angebot erstellen" },
+    quote: { title: editMode ? editTitleConfig.quote : "Neues Angebot", backPath: "/quotes", sendLabel: editMode ? "Änderungen übernehmen" : "Angebot erstellen" },
     invoice: { title: editMode ? editTitleConfig.invoice : "Neue Rechnung", backPath: "/invoices", sendLabel: "Rechnung erstellen" },
     order: { title: editMode ? editTitleConfig.order : "Neuer Auftrag", backPath: "/orders", sendLabel: "Auftrag erstellen" },
     "delivery-note": { title: editMode ? editTitleConfig["delivery-note"] : "Neuer Lieferschein", backPath: "/delivery-notes", sendLabel: "Lieferschein erstellen" },

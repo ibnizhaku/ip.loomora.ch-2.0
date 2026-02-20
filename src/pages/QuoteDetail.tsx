@@ -497,7 +497,7 @@ const QuoteDetail = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {historyEntries.map((entry, index) => (
+                {historyEntries.length > 0 ? historyEntries.map((entry, index) => (
                   <div key={index} className="flex items-start gap-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -511,7 +511,9 @@ const QuoteDetail = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-muted-foreground italic">Keine Einträge vorhanden</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -558,6 +560,12 @@ const QuoteDetail = () => {
               <CardTitle className="text-base">Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {quoteData.project && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Projekt</span>
+                  <span className="text-sm font-medium">{quoteData.project}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Erstellt am</span>
                 <span className="text-sm font-medium">{quoteData.createdAt}</span>
