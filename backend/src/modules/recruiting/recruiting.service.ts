@@ -16,21 +16,95 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class RecruitingService {
   constructor(private prisma: PrismaService) {}
 
+  private readonly STATUS_LABELS: Record<string, string> = {
+    DRAFT: 'Entwurf',
+    PUBLISHED: 'Aktiv',
+    PAUSED: 'Pausiert',
+    CLOSED: 'Geschlossen',
+    FILLED: 'Besetzt',
+  };
+
+  private readonly CANDIDATE_STATUS_LABELS: Record<string, string> = {
+    NEW: 'Neu',
+    SCREENING: 'In Prüfung',
+    INTERVIEW: 'Interview geplant',
+    ASSESSMENT: 'Assessment',
+    OFFER: 'Angebot gesendet',
+    HIRED: 'Eingestellt',
+    REJECTED: 'Abgelehnt',
+    WITHDRAWN: 'Zurückgezogen',
+  };
+
+  private readonly SOURCE_LABELS: Record<string, string> = {
+    WEBSITE: 'Webseite',
+    JOB_PORTAL: 'Jobportal',
+    LINKEDIN: 'LinkedIn',
+    REFERRAL: 'Empfehlung',
+    AGENCY: 'Agentur',
+    DIRECT: 'Direktbewerbung',
+    OTHER: 'Andere',
+  };
+
   // ============== OVERVIEW ==============
   async getOverview(companyId: string, query: PaginationDto & { status?: string }) {
-    const [candidates, jobs, stats] = await Promise.all([
+    const [candidates, jobs, stats, upcomingInterviews] = await Promise.all([
       this.findAllCandidates(companyId, { ...query, pageSize: 50 }),
       this.findAllJobPostings(companyId, { ...query, pageSize: 50 }),
       this.getRecruitingStats(companyId),
+      this.getUpcomingInterviews(companyId),
     ]);
 
+    const jobPostings = jobs.data.map((job: any) => ({
+      ...job,
+      status: this.STATUS_LABELS[job.status] || job.status,
+      applicants: job._count?.candidates ?? 0,
+      postedDate: job.publishedAt ? new Date(job.publishedAt).toLocaleDateString('de-CH') : '–',
+      deadline: job.applicationDeadline ? new Date(job.applicationDeadline).toLocaleDateString('de-CH') : '–',
+    }));
+
+    const applicants = candidates.data.map((c: any) => ({
+      ...c,
+      name: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
+      position: c.jobPosting?.title || '–',
+      experience: '–',
+      source: this.SOURCE_LABELS[c.source] || c.source || '–',
+      rating: c.rating || 0,
+      appliedDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('de-CH') : '–',
+      status: this.CANDIDATE_STATUS_LABELS[c.status] || c.status,
+    }));
+
     return {
-      candidates: candidates.data,
-      jobs: jobs.data,
+      jobPostings,
+      applicants,
+      interviews: upcomingInterviews,
       stats,
       totalCandidates: candidates.total,
       totalJobs: jobs.total,
     };
+  }
+
+  private async getUpcomingInterviews(companyId: string) {
+    const interviews = await this.prisma.interview.findMany({
+      where: {
+        companyId,
+        status: 'SCHEDULED',
+        scheduledAt: { gte: new Date() },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: 10,
+      include: {
+        candidate: { select: { firstName: true, lastName: true, jobPosting: { select: { title: true } } } },
+      },
+    });
+
+    return interviews.map((iv: any) => ({
+      id: iv.id,
+      applicant: `${iv.candidate?.firstName || ''} ${iv.candidate?.lastName || ''}`.trim(),
+      position: iv.candidate?.jobPosting?.title || '–',
+      date: new Date(iv.scheduledAt).toLocaleDateString('de-CH'),
+      time: new Date(iv.scheduledAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }),
+      type: iv.type,
+    }));
   }
 
   // ============== JOB POSTINGS ==============
@@ -108,6 +182,21 @@ export class RecruitingService {
       apprentice: 'APPRENTICESHIP', apprenticeship: 'APPRENTICESHIP',
     };
     return map[value.toLowerCase()] || value.toUpperCase().replace(/\s+/g, '_');
+  }
+
+  private normalizeCandidateStatus(value?: string): string {
+    if (!value) return 'NEW';
+    const map: Record<string, string> = {
+      neu: 'NEW', new: 'NEW',
+      'in prüfung': 'SCREENING', screening: 'SCREENING',
+      'interview geplant': 'INTERVIEW', interview: 'INTERVIEW',
+      assessment: 'ASSESSMENT',
+      'angebot gesendet': 'OFFER', angebot: 'OFFER', offer: 'OFFER',
+      eingestellt: 'HIRED', hired: 'HIRED',
+      abgelehnt: 'REJECTED', rejected: 'REJECTED',
+      zurückgezogen: 'WITHDRAWN', withdrawn: 'WITHDRAWN',
+    };
+    return map[value.toLowerCase()] || value.toUpperCase();
   }
 
   private normalizeJobStatus(value?: string): string {
@@ -284,11 +373,11 @@ export class RecruitingService {
       throw new NotFoundException('Job posting not found');
     }
 
+    const data: any = { ...dto, companyId };
+    if (data.status) data.status = this.normalizeCandidateStatus(data.status);
+
     return this.prisma.candidate.create({
-      data: {
-        ...dto,
-        companyId,
-      },
+      data,
       include: {
         jobPosting: { select: { id: true, title: true } },
       },
@@ -304,9 +393,12 @@ export class RecruitingService {
       throw new NotFoundException('Candidate not found');
     }
 
+    const updateData: any = { ...dto };
+    if (updateData.status) updateData.status = this.normalizeCandidateStatus(updateData.status);
+
     return this.prisma.candidate.update({
       where: { id },
-      data: dto,
+      data: updateData,
     });
   }
 
@@ -365,12 +457,13 @@ export class RecruitingService {
       });
     }
 
+    const { interviewerIds, ...interviewFields } = dto as any;
     return this.prisma.interview.create({
       data: {
-        ...dto,
+        ...interviewFields,
         companyId,
-        interviewers: dto.interviewerIds ? {
-          connect: dto.interviewerIds.map(id => ({ id })),
+        interviewers: interviewerIds?.length ? {
+          connect: interviewerIds.map((uid: string) => ({ id: uid })),
         } : undefined,
       },
       include: {
@@ -389,12 +482,13 @@ export class RecruitingService {
       throw new NotFoundException('Interview not found');
     }
 
+    const { interviewerIds, ...updateFields } = dto as any;
     return this.prisma.interview.update({
       where: { id },
       data: {
-        ...dto,
-        interviewers: dto.interviewerIds ? {
-          set: dto.interviewerIds.map(id => ({ id })),
+        ...updateFields,
+        interviewers: interviewerIds ? {
+          set: interviewerIds.map((uid: string) => ({ id: uid })),
         } : undefined,
       },
     });

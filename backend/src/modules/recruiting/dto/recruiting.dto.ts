@@ -212,10 +212,10 @@ export class CreateCandidateDto {
   @IsString()
   jobPostingId: string;
 
-  @ApiPropertyOptional({ enum: CandidateStatus })
-  @IsEnum(CandidateStatus)
+  @ApiPropertyOptional()
+  @IsString()
   @IsOptional()
-  status?: CandidateStatus;
+  status?: string;
 
   @ApiPropertyOptional({ enum: CandidateSource })
   @IsEnum(CandidateSource)

@@ -51,6 +51,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUpdateJobPosting, useDeleteJobPosting, useCandidatePipeline } from "@/hooks/use-recruiting";
 
 const statusConfig: Record<string, { color: string }> = {
   "Aktiv": { color: "bg-success/10 text-success" },
@@ -85,6 +86,10 @@ const Recruiting = () => {
   const uniqueSources = Array.from(new Set(applicants.map((a: any) => String(a.source))));
   const activeFilters = filterStatus.length + filterSource.length;
 
+  const { data: pipelineData } = useCandidatePipeline();
+  const updateJobMutation = useUpdateJobPosting();
+  const deleteJobMutation = useDeleteJobPosting();
+
   // API mutations
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/recruiting/candidates/${id}`, { status }),
@@ -99,6 +104,28 @@ const Recruiting = () => {
     },
     onError: () => toast.error("Fehler beim Löschen"),
   });
+
+  const handleCloseJob = (id: string, title: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateJobMutation.mutate({ id, data: { status: "CLOSED" } as any }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/recruiting"] });
+        toast.success(`Stelle "${title}" geschlossen`);
+      },
+      onError: () => toast.error("Fehler beim Schliessen"),
+    });
+  };
+
+  const handleDeleteJob = (id: string, title: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteJobMutation.mutate(id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/recruiting"] });
+        toast.success(`Stelle "${title}" gelöscht`);
+      },
+      onError: () => toast.error("Fehler beim Löschen"),
+    });
+  };
 
   const handleStatClick = (filter: string | null) => {
     setStatusFilter(statusFilter === filter ? null : filter);
@@ -472,7 +499,7 @@ const Recruiting = () => {
                       <TableRow 
                         key={job.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => toast.info(`Stelle: ${job.title}`)}
+                        onClick={() => navigate(`/recruiting/jobs/${job.id}`)}
                       >
                         <TableCell className="font-medium">{job.title}</TableCell>
                         <TableCell>{job.department}</TableCell>
@@ -486,7 +513,7 @@ const Recruiting = () => {
                         <TableCell className="text-muted-foreground">{job.postedDate}</TableCell>
                         <TableCell>{job.deadline}</TableCell>
                         <TableCell>
-                          <Badge className={status.color}>{job.status}</Badge>
+                          <Badge className={status?.color}>{job.status}</Badge>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -496,20 +523,27 @@ const Recruiting = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Bearbeitungsmodus"); }}>Bearbeiten</DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("Stellenanzeige geöffnet"); }}>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/recruiting/jobs/${job.id}`); }}>
                                 <ExternalLink className="h-4 w-4 mr-2" />
-                                Stellenanzeige öffnen
+                                Bearbeiten
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.success("Stelle dupliziert"); }}>Duplizieren</DropdownMenuItem>
                               {job.status === "Aktiv" && (
                                 <DropdownMenuItem 
                                   className="text-destructive"
-                                  onClick={(e) => { e.stopPropagation(); toast.info("Stelle geschlossen"); }}
+                                  onClick={(e) => handleCloseJob(job.id, job.title, e)}
                                 >
+                                  <X className="h-4 w-4 mr-2" />
                                   Schließen
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={(e) => handleDeleteJob(job.id, job.title, e)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Löschen
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -525,25 +559,30 @@ const Recruiting = () => {
         <TabsContent value="pipeline">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {[
-              { stage: "Neu", count: applicants.filter(a => a.status === "Neu").length, color: "bg-info" },
-              { stage: "In Prüfung", count: applicants.filter(a => a.status === "In Prüfung").length, color: "bg-warning" },
-              { stage: "Interview", count: applicants.filter(a => a.status === "Interview geplant").length, color: "bg-primary" },
-              { stage: "Angebot", count: applicants.filter(a => a.status === "Angebot gesendet").length, color: "bg-success" },
-              { stage: "Abgelehnt", count: applicants.filter(a => a.status === "Abgelehnt").length, color: "bg-destructive" },
-            ].map((stage) => (
-              <Card key={stage.stage} className="hover:border-primary/30 transition-colors cursor-pointer">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-3 w-3 rounded-full ${stage.color}`} />
-                    <CardTitle className="text-sm">{stage.stage}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{stage.count}</p>
-                  <p className="text-sm text-muted-foreground">Bewerber</p>
-                </CardContent>
-              </Card>
-            ))}
+              { stage: "Neu", key: "NEW", color: "bg-info" },
+              { stage: "In Prüfung", key: "SCREENING", color: "bg-warning" },
+              { stage: "Interview", key: "INTERVIEW", color: "bg-primary" },
+              { stage: "Angebot", key: "OFFER", color: "bg-success" },
+              { stage: "Abgelehnt", key: "REJECTED", color: "bg-destructive" },
+            ].map((stage) => {
+              const pipelineArr = Array.isArray(pipelineData) ? pipelineData : [];
+              const entry = pipelineArr.find((p: any) => p.status === stage.key);
+              const count = entry?.count ?? applicants.filter(a => a.status === stage.stage).length;
+              return (
+                <Card key={stage.stage} className="hover:border-primary/30 transition-colors cursor-pointer">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-3 w-3 rounded-full ${stage.color}`} />
+                      <CardTitle className="text-sm">{stage.stage}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-bold">{count}</p>
+                    <p className="text-sm text-muted-foreground">Bewerber</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
       </Tabs>

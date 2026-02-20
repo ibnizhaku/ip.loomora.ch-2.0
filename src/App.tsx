@@ -72,6 +72,7 @@ import DepartmentDetail from "./pages/DepartmentDetail";
 import Recruiting from "./pages/Recruiting";
 import CandidateDetail from "./pages/CandidateDetail";
 import JobPostingCreate from "./pages/JobPostingCreate";
+import JobPostingDetail from "./pages/JobPostingDetail";
 import Training from "./pages/Training";
 import TrainingDetail from "./pages/TrainingDetail";
 import TrainingCreate from "./pages/TrainingCreate";
@@ -462,6 +463,7 @@ const App = () => (
               <Route path="/departments/:id" element={<ProtectedLayout><DepartmentDetail /></ProtectedLayout>} />
               <Route path="/recruiting" element={<ProtectedLayout><PermissionGuard module="recruiting"><Recruiting /></PermissionGuard></ProtectedLayout>} />
               <Route path="/recruiting/new" element={<ProtectedLayout><PermissionGuard module="recruiting" action="write"><JobPostingCreate /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/recruiting/jobs/:jobId" element={<ProtectedLayout><PermissionGuard module="recruiting"><JobPostingDetail /></PermissionGuard></ProtectedLayout>} />
               <Route path="/recruiting/:id" element={<ProtectedLayout><CandidateDetail /></ProtectedLayout>} />
               <Route path="/training" element={<ProtectedLayout><PermissionGuard module="training"><Training /></PermissionGuard></ProtectedLayout>} />
               <Route path="/training/new" element={<ProtectedLayout><PermissionGuard module="training" action="write"><TrainingCreate /></PermissionGuard></ProtectedLayout>} />

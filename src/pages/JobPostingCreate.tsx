@@ -45,15 +45,9 @@ const JobPostingCreate = () => {
     benefits: "",
   });
 
-  const handleSubmit = () => {
-    if (!formData.title || !formData.department || !formData.location) {
-      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
-      return;
-    }
-
+  const buildPayload = (status: string) => {
     const salaryParts = formData.salary.replace(/['']/g, '').split(/[-–]/).map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-
-    createJob.mutate({
+    return {
       title: formData.title,
       department: formData.department,
       location: formData.location,
@@ -65,13 +59,37 @@ const JobPostingCreate = () => {
       workloadPercent: formData.workload ? parseInt(formData.workload) || undefined : undefined,
       salaryMin: salaryParts[0] || undefined,
       salaryMax: salaryParts[1] || salaryParts[0] || undefined,
-      status: "Aktiv",
-    } as any, {
+      status,
+    } as any;
+  };
+
+  const handleSubmit = () => {
+    if (!formData.title || !formData.department || !formData.location) {
+      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
+      return;
+    }
+
+    createJob.mutate(buildPayload("Aktiv"), {
       onSuccess: () => {
         toast.success("Stellenausschreibung erstellt", { description: formData.title });
         navigate("/recruiting");
       },
       onError: () => toast.error("Fehler beim Erstellen"),
+    });
+  };
+
+  const handleSaveDraft = () => {
+    if (!formData.title) {
+      toast.error("Bitte geben Sie mindestens einen Stellentitel ein");
+      return;
+    }
+
+    createJob.mutate(buildPayload("Entwurf"), {
+      onSuccess: () => {
+        toast.success("Entwurf gespeichert", { description: formData.title });
+        navigate("/recruiting");
+      },
+      onError: () => toast.error("Fehler beim Speichern"),
     });
   };
 
@@ -266,7 +284,8 @@ const JobPostingCreate = () => {
         <Button variant="outline" onClick={() => navigate("/recruiting")}>
           Abbrechen
         </Button>
-        <Button variant="secondary" onClick={() => toast.info("Als Entwurf gespeichert")}>
+        <Button variant="secondary" onClick={handleSaveDraft} disabled={createJob.isPending}>
+          {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Als Entwurf speichern
         </Button>
         <Button onClick={handleSubmit} disabled={createJob.isPending}>
