@@ -411,7 +411,10 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       return;
     }
 
-    // Projekt ist bei Orders optional
+    if (type === "order" && !selectedProjectId) {
+      toast.error("Bitte wählen Sie ein Projekt aus");
+      return;
+    }
 
     if (type === "invoice" && !selectedProjectId) {
       toast.error("Bitte wählen Sie ein Projekt aus");
