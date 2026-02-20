@@ -366,7 +366,7 @@ export class ContractsService {
           const customerName = (contract.customer as any)?.companyName || (contract.customer as any)?.name || '–';
           try {
             // Owner der Firma für Notification finden
-            const membership = await this.prisma.companyMembership.findFirst({
+            const membership = await this.prisma.userCompanyMembership.findFirst({
               where: { companyId: contract.companyId, isOwner: true },
               select: { userId: true },
             });

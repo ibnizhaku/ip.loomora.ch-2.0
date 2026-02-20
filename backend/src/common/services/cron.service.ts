@@ -167,7 +167,7 @@ export class CronService {
         for (const contract of contracts) {
           const customerName = contract.customer?.companyName || contract.customer?.name || '–';
           try {
-            const membership = await this.prisma.companyMembership.findFirst({
+            const membership = await this.prisma.userCompanyMembership.findFirst({
               where: { companyId: contract.companyId, isOwner: true },
               select: { userId: true },
             });
