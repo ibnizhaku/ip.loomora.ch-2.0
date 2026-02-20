@@ -5,9 +5,12 @@ interface CalculationItem {
   description: string;
   quantity: number;
   unit?: string;
-  unitPrice: number;
-  type: 'MATERIAL' | 'LABOR' | 'MACHINE' | 'SUBCONTRACT' | 'OTHER';
-  margin?: number;
+  unitCost: number;
+  hours?: number;
+  hourlyRate?: number;
+  total?: number;
+  type: 'MATERIAL' | 'LABOR' | 'EXTERNAL' | 'OVERHEAD';
+  sortOrder?: number;
 }
 
 interface Calculation {

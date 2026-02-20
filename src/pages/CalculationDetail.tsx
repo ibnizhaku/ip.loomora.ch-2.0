@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { useCalculation } from "@/hooks/use-calculations";
+import { useCalculation, useTransferCalculationToQuote } from "@/hooks/use-calculations";
+import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
   freigegeben: "bg-success/10 text-success",
@@ -27,6 +28,7 @@ export default function CalculationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: calculation, isLoading, error } = useCalculation(id || "");
+  const transferToQuote = useTransferCalculationToQuote();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -75,8 +77,10 @@ export default function CalculationDetail() {
     erstelltAm: calc.createdAt ? new Date(calc.createdAt).toLocaleDateString("de-CH") : "",
     gültigBis: "",
     ersteller: "",
-    gewinnmarge: calc.margin || 0,
+    gewinnmarge: Number(calc.result?.marginPercent) || Number(calc.profitMargin) || 0,
   };
+
+  const result = calc.result;
 
   // Map items by type
   const materialItems = (calc.items || []).filter((i: any) => i.type === "MATERIAL");
@@ -85,34 +89,34 @@ export default function CalculationDetail() {
 
   const materialkosten = materialItems.map((i: any) => ({
     kategorie: i.description,
-    betrag: (i.quantity || 0) * (i.unitPrice || 0),
+    betrag: Number(i.total) || (Number(i.quantity) || 0) * (Number(i.unitCost) || 0),
   }));
 
   const fertigungskosten = laborItems.map((i: any) => ({
     arbeitsgang: i.description,
-    stunden: i.quantity || 0,
-    stundensatz: i.unitPrice || 0,
-    total: (i.quantity || 0) * (i.unitPrice || 0),
+    stunden: Number(i.hours) || Number(i.quantity) || 0,
+    stundensatz: Number(i.hourlyRate) || Number(i.unitCost) || 0,
+    total: Number(i.total) || (Number(i.quantity) || 0) * (Number(i.unitCost) || 0),
   }));
 
   const montagekosten = otherItems.map((i: any) => ({
     position: i.description,
     einheit: i.unit || "Stk",
-    menge: i.quantity || 0,
-    satz: i.unitPrice || 0,
-    total: (i.quantity || 0) * (i.unitPrice || 0),
+    menge: Number(i.quantity) || 0,
+    satz: Number(i.unitCost) || 0,
+    total: Number(i.total) || (Number(i.quantity) || 0) * (Number(i.unitCost) || 0),
   }));
 
-  const totalMaterial = calc.materialCost || materialkosten.reduce((sum: number, m: any) => sum + m.betrag, 0);
-  const totalFertigung = calc.laborCost || fertigungskosten.reduce((sum: number, f: any) => sum + f.total, 0);
-  const totalMontage = calc.machineCost || montagekosten.reduce((sum: number, m: any) => sum + m.total, 0);
+  const totalMaterial = Number(result?.materialCost) || materialkosten.reduce((sum: number, m: any) => sum + m.betrag, 0);
+  const totalFertigung = Number(result?.laborCost) || fertigungskosten.reduce((sum: number, f: any) => sum + f.total, 0);
+  const totalMontage = Number(result?.externalCost) || montagekosten.reduce((sum: number, m: any) => sum + m.total, 0);
   const totalStunden = fertigungskosten.reduce((sum: number, f: any) => sum + f.stunden, 0);
 
-  const selbstkosten = calc.subtotal || (totalMaterial + totalFertigung + totalMontage);
-  const gewinn = selbstkosten * (kalkulationData.gewinnmarge / 100);
-  const nettopreis = calc.total || (selbstkosten + gewinn);
-  const mwst = nettopreis * 0.081;
-  const bruttopreis = nettopreis + mwst;
+  const selbstkosten = Number(result?.directCosts) || (totalMaterial + totalFertigung + totalMontage);
+  const gewinn = Number(result?.profitAmount) || selbstkosten * (kalkulationData.gewinnmarge / 100);
+  const nettopreis = Number(result?.netTotal) || (selbstkosten + gewinn);
+  const mwst = Number(result?.vatAmount) || nettopreis * 0.081;
+  const bruttopreis = Number(result?.grandTotal) || (nettopreis + mwst);
 
   const statusKey = kalkulationData.status;
   const displayStatus = statusLabels[statusKey] || statusKey;
@@ -140,8 +144,24 @@ export default function CalculationDetail() {
             <FileText className="mr-2 h-4 w-4" />
             PDF Export
           </Button>
-          <Button onClick={() => navigate(`/quotes/new?calculationId=${calc.id}`)}>
-            Angebot erstellen
+          <Button
+            disabled={transferToQuote.isPending}
+            onClick={() => {
+              if (!calc.customerId) {
+                toast.error("Bitte zuerst einen Kunden in der Kalkulation hinterlegen");
+                return;
+              }
+              transferToQuote.mutate(calc.id, {
+                onSuccess: (data: any) => {
+                  toast.success("Angebot aus Kalkulation erstellt");
+                  const quoteId = data?.quote?.id;
+                  navigate(quoteId ? `/quotes/${quoteId}` : "/quotes");
+                },
+                onError: () => toast.error("Fehler beim Erstellen des Angebots"),
+              });
+            }}
+          >
+            {transferToQuote.isPending ? "Wird erstellt..." : "Angebot erstellen"}
           </Button>
         </div>
       </div>
