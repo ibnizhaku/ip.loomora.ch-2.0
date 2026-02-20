@@ -275,10 +275,10 @@ export class CalculationsService {
         items: {
           create: calculation.items.map((item: any, index: number) => ({
             position: index + 1,
-            productId: item.productId,
+            productId: item.productId || null,
             description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
+            quantity: Number(item.quantity),
+            unit: item.unit || 'Stk',
             unitPrice: Number(item.unitCost) * (1 + (
               item.type === 'MATERIAL' ? Number(calculation.materialMarkup) :
               item.type === 'LABOR' ? Number(calculation.laborMarkup) : 0
