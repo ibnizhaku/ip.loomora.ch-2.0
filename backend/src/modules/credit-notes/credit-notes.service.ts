@@ -79,6 +79,10 @@ export class CreditNotesService {
       throw new NotFoundException('Gutschrift nicht gefunden');
     }
 
+    // #region agent log
+    console.error('[DEBUG_CN_FINDONE]', JSON.stringify({ id, hasProject: !!(creditNote as any).project, project: (creditNote as any).project, hasCreatedBy: !!(creditNote as any).createdBy, createdBy: (creditNote as any).createdBy, billingAddress: (creditNote as any).billingAddress, issueDate: (creditNote as any).issueDate, customerKeys: Object.keys((creditNote as any).customer || {}), timestamp: Date.now() }));
+    // #endregion
+
     return mapCreditNoteResponse(creditNote);
   }
 
