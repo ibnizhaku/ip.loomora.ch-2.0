@@ -25,7 +25,16 @@
 | P2-3: `GET /products/low-stock` Endpoint | ✅ Erledigt | `products.controller.ts` + `products.service.ts` |
 | P2-4: Documents.tsx Download + Teilen funktional | ✅ Erledigt | `GET /api/documents/:id/download` + Clipboard |
 
-**Noch offen (P2/P3 Rest):** PayrollSettings in DB, SLA-Tracking für Service, QS-Sperren, BOM-Explosion
+| P3-1: QS-Prüfbericht `GET /quality/checks/:id/pdf` Download | ✅ Erledigt | `quality-control.controller.ts` |
+| P3-2: Vertrags-PDF `GET /contracts/:id/pdf` Download | ✅ Erledigt | `contracts.controller.ts` |
+| P3-3: Preisliste CSV-Export (Products.tsx) | ✅ Erledigt | `src/pages/Products.tsx` |
+| P3-4: PayrollSettings-Tabelle (SVS-Sätze konfigurierbar) + `GET/PUT /payroll/settings` | ✅ Erledigt | Schema + DB + `payroll.service.ts` + `payroll.controller.ts` |
+| P3-5: Service-Stundensätze aus CompanySettings laden | ✅ Erledigt | `service-tickets.service.ts` + `CompanySettings.serviceHourlyRates` |
+| P3-6: Vertrags-Ablauf-Alert Cron-Job (tägl. 08:00, 30/60/90 Tage) | ✅ Erledigt | `cron.service.ts` |
+| P3-7: CalculationDefaults in CompanySettings (Schema) | ✅ Erledigt | Schema + `CompanySettings.calculationDefaults` |
+
+**Status: Alle P0, P1, P2, P3 Punkte abgearbeitet.**  
+Einzige verbleibende ERP-Lücken: SLA-Tracking für Service-Tickets, QS-Sperren die Lieferungen blockieren, mehrstufige BOM-Explosion. Diese sind P4-Aufgaben für zukünftige Sprints.
 
 ---
 
