@@ -229,6 +229,20 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     if (raw.paymentTermDays) setPaymentDays(String(raw.paymentTermDays));
     if (raw.projectId) setSelectedProjectId(raw.projectId);
     if (raw.assignedUsers) setAssignedUserIds(raw.assignedUsers.map((u: any) => u.id || u));
+    // Pre-fill delivery address
+    if (raw.deliveryAddress) {
+      const da = typeof raw.deliveryAddress === 'string' ? JSON.parse(raw.deliveryAddress) : raw.deliveryAddress;
+      if (da && (da.street || da.company || da.city)) {
+        setUseCustomDeliveryAddress(true);
+        setDeliveryAddress({
+          company: da.company || "",
+          street: da.street || "",
+          zipCode: da.zipCode || da.postalCode || "",
+          city: da.city || "",
+          country: da.country || "CH",
+        });
+      }
+    }
     // Pre-fill document date
     const rawDate = raw.issueDate || raw.date || raw.orderDate || raw.deliveryDate;
     if (rawDate) setDocumentDate(rawDate.split("T")[0]);
