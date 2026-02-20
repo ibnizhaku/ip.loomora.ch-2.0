@@ -165,7 +165,13 @@ const CreditNoteDetail = () => {
   const pdfData: SalesDocumentData = {
     type: 'credit-note',
     number: creditNoteData.id,
-    date: creditNoteData.createdAt,
+    // Pass raw ISO string – sales-document.ts parses it with new Date()
+    date: cn.issueDate || cn.createdAt,
+    projectNumber: cn.project?.number || cn.project?.name || undefined,
+    createdBy: cn.createdByUser
+      ? `${cn.createdByUser.firstName} ${cn.createdByUser.lastName}`
+      : undefined,
+    originalInvoiceNumber: cn.invoice?.number || cn.invoiceId || undefined,
     company: {
       name: companyData?.name || "—",
       street: companyData?.street || "",
@@ -178,10 +184,21 @@ const CreditNoteDetail = () => {
     customer: {
       name: creditNoteData.customer.name,
       contact: creditNoteData.customer.contact,
-      street: "",
-      postalCode: "",
-      city: "",
+      street: cn.customer?.street || "",
+      postalCode: cn.customer?.zipCode || cn.customer?.zip || "",
+      city: cn.customer?.city || "",
+      country: cn.customer?.country || undefined,
+      email: cn.customer?.email || undefined,
+      phone: cn.customer?.phone || undefined,
     },
+    deliveryAddress: cn.deliveryAddress
+      ? {
+          company: cn.deliveryAddress.company || undefined,
+          street: cn.deliveryAddress.street || undefined,
+          zipCode: cn.deliveryAddress.zipCode || undefined,
+          city: cn.deliveryAddress.city || undefined,
+        }
+      : undefined,
     positions: creditNoteData.positions.map((pos: any, idx: number) => ({
       position: idx + 1,
       description: pos.description,
@@ -194,7 +211,7 @@ const CreditNoteDetail = () => {
     vatRate: 8.1,
     vatAmount: creditNoteData.tax,
     total: creditNoteData.total,
-    notes: `Gutschrift zu ${creditNoteData.originalInvoice}`,
+    notes: cn.notes || undefined,
   };
 
   return (
@@ -400,6 +417,22 @@ const CreditNoteDetail = () => {
                         {cn.billingAddress.zipCode} {cn.billingAddress.city}
                       </>
                     ) : String(cn.billingAddress)}
+                  </span>
+                </div>
+              )}
+              {cn.deliveryAddress && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Lieferadresse</span>
+                  <span className="text-sm font-medium text-right">
+                    {typeof cn.deliveryAddress === 'object' ? (
+                      <>
+                        {cn.deliveryAddress.company && <>{cn.deliveryAddress.company}<br /></>}
+                        {cn.deliveryAddress.street && <>{cn.deliveryAddress.street}<br /></>}
+                        {(cn.deliveryAddress.zipCode || cn.deliveryAddress.zip) && cn.deliveryAddress.city && (
+                          <>{cn.deliveryAddress.zipCode || cn.deliveryAddress.zip} {cn.deliveryAddress.city}</>
+                        )}
+                      </>
+                    ) : String(cn.deliveryAddress)}
                   </span>
                 </div>
               )}

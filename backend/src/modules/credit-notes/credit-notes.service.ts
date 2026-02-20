@@ -346,6 +346,7 @@ export class CreditNotesService {
           invoiceId: invoice.id,
           projectId: invoice.projectId ?? undefined,
           billingAddress: invoice.billingAddress ?? undefined,
+          deliveryAddress: (invoice as any).deliveryAddress ?? undefined,
           notes: invoice.notes ?? undefined,
           number,
           status: CreditNoteStatus.DRAFT,
