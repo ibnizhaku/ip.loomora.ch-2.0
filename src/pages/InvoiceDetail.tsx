@@ -237,6 +237,15 @@ const InvoiceDetail = () => {
     createdBy: rawInv?.createdByUser
       ? `${rawInv.createdByUser.firstName || ''} ${rawInv.createdByUser.lastName || ''}`.trim()
       : undefined,
+    deliveryAddress: (rawInv as any)?.deliveryAddress
+      ? {
+          company: (rawInv as any).deliveryAddress.company || undefined,
+          street: (rawInv as any).deliveryAddress.street || undefined,
+          zipCode: (rawInv as any).deliveryAddress.zipCode || undefined,
+          city: (rawInv as any).deliveryAddress.city || undefined,
+          country: (rawInv as any).deliveryAddress.country || undefined,
+        }
+      : undefined,
   };
 
   const buildQrInvoiceData = (): QRInvoiceData | null => {
