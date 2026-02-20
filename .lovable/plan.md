@@ -8,110 +8,109 @@ Nach gruendlicher Pruefung aller Dateien ist der aktuelle Stand wie folgt:
 
 ## 1. Angebote (Quotes)
 
-| # | Anforderung | Status | Details |
-|---|---|---|---|
-| 1.1 | Darf nicht ohne Projekt erstellt werden | ERLEDIGT | `DocumentForm.tsx` validiert `projectId` fuer `type === "quote"` |
-| 1.2 | Projekt wird nicht uebernommen nach Erstellung | BACKEND | Frontend mapping existiert (`quote.project?.name`), Backend muss Relation inkludieren |
-| 1.3 | Projekt auf Detailseite anzeigen | ERLEDIGT | Zeile 347 QuoteDetail.tsx: `quoteData.project` wird angezeigt |
-| 1.4 | Projekt im PDF | ERLEDIGT | `pdfData.projectNumber = quoteData.project` |
-| 1.5 | User/Ersteller anzeigen auf Detailseite | ERLEDIGT | Zeile 573-578 QuoteDetail.tsx: `createdByName` wird im "Details" Card angezeigt |
-| 1.6 | User im PDF | ERLEDIGT | `pdfData.createdBy = createdByName`, `sales-document.ts` rendert es |
-| 1.7 | Verlauf wird nach Bearbeitung geloescht | ERLEDIGT | `useEntityHistory("quote", id)` laedt aus AuditLog API |
-| 1.8 | Drucken zeigt falsch an im Dropdown | ERLEDIGT | Dropdown zeigt "PDF drucken" mit Blob-URL Print-Methode |
-| 1.9 | Quotes-Liste: Projekt-Spalte | ERLEDIGT | Interface `QuoteRaw` hat `project?`, mapQuote extrahiert `raw.project?.name` |
+| # | Anforderung | Backend Status | Frontend Status | Details |
+|---|---|---|---|---|
+| 1.1 | Darf nicht ohne Projekt erstellt werden | ✅ Nicht noetig | ✅ Erledigt | `DocumentForm.tsx` validiert `projectId` fuer `type === "quote"` |
+| 1.2 | Projekt wird nicht uebernommen nach Erstellung | ⏳ Offen | ✅ Erledigt | Frontend mapping existiert (`quote.project?.name`), Backend muss `project` Relation inkludieren |
+| 1.3 | Projekt auf Detailseite anzeigen | ⏳ Offen | ✅ Erledigt | `quoteData.project` wird angezeigt, wartet auf Backend-Relation |
+| 1.4 | Projekt im PDF | ⏳ Offen | ✅ Erledigt | `pdfData.projectNumber = quoteData.project`, wartet auf Backend-Daten |
+| 1.5 | User/Ersteller anzeigen auf Detailseite | ⏳ Offen | ✅ Erledigt | `createdByName` im "Details" Card, wartet auf `createdByUser` Relation |
+| 1.6 | User im PDF | ⏳ Offen | ✅ Erledigt | `pdfData.createdBy = createdByName`, wartet auf Backend-Daten |
+| 1.7 | Verlauf wird nach Bearbeitung geloescht | ⏳ Offen | ✅ Erledigt | `useEntityHistory("quote", id)`, wartet auf AuditLog-Endpoint |
+| 1.8 | Drucken zeigt falsch an im Dropdown | ✅ Nicht noetig | ✅ Erledigt | Dropdown zeigt "PDF drucken" mit Blob-URL Print-Methode |
+| 1.9 | Quotes-Liste: Projekt-Spalte | ⏳ Offen | ✅ Erledigt | `raw.project?.name`, wartet auf Backend `project` Relation |
 
 ---
 
 ## 2. Auftraege (Orders)
 
-| # | Anforderung | Status | Details |
-|---|---|---|---|
-| 2.1 | Darf nicht ohne Projekt erstellt werden | ERLEDIGT | `DocumentForm.tsx` validiert fuer `type === "order"` |
-| 2.2 | Zuweisung von + Neuer Auftrag | ERLEDIGT | `DocumentForm.tsx` hat User-Zuweisung Sidebar fuer `type === "order"` mit `assignedUserIds` |
-| 2.3 | Verlauf mit User-Anzeige | ERLEDIGT | `OrderDetail.tsx` `buildActivityLog()` zeigt `createdByUser`, `updatedByUser` |
-| 2.4 | User im PDF | ERLEDIGT | `pdfData.createdBy = getUserName((rawOrder as any)?.createdByUser)` hinzugefügt |
-| 2.5 | Projekt im PDF | ERLEDIGT | `pdfData.projectNumber = orderData.projectNumber` |
-| 2.6 | Orders-Liste: Projekt-Spalte | ERLEDIGT | `OrderRaw` hat `project?`, Tabelle zeigt `order.project` |
+| # | Anforderung | Backend Status | Frontend Status | Details |
+|---|---|---|---|---|
+| 2.1 | Darf nicht ohne Projekt erstellt werden | ✅ Nicht noetig | ✅ Erledigt | `DocumentForm.tsx` validiert fuer `type === "order"` |
+| 2.2 | Zuweisung von + Neuer Auftrag | ⏳ Offen | ✅ Erledigt | `assignedUserIds` in Sidebar, wartet auf `assignedUsers` Relation |
+| 2.3 | Verlauf mit User-Anzeige | ⏳ Offen | ✅ Erledigt | `buildActivityLog()` zeigt `createdByUser`, wartet auf Backend-Relation |
+| 2.4 | User im PDF | ⏳ Offen | ✅ Erledigt | `pdfData.createdBy = getUserName(...)`, wartet auf `createdByUser` |
+| 2.5 | Projekt im PDF | ⏳ Offen | ✅ Erledigt | `pdfData.projectNumber`, wartet auf Backend `project` Relation |
+| 2.6 | Orders-Liste: Projekt-Spalte | ⏳ Offen | ✅ Erledigt | `order.project`, wartet auf Backend `project` Relation |
 
 ---
 
 ## 3. Lieferscheine (Delivery Notes)
 
-| # | Anforderung | Status | Details |
-|---|---|---|---|
-| 3.1 | Kunde zeigt falschen Namen | ERLEDIGT | `raw.customer?.companyName` wird priorisiert vor `name` |
-| 3.2 | Lieferadresse | ERLEDIGT | `deliveryAddress` Objekt wird zu String formatiert |
-| 3.3 | Tracking entfernen | ERLEDIGT | Keine Tracking-Spalte mehr in der Tabelle |
-| 3.4 | Projekt und Ersteller statt Tracking | ERLEDIGT | `project?` und `createdByUser?` im Interface, als Spalten angezeigt |
+| # | Anforderung | Backend Status | Frontend Status | Details |
+|---|---|---|---|---|
+| 3.1 | Kunde zeigt falschen Namen | ⏳ Offen | ✅ Erledigt | `raw.customer?.companyName` priorisiert, wartet auf `companyName` Feld |
+| 3.2 | Lieferadresse | ⏳ Offen | ✅ Erledigt | `deliveryAddress` Objekt formatiert, wartet auf Backend JSON-Struktur |
+| 3.3 | Tracking entfernen | ✅ Nicht noetig | ✅ Erledigt | Tracking-Spalte komplett entfernt |
+| 3.4 | Projekt und Ersteller statt Tracking | ⏳ Offen | ✅ Erledigt | Spalten vorhanden, warten auf `project` und `createdByUser` Relations |
 
 ---
 
 ## 4. Rechnungen (Invoices)
 
-| # | Anforderung | Status | Details |
-|---|---|---|---|
-| 4.1 | Darf nicht ohne Projekt erstellt werden | ERLEDIGT | `DocumentForm.tsx` validiert fuer `type === "invoice"` |
-| 4.2 | Ersteller auf Detailseite | ERLEDIGT | Zeile 726-731 InvoiceDetail.tsx |
-| 4.3 | Ersteller in Liste | ERLEDIGT | Spalte "Erstellt von" in Invoices.tsx |
-| 4.4 | Lieferadresse in Liste | ERLEDIGT | Spalte "Lieferadresse" mit "Gleich wie RE-Adresse" Logik |
-| 4.5 | Verlauf auf Detailseite | ERLEDIGT | `useEntityHistory("invoice", id)` mit Timeline-Card |
-| 4.6 | Drucken mit QR-PDF | ERLEDIGT | `handlePrint()` nutzt `generateSwissQRInvoicePDFDataUrl` wenn QR-Daten vorhanden |
-| 4.7 | E-Mail -> Status auf versendet | ERLEDIGT | `SendEmailModal onSuccess` ruft `sendInvoiceAction.mutateAsync(id)` auf |
+| # | Anforderung | Backend Status | Frontend Status | Details |
+|---|---|---|---|---|
+| 4.1 | Darf nicht ohne Projekt erstellt werden | ✅ Nicht noetig | ✅ Erledigt | `DocumentForm.tsx` validiert fuer `type === "invoice"` |
+| 4.2 | Ersteller auf Detailseite | ⏳ Offen | ✅ Erledigt | Anzeige vorhanden, wartet auf `createdByUser` Relation |
+| 4.3 | Ersteller in Liste | ⏳ Offen | ✅ Erledigt | Spalte "Erstellt von", wartet auf Backend-Daten |
+| 4.4 | Lieferadresse in Liste | ✅ Nicht noetig | ✅ Erledigt | "Gleich wie RE-Adresse" Logik funktioniert |
+| 4.5 | Verlauf auf Detailseite | ⏳ Offen | ✅ Erledigt | `useEntityHistory("invoice", id)`, wartet auf AuditLog-Endpoint |
+| 4.6 | Drucken mit QR-PDF | ✅ Nicht noetig | ✅ Erledigt | `generateSwissQRInvoicePDFDataUrl` wenn QR-Daten vorhanden |
+| 4.7 | E-Mail -> Status auf versendet | ✅ Nicht noetig | ✅ Erledigt | `sendInvoiceAction.mutateAsync(id)` nach Email-Versand |
 
 ---
 
 ## 5. Gutschriften (Credit Notes)
 
-| # | Anforderung | Status | Details |
-|---|---|---|---|
-| 5.1 | PDF-Typ korrigiert | ERLEDIGT | `type: 'credit-note'` im pdfData |
-| 5.2 | Stornieren funktional | ERLEDIGT | API PUT mit `status: CANCELLED` |
-| 5.3 | Duplizieren funktional | ERLEDIGT | Navigation zu `/credit-notes/new?invoiceId=...` |
-| 5.4 | companyName priorisiert | ERLEDIGT | `cn.customer?.companyName \|\| cn.customer?.name` |
-| 5.5 | Verlauf-Card | ERLEDIGT | `HistoryCard` Komponente mit `useEntityHistory` |
-| 5.6 | Ersteller anzeigen | ERLEDIGT | `cn.createdByUser` in Details-Card angezeigt |
-| 5.7 | Drucken-Button nutzt window.print() | ERLEDIGT | PDF-basierter Druck mit `getSalesDocumentPDFBlobUrl` implementiert |
+| # | Anforderung | Backend Status | Frontend Status | Details |
+|---|---|---|---|---|
+| 5.1 | PDF-Typ korrigiert | ✅ Nicht noetig | ✅ Erledigt | `type: 'credit-note'` im pdfData |
+| 5.2 | Stornieren funktional | ✅ Nicht noetig | ✅ Erledigt | API PUT mit `status: CANCELLED` |
+| 5.3 | Duplizieren funktional | ✅ Nicht noetig | ✅ Erledigt | Navigation zu `/credit-notes/new?invoiceId=...` |
+| 5.4 | companyName priorisiert | ⏳ Offen | ✅ Erledigt | `cn.customer?.companyName`, wartet auf `companyName` im Backend |
+| 5.5 | Verlauf-Card | ⏳ Offen | ✅ Erledigt | `HistoryCard` mit `useEntityHistory`, wartet auf AuditLog-Endpoint |
+| 5.6 | Ersteller anzeigen | ⏳ Offen | ✅ Erledigt | `cn.createdByUser` angezeigt, wartet auf Backend-Relation |
+| 5.7 | Drucken-Button PDF-basiert | ✅ Nicht noetig | ✅ Erledigt | `getSalesDocumentPDFBlobUrl` implementiert |
 
 ---
 
 ## 6. Mahnwesen (Reminders)
 
-| # | Anforderung | Status | Details |
-|---|---|---|---|
-| 6.1 | Schuldner auf Detailpage | ERLEDIGT | `ReminderDetail.tsx` nutzt `r.invoice?.customer?.companyName` Fallback |
-| 6.2 | Create-Dialog zeigt keine ueberfaelligen Rechnungen | BACKEND | Frontend Code korrekt, Backend `/reminders/overdue-invoices` muss Filter fixen |
-| 6.3 | Sammelmahnung E-Mail | ERLEDIGT | `confirmBulkReminder` nutzt `sendReminderMutation.mutateAsync` |
-| 6.4 | PDF-Download 3-Punkte | ERLEDIGT | `downloadPdf("reminders", reminder.id, ...)` |
-| 6.5 | Mahnung versenden 3-Punkte | ERLEDIGT | `handleSendNextReminder` oeffnet `SendEmailModal` via `emailReminderTarget` |
-| 6.6 | Anrufen entfernen | ERLEDIGT | Kein "Anrufen" DropdownMenuItem mehr vorhanden |
-| 6.7 | Zahlungsfrist verlaengern | ERLEDIGT | Dialog mit Datepicker, `useUpdateReminder` mit neuem `dueDate` |
-| 6.8 | An Inkasso uebergeben | ERLEDIGT | `api.put` setzt Level auf 5 |
-| 6.9 | Anzeigen zeigt Mahnung nicht richtig | BACKEND | Navigation korrekt, Detailpage braucht Backend-Relations |
-| 6.10 | Ueberfaellig ohne Mahnung Tab | BACKEND | Frontend zeigt `overdueInvoices` korrekt, Backend muss Daten liefern |
-| 6.11 | Mahnverlauf Tab | BACKEND | `HistoryTab` korrekt implementiert mit 3 Status-Queries |
-| 6.12 | Projekt bei Mahnung | BACKEND | Backend muss projectId von Invoice uebernehmen |
-| 6.13 | Verlauf auf Detailpage | ERLEDIGT | `useEntityHistory("reminder", id)` in ReminderDetail.tsx |
-| 6.14 | Ersteller in Liste | ERLEDIGT | Spalte "Erstellt von" mit `createdByUser` |
-| 6.15 | Verknuepfte Rechnung klickbar | ERLEDIGT | `<Link to={'/invoices/${r.invoice.id}'}` existiert |
+| # | Anforderung | Backend Status | Frontend Status | Details |
+|---|---|---|---|---|
+| 6.1 | Schuldner auf Detailpage | ⏳ Offen | ✅ Erledigt | Fallback-Kette vorhanden, wartet auf `invoice.customer` Relation |
+| 6.2 | Create-Dialog: ueberfaellige Rechnungen | ⏳ Offen | ✅ Erledigt | Frontend korrekt, Backend `/reminders/overdue-invoices` Filter muss gefixt werden |
+| 6.3 | Sammelmahnung E-Mail | ✅ Nicht noetig | ✅ Erledigt | `sendReminderMutation.mutateAsync` |
+| 6.4 | PDF-Download 3-Punkte | ✅ Nicht noetig | ✅ Erledigt | `downloadPdf("reminders", ...)` |
+| 6.5 | Mahnung versenden 3-Punkte | ✅ Nicht noetig | ✅ Erledigt | `SendEmailModal` via `emailReminderTarget` |
+| 6.6 | Anrufen entfernen | ✅ Nicht noetig | ✅ Erledigt | Komplett entfernt |
+| 6.7 | Zahlungsfrist verlaengern | ✅ Nicht noetig | ✅ Erledigt | Dialog mit Datepicker, `useUpdateReminder` |
+| 6.8 | An Inkasso uebergeben | ✅ Nicht noetig | ✅ Erledigt | `api.put` setzt Level auf 5 |
+| 6.9 | Anzeigen zeigt Mahnung nicht richtig | ⏳ Offen | ✅ Erledigt | Navigation korrekt, Detailpage wartet auf Backend-Relations |
+| 6.10 | Ueberfaellig ohne Mahnung Tab | ⏳ Offen | ✅ Erledigt | Frontend zeigt `overdueInvoices`, Backend muss Daten liefern |
+| 6.11 | Mahnverlauf Tab | ⏳ Offen | ✅ Erledigt | `HistoryTab` implementiert, wartet auf Backend-Daten |
+| 6.12 | Projekt bei Mahnung | ⏳ Offen | ✅ Erledigt | Backend muss projectId von Invoice uebernehmen |
+| 6.13 | Verlauf auf Detailpage | ⏳ Offen | ✅ Erledigt | `useEntityHistory("reminder", id)`, wartet auf AuditLog |
+| 6.14 | Ersteller in Liste | ⏳ Offen | ✅ Erledigt | Spalte "Erstellt von", wartet auf `createdByUser` |
+| 6.15 | Verknuepfte Rechnung klickbar | ⏳ Offen | ✅ Erledigt | `Link` vorhanden, wartet auf `invoice` Relation |
 
 ---
 
-## Zusammenfassung: Alle Frontend-Punkte erledigt
+## Zusammenfassung
 
-Alle Frontend-Punkte sind abgeschlossen. Verbleibende Items warten auf Backend-Fixes (siehe Backend-Abhaengigkeiten unten).
+| Modul | Frontend | Backend |
+|---|---|---|
+| Angebote | ✅ 9/9 | ⏳ 6 offen |
+| Auftraege | ✅ 6/6 | ⏳ 5 offen |
+| Lieferscheine | ✅ 4/4 | ⏳ 3 offen |
+| Rechnungen | ✅ 7/7 | ⏳ 2 offen |
+| Gutschriften | ✅ 7/7 | ⏳ 3 offen |
+| Mahnwesen | ✅ 15/15 | ⏳ 8 offen |
+| **Total** | **✅ 48/48** | **⏳ 27 offen** |
 
 ---
 
-## Technischer Abschnitt
-
-### Dateien die geaendert werden
-
-| Datei | Aenderung |
-|---|---|
-| `src/pages/OrderDetail.tsx` | `createdBy` Feld zu pdfData hinzufuegen (1 Zeile) |
-| `src/pages/CreditNoteDetail.tsx` | Drucken-Button von `window.print()` auf PDF-basiert umstellen |
-
-### Backend-Abhaengigkeiten (Cursor Prompt)
+## Backend-Abhaengigkeiten (Cursor Prompt)
 
 Die folgenden Punkte muessen im Backend gefixt werden, damit die bereits implementierten Frontend-Features Daten erhalten:
 
@@ -124,4 +123,3 @@ Die folgenden Punkte muessen im Backend gefixt werden, damit die bereits impleme
 5. AuditLog Endpoint: `GET /audit-log?entityType=X&entityId=Y` muss Events mit User-Relation zurueckgeben
 6. `credit-notes` Response: `customer` muss `companyName` Feld enthalten
 7. `assignedUsers` Relation bei Orders: Many-to-Many Feld muss in findOne und findAll inkludiert werden
-
