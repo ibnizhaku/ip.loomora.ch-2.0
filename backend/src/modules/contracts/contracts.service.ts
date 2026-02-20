@@ -362,25 +362,31 @@ export class ContractsService {
         },
       });
 
-      for (const contract of contracts) {
-        const customerName = (contract.customer as any)?.companyName || (contract.customer as any)?.name || '–';
-        try {
-          await this.prisma.notification.create({
-            data: {
-              companyId: contract.companyId,
-              title: `Vertrag läuft in ${days} Tagen ab`,
-              message: `Vertrag ${contract.contractNumber} (${contract.name}) mit ${customerName} läuft am ${new Date(contract.endDate!).toLocaleDateString('de-CH')} ab.`,
-              type: 'WARNING' as any,
-              category: 'contract',
-              actionUrl: `/contracts/${contract.id}`,
-                read: false,
-            },
-          });
-          notified++;
-        } catch {
-          // Notification konnte nicht erstellt werden (z.B. already exists)
+        for (const contract of contracts) {
+          const customerName = (contract.customer as any)?.companyName || (contract.customer as any)?.name || '–';
+          try {
+            // Owner der Firma für Notification finden
+            const membership = await this.prisma.companyMembership.findFirst({
+              where: { companyId: contract.companyId, isOwner: true },
+              select: { userId: true },
+            });
+            if (!membership) continue;
+            await this.prisma.notification.create({
+              data: {
+                companyId: contract.companyId,
+                userId: membership.userId,
+                title: `Vertrag läuft in ${days} Tagen ab`,
+                message: `Vertrag ${contract.contractNumber} (${contract.name}) mit ${customerName} läuft am ${new Date(contract.endDate!).toLocaleDateString('de-CH')} ab.`,
+                type: 'WARNING' as any,
+                category: 'contract',
+                actionUrl: `/contracts/${contract.id}`,
+              },
+            });
+            notified++;
+          } catch {
+            // Notification konnte nicht erstellt werden (z.B. already exists)
+          }
         }
-      }
     }
 
     return { notified };

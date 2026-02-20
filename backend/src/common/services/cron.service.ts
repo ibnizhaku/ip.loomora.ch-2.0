@@ -167,15 +167,20 @@ export class CronService {
         for (const contract of contracts) {
           const customerName = contract.customer?.companyName || contract.customer?.name || '–';
           try {
+            const membership = await this.prisma.companyMembership.findFirst({
+              where: { companyId: contract.companyId, isOwner: true },
+              select: { userId: true },
+            });
+            if (!membership) continue;
             await this.prisma.notification.create({
               data: {
                 companyId: contract.companyId,
+                userId: membership.userId,
                 title: `Vertrag läuft in ${days} Tagen ab`,
-                message: `Vertrag ${contract.contractNumber} (${contract.name}) mit ${customerName} läuft am ${new Date(contract.endDate).toLocaleDateString('de-CH')} ab.`,
+                message: `Vertrag ${(contract as any).contractNumber} (${contract.name}) läuft am ${new Date((contract as any).endDate).toLocaleDateString('de-CH')} ab.`,
                 type: 'WARNING' as any,
                 category: 'contract',
                 actionUrl: `/contracts/${contract.id}`,
-                read: false,
               },
             });
             notified++;
