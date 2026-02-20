@@ -351,7 +351,7 @@ export class QuotesService {
           customerId: quote.customerId,
           quoteId: quote.id,
           projectId: quote.projectId ?? undefined,
-          status: DocumentStatus.CONFIRMED,
+          status: DocumentStatus.DRAFT,
           date: new Date(),
           subtotal: quote.subtotal,
           vatAmount: quote.vatAmount,

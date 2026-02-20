@@ -7,6 +7,15 @@ import { CompanyGuard } from '../auth/guards/company.guard';
 import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+class UserQueryDto extends PaginationDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  isActive?: string;
+}
 
 @ApiTags('Users')
 @Controller('users')
@@ -18,7 +27,7 @@ export class UsersController {
   @Get()
   @RequirePermissions('users:read')
   @ApiOperation({ summary: 'Get all users in company' })
-  findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: PaginationDto) {
+  findAll(@CurrentUser() user: CurrentUserPayload, @Query() query: UserQueryDto) {
     return this.usersService.findAll(user.companyId, query);
   }
 
