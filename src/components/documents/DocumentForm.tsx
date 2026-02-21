@@ -325,6 +325,13 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     setSourceApplied(true);
   }, [sourceOrder, sourceQuote, sourceApplied, editMode, positions.length, selectedCustomer, notes]);
 
+  // #region agent log
+  useEffect(() => {
+    if (!urlOrderId) return;
+    fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DocumentForm.tsx:state-monitor',message:'state-change',data:{selectedProjectId,useCustomDeliveryAddress,deliveryAddressCity:deliveryAddress.city,deliveryAddressStreet:deliveryAddress.street,sourceApplied,positionsCount:positions.length},timestamp:Date.now()})}).catch(()=>{});
+  }, [selectedProjectId, useCustomDeliveryAddress, deliveryAddress.city, sourceApplied]);
+  // #endregion
+
   const isQuote = type === "quote";
   const isInvoice = type === "invoice";
   const editTitleConfig: Record<string, string> = {
