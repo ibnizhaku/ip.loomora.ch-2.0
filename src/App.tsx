@@ -113,6 +113,7 @@ import LeadCreate from "./pages/LeadCreate";
 import EmailCreate from "./pages/EmailCreate";
 import JournalEntries from "./pages/JournalEntries";
 import JournalEntryDetail from "./pages/JournalEntryDetail";
+import JournalEntryCreate from "./pages/JournalEntryCreate";
 import Payments from "./pages/Payments";
 import PaymentDetail from "./pages/PaymentDetail";
 import Reminders from "./pages/Reminders";
@@ -141,6 +142,7 @@ import VatReturnDetail from "./pages/VatReturnDetail";
 import Discounts from "./pages/Discounts";
 import DiscountDetail from "./pages/DiscountDetail";
 import DiscountCreate from "./pages/DiscountCreate";
+import DiscountEdit from "./pages/DiscountEdit";
 import Roles from "./pages/Roles";
 import RoleDetail from "./pages/RoleDetail";
 import RoleCreate from "./pages/RoleCreate";
@@ -172,6 +174,7 @@ import CashBookCreate from "./pages/CashBookCreate";
 import CashBookDetail from "./pages/CashBookDetail";
 import SepaPayments from "./pages/SepaPayments";
 import SepaPaymentDetail from "./pages/SepaPaymentDetail";
+import PaymentCreate from "./pages/PaymentCreate";
 import CostCenters from "./pages/CostCenters";
 import CostCenterDetail from "./pages/CostCenterDetail";
 import CostCenterCreate from "./pages/CostCenterCreate";
@@ -372,6 +375,7 @@ const App = () => (
               <Route path="/chart-of-accounts/new" element={<ProtectedLayout><ChartOfAccountCreate /></ProtectedLayout>} />
               <Route path="/chart-of-accounts/:id" element={<ProtectedLayout><ChartOfAccountDetail /></ProtectedLayout>} />
               <Route path="/journal-entries" element={<ProtectedLayout><PermissionGuard module="journal-entries"><JournalEntries /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/journal-entries/new" element={<ProtectedLayout><PermissionGuard module="journal-entries" action="write"><JournalEntryCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/journal-entries/:id" element={<ProtectedLayout><JournalEntryDetail /></ProtectedLayout>} />
               <Route path="/general-ledger" element={<ProtectedLayout><PermissionGuard module="finance"><GeneralLedger /></PermissionGuard></ProtectedLayout>} />
               <Route path="/general-ledger/:id" element={<ProtectedLayout><GeneralLedgerDetail /></ProtectedLayout>} />
@@ -391,6 +395,7 @@ const App = () => (
               <Route path="/bank-accounts/new" element={<ProtectedLayout><BankAccountCreate /></ProtectedLayout>} />
               <Route path="/bank-accounts/:id" element={<ProtectedLayout><BankAccountDetail /></ProtectedLayout>} />
               <Route path="/sepa-payments" element={<ProtectedLayout><PermissionGuard module="payments"><SepaPayments /></PermissionGuard></ProtectedLayout>} />
+              <Route path="/sepa-payments/new" element={<ProtectedLayout><PermissionGuard module="payments" action="write"><PaymentCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/sepa-payments/:id" element={<ProtectedLayout><SepaPaymentDetail /></ProtectedLayout>} />
               <Route path="/cost-centers" element={<ProtectedLayout><PermissionGuard module="cost-centers"><CostCenters /></PermissionGuard></ProtectedLayout>} />
               <Route path="/cost-centers/new" element={<ProtectedLayout><CostCenterCreate /></ProtectedLayout>} />
@@ -429,6 +434,7 @@ const App = () => (
               <Route path="/discounts" element={<ProtectedLayout><PermissionGuard module="ecommerce"><Discounts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/discounts/new" element={<ProtectedLayout><PermissionGuard module="ecommerce" action="write"><DiscountCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/discounts/:id" element={<ProtectedLayout><DiscountDetail /></ProtectedLayout>} />
+              <Route path="/discounts/:id/edit" element={<ProtectedLayout><PermissionGuard module="ecommerce" action="write"><DiscountEdit /></PermissionGuard></ProtectedLayout>} />
               <Route path="/reviews" element={<ProtectedLayout><PermissionGuard module="ecommerce"><Reviews /></PermissionGuard></ProtectedLayout>} />
               <Route path="/reviews/:id" element={<ProtectedLayout><ReviewDetail /></ProtectedLayout>} />
               

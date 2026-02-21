@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -241,7 +241,9 @@ export default function Debtors() {
                     <TableCell className="font-mono text-sm">{debtor.number}</TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{debtor.company}</p>
+                        <Link to={`/customers/${debtor.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                          {debtor.company}
+                        </Link>
                         <p className="text-xs text-muted-foreground">{debtor.name}</p>
                       </div>
                     </TableCell>
@@ -314,7 +316,9 @@ export default function Debtors() {
                     <TableRow key={debtor.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{debtor.company}</p>
+                          <Link to={`/customers/${debtor.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                            {debtor.company}
+                          </Link>
                           <p className="text-xs text-muted-foreground">{debtor.number}</p>
                         </div>
                       </TableCell>

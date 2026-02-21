@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Plus, Search, Filter, Grid3X3, List, X, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -331,7 +331,13 @@ export default function Projects() {
                           {project.name}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          {project.client || project.customer?.companyName || project.customer?.name || 'Kein Kunde'}
+                          {(project.customer as any)?.id ? (
+                            <Link to={`/customers/${(project.customer as any).id}`} className="hover:text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                              {project.client || project.customer?.companyName || project.customer?.name || 'Kein Kunde'}
+                            </Link>
+                          ) : (
+                            project.client || project.customer?.companyName || project.customer?.name || 'Kein Kunde'
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -348,7 +354,7 @@ export default function Projects() {
                             <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}`)}>
                               Details anzeigen
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}/edit`)}>
                               Bearbeiten
                             </DropdownMenuItem>
                             {canDelete('projects') && (

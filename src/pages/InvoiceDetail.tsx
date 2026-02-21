@@ -733,6 +733,18 @@ const InvoiceDetail = () => {
                   </Link>
                 </div>
               )}
+              {rawInv?.project && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Projekt</span>
+                  {(rawInv.project as any)?.id ? (
+                    <Link to={`/projects/${(rawInv.project as any).id}`} className="font-medium hover:text-primary">
+                      {[rawInv.project.number, rawInv.project.name].filter(Boolean).join(" – ") || "—"}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{[rawInv.project.number, rawInv.project.name].filter(Boolean).join(" – ") || "—"}</span>
+                  )}
+                </div>
+              )}
               {(rawInv.servicePeriodFrom || rawInv.servicePeriodTo) && (
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Leistungszeitraum</span>

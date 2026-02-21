@@ -662,7 +662,7 @@ export default function CustomerDetail() {
           <TabsContent value="delivery-notes" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Lieferscheine ({deliveryNotes.length})</h3>
-              <Button size="sm" className="gap-2" onClick={() => navigate(`/delivery-notes/new?customerId=${id}`)}>
+              <Button size="sm" className="gap-2" onClick={() => navigate(`/orders?customerId=${id}`)}>
                 <Plus className="h-4 w-4" />
                 Neuer Lieferschein
               </Button>

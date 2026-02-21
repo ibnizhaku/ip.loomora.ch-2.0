@@ -595,7 +595,15 @@ const QuoteDetail = () => {
               {rawQuote.project && (
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Projekt</span>
-                  <span className="text-sm font-medium">{(rawQuote as any).project.number ? `${(rawQuote as any).project.number} – ` : ''}{(rawQuote as any).project.name}</span>
+                  <span className="text-sm font-medium">
+                    {(rawQuote as any).project.id ? (
+                      <Link to={`/projects/${(rawQuote as any).project.id}`} className="hover:text-primary hover:underline">
+                        {(rawQuote as any).project.number ? `${(rawQuote as any).project.number} – ` : ''}{(rawQuote as any).project.name}
+                      </Link>
+                    ) : (
+                      <>{(rawQuote as any).project.number ? `${(rawQuote as any).project.number} – ` : ''}{(rawQuote as any).project.name}</>
+                    )}
+                  </span>
                 </div>
               )}
               {(rawQuote as any).paymentTerms && (

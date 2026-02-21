@@ -159,7 +159,15 @@ const HistoryTab = () => {
           return (
             <TableRow key={r.id}>
               <TableCell className="font-medium">{r.number || r.id?.substring(0, 8)}</TableCell>
-              <TableCell>{r.customer?.name || '—'}</TableCell>
+              <TableCell>
+                {r.customerId || r.customer?.id ? (
+                  <Link to={`/customers/${r.customerId || r.customer.id}`} className="hover:text-primary">
+                    {r.customer?.name || r.invoice?.customer?.companyName || r.invoice?.customer?.name || '—'}
+                  </Link>
+                ) : (
+                  r.customer?.name || r.invoice?.customer?.companyName || r.invoice?.customer?.name || '—'
+                )}
+              </TableCell>
               <TableCell>{r.invoice?.number || '—'}</TableCell>
               <TableCell>
                 <Badge className={levelConfig[r.level]?.color || "bg-muted text-muted-foreground"} variant="outline">
@@ -197,6 +205,7 @@ const Reminders = () => {
     displayNumber: r.number || r.id?.substring(0, 8),
     invoiceId: typeof r.invoice === 'object' ? r.invoice?.id : r.invoiceId || r.invoice,
     invoiceNumber: typeof r.invoice === 'object' ? (r.invoice?.number || r.invoice?.id) : r.invoice,
+    customerId: r.customerId || (typeof r.invoice === 'object' && r.invoice?.customer ? r.invoice.customer.id : null) || (typeof r.customer === 'object' && r.customer?.id ? r.customer.id : null),
     customerName: typeof r.invoice === 'object' && r.invoice?.customer
       ? (r.invoice.customer.companyName || r.invoice.customer.name)
       : (typeof r.customer === 'object' ? (r.customer?.companyName || r.customer?.name) : r.customer),
@@ -624,8 +633,14 @@ const Reminders = () => {
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-sm">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span>{reminder.customerName}</span>
+                          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                          {(reminder as any).customerId ? (
+                            <Link to={`/customers/${(reminder as any).customerId}`} className="hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                              {reminder.customerName}
+                            </Link>
+                          ) : (
+                            <span>{reminder.customerName}</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-destructive">
                           <Clock className="h-4 w-4" />
@@ -698,8 +713,14 @@ const Reminders = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            {reminder.customerName}
+                            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                            {(reminder as any).customerId ? (
+                              <Link to={`/customers/${(reminder as any).customerId}`} className="hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                                {reminder.customerName}
+                              </Link>
+                            ) : (
+                              reminder.customerName
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -73,6 +73,7 @@ interface Order {
   client: string;
   clientId?: string;
   project?: string;
+  projectId?: string;
   quoteNumber?: string;
   amount: number;
   status: string;
@@ -107,6 +108,7 @@ function mapOrder(raw: OrderRaw): Order {
     client: raw.customer?.companyName || raw.customer?.name || "–",
     clientId: raw.customer?.id,
     project: raw.project?.name,
+    projectId: raw.project?.id,
     quoteNumber: raw.quote?.number,
     amount: Number(raw.total || raw.subtotal || 0),
     status,
@@ -139,9 +141,14 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 
 export default function Orders() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const customerIdFilter = searchParams.get("customerId") || undefined;
   const { canWrite, canDelete } = usePermissions();
   const { data: apiData, isLoading } = useQuery({ queryKey: ["/orders"], queryFn: () => api.get<any>("/orders") });
-  const orders: Order[] = (apiData?.data || []).map(mapOrder);
+  const allOrders: Order[] = (apiData?.data || []).map(mapOrder);
+  const orders = customerIdFilter
+    ? allOrders.filter((o) => o.clientId === customerIdFilter)
+    : allOrders;
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -197,11 +204,21 @@ export default function Orders() {
 
   const handleCreateInvoice = (order: Order) => {
     toast.success(`Rechnung für ${order.number} wird erstellt...`);
-    navigate(`/invoices/create?orderId=${order.id}`);
+    navigate(`/invoices/new?orderId=${order.id}&customerId=${order.clientId || ''}`);
   };
 
   return (
     <div className="space-y-6">
+      {customerIdFilter && (
+        <div className="flex items-center justify-between rounded-lg border border-info/30 bg-info/5 px-4 py-2 text-sm">
+          <span>
+            Aufträge für diesen Kunden. Wählen Sie einen Auftrag und klicken Sie auf „Lieferschein erstellen“.
+          </span>
+          <Link to="/orders" className="text-primary hover:underline font-medium">
+            Filter zurücksetzen
+          </Link>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -434,9 +451,13 @@ export default function Orders() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
                       <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{order.client}</span>
+                      {order.clientId ? (
+                        <Link to={`/customers/${order.clientId}`} className="hover:text-primary hover:underline">{order.client}</Link>
+                      ) : (
+                        <span>{order.client}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -510,8 +531,20 @@ export default function Orders() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{order.client}</TableCell>
-                    <TableCell className="text-muted-foreground">{order.project || '–'}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {order.clientId ? (
+                        <Link to={`/customers/${order.clientId}`} className="font-medium hover:text-primary hover:underline">{order.client}</Link>
+                      ) : (
+                        <span>{order.client}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                      {order.projectId ? (
+                        <Link to={`/projects/${order.projectId}`} className="hover:text-primary hover:underline">{order.project || '–'}</Link>
+                      ) : (
+                        <span>{order.project || '–'}</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge className={cn("gap-1", sCfg.color)}>
                         <StatusIcon className="h-3 w-3" />

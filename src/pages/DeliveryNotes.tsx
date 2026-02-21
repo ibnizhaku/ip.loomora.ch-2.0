@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
@@ -44,6 +44,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useDeleteDeliveryNote } from "@/hooks/use-delivery-notes";
+import { toast } from "sonner";
 
 interface DeliveryNoteRaw {
   id: string;
@@ -64,8 +66,11 @@ interface DeliveryNote {
   id: string;
   number: string;
   client: string;
+  customerId?: string;
   orderNumber: string;
+  orderId?: string;
   project?: string;
+  projectId?: string;
   createdBy?: string;
   status: string;
   items: number;
@@ -97,8 +102,11 @@ function mapDeliveryNote(raw: DeliveryNoteRaw): DeliveryNote {
     id: raw.id,
     number: raw.number || "",
     client: raw.customer?.companyName || raw.customer?.name || "–",
+    customerId: raw.customer?.id,
     orderNumber: raw.order?.number || "–",
+    orderId: raw.order?.id,
     project: raw.project?.name,
+    projectId: raw.project?.id,
     createdBy: userName,
     status,
     items: raw._count?.items ?? 0,
@@ -124,6 +132,7 @@ const defaultDNStatus = { label: "Unbekannt", color: "bg-muted text-muted-foregr
 export default function DeliveryNotes() {
   const navigate = useNavigate();
   const { canWrite, canDelete } = usePermissions();
+  const deleteDeliveryNote = useDeleteDeliveryNote();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
@@ -310,6 +319,23 @@ export default function DeliveryNotes() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}`)}>Anzeigen</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                        {canDelete('delivery-notes') && (
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onSelect={() => {
+                              if (confirm(`Lieferschein ${note.number} wirklich löschen?`)) {
+                                deleteDeliveryNote.mutate(note.id, {
+                                  onSuccess: () => {
+                                    toast.success("Lieferschein gelöscht");
+                                  },
+                                  onError: (err: any) => toast.error(err?.message || "Fehler beim Löschen"),
+                                });
+                              }
+                            }}
+                          >
+                            Löschen
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem className="gap-2" onSelect={() => window.print()}>
                           <Printer className="h-4 w-4" />
                           Drucken
@@ -328,14 +354,26 @@ export default function DeliveryNotes() {
                     </div>
                     <div>
                       <p className="font-medium">{note.number}</p>
-                      <p className="text-sm text-muted-foreground">{note.items} Artikel • {note.orderNumber}</p>
+                      <p className="text-sm text-muted-foreground">
+                            {note.items} Artikel • {note.orderId ? (
+                              <Link to={`/orders/${note.orderId}`} className="hover:text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                                {note.orderNumber}
+                              </Link>
+                            ) : (
+                              note.orderNumber
+                            )}
+                          </p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
                       <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{note.client}</span>
+                      {note.customerId ? (
+                        <Link to={`/customers/${note.customerId}`} className="hover:text-primary hover:underline">{note.client}</Link>
+                      ) : (
+                        <span>{note.client}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -346,8 +384,12 @@ export default function DeliveryNotes() {
                       <span>Lieferung: {note.deliveryDate}</span>
                     </div>
                 {note.project && (
-                      <div className="text-xs text-muted-foreground">
-                        Projekt: {note.project}
+                      <div className="text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                        Projekt: {note.projectId ? (
+                          <Link to={`/projects/${note.projectId}`} className="hover:text-primary hover:underline">{note.project}</Link>
+                        ) : (
+                          note.project
+                        )}
                       </div>
                     )}
                   </div>
@@ -399,14 +441,30 @@ export default function DeliveryNotes() {
                         </div>
                         <div>
                           <span className="font-medium">{note.number}</span>
-                          <p className="text-xs text-muted-foreground">
-                            {note.items} Artikel • {note.orderNumber}
+                          <p className="text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                            {note.items} Artikel • {note.orderId ? (
+                              <Link to={`/orders/${note.orderId}`} className="hover:text-primary hover:underline">{note.orderNumber}</Link>
+                            ) : (
+                              note.orderNumber
+                            )}
                           </p>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{note.client}</TableCell>
-                    <TableCell className="text-muted-foreground">{note.project || '–'}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {note.customerId ? (
+                        <Link to={`/customers/${note.customerId}`} className="font-medium hover:text-primary hover:underline">{note.client}</Link>
+                      ) : (
+                        <span>{note.client}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                      {note.projectId ? (
+                        <Link to={`/projects/${note.projectId}`} className="hover:text-primary hover:underline">{note.project || '–'}</Link>
+                      ) : (
+                        <span>{note.project || '–'}</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -435,6 +493,21 @@ export default function DeliveryNotes() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}`)}>Anzeigen</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/delivery-notes/${note.id}/edit`)}>Bearbeiten</DropdownMenuItem>
+                          {canDelete('delivery-notes') && (
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={() => {
+                                if (confirm(`Lieferschein ${note.number} wirklich löschen?`)) {
+                                  deleteDeliveryNote.mutate(note.id, {
+                                    onSuccess: () => toast.success("Lieferschein gelöscht"),
+                                    onError: (err: any) => toast.error(err?.message || "Fehler beim Löschen"),
+                                  });
+                                }
+                              }}
+                            >
+                              Löschen
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem className="gap-2" onSelect={() => window.print()}>
                             <Printer className="h-4 w-4" />
                             Drucken

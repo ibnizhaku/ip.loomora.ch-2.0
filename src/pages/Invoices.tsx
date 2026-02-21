@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -319,6 +319,11 @@ export default function Invoices() {
                           <Eye className="h-4 w-4" />
                           Anzeigen
                         </DropdownMenuItem>
+                        {canWrite('invoices') && (invoice.status === 'DRAFT' || invoice.status === 'draft') && (
+                          <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/${invoice.id}/edit`)}>
+                            Bearbeiten
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem className="gap-2" onSelect={() => import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`))}>
                           <Download className="h-4 w-4" />
                           Herunterladen
@@ -354,14 +359,28 @@ export default function Invoices() {
                     </div>
                     <div>
                       <p className="font-medium">{invoice.number}</p>
-                      <p className="text-sm text-muted-foreground">{invoice.project?.name || '–'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(invoice.project as any)?.id ? (
+                          <Link to={`/projects/${(invoice.project as any).id}`} className="hover:text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                            {invoice.project?.name || '–'}
+                          </Link>
+                        ) : (
+                          invoice.project?.name || '–'
+                        )}
+                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
                       <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{invoice.customer?.companyName || invoice.customer?.name || '–'}</span>
+                      {(invoice.customer as any)?.id ? (
+                        <Link to={`/customers/${(invoice.customer as any).id}`} className="hover:text-primary hover:underline">
+                          {invoice.customer?.companyName || invoice.customer?.name || '–'}
+                        </Link>
+                      ) : (
+                        <span>{invoice.customer?.companyName || invoice.customer?.name || '–'}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -433,9 +452,23 @@ export default function Invoices() {
                         <span className="font-medium">{invoice.number}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{invoice.customer?.companyName || invoice.customer?.name || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {invoice.project?.name || '-'}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {(invoice.customer as any)?.id ? (
+                        <Link to={`/customers/${(invoice.customer as any).id}`} className="font-medium hover:text-primary hover:underline">
+                          {invoice.customer?.companyName || invoice.customer?.name || '-'}
+                        </Link>
+                      ) : (
+                        <span>{invoice.customer?.companyName || invoice.customer?.name || '-'}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                      {(invoice.project as any)?.id ? (
+                        <Link to={`/projects/${(invoice.project as any).id}`} className="hover:text-primary hover:underline">
+                          {invoice.project?.name || '-'}
+                        </Link>
+                      ) : (
+                        <span>{invoice.project?.name || '-'}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {(() => {
@@ -476,6 +509,11 @@ export default function Invoices() {
                             <Eye className="h-4 w-4" />
                             Anzeigen
                           </DropdownMenuItem>
+                          {canWrite('invoices') && (invoice.status === 'DRAFT' || invoice.status === 'draft') && (
+                            <DropdownMenuItem className="gap-2" onSelect={() => navigate(`/invoices/${invoice.id}/edit`)}>
+                              Bearbeiten
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem className="gap-2" onSelect={() => import("@/lib/api").then(m => m.downloadPdf("invoices", invoice.id, `Rechnung-${invoice.number}.pdf`))}>
                             <Download className="h-4 w-4" />
                             Herunterladen

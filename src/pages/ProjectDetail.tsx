@@ -249,7 +249,13 @@ export default function ProjectDetail() {
             <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
           </div>
           <p className="text-muted-foreground">
-            {project.client || project.customer?.name || project.customer?.companyName || 'Kein Kunde zugewiesen'}
+            {(project.customer as any)?.id ? (
+              <Link to={`/customers/${(project.customer as any).id}`} className="hover:text-primary hover:underline">
+                {project.client || project.customer?.name || project.customer?.companyName || 'Kein Kunde zugewiesen'}
+              </Link>
+            ) : (
+              project.client || project.customer?.name || project.customer?.companyName || 'Kein Kunde zugewiesen'
+            )}
           </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={() => navigate(`/projects/${id}/edit`)}>

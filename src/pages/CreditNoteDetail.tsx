@@ -439,7 +439,15 @@ const CreditNoteDetail = () => {
               {cn.project && (
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Projekt</span>
-                  <span className="text-sm font-medium">{cn.project?.number ? `${cn.project.number} – ` : ''}{cn.project?.name}</span>
+                  <span className="text-sm font-medium">
+                    {(cn.project as any)?.id ? (
+                      <Link to={`/projects/${(cn.project as any).id}`} className="hover:text-primary hover:underline">
+                        {cn.project?.number ? `${cn.project.number} – ` : ''}{cn.project?.name}
+                      </Link>
+                    ) : (
+                      <>{cn.project?.number ? `${cn.project.number} – ` : ''}{cn.project?.name}</>
+                    )}
+                  </span>
                 </div>
               )}
               <div className="flex items-center justify-between text-sm">

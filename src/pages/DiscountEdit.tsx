@@ -1,22 +1,20 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Percent, Tag, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Save, Percent, Tag, ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useCreateDiscount } from "@/hooks/use-ecommerce";
-import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useDiscount, useUpdateDiscount } from "@/hooks/use-ecommerce";
 
-export default function DiscountCreate() {
+export default function DiscountEdit() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const createDiscount = useCreateDiscount();
+  const { data: discount, isLoading } = useDiscount(id);
+  const updateDiscount = useUpdateDiscount();
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -33,25 +31,29 @@ export default function DiscountCreate() {
     active: true,
   });
 
-  const dup = (location.state as any)?.duplicateFrom;
   useEffect(() => {
-    if (dup) {
-      setFormData((prev) => ({
-        ...prev,
-        code: dup.code || prev.code,
-        name: dup.name || prev.name,
-        type: dup.type || prev.type,
-        value: String(dup.value ?? prev.value),
-        minOrderValue: dup.minOrderValue ? String(dup.minOrderValue) : prev.minOrderValue,
-        usageLimit: dup.maxUses ? String(dup.maxUses) : prev.usageLimit,
-        validFrom: dup.validFrom?.split?.("T")[0] || prev.validFrom,
-        validUntil: dup.validUntil?.split?.("T")[0] || prev.validUntil,
-      }));
+    if (discount) {
+      setFormData({
+        code: discount.code || "",
+        name: discount.name || "",
+        type: discount.type || "percentage",
+        value: String(discount.value ?? ""),
+        minOrderValue: discount.minOrderValue ? String(discount.minOrderValue) : "",
+        maxDiscount: "",
+        usageLimit: discount.maxUses ? String(discount.maxUses) : "",
+        usageLimitPerCustomer: "1",
+        validFrom: discount.validFrom?.split("T")[0] || "",
+        validUntil: discount.validUntil?.split("T")[0] || "",
+        newCustomersOnly: false,
+        combinable: false,
+        active: discount.isActive ?? true,
+      });
     }
-  }, [dup]);
+  }, [discount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!id) return;
     if (!formData.code.trim()) {
       toast.error("Rabattcode ist erforderlich");
       return;
@@ -61,21 +63,24 @@ export default function DiscountCreate() {
       return;
     }
     try {
-      await createDiscount.mutateAsync({
-        code: formData.code.trim().toUpperCase(),
-        name: formData.name.trim() || formData.code,
-        type: formData.type,
-        value: formData.type === "shipping" ? 0 : parseFloat(formData.value) || 0,
-        minOrderValue: formData.minOrderValue ? parseFloat(formData.minOrderValue) : undefined,
-        maxUses: formData.usageLimit ? parseInt(formData.usageLimit, 10) : undefined,
-        validFrom: formData.validFrom,
-        validUntil: formData.validUntil,
-        isActive: formData.active,
+      await updateDiscount.mutateAsync({
+        id,
+        data: {
+          code: formData.code.trim().toUpperCase(),
+          name: formData.name.trim() || formData.code,
+          type: formData.type,
+          value: formData.type === "shipping" ? 0 : parseFloat(formData.value) || 0,
+          minOrderValue: formData.minOrderValue ? parseFloat(formData.minOrderValue) : undefined,
+          maxUses: formData.usageLimit ? parseInt(formData.usageLimit, 10) : undefined,
+          validFrom: formData.validFrom,
+          validUntil: formData.validUntil,
+          isActive: formData.active,
+        },
       });
-      toast.success("Rabattcode erfolgreich erstellt");
-      navigate("/discounts");
+      toast.success("Rabatt aktualisiert");
+      navigate(`/discounts/${id}`);
     } catch (err: any) {
-      toast.error(err?.message || "Fehler beim Erstellen");
+      toast.error(err?.message || "Fehler beim Speichern");
     }
   };
 
@@ -92,15 +97,35 @@ export default function DiscountCreate() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!discount) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" onClick={() => navigate("/discounts")}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Zurück
+        </Button>
+        <p className="text-muted-foreground">Rabatt nicht gefunden</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/discounts")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(`/discounts/${id}`)}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Neuer Rabattcode</h1>
-          <p className="text-muted-foreground">Erstellen Sie einen neuen Rabatt oder Gutschein</p>
+          <h1 className="text-3xl font-bold tracking-tight">Rabatt bearbeiten</h1>
+          <p className="text-muted-foreground">{discount.code}</p>
         </div>
       </div>
 
@@ -285,38 +310,22 @@ export default function DiscountCreate() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="active">Sofort aktivieren</Label>
+                  <Label htmlFor="active">Aktiv</Label>
                   <Switch
                     id="active"
                     checked={formData.active}
                     onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="newCustomersOnly">Nur für Neukunden</Label>
-                  <Switch
-                    id="newCustomersOnly"
-                    checked={formData.newCustomersOnly}
-                    onCheckedChange={(checked) => setFormData({ ...formData, newCustomersOnly: checked })}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="combinable">Mit anderen kombinierbar</Label>
-                  <Switch
-                    id="combinable"
-                    checked={formData.combinable}
-                    onCheckedChange={(checked) => setFormData({ ...formData, combinable: checked })}
-                  />
-                </div>
               </CardContent>
             </Card>
 
             <div className="flex flex-col gap-2">
-              <Button type="submit" className="w-full" disabled={createDiscount.isPending}>
+              <Button type="submit" className="w-full" disabled={updateDiscount.isPending}>
                 <Save className="h-4 w-4 mr-2" />
-                Rabattcode erstellen
+                Speichern
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate("/discounts")}>
+              <Button type="button" variant="outline" onClick={() => navigate(`/discounts/${id}`)}>
                 Abbrechen
               </Button>
             </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -65,44 +65,61 @@ const typeLabels = {
   "direct-debit": "Lastschrift",
 };
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   pending: "bg-warning/10 text-warning",
+  PENDING: "bg-warning/10 text-warning",
   executed: "bg-success/10 text-success",
+  COMPLETED: "bg-success/10 text-success",
   failed: "bg-destructive/10 text-destructive",
+  FAILED: "bg-destructive/10 text-destructive",
   cancelled: "bg-muted text-muted-foreground",
+  CANCELLED: "bg-muted text-muted-foreground",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   draft: "Entwurf",
   pending: "Ausstehend",
+  PENDING: "Ausstehend",
   executed: "Ausgeführt",
+  COMPLETED: "Ausgeführt",
   failed: "Fehlgeschlagen",
+  FAILED: "Fehlgeschlagen",
   cancelled: "Storniert",
+  CANCELLED: "Storniert",
 };
 
-const statusIcons = {
+const statusIcons: Record<string, any> = {
   draft: Clock,
   pending: Clock,
+  PENDING: Clock,
   executed: CheckCircle,
+  COMPLETED: CheckCircle,
   failed: XCircle,
+  FAILED: XCircle,
   cancelled: XCircle,
+  CANCELLED: XCircle,
 };
 
 export default function SepaPayments() {
   const navigate = useNavigate();
-  const { data: apiData } = useQuery({ queryKey: ["/sepa-payments"], queryFn: () => api.get<any>("/payments") });
+  const { data: apiData } = useQuery({ queryKey: ["/payments"], queryFn: () => api.get<any>("/payments") });
   const payments = apiData?.data || [];
   const [activeTab, setActiveTab] = useState("outgoing");
   const [searchQuery, setSearchQuery] = useState("");
-  const [paymentList, setPaymentList] = useState(payments);
+  const [paymentList, setPaymentList] = useState<any[]>([]);
 
-  const outgoingPayments = paymentList.filter((p) => p.type === "credit-transfer");
-  const incomingPayments = paymentList.filter((p) => p.type === "direct-debit");
+  // Sync paymentList when API data loads; API uses INCOMING/OUTGOING
+  useEffect(() => {
+    setPaymentList(payments);
+  }, [payments]);
+
+  const outgoingPayments = paymentList.filter((p) => p.type === "credit-transfer" || p.type === "OUTGOING");
+  const incomingPayments = paymentList.filter((p) => p.type === "direct-debit" || p.type === "INCOMING");
   
   const pendingTotal = paymentList
-    .filter((p) => p.status === "pending")
-    .reduce((acc, p) => acc + p.amount, 0);
+    .filter((p) => p.status === "pending" || p.status === "PENDING")
+    .reduce((acc, p) => acc + (p.amount || 0), 0);
 
   const handleCancel = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -245,24 +262,27 @@ export default function SepaPayments() {
               </TableHeader>
               <TableBody>
                 {outgoingPayments.map((payment, index) => {
-                  const StatusIcon = statusIcons[payment.status];
+                  const StatusIcon = statusIcons[payment.status] || Clock;
                   
                   return (
                     <TableRow
                       key={payment.id}
-                      className="animate-fade-in"
+                      className="animate-fade-in cursor-pointer hover:bg-muted/50"
                       style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => navigate(`/payments/${payment.id}`)}
                     >
                       <TableCell>
-                        <span className="font-mono font-medium">{payment.reference}</span>
+                        <span className="font-mono font-medium">{payment.reference || payment.number || "—"}</span>
                       </TableCell>
-                      <TableCell className="font-medium">{payment.recipient}</TableCell>
+                      <TableCell className="font-medium">
+                        {payment.recipient || payment.supplier?.name || payment.supplier?.companyName || "—"}
+                      </TableCell>
                       <TableCell>
-                        <span className="font-mono text-sm">{payment.iban}</span>
+                        <span className="font-mono text-sm">{payment.iban || payment.supplier?.iban || "—"}</span>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm">{payment.purpose}</p>
+                          <p className="text-sm">{payment.purpose || payment.notes || "—"}</p>
                           {payment.linkedDocument && (
                             <p className="text-xs text-muted-foreground">
                               Beleg: {payment.linkedDocument}
@@ -270,17 +290,17 @@ export default function SepaPayments() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{payment.executionDate}</TableCell>
+                      <TableCell>{payment.executionDate || payment.paymentDate?.split?.("T")[0] || "—"}</TableCell>
                       <TableCell className="text-right font-mono font-bold text-destructive">
-                        -CHF {payment.amount.toLocaleString("de-CH")}
+                        -CHF {(payment.amount || 0).toLocaleString("de-CH")}
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn("gap-1", statusStyles[payment.status])}>
+                        <Badge className={cn("gap-1", statusStyles[payment.status] || "bg-muted")}>
                           <StatusIcon className="h-3 w-3" />
-                          {statusLabels[payment.status]}
+                          {statusLabels[payment.status] || payment.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -288,13 +308,13 @@ export default function SepaPayments() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Details
                             </DropdownMenuItem>
-                            {payment.status === "draft" && (
+                            {(payment.status === "draft" || payment.status === "PENDING") && (
                               <>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Bearbeiten
                                 </DropdownMenuItem>
@@ -343,19 +363,22 @@ export default function SepaPayments() {
                   return (
                     <TableRow
                       key={payment.id}
-                      className="animate-fade-in"
+                      className="animate-fade-in cursor-pointer hover:bg-muted/50"
                       style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => navigate(`/payments/${payment.id}`)}
                     >
                       <TableCell>
-                        <span className="font-mono font-medium">{payment.reference}</span>
+                        <span className="font-mono font-medium">{payment.reference || payment.number || "—"}</span>
                       </TableCell>
-                      <TableCell className="font-medium">{payment.recipient}</TableCell>
+                      <TableCell className="font-medium">
+                        {payment.recipient || payment.customer?.name || payment.customer?.companyName || "—"}
+                      </TableCell>
                       <TableCell>
-                        <span className="font-mono text-sm">{payment.iban}</span>
+                        <span className="font-mono text-sm">{payment.iban || payment.customer?.iban || "—"}</span>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm">{payment.purpose}</p>
+                          <p className="text-sm">{payment.purpose || payment.notes || "—"}</p>
                           {payment.linkedDocument && (
                             <p className="text-xs text-muted-foreground">
                               Beleg: {payment.linkedDocument}
@@ -363,17 +386,17 @@ export default function SepaPayments() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{payment.executionDate}</TableCell>
+                      <TableCell>{payment.executionDate || payment.paymentDate?.split?.("T")[0] || "—"}</TableCell>
                       <TableCell className="text-right font-mono font-bold text-success">
-                        +CHF {payment.amount.toLocaleString("de-CH")}
+                        +CHF {(payment.amount || 0).toLocaleString("de-CH")}
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn("gap-1", statusStyles[payment.status])}>
+                        <Badge className={cn("gap-1", statusStyles[payment.status] || "bg-muted")}>
                           <StatusIcon className="h-3 w-3" />
-                          {statusLabels[payment.status]}
+                          {statusLabels[payment.status] || payment.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -381,11 +404,11 @@ export default function SepaPayments() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Bearbeiten
                             </DropdownMenuItem>

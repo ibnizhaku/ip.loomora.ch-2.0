@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,7 +208,9 @@ export default function Creditors() {
                 .map((c) => (
                   <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
-                      <p className="text-sm font-medium">{c.company}</p>
+                      <Link to={`/suppliers/${c.id}`} className="text-sm font-medium hover:text-primary">
+                        {c.company}
+                      </Link>
                       <p className="text-xs text-muted-foreground">{c.paymentTerms} Tage Ziel</p>
                     </div>
                     <p className="font-semibold">CHF {c.openAmount.toLocaleString("de-CH")}</p>
@@ -271,7 +273,9 @@ export default function Creditors() {
                     <TableCell className="font-mono text-sm">{creditor.number}</TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{creditor.company}</p>
+                        <Link to={`/suppliers/${creditor.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                          {creditor.company}
+                        </Link>
                         <p className="text-xs text-muted-foreground">{creditor.name}</p>
                       </div>
                     </TableCell>
@@ -353,7 +357,9 @@ export default function Creditors() {
                     <TableRow key={creditor.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{creditor.company}</p>
+                          <Link to={`/suppliers/${creditor.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>
+                            {creditor.company}
+                          </Link>
                           <p className="text-xs text-muted-foreground">{creditor.number}</p>
                         </div>
                       </TableCell>
