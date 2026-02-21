@@ -306,6 +306,7 @@ export default function ReminderDetail() {
         onOpenChange={setShowPDFPreview}
         documentData={pdfData}
         title={`Mahnung ${r.number || r.id}`}
+        onSendEmail={() => setEmailModalOpen(true)}
       />
 
       <SendEmailModal
