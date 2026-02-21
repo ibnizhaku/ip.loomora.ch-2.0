@@ -19,7 +19,15 @@ interface InvoiceItem {
   quantity: number;
   unit: string;
   unitPrice: number;
+  vatRate: number;   // MwSt pro Position (%)
 }
+
+const VAT_OPTIONS = [
+  { value: "8.1", label: "8.1%" },
+  { value: "2.6", label: "2.6%" },
+  { value: "3.8", label: "3.8%" },
+  { value: "0",   label: "0%" },
+];
 
 // Swiss KMU Standardkontenrahmen (Aufwandkonten)
 const SWISS_ACCOUNTS = [
@@ -56,21 +64,23 @@ export default function PurchaseInvoiceCreate() {
   const importedDueDate       = searchParams.get("dueDate") || "";
   const importedFilename      = isFromPdfImport ? (sessionStorage.getItem("pdf-import-filename") || "") : "";
 
-  // Positionen aus sessionStorage (von PDF-Import)
-  const importedPositions: InvoiceItem[] = useMemo(() => {
+  // Positionen aus sessionStorage – KEIN useMemo (Regeln: Hook nicht nach early return erlaubt)
+  const importedPositions: InvoiceItem[] = (() => {
     if (!isFromPdfImport) return [];
     try {
       const raw = sessionStorage.getItem("pdf-import-positions");
       if (!raw) return [];
-      return (JSON.parse(raw) as any[]).map((p, i) => ({
+      const parsed = JSON.parse(raw) as any[];
+      return parsed.map((p, i) => ({
         id: i + 1,
         description: p.description || "",
         quantity: Number(p.quantity) || 1,
         unit: p.unit || "Stk",
         unitPrice: Number(p.unitPrice) || Number(p.total) || 0,
+        vatRate: Number(p.vatRate) || 0, // aus PDF (oft 0 = keine MwSt)
       }));
     } catch { return []; }
-  }, [isFromPdfImport]);
+  })();
 
   const [formData, setFormData] = useState({
     supplierId: defaultSupplierId,
@@ -86,7 +96,7 @@ export default function PurchaseInvoiceCreate() {
 
   const defaultItems: InvoiceItem[] = importedPositions.length > 0
     ? importedPositions
-    : [{ id: 1, description: "", quantity: 1, unit: "Stück", unitPrice: 0 }];
+    : [{ id: 1, description: "", quantity: 1, unit: "Stück", unitPrice: 0, vatRate: 8.1 }];
 
   const [items, setItems] = useState<InvoiceItem[]>(defaultItems);
 
@@ -97,23 +107,25 @@ export default function PurchaseInvoiceCreate() {
   const suppliers = useMemo(() => (suppliersData as any)?.data || [], [suppliersData]);
   const createInvoice = useCreatePurchaseInvoice();
 
-  // PDF-Bruttobetrag: Netto berechnen für Positionen falls keine Positionen extrahiert
+  // Fallback: wenn keine Positionen aus PDF, Bruttobetrag als eine Position setzen
   useEffect(() => {
     if (!isFromPdfImport || importedPositions.length > 0 || !importedGrossAmount) return;
     const gross = parseFloat(importedGrossAmount);
-    const rate = parseFloat(importedVatRate) / 100;
-    const net = rate === 0 ? gross : gross / (1 + rate);
-    setItems([{ id: 1, description: "Leistung gemäss Rechnung", quantity: 1, unit: "Pauschal", unitPrice: parseFloat(net.toFixed(2)) }]);
-  }, [isFromPdfImport, importedGrossAmount, importedVatRate, importedPositions.length]);
+    const rate = parseFloat(importedVatRate);
+    const net = rate === 0 ? gross : gross / (1 + rate / 100);
+    setItems([{ id: 1, description: "Leistung gemäss Rechnung", quantity: 1, unit: "Pauschal", unitPrice: parseFloat(net.toFixed(2)), vatRate: rate }]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const addItem = () => setItems(prev => [...prev, { id: Date.now(), description: "", quantity: 1, unit: "Stück", unitPrice: 0 }]);
+  const addItem = () => setItems(prev => [...prev, { id: Date.now(), description: "", quantity: 1, unit: "Stück", unitPrice: 0, vatRate: 8.1 }]);
   const removeItem = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
   const updateItem = (id: number, field: keyof InvoiceItem, value: string | number) =>
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
 
-  const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-  const vatAmount = subtotal * (Number(formData.vatRate) / 100);
-  const total = subtotal + vatAmount;
+  // Totals: pro Position eigener MwSt-Satz
+  const subtotal  = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+  const vatAmount = items.reduce((sum, i) => sum + i.quantity * i.unitPrice * (i.vatRate / 100), 0);
+  const total     = subtotal + vatAmount;
 
   const handleSubmit = () => {
     if (!formData.supplierId) {
@@ -148,7 +160,7 @@ export default function PurchaseInvoiceCreate() {
             quantity: i.quantity,
             unit: i.unit,
             unitPrice: i.unitPrice,
-            vatRate: Number(formData.vatRate),
+            vatRate: i.vatRate,
             accountCode: formData.accountCode || undefined,
           })),
       },
@@ -249,20 +261,8 @@ export default function PurchaseInvoiceCreate() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>MwSt-Satz</Label>
-                  <Select
-                    value={formData.vatRate}
-                    onValueChange={(v) => setFormData(prev => ({ ...prev, vatRate: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="8.1">8.1% Normalsatz</SelectItem>
-                      <SelectItem value="2.6">2.6% Reduziert</SelectItem>
-                      <SelectItem value="0">0% Befreit</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-muted-foreground text-xs">MwSt-Satz wird pro Position gesetzt</Label>
+                  <p className="text-sm text-muted-foreground">→ Spalte «MwSt.» in der Positionstabelle</p>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -335,72 +335,62 @@ export default function PurchaseInvoiceCreate() {
               </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40%]">Beschreibung</TableHead>
-                    <TableHead>Menge</TableHead>
-                    <TableHead>Einheit</TableHead>
-                    <TableHead>Einzelpreis</TableHead>
-                    <TableHead className="text-right">Gesamt</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Input
-                          placeholder="Beschreibung"
-                          className="h-8"
-                          value={item.description}
-                          onChange={(e) => updateItem(item.id, "description", e.target.value)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          className="h-8 w-20"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          className="h-8 w-20"
-                          value={item.unit}
-                          onChange={(e) => updateItem(item.id, "unit", e.target.value)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          className="h-8 w-24"
-                          value={item.unitPrice}
-                          onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        CHF {(item.quantity * item.unitPrice).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => removeItem(item.id)}
-                          disabled={items.length === 1}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[180px]">Beschreibung</TableHead>
+                      <TableHead className="w-16">Menge</TableHead>
+                      <TableHead className="w-20">Einheit</TableHead>
+                      <TableHead className="w-24">Preis</TableHead>
+                      <TableHead className="w-20">MwSt.</TableHead>
+                      <TableHead className="text-right w-24">Gesamt</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <Input className="h-8" placeholder="Beschreibung" value={item.description}
+                            onChange={(e) => updateItem(item.id, "description", e.target.value)} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" min={0} className="h-8 w-16" value={item.quantity}
+                            onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Input className="h-8 w-18" value={item.unit}
+                            onChange={(e) => updateItem(item.id, "unit", e.target.value)} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" min={0} step={0.01} className="h-8 w-24" value={item.unitPrice}
+                            onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Select value={String(item.vatRate)} onValueChange={(v) => updateItem(item.id, "vatRate", Number(v))}>
+                            <SelectTrigger className="h-8 w-20 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {VAT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          CHF {(item.quantity * item.unitPrice * (1 + item.vatRate / 100)).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-8 w-8"
+                            onClick={() => removeItem(item.id)} disabled={items.length === 1}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               <div className="mt-4 space-y-1 text-sm border-t pt-4">
                 <div className="flex justify-between text-muted-foreground">
@@ -408,7 +398,7 @@ export default function PurchaseInvoiceCreate() {
                   <span>CHF {subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>MwSt. ({formData.vatRate}%)</span>
+                  <span>MwSt. (pro Position)</span>
                   <span>CHF {vatAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-base">

@@ -557,11 +557,11 @@ export default function PurchaseInvoices() {
         )}
       </div>
 
-      {/* PDF Import Dialog – kompakt, kein Scroll */}
+      {/* PDF Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={(open) => { if (!open) resetImportDialog(); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="h-5 w-5 text-primary" />
               PDF-Rechnung importieren
             </DialogTitle>
@@ -569,77 +569,84 @@ export default function PurchaseInvoices() {
 
           {/* Datei-Info */}
           {uploadedFile && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-sm">
-              <File className="h-4 w-4 text-primary shrink-0" />
-              <span className="truncate flex-1 text-muted-foreground">{uploadedFile.name}</span>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <File className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
+                <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(0)} KB</p>
+              </div>
               {isExtracting
                 ? <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                : extractedData && <Badge className="bg-success/10 text-success text-xs shrink-0"><Sparkles className="h-3 w-3 mr-1" />Erkannt</Badge>
+                : extractedData
+                  ? <span className="text-xs font-medium text-success flex items-center gap-1 shrink-0"><Sparkles className="h-3 w-3" /> Daten erkannt</span>
+                  : null
               }
             </div>
           )}
 
           {isExtracting ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>PDF wird analysiert...</span>
+            <div className="flex flex-col items-center justify-center gap-3 py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm">Rechnung wird analysiert...</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Lieferant – Dropdown aus Stammdaten */}
-              <div className="space-y-1.5">
-                <Label>Lieferant *</Label>
+            <div className="space-y-4 pt-1">
+              {/* Lieferant – Dropdown */}
+              <div className="space-y-2">
+                <Label className="font-medium">Lieferant *</Label>
                 <Select value={importData.supplierId} onValueChange={(v) => setImportData({ ...importData, supplierId: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Lieferant auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((s: any) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.companyName || s.name}
-                      </SelectItem>
-                    ))}
+                    {suppliers.length === 0
+                      ? <SelectItem value="_none" disabled>Keine Lieferanten vorhanden</SelectItem>
+                      : suppliers.map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>{s.companyName || s.name}</SelectItem>
+                        ))
+                    }
                   </SelectContent>
                 </Select>
                 {extractedData?.supplierName && (
-                  <p className="text-xs text-muted-foreground">
-                    <Sparkles className="h-3 w-3 inline mr-1 text-success" />
-                    Erkannt: <span className="font-medium">{extractedData.supplierName}</span>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-success" />
+                    Erkannt im PDF: <span className="font-medium text-foreground">{extractedData.supplierName}</span>
+                    <span className="ml-1 opacity-60">– bitte oben zuordnen</span>
                   </p>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Rechnungsnr. (Lieferant)</Label>
-                  <Input value={importData.supplierNumber} placeholder="358630"
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="font-medium">Rechnungsnr. (Lieferant)</Label>
+                  <Input className="h-10" value={importData.supplierNumber} placeholder="z.B. 358630"
                     onChange={(e) => setImportData({ ...importData, supplierNumber: e.target.value })} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Zahlungsbetrag (CHF) *</Label>
-                  <Input type="number" step="0.01" value={importData.grossAmount} placeholder="0.00"
+                <div className="space-y-2">
+                  <Label className="font-medium">Zahlungsbetrag (CHF) *</Label>
+                  <Input className="h-10" type="number" step="0.01" value={importData.grossAmount} placeholder="0.00"
                     onChange={(e) => setImportData({ ...importData, grossAmount: e.target.value })} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Rechnungsdatum</Label>
-                  <Input type="date" value={importData.invoiceDate}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="font-medium">Rechnungsdatum</Label>
+                  <Input className="h-10" type="date" value={importData.invoiceDate}
                     onChange={(e) => setImportData({ ...importData, invoiceDate: e.target.value })} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Fällig am</Label>
-                  <Input type="date" value={importData.dueDate}
+                <div className="space-y-2">
+                  <Label className="font-medium">Fällig am</Label>
+                  <Input className="h-10" type="date" value={importData.dueDate}
                     onChange={(e) => setImportData({ ...importData, dueDate: e.target.value })} />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button variant="outline" size="sm" onClick={resetImportDialog}>Abbrechen</Button>
-            <Button size="sm" onClick={handleImportInvoice} className="gap-2" disabled={isExtracting}>
+          <div className="flex justify-end gap-3 pt-2 border-t">
+            <Button variant="outline" onClick={resetImportDialog}>Abbrechen</Button>
+            <Button onClick={handleImportInvoice} className="gap-2" disabled={isExtracting}>
               <Upload className="h-4 w-4" />
               Weiterbearbeiten
             </Button>

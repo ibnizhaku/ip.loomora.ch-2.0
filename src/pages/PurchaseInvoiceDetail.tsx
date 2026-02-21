@@ -74,36 +74,14 @@ const PurchaseInvoiceDetail = () => {
     note: "",
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error || !raw) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-        <p>Einkaufsrechnung nicht gefunden</p>
-        <Link to="/purchase-invoices" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
-      </div>
-    );
-  }
-
-  const pi = raw as any;
-  const status = statusConfig[pi.status] || statusConfig.DRAFT;
-  const StatusIcon = status.icon;
-  const outstanding = Number(pi.openAmount ?? (pi.total - (pi.paidAmount || 0))) || 0;
-
-  const isCancellable = pi.status !== "CANCELLED" && pi.status !== "PAID";
-
+  // useMemo MUSS vor allen conditional returns stehen (Rules of Hooks)
+  const pi = (raw || {}) as any;
   const pdfData = useMemo(() => ({
     supplierName: pi.supplier?.name || pi.supplier?.companyName || "Unbekannt",
     supplierAddress: pi.supplier?.address || pi.supplier?.street,
     supplierCity: pi.supplier?.city ? `${pi.supplier?.zipCode || ""} ${pi.supplier?.city}`.trim() : undefined,
     supplierVatNumber: pi.supplier?.vatNumber,
-    invoiceNumber: pi.number || pi.id,
+    invoiceNumber: pi.number || pi.id || "",
     externalNumber: pi.externalNumber,
     invoiceDate: pi.invoiceDate || new Date().toISOString(),
     dueDate: pi.dueDate,
@@ -122,6 +100,29 @@ const PurchaseInvoiceDetail = () => {
     notes: pi.notes,
     purchaseOrderNumber: pi.purchaseOrder?.number,
   }), [pi]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !raw) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <p>Einkaufsrechnung nicht gefunden</p>
+        <Link to="/purchase-invoices" className="text-primary hover:underline mt-2">Zurück zur Übersicht</Link>
+      </div>
+    );
+  }
+
+  const status = statusConfig[pi.status] || statusConfig.DRAFT;
+  const StatusIcon = status.icon;
+  const outstanding = Number(pi.openAmount ?? (pi.total - (pi.paidAmount || 0))) || 0;
+
+  const isCancellable = pi.status !== "CANCELLED" && pi.status !== "PAID";
 
   const handleSubmitForReview = () => {
     updateInvoice.mutate(
