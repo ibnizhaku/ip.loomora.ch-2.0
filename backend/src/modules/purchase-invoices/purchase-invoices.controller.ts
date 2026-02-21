@@ -57,7 +57,7 @@ export class PurchaseInvoicesController {
   @RequirePermissions('purchase-invoices:write')
   @ApiOperation({ summary: 'Create new purchase invoice' })
   create(@Body() dto: CreatePurchaseInvoiceDto, @CurrentUser() user: any) {
-    return this.purchaseInvoicesService.create(user.companyId, dto);
+    return this.purchaseInvoicesService.create(user.companyId, dto, user.userId);
   }
 
   @Post('from-purchase-order/:purchaseOrderId')

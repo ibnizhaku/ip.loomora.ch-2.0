@@ -145,6 +145,10 @@ export default function PurchaseInvoiceCreate() {
       return;
     }
 
+    // Wenn PDF-Import: Original-PDF als data-URL mitschicken
+    const pdfBase64 = isFromPdfImport ? sessionStorage.getItem("pdf-import-base64") : null;
+    const documentUrl = pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : undefined;
+
     createInvoice.mutate(
       {
         supplierId: formData.supplierId,
@@ -153,6 +157,7 @@ export default function PurchaseInvoiceCreate() {
         invoiceDate: formData.invoiceDate,
         dueDate: formData.dueDate,
         notes: formData.description || undefined,
+        documentUrl,
         items: items
           .filter(i => i.description)
           .map(i => ({

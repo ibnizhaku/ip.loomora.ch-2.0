@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { usePurchaseInvoice, useUpdatePurchaseInvoice, useRecordPayment, useApprovePurchaseInvoice } from "@/hooks/use-purchase-invoices";
 import { useEntityHistory } from "@/hooks/use-audit-log";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
   DRAFT: { color: "bg-muted text-muted-foreground", icon: FileText, label: "Entwurf" },
@@ -57,6 +58,7 @@ function formatDate(d?: string | null) {
 const PurchaseInvoiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isOwner } = usePermissions();
   const { data: raw, isLoading, error } = usePurchaseInvoice(id || "");
   const updateInvoice = useUpdatePurchaseInvoice();
   const approveMutation = useApprovePurchaseInvoice();
@@ -228,7 +230,7 @@ const PurchaseInvoiceDetail = () => {
               Zur Prüfung einreichen
             </Button>
           )}
-          {pi.status === "PENDING" && (
+          {pi.status === "PENDING" && isOwner && (
             <>
               <Button size="sm" variant="outline" onClick={handleReject} disabled={updateInvoice.isPending}>
                 Ablehnen
@@ -239,23 +241,40 @@ const PurchaseInvoiceDetail = () => {
               </Button>
             </>
           )}
-          {pi.status === "APPROVED" && (
+          {pi.status === "APPROVED" && isOwner && (
             <Button size="sm" onClick={() => setPaymentDialogOpen(true)}>
               <CreditCard className="h-4 w-4 mr-2" />
               Zahlung erfassen
             </Button>
           )}
-          {pi.status !== "CANCELLED" && pi.status !== "PAID" && pi.status !== "APPROVED" && (
-            <Button variant="outline" size="sm" onClick={() => setPaymentDialogOpen(true)}>
-              <CreditCard className="h-4 w-4 mr-2" />
-              Zahlung erfassen
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => { downloadPurchaseInvoicePDF(pdfData); toast.success("PDF wird heruntergeladen"); }}>
+          <Button variant="outline" size="sm" onClick={() => {
+            if (pi.documentUrl) {
+              // Original hochgeladenes PDF herunterladen
+              const link = document.createElement("a");
+              link.href = pi.documentUrl;
+              link.download = `Rechnung-${pi.externalNumber || pi.id || "dokument"}.pdf`;
+              link.click();
+            } else {
+              downloadPurchaseInvoicePDF(pdfData);
+            }
+            toast.success("PDF wird heruntergeladen");
+          }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => printPurchaseInvoicePDF(pdfData)}>
+          <Button variant="outline" size="sm" onClick={() => {
+            if (pi.documentUrl) {
+              // Original hochgeladenes PDF in neuem Tab öffnen und drucken
+              const w = window.open("", "_blank");
+              if (w) {
+                w.document.write(`<html><body style="margin:0"><embed src="${pi.documentUrl}" type="application/pdf" width="100%" height="100%"/></body></html>`);
+                w.document.close();
+                setTimeout(() => w.print(), 800);
+              }
+            } else {
+              printPurchaseInvoicePDF(pdfData);
+            }
+          }}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>
@@ -359,7 +378,7 @@ const PurchaseInvoiceDetail = () => {
                 <div className="text-center py-6 text-muted-foreground">
                   <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
                   <p>Noch keine Zahlungen erfasst</p>
-                  {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+                  {pi.status !== "CANCELLED" && pi.status !== "PAID" && isOwner && (
                     <Button variant="outline" size="sm" className="mt-3" onClick={() => setPaymentDialogOpen(true)}>
                       <CreditCard className="h-4 w-4 mr-2" />
                       Zahlung erfassen
@@ -390,10 +409,12 @@ const PurchaseInvoiceDetail = () => {
                     </div>
                   ))}
                   {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+                  {isOwner && (
                     <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setPaymentDialogOpen(true)}>
                       <CreditCard className="h-4 w-4 mr-2" />
                       Weitere Zahlung erfassen
                     </Button>
+                  )}
                   )}
                 </div>
               )}

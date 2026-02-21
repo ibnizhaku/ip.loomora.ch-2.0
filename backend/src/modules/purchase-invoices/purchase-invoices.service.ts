@@ -50,7 +50,7 @@ export class PurchaseInvoicesService {
         take: pageSize,
         orderBy: { date: 'desc' },
         include: {
-          supplier: { select: { id: true, name: true } },
+          supplier: { select: { id: true, name: true, companyName: true } },
           purchaseOrder: { select: { id: true, number: true } },
         },
       }),
@@ -120,7 +120,7 @@ export class PurchaseInvoicesService {
     };
   }
 
-  async create(companyId: string, dto: CreatePurchaseInvoiceDto) {
+  async create(companyId: string, dto: CreatePurchaseInvoiceDto, userId?: string) {
     // Validate supplier
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: dto.supplierId, companyId },
@@ -129,13 +129,15 @@ export class PurchaseInvoicesService {
       throw new NotFoundException('Lieferant nicht gefunden');
     }
 
-    // Calculate totals
+    // Calculate totals (per-item VAT if provided, fallback to global VAT_RATE)
     let subtotal = 0;
+    let vatAmount = 0;
     dto.items.forEach(item => {
-      subtotal += item.quantity * item.unitPrice;
+      const lineNet = item.quantity * item.unitPrice;
+      subtotal += lineNet;
+      const rate = item.vatRate !== undefined ? item.vatRate : this.VAT_RATE;
+      vatAmount += lineNet * (rate / 100);
     });
-
-    const vatAmount = subtotal * (this.VAT_RATE / 100);
     const totalAmount = subtotal + vatAmount;
 
     // Generate internal number
@@ -148,7 +150,7 @@ export class PurchaseInvoicesService {
         companyId,
         supplierId: dto.supplierId,
         purchaseOrderId: dto.purchaseOrderId,
-        number: dto.externalNumber,
+        number: dto.externalNumber || internalNumber,
         date: new Date(dto.invoiceDate),
         dueDate: new Date(dto.dueDate),
         status: PurchaseInvoiceStatus.DRAFT,
@@ -163,6 +165,25 @@ export class PurchaseInvoicesService {
         purchaseOrder: { select: { id: true, number: true } },
       },
     });
+
+    // Audit log
+    if (userId) {
+      await this.prisma.auditLog.create({
+        data: {
+          module: 'FINANCE',
+          entityType: 'PURCHASE_INVOICE',
+          entityId: created.id,
+          entityName: dto.externalNumber || internalNumber,
+          action: 'CREATE',
+          description: `Eingangsrechnung ${dto.externalNumber || internalNumber} von ${supplier.companyName || supplier.name} erfasst`,
+          newValues: { externalNumber: dto.externalNumber, supplierId: dto.supplierId },
+          retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+          companyId,
+          userId,
+        },
+      });
+    }
+
     return mapPurchaseInvoiceResponse(created);
   }
 

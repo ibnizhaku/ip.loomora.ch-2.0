@@ -95,7 +95,7 @@ const suppliers = [
 ];
 
 export default function PurchaseInvoices() {
-  const { canWrite, canDelete } = usePermissions();
+  const { canWrite, canDelete, isOwner } = usePermissions();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -323,7 +323,6 @@ export default function PurchaseInvoices() {
           />
           {canWrite('purchase-invoices') && (
             <Button 
-              variant="outline" 
               className="gap-2"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -331,17 +330,11 @@ export default function PurchaseInvoices() {
               PDF importieren
             </Button>
           )}
-          {canWrite('purchase-invoices') && (
-            <Button className="gap-2" onClick={() => navigate("/purchase-invoices/new")}>
-              <Plus className="h-4 w-4" />
-              Rechnung erfassen
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      {/* KPI Cards – nur für isOwner sichtbar */}
+      {isOwner && <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -386,7 +379,7 @@ export default function PurchaseInvoices() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Filters */}
       <div className="flex gap-4">
@@ -486,7 +479,7 @@ export default function PurchaseInvoices() {
                       </Button>
                     </div>
                   )}
-                  {invoice.status === "pending" && (
+                  {invoice.status === "pending" && isOwner && (
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button size="sm" variant="outline" onClick={(e) => handleReject(invoice.id, e)}>
                         Ablehnen
