@@ -61,7 +61,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
+import { generatePurchaseOrderPDF, getPurchaseOrderPDFBase64 } from "@/lib/pdf/purchase-order-pdf";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useProjects } from "@/hooks/use-projects";
@@ -128,6 +128,7 @@ export default function PurchaseOrderCreate() {
   const [orderNumber, setOrderNumber] = useState("");
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailPdfBase64, setEmailPdfBase64] = useState<string | undefined>();
 
   const createOrder = useCreatePurchaseOrder();
   const sendOrder = useSendPurchaseOrder();
@@ -306,6 +307,21 @@ export default function PurchaseOrderCreate() {
 
       // After order created, show email modal if email was selected
       if (selectedDeliveryMethods.includes("email") && created?.id) {
+        try {
+          const base64 = getPurchaseOrderPDFBase64({
+            orderNumber: createdNumber,
+            supplier: { name: selectedSupplier!.name, number: selectedSupplier!.number || '', city: selectedSupplier!.city || '' },
+            items,
+            subtotal,
+            vat,
+            total,
+            expectedDelivery: expectedDelivery || undefined,
+            reference: reference || undefined,
+            notes: notes || undefined,
+            project: projectData,
+          });
+          setEmailPdfBase64(base64);
+        } catch { /* email still works without attachment */ }
         setShowEmailModal(true);
       }
     } catch (err: any) {
@@ -828,6 +844,8 @@ export default function PurchaseOrderCreate() {
         documentNumber={orderNumber}
         defaultRecipient={(selectedSupplier as any)?.email || ""}
         companyName={selectedSupplier?.name}
+        prebuiltPdfBase64={emailPdfBase64}
+        prebuiltPdfFilename={orderNumber ? `Einkaufsbestellung-${orderNumber}.pdf` : undefined}
       />
 
       {/* Delivery Method Dialog */}

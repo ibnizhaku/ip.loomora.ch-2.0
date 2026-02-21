@@ -48,28 +48,32 @@ const COMPANY_INFO = {
 };
 
 export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  _buildPurchaseOrderPDF(doc, data);
+  doc.save(`Bestellung_${data.orderNumber}.pdf`);
+}
 
+/** Generates the same PDF and returns it as a base64 string (for email attachments) */
+export function getPurchaseOrderPDFBase64(data: PurchaseOrderData): string {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  _buildPurchaseOrderPDF(doc, data);
+  return doc.output('datauristring').split(',')[1];
+}
+
+/** Internal builder — used by both generatePurchaseOrderPDF and getPurchaseOrderPDFBase64 */
+function _buildPurchaseOrderPDF(doc: jsPDF, data: PurchaseOrderData): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   let y = margin;
 
-  // Colors (as tuples for type safety)
-  const primaryColor: [number, number, number] = [30, 58, 138]; // Dark blue
+  const primaryColor: [number, number, number] = [30, 58, 138];
   const textColor: [number, number, number] = [51, 51, 51];
   const mutedColor: [number, number, number] = [128, 128, 128];
 
-  // === HEADER ===
-  // Company Logo/Name (top right)
   doc.setFontSize(20);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setFont('helvetica', 'bold');
   doc.text(COMPANY_INFO.name, pageWidth - margin, y, { align: 'right' });
-  
   y += 6;
   doc.setFontSize(9);
   doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
@@ -82,12 +86,10 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
   y += 4;
   doc.text(COMPANY_INFO.email, pageWidth - margin, y, { align: 'right' });
 
-  // === SUPPLIER ADDRESS (left side, for window envelope) ===
   y = 55;
   doc.setFontSize(8);
   doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
   doc.text(`${COMPANY_INFO.name} • ${COMPANY_INFO.street} • ${COMPANY_INFO.zipCity}`, margin, y);
-  
   y += 8;
   doc.setFontSize(11);
   doc.setTextColor(textColor[0], textColor[1], textColor[2]);
@@ -99,43 +101,33 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
   y += 5;
   doc.text(data.supplier.city, margin, y);
 
-  // === DOCUMENT TITLE ===
   y = 105;
   doc.setFontSize(18);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setFont('helvetica', 'bold');
   doc.text('EINKAUFSBESTELLUNG', margin, y);
 
-  // === ORDER INFO BOX ===
   y += 10;
   doc.setFontSize(10);
   doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-  doc.setFont('helvetica', 'normal');
-
-  // Info table on the right
   const infoX = 130;
   const valueX = 165;
-
   doc.setFont('helvetica', 'bold');
   doc.text('Bestellnummer:', infoX, y);
   doc.setFont('helvetica', 'normal');
   doc.text(data.orderNumber, valueX, y);
-
   y += 6;
   doc.setFont('helvetica', 'bold');
   doc.text('Datum:', infoX, y);
   doc.setFont('helvetica', 'normal');
   doc.text(new Date().toLocaleDateString('de-CH'), valueX, y);
-
   if (data.expectedDelivery) {
     y += 6;
     doc.setFont('helvetica', 'bold');
     doc.text('Liefertermin:', infoX, y);
     doc.setFont('helvetica', 'normal');
-    const deliveryDate = new Date(data.expectedDelivery).toLocaleDateString('de-CH');
-    doc.text(deliveryDate, valueX, y);
+    doc.text(new Date(data.expectedDelivery).toLocaleDateString('de-CH'), valueX, y);
   }
-
   if (data.reference) {
     y += 6;
     doc.setFont('helvetica', 'bold');
@@ -143,7 +135,6 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
     doc.setFont('helvetica', 'normal');
     doc.text(data.reference, valueX, y);
   }
-
   if (data.project) {
     y += 6;
     doc.setFont('helvetica', 'bold');
@@ -152,13 +143,10 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
     doc.text(`${data.project.number}`, valueX, y);
   }
 
-  // === INTRO TEXT ===
   y = 145;
   doc.setFontSize(10);
   doc.setTextColor(textColor[0], textColor[1], textColor[2]);
   doc.text('Wir bestellen bei Ihnen folgende Artikel:', margin, y);
-
-  // === ITEMS TABLE ===
   y += 8;
 
   const tableData = data.items.map((item, index) => [
@@ -175,16 +163,8 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
     head: [['Pos.', 'Art.-Nr.', 'Bezeichnung', 'Menge', 'Einzelpreis', 'Total']],
     body: tableData,
     theme: 'striped',
-    headStyles: {
-      fillColor: primaryColor,
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 9,
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: textColor,
-    },
+    headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fontSize: 9, textColor: textColor },
     columnStyles: {
       0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 25 },
@@ -194,37 +174,28 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
       5: { cellWidth: 28, halign: 'right' },
     },
     margin: { left: margin, right: margin },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
   });
 
-  // === TOTALS ===
   y = (tableResult as any).finalY + 10;
-
   const totalsX = 130;
   const totalsValueX = pageWidth - margin;
-
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Zwischensumme:', totalsX, y);
   doc.text(`CHF ${data.subtotal.toLocaleString('de-CH', { minimumFractionDigits: 2 })}`, totalsValueX, y, { align: 'right' });
-
   y += 6;
   doc.text('MwSt. 8.1%:', totalsX, y);
   doc.text(`CHF ${data.vat.toLocaleString('de-CH', { minimumFractionDigits: 2 })}`, totalsValueX, y, { align: 'right' });
-
   y += 2;
   doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.line(totalsX, y, pageWidth - margin, y);
   y += 6;
-
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Gesamtbetrag:', totalsX, y);
   doc.text(`CHF ${data.total.toLocaleString('de-CH', { minimumFractionDigits: 2 })}`, totalsValueX, y, { align: 'right' });
 
-  // === NOTES ===
   if (data.notes) {
     y += 15;
     doc.setFontSize(10);
@@ -232,21 +203,17 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
     doc.text('Bemerkungen:', margin, y);
     y += 5;
     doc.setFont('helvetica', 'normal');
-    
-    // Word wrap notes
     const splitNotes = doc.splitTextToSize(data.notes, pageWidth - 2 * margin);
     doc.text(splitNotes, margin, y);
     y += splitNotes.length * 5;
   }
 
-  // === FOOTER ===
   y = 260;
   doc.setFontSize(9);
   doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
   doc.text('Bitte bestätigen Sie den Erhalt dieser Bestellung.', margin, y);
   y += 5;
   doc.text('Bei Fragen wenden Sie sich bitte an unseren Einkauf.', margin, y);
-
   y += 15;
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(textColor[0], textColor[1], textColor[2]);
@@ -257,7 +224,6 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
   y += 4;
   doc.text('Einkaufsabteilung', margin, y);
 
-  // === PAGE FOOTER ===
   const footerY = 285;
   doc.setFontSize(8);
   doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
@@ -265,11 +231,6 @@ export function generatePurchaseOrderPDF(data: PurchaseOrderData): void {
   doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
   doc.text(
     `${COMPANY_INFO.name} • ${COMPANY_INFO.street} • ${COMPANY_INFO.zipCity} • ${COMPANY_INFO.vatNumber}`,
-    pageWidth / 2,
-    footerY,
-    { align: 'center' }
+    pageWidth / 2, footerY, { align: 'center' }
   );
-
-  // Save the PDF
-  doc.save(`Bestellung_${data.orderNumber}.pdf`);
 }

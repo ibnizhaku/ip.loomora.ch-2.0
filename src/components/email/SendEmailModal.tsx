@@ -37,6 +37,9 @@ interface SendEmailModalProps {
   defaultRecipient?: string;
   companyName?: string;
   documentData?: SalesDocumentData; // Frontend-PDF Daten für identischen Anhang wie Vorschau
+  /** Pre-generated PDF as base64 string (alternative to documentData) */
+  prebuiltPdfBase64?: string;
+  prebuiltPdfFilename?: string;
 }
 
 const documentTypeLabels: Record<DocumentType, string> = {
@@ -78,6 +81,8 @@ export function SendEmailModal({
   defaultRecipient,
   companyName,
   documentData,
+  prebuiltPdfBase64,
+  prebuiltPdfFilename,
 }: SendEmailModalProps) {
   const navigate = useNavigate();
   const { hasEmailAccount, fromEmail, fromName, isLoading } = useEmailAccount();
@@ -108,10 +113,14 @@ export function SendEmailModal({
 
   const sendMutation = useMutation({
     mutationFn: () => {
-      // Falls documentData vorhanden: Frontend-PDF als Base64 generieren (identisch mit Vorschau)
+      // Falls prebuiltPdfBase64 vorhanden: direkt verwenden (z.B. Einkaufsbestellungen)
+      // Sonst: aus documentData generieren (Verkaufsdokumente)
       let pdfBase64: string | undefined;
       let pdfFilename: string | undefined;
-      if (documentData) {
+      if (prebuiltPdfBase64) {
+        pdfBase64 = prebuiltPdfBase64;
+        pdfFilename = prebuiltPdfFilename ?? getPdfFilename();
+      } else if (documentData) {
         try {
           pdfBase64 = getSalesDocumentPDFBase64(documentData);
           pdfFilename = getPdfFilename();

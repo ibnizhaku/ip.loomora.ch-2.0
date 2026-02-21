@@ -61,7 +61,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
+import { generatePurchaseOrderPDF, getPurchaseOrderPDFBase64 } from "@/lib/pdf/purchase-order-pdf";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -261,16 +261,17 @@ const PurchaseOrderDetail = () => {
     });
   };
 
+  const buildPdfData = () => ({
+    orderNumber: orderData.number || orderData.id,
+    supplier: { name: orderData.supplier.name, number: orderData.supplier.number || '', city: `${orderData.supplier.address || ''} ${orderData.supplier.city || ''}`.trim() },
+    items: (orderData.positions || []).map(pos => ({ sku: pos.sku || '', name: pos.description || '', quantity: pos.quantity, unit: pos.unit || 'Stk', unitPrice: pos.price, total: pos.total })),
+    subtotal: orderData.subtotal, vat: orderData.tax, total: orderData.total,
+    expectedDelivery: orderData.expectedDelivery, project: orderData.project, notes: orderData.notes,
+  });
+
   // PDF handlers
   const handleDownloadPDF = () => {
-    const pdfData = {
-      orderNumber: orderData.id,
-      supplier: { name: orderData.supplier.name, number: orderData.supplier.number, city: `${orderData.supplier.address}\n${orderData.supplier.city}` },
-      items: orderData.positions.map(pos => ({ sku: pos.sku, name: pos.description, quantity: pos.quantity, unit: pos.unit, unitPrice: pos.price, total: pos.total })),
-      subtotal: orderData.subtotal, vat: orderData.tax, total: orderData.total,
-      expectedDelivery: orderData.expectedDelivery, project: orderData.project, notes: orderData.notes,
-    };
-    generatePurchaseOrderPDF(pdfData);
+    generatePurchaseOrderPDF(buildPdfData());
     toast.success("PDF heruntergeladen");
   };
 
@@ -712,9 +713,11 @@ const PurchaseOrderDetail = () => {
         onClose={() => setEmailDialogOpen(false)}
         documentType="purchase-order"
         documentId={id || ""}
-        documentNumber={orderData.id}
+        documentNumber={orderData.number || orderData.id}
         defaultRecipient={orderData.supplier.email}
         companyName={orderData.supplier.name}
+        prebuiltPdfBase64={emailDialogOpen ? getPurchaseOrderPDFBase64(buildPdfData()) : undefined}
+        prebuiltPdfFilename={`Einkaufsbestellung-${orderData.number || orderData.id}.pdf`}
       />
 
       {/* Goods Receipt Dialog */}
