@@ -65,20 +65,20 @@ interface PurchaseInvoice {
 }
 
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   pending: "bg-warning/10 text-warning",
   approved: "bg-info/10 text-info",
   paid: "bg-success/10 text-success",
-  rejected: "bg-destructive/10 text-destructive",
+  cancelled: "bg-destructive/10 text-destructive",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   draft: "Entwurf",
   pending: "Zur Prüfung",
   approved: "Freigegeben",
   paid: "Bezahlt",
-  rejected: "Abgelehnt",
+  cancelled: "Storniert",
 };
 
 const suppliers = [
@@ -333,7 +333,7 @@ export default function PurchaseInvoices() {
             <SelectItem value="pending">Zur Prüfung</SelectItem>
             <SelectItem value="approved">Freigegeben</SelectItem>
             <SelectItem value="paid">Bezahlt</SelectItem>
-            <SelectItem value="rejected">Abgelehnt</SelectItem>
+            <SelectItem value="cancelled">Storniert</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -361,8 +361,8 @@ export default function PurchaseInvoices() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold">{invoice.supplier}</h3>
-                      <Badge className={statusStyles[invoice.status]}>
-                        {statusLabels[invoice.status]}
+                      <Badge className={statusStyles[invoice.status] || "bg-muted text-muted-foreground"}>
+                        {statusLabels[invoice.status] || invoice.status}
                       </Badge>
                       {invoice.pdfFile && (
                         <Badge variant="outline" className="gap-1">

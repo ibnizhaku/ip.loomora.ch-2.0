@@ -222,6 +222,22 @@ export function useApprovePurchaseInvoice() {
   });
 }
 
+// Record a payment for a purchase invoice
+export function useRecordPayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: {
+      id: string;
+      data: { amount: number; paymentDate: string; method: string; note?: string; bankAccountId?: string };
+    }) => api.post(`/purchase-invoices/${id}/record-payment`, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
 // Delete purchase invoice
 export function useDeletePurchaseInvoice() {
   const queryClient = useQueryClient();

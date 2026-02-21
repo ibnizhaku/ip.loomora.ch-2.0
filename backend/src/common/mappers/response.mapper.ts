@@ -255,18 +255,26 @@ export function mapPurchaseOrderResponse(purchaseOrder: any) {
 export function mapPurchaseInvoiceResponse(purchaseInvoice: any) {
   if (!purchaseInvoice) return purchaseInvoice;
   
-  const { date, totalAmount, paidAt, ...rest } = purchaseInvoice;
-  
+  const { date, totalAmount, paidDate, ...rest } = purchaseInvoice;
+  const total = totalAmount ? Number(totalAmount) : 0;
+  const paidAmount = Number(purchaseInvoice.paidAmount || 0);
+  const isOverdue = purchaseInvoice.dueDate
+    && !['PAID', 'CANCELLED'].includes(purchaseInvoice.status)
+    && new Date(purchaseInvoice.dueDate) < new Date();
+
   return {
     ...rest,
     invoiceDate: date,
-    total: totalAmount ? Number(totalAmount) : 0,
-    paidDate: paidAt,
+    externalNumber: purchaseInvoice.number,   // alias for frontend
+    total,
+    paidAmount,
+    paidDate: paidDate || purchaseInvoice.paidAt || null,
     supplierName: purchaseInvoice.supplier?.name,
     purchaseOrderNumber: purchaseInvoice.purchaseOrder?.number,
     subtotal: purchaseInvoice.subtotal ? Number(purchaseInvoice.subtotal) : 0,
     vatAmount: purchaseInvoice.vatAmount ? Number(purchaseInvoice.vatAmount) : 0,
-    openAmount: purchaseInvoice.openAmount ?? (Number(totalAmount || 0) - Number(purchaseInvoice.paidAmount || 0)),
+    openAmount: total - paidAmount,
+    isOverdue,
   };
 }
 

@@ -38,7 +38,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { usePurchaseInvoice, useUpdatePurchaseInvoice } from "@/hooks/use-purchase-invoices";
+import { usePurchaseInvoice, useUpdatePurchaseInvoice, useRecordPayment } from "@/hooks/use-purchase-invoices";
 import { useEntityHistory } from "@/hooks/use-audit-log";
 
 const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
@@ -59,6 +59,7 @@ const PurchaseInvoiceDetail = () => {
   const navigate = useNavigate();
   const { data: raw, isLoading, error } = usePurchaseInvoice(id || "");
   const updateInvoice = useUpdatePurchaseInvoice();
+  const recordPaymentMutation = useRecordPayment();
   const { data: auditHistory } = useEntityHistory("PURCHASE_INVOICE", id || "");
 
   // Dialog states
@@ -115,12 +116,27 @@ const PurchaseInvoiceDetail = () => {
       toast.error("Bitte gültigen Betrag eingeben");
       return;
     }
-    // Will be wired to backend record-payment endpoint once available
-    toast.success("Zahlung erfasst", {
-      description: `CHF ${Number(paymentForm.amount).toLocaleString("de-CH")} am ${paymentForm.paymentDate}`,
-    });
-    setPaymentDialogOpen(false);
-    setPaymentForm({ amount: "", paymentDate: new Date().toISOString().split("T")[0], method: "BANK_TRANSFER", note: "" });
+    recordPaymentMutation.mutate(
+      {
+        id: id || "",
+        data: {
+          amount: Number(paymentForm.amount),
+          paymentDate: paymentForm.paymentDate,
+          method: paymentForm.method,
+          note: paymentForm.note || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Zahlung erfasst", {
+            description: `CHF ${Number(paymentForm.amount).toLocaleString("de-CH")} am ${paymentForm.paymentDate}`,
+          });
+          setPaymentDialogOpen(false);
+          setPaymentForm({ amount: "", paymentDate: new Date().toISOString().split("T")[0], method: "BANK_TRANSFER", note: "" });
+        },
+        onError: () => toast.error("Fehler beim Erfassen der Zahlung"),
+      }
+    );
   };
 
   return (
@@ -261,16 +277,48 @@ const PurchaseInvoiceDetail = () => {
               <CardTitle>Zahlungsverlauf</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6 text-muted-foreground">
-                <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p>Noch keine Zahlungen erfasst</p>
-                {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setPaymentDialogOpen(true)}>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Zahlung erfassen
-                  </Button>
-                )}
-              </div>
+              {(!pi.payments || pi.payments.length === 0) ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Noch keine Zahlungen erfasst</p>
+                  {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => setPaymentDialogOpen(true)}>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Zahlung erfassen
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pi.payments.map((payment: any) => (
+                    <div key={payment.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="h-5 w-5 text-success" />
+                        <div>
+                          <p className="text-sm font-medium">
+                            {payment.method === "BANK_TRANSFER" ? "Überweisung"
+                              : payment.method === "DIRECT_DEBIT" ? "Lastschrift"
+                              : payment.method === "CASH" ? "Bar"
+                              : payment.method}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString("de-CH") : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-semibold text-success">
+                        CHF {Number(payment.amount).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))}
+                  {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+                    <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setPaymentDialogOpen(true)}>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Weitere Zahlung erfassen
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
