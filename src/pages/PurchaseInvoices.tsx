@@ -16,6 +16,7 @@ import {
   Receipt,
   X,
   File,
+  SendHorizonal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -182,6 +183,20 @@ export default function PurchaseInvoices() {
     setImportData({ supplier: "", supplierNumber: "", netAmount: "", invoiceDate: "", dueDate: "" });
     toast.success("Rechnung importiert – bitte manuell vervollständigen");
     navigate("/purchase-invoices/new?supplierId=" + importData.supplier);
+  };
+
+  const handleSubmitForReview = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateMutation.mutate(
+      { id, data: { status: "PENDING" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
+          toast.success("Rechnung zur Prüfung eingereicht");
+        },
+        onError: () => toast.error("Fehler beim Einreichen"),
+      }
+    );
   };
 
   const handleApprove = (id: string, e: React.MouseEvent) => {
@@ -402,12 +417,21 @@ export default function PurchaseInvoices() {
                     </p>
                   </div>
 
+                  {invoice.status === "draft" && (
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" onClick={(e) => handleSubmitForReview(invoice.id, e)}>
+                        <SendHorizonal className="h-3 w-3 mr-1" />
+                        Einreichen
+                      </Button>
+                    </div>
+                  )}
                   {invoice.status === "pending" && (
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button size="sm" variant="outline" onClick={(e) => handleReject(invoice.id, e)}>
                         Ablehnen
                       </Button>
                       <Button size="sm" onClick={(e) => handleApprove(invoice.id, e)}>
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
                         Freigeben
                       </Button>
                     </div>
@@ -433,6 +457,12 @@ export default function PurchaseInvoices() {
                         <Edit className="h-4 w-4 mr-2" />
                         Bearbeiten
                       </DropdownMenuItem>
+                      {invoice.status === "draft" && (
+                        <DropdownMenuItem onClick={(e) => handleSubmitForReview(invoice.id, e)}>
+                          <SendHorizonal className="h-4 w-4 mr-2" />
+                          Zur Prüfung einreichen
+                        </DropdownMenuItem>
+                      )}
                       {canDelete('purchase-invoices') && (
                         <DropdownMenuItem 
                           className="text-destructive"

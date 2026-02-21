@@ -38,7 +38,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { usePurchaseInvoice, useUpdatePurchaseInvoice, useRecordPayment } from "@/hooks/use-purchase-invoices";
+import { usePurchaseInvoice, useUpdatePurchaseInvoice, useRecordPayment, useApprovePurchaseInvoice } from "@/hooks/use-purchase-invoices";
 import { useEntityHistory } from "@/hooks/use-audit-log";
 
 const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
@@ -59,6 +59,7 @@ const PurchaseInvoiceDetail = () => {
   const navigate = useNavigate();
   const { data: raw, isLoading, error } = usePurchaseInvoice(id || "");
   const updateInvoice = useUpdatePurchaseInvoice();
+  const approveMutation = useApprovePurchaseInvoice();
   const recordPaymentMutation = useRecordPayment();
   const { data: auditHistory } = useEntityHistory("PURCHASE_INVOICE", id || "");
 
@@ -96,6 +97,36 @@ const PurchaseInvoiceDetail = () => {
   const outstanding = Number(pi.openAmount ?? (pi.total - (pi.paidAmount || 0))) || 0;
 
   const isCancellable = pi.status !== "CANCELLED" && pi.status !== "PAID";
+
+  const handleSubmitForReview = () => {
+    updateInvoice.mutate(
+      { id: id || "", data: { status: "PENDING" } },
+      {
+        onSuccess: () => toast.success("Rechnung zur Prüfung eingereicht"),
+        onError: () => toast.error("Fehler beim Einreichen"),
+      }
+    );
+  };
+
+  const handleApprove = () => {
+    approveMutation.mutate(
+      { id: id || "", data: {} },
+      {
+        onSuccess: () => toast.success("Rechnung freigegeben"),
+        onError: () => toast.error("Fehler beim Freigeben"),
+      }
+    );
+  };
+
+  const handleReject = () => {
+    updateInvoice.mutate(
+      { id: id || "", data: { status: "DRAFT" } },
+      {
+        onSuccess: () => toast.info("Rechnung abgelehnt – zurück in Entwurf"),
+        onError: () => toast.error("Fehler beim Ablehnen"),
+      }
+    );
+  };
 
   const handleCancel = () => {
     updateInvoice.mutate(
@@ -164,7 +195,31 @@ const PurchaseInvoiceDetail = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
+          {/* Status workflow buttons */}
+          {pi.status === "DRAFT" && (
+            <Button size="sm" variant="outline" onClick={handleSubmitForReview} disabled={updateInvoice.isPending}>
+              {updateInvoice.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
+              Zur Prüfung einreichen
+            </Button>
+          )}
+          {pi.status === "PENDING" && (
+            <>
+              <Button size="sm" variant="outline" onClick={handleReject} disabled={updateInvoice.isPending}>
+                Ablehnen
+              </Button>
+              <Button size="sm" onClick={handleApprove} disabled={approveMutation.isPending}>
+                {approveMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Freigeben
+              </Button>
+            </>
+          )}
+          {pi.status === "APPROVED" && (
+            <Button size="sm" onClick={() => setPaymentDialogOpen(true)}>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Zahlung erfassen
+            </Button>
+          )}
+          {pi.status !== "CANCELLED" && pi.status !== "PAID" && pi.status !== "APPROVED" && (
             <Button variant="outline" size="sm" onClick={() => setPaymentDialogOpen(true)}>
               <CreditCard className="h-4 w-4 mr-2" />
               Zahlung erfassen

@@ -29,6 +29,8 @@ enum DocumentStatus {
 
 enum InvoiceStatus {
   DRAFT
+  PENDING
+  APPROVED
   SENT
   PARTIAL
   PAID
