@@ -47,6 +47,7 @@ interface FormData {
   website: string;
   vatNumber: string;
   iban: string;
+  qrIban: string;
   bic: string;
   bankName: string;
   description: string;
@@ -63,6 +64,7 @@ const emptyForm: FormData = {
   website: "",
   vatNumber: "",
   iban: "",
+  qrIban: "",
   bic: "",
   bankName: "",
   description: "",
@@ -99,6 +101,7 @@ export default function Company() {
         website: company.website || "",
         vatNumber: company.vatNumber || "",
         iban: company.iban || "",
+        qrIban: (company as any).qrIban || "",
         bic: company.bic || "",
         bankName: company.bankName || "",
         description: "",
@@ -125,6 +128,7 @@ export default function Company() {
         website: form.website || undefined,
         vatNumber: form.vatNumber || undefined,
         iban: form.iban || undefined,
+        qrIban: form.qrIban || undefined,
         bic: form.bic || undefined,
         bankName: form.bankName || undefined,
       });
@@ -408,6 +412,7 @@ export default function Company() {
                 <Input
                   value={form.iban}
                   onChange={(e) => handleChange("iban", e.target.value)}
+                  placeholder="CH93 0076 2011 6238 5295 7"
                 />
               </div>
               <div className="space-y-2">
@@ -417,6 +422,22 @@ export default function Company() {
                   onChange={(e) => handleChange("bic", e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                QR-IBAN
+                <span className="ml-2 text-xs font-normal text-muted-foreground">(für Swiss QR-Rechnung mit Referenznummer)</span>
+              </Label>
+              <Input
+                value={form.qrIban}
+                onChange={(e) => handleChange("qrIban", e.target.value)}
+                placeholder="CH04 3000 0000 0000 0000 0"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Die QR-IBAN erhalten Sie von Ihrer Bank. Sie beginnt mit CH/LI und hat eine IID im Bereich 30000–31999 (Stelle 5–9). Nur mit QR-IBAN wird die Referenznummer korrekt im QR-Code eingebettet.
+              </p>
             </div>
 
             <Separator />
