@@ -74,6 +74,9 @@ export class PurchaseOrdersService {
   }
 
   async create(companyId: string, dto: CreatePurchaseOrderDto, userId?: string) {
+    // #region agent log
+    console.error(`[PO_CREATE_DEBUG] dto received: supplierId=${dto.supplierId}, itemCount=${dto.items?.length}, items=${JSON.stringify(dto.items?.map(i => ({desc:i.description,qty:i.quantity,qtyType:typeof i.quantity,price:i.unitPrice,priceType:typeof i.unitPrice})))}`);
+    // #endregion
     // Validate supplier
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: dto.supplierId, companyId },
