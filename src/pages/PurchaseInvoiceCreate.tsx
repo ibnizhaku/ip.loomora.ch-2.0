@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Upload, Building2, Receipt, FolderKanban, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Upload, Building2, Receipt, FolderKanban, Plus, Trash2, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,15 +24,23 @@ interface InvoiceItem {
 export default function PurchaseInvoiceCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // URL-Parameter (von normalem Flow oder PDF-Import)
   const defaultSupplierId = searchParams.get("supplierId") || "";
   const defaultPurchaseOrderId = searchParams.get("purchaseOrderId") || "";
+  const importedSupplierName = searchParams.get("supplier") || "";    // aus PDF-Import
+  const importedExtNumber   = searchParams.get("externalNumber") || "";
+  const importedNetAmount   = searchParams.get("netAmount") || "";
+  const importedInvoiceDate = searchParams.get("invoiceDate") || "";
+  const importedDueDate     = searchParams.get("dueDate") || "";
+  const isFromPdfImport = !!(importedSupplierName || importedExtNumber || importedNetAmount);
 
   const [formData, setFormData] = useState({
     supplierId: defaultSupplierId,
     purchaseOrderId: defaultPurchaseOrderId,
-    externalNumber: "",
-    invoiceDate: "",
-    dueDate: "",
+    externalNumber: importedExtNumber,
+    invoiceDate: importedInvoiceDate,
+    dueDate: importedDueDate,
     description: "",
     projectId: "",
     accountCode: "",
@@ -40,7 +48,13 @@ export default function PurchaseInvoiceCreate() {
   });
 
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: 1, description: "", quantity: 1, unit: "Stück", unitPrice: 0 },
+    {
+      id: 1,
+      description: importedSupplierName ? `Rechnung ${importedExtNumber || ""}`.trim() : "",
+      quantity: 1,
+      unit: "Stück",
+      unitPrice: importedNetAmount ? Number(importedNetAmount) : 0,
+    },
   ]);
 
   // Hooks
@@ -49,6 +63,19 @@ export default function PurchaseInvoiceCreate() {
   const { data: suppliersData, isLoading: suppliersLoading } = useSuppliers({ pageSize: 200 });
   const suppliers = useMemo(() => (suppliersData as any)?.data || [], [suppliersData]);
   const createInvoice = useCreatePurchaseInvoice();
+
+  // Auto-Match Lieferant anhand des PDF-Namens sobald Lieferanten geladen sind
+  useEffect(() => {
+    if (!importedSupplierName || formData.supplierId || suppliers.length === 0) return;
+    const nameLower = importedSupplierName.toLowerCase();
+    const match = suppliers.find((s: any) => {
+      const n = (s.companyName || s.name || "").toLowerCase();
+      return n.includes(nameLower) || nameLower.includes(n);
+    });
+    if (match) {
+      setFormData(prev => ({ ...prev, supplierId: match.id }));
+    }
+  }, [suppliers, importedSupplierName, formData.supplierId]);
 
   const addItem = () => setItems(prev => [...prev, { id: Date.now(), description: "", quantity: 1, unit: "Stück", unitPrice: 0 }]);
   const removeItem = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
@@ -117,6 +144,22 @@ export default function PurchaseInvoiceCreate() {
           <p className="text-muted-foreground">Kreditorenrechnung erfassen</p>
         </div>
       </div>
+
+      {/* PDF-Import Banner */}
+      {isFromPdfImport && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-success/5 border border-success/20 text-sm">
+          <Sparkles className="h-5 w-5 text-success shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-success">Daten aus PDF importiert</p>
+            <p className="text-muted-foreground mt-1">
+              Folgende Felder wurden automatisch befüllt – bitte prüfen und ergänzen:
+              {importedSupplierName && <span className="ml-1 font-medium">Lieferant: {importedSupplierName}</span>}
+              {importedExtNumber && <span className="ml-2 font-medium">RgNr: {importedExtNumber}</span>}
+              {importedNetAmount && <span className="ml-2 font-medium">Netto: CHF {Number(importedNetAmount).toFixed(2)}</span>}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">

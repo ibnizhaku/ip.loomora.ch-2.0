@@ -19,24 +19,33 @@ export interface ExtractedInvoiceData {
 }
 
 async function extractTextFromPDF(file: File): Promise<string> {
-  // Dynamic import – pdfjs-dist ist sehr gross, deswegen lazy
   const pdfjsLib = await import('pdfjs-dist');
-  // Worker aus dem Bundle
   const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
   const arrayBuffer = await file.arrayBuffer();
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
-  const pdf = await loadingTask.promise;
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
   const pages: string[] = [];
   for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => ('str' in item ? item.str : ''))
-      .join(' ');
-    pages.push(pageText);
+
+    // Zeilenstruktur erhalten: Items nach Y-Koordinate gruppieren
+    const lineMap = new Map<number, string[]>();
+    for (const item of textContent.items) {
+      if (!('str' in item) || !(item as any).str.trim()) continue;
+      // transform[5] = Y-Position (gerundet auf 2px = gleiche Zeile)
+      const y = Math.round((item as any).transform[5] / 2) * 2;
+      if (!lineMap.has(y)) lineMap.set(y, []);
+      lineMap.get(y)!.push((item as any).str);
+    }
+    // Y-Koordinaten absteigend = von oben nach unten
+    const lines = [...lineMap.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([, strs]) => strs.join(' ').trim())
+      .filter(l => l.length > 0);
+    pages.push(lines.join('\n'));
   }
   return pages.join('\n');
 }
@@ -66,18 +75,39 @@ function parseSwissInvoice(text: string): ExtractedInvoiceData {
     result.vatNumber = `CHE-${uidMatch[1]}.${uidMatch[2]}.${uidMatch[3]} MWST`;
   }
 
-  // ── Firmenname: Zeile vor der UID, oder "Von:" / "Von Firma:" ────
+  // ── Firmenname ────────────────────────────────────────────────────
+  // Strategie 1: Zeile direkt vor der UID-Nummer
   if (uidMatch) {
     const uidPos = text.indexOf(uidMatch[0]);
-    const beforeUid = text.substring(Math.max(0, uidPos - 200), uidPos);
-    const lines = beforeUid.split(/[\n\r]+/).filter(l => l.trim().length > 2);
-    if (lines.length > 0) {
-      const candidate = lines[lines.length - 1].trim();
-      if (candidate.length > 2 && candidate.length < 80) result.supplierName = candidate;
+    const beforeUid = text.substring(Math.max(0, uidPos - 400), uidPos);
+    const lines = beforeUid.split(/\n/).map(l => l.trim()).filter(l => l.length > 2);
+    // Letzten nicht-leeren Kandidaten nehmen (= Firmenname über UID)
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const c = lines[i];
+      if (c.length > 2 && c.length < 80 && !/^\d+$/.test(c)) {
+        result.supplierName = c;
+        break;
+      }
     }
   }
+
+  // Strategie 2: Suche nach Firma mit Rechtsform (AG, GmbH, SA, Sàrl, etc.)
   if (!result.supplierName) {
-    const vonMatch = text.match(/(?:Von|From|Lieferant|Supplier)[:\s]+([^\n\r,]{3,60})/i);
+    const firmMatch = text.match(/([A-ZÄÖÜ][^\n]{2,50}?\s(?:AG|GmbH|SA|Sàrl|SARL|LLC|Ltd|KG|OHG|GmbH\s*&\s*Co\.\s*KG))/);
+    if (firmMatch) result.supplierName = firmMatch[1].trim();
+  }
+
+  // Strategie 3: Erste Zeile des Dokuments (oft Firmenname)
+  if (!result.supplierName) {
+    const firstLines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !/^\d/.test(l));
+    if (firstLines.length > 0 && firstLines[0].length < 80) {
+      result.supplierName = firstLines[0];
+    }
+  }
+
+  // Strategie 4: Explizite Keywords
+  if (!result.supplierName) {
+    const vonMatch = text.match(/(?:Von|From|Lieferant|Supplier|Absender)[:\s]+([^\n,]{3,60})/i);
     if (vonMatch) result.supplierName = vonMatch[1].trim();
   }
 
