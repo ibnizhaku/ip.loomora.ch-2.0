@@ -43,7 +43,7 @@ import { useEntityHistory } from "@/hooks/use-audit-log";
 
 const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
   DRAFT: { color: "bg-muted text-muted-foreground", icon: FileText, label: "Entwurf" },
-  PENDING: { color: "bg-warning/10 text-warning", icon: Clock, label: "Offen" },
+  PENDING: { color: "bg-warning/10 text-warning", icon: Clock, label: "Zur Prüfung" },
   APPROVED: { color: "bg-info/10 text-info", icon: CheckCircle2, label: "Freigegeben" },
   PAID: { color: "bg-success/10 text-success", icon: CheckCircle2, label: "Bezahlt" },
   CANCELLED: { color: "bg-muted text-muted-foreground", icon: Ban, label: "Storniert" },
@@ -510,8 +510,12 @@ const PurchaseInvoiceDetail = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleRecordPayment} className="gap-2">
-              <CreditCard className="h-4 w-4" />
+            <Button onClick={handleRecordPayment} className="gap-2" disabled={recordPaymentMutation.isPending}>
+              {recordPaymentMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4" />
+              )}
               Zahlung buchen
             </Button>
           </DialogFooter>

@@ -101,7 +101,7 @@ export default function PurchaseInvoices() {
 
   // Fetch data from API
   const { data: apiData } = useQuery({
-    queryKey: ["/purchase-invoices"],
+    queryKey: ["purchase-invoices"],
     queryFn: () => api.get<any>("/purchase-invoices"),
   });
   const invoices: PurchaseInvoice[] = (apiData?.data || []).map((raw: any) => ({
@@ -190,7 +190,7 @@ export default function PurchaseInvoices() {
       { id, data: {} },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["/purchase-invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
           toast.success("Rechnung freigegeben");
         },
         onError: () => toast.error("Fehler beim Freigeben"),
@@ -204,7 +204,7 @@ export default function PurchaseInvoices() {
       { id, data: { status: "DRAFT" } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["/purchase-invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
           toast.info("Rechnung abgelehnt – zurück in Entwurf");
         },
         onError: () => toast.error("Fehler beim Ablehnen"),
@@ -215,7 +215,7 @@ export default function PurchaseInvoices() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/purchase-invoices/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/purchase-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
       toast.success("Eingangsrechnung erfolgreich gelöscht");
     },
   });
