@@ -144,18 +144,16 @@ function _buildPurchaseOrderPDF(doc: jsPDF, data: PurchaseOrderData): void {
     doc.text(`${data.project.number}`, valueX, y);
   }
 
-  if (data.createdBy) {
-    y += 6;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Ersteller:', infoX, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.createdBy, valueX, y);
-  }
-
   y = 145;
   doc.setFontSize(10);
   doc.setTextColor(textColor[0], textColor[1], textColor[2]);
   doc.text('Wir bestellen bei Ihnen folgende Artikel:', margin, y);
+  if (data.createdBy) {
+    doc.setFontSize(9);
+    doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
+    doc.text(`Ersteller: ${data.createdBy}`, margin + 120, y);
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+  }
   y += 8;
 
   const tableData = data.items.map((item, index) => [

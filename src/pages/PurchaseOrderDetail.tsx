@@ -66,6 +66,7 @@ import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { usePurchaseOrder, useUpdatePurchaseOrder } from "@/hooks/use-purchase-orders";
+import { useEntityHistory } from "@/hooks/use-audit-log";
 
 type OrderStatus = 'Entwurf' | 'Bestellt' | 'Auftragsbestätigt' | 'Teilweise geliefert' | 'Vollständig geliefert' | 'Storniert';
 
@@ -122,6 +123,7 @@ const PurchaseOrderDetail = () => {
   // API hooks
   const { data: apiData, isLoading, error } = usePurchaseOrder(id || "");
   const updateOrder = useUpdatePurchaseOrder();
+  const { data: auditHistory } = useEntityHistory("purchase_order", id || "");
   
   // Dialog states
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -183,6 +185,7 @@ const PurchaseOrderDetail = () => {
       notes: apiData.notes || "",
       deliveries: (apiData as any)?.deliveries || [],
       history: (apiData as any)?.history || [],
+      createdByName: (apiData as any)?.createdByName || null,
     };
   }, [apiData, id]);
 
@@ -527,34 +530,41 @@ const PurchaseOrderDetail = () => {
           {/* History */}
           <Card>
             <CardHeader>
-              <CardTitle>Verlauf</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Verlauf
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {orderData.history.length > 0 ? (
-                <div className="space-y-4">
-                  {orderData.history.map((entry: any, index: number) => {
-                    const entryDate = safeDate(entry.date);
-                    return (
-                      <div key={index} className="flex items-start gap-4">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{entry.action}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{entryDate ? format(entryDate, "d. MMM yyyy, HH:mm", { locale: de }) + " Uhr" : "—"}</span>
-                            <span>•</span>
-                            <span>{typeof entry.user === 'object' ? (entry.user as any)?.name || (entry.user as any)?.email : entry.user}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
+              {(!auditHistory || auditHistory.length === 0) ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>Noch keine Verlaufseinträge.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {auditHistory.map((log: any, index: number) => (
+                    <div key={log.id || index} className="flex items-start gap-4">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          {log.action === "CREATE" ? "Erstellt"
+                            : log.action === "UPDATE" ? "Bearbeitet"
+                            : log.action === "DELETE" ? "Gelöscht"
+                            : log.action === "SEND" ? "Versendet"
+                            : log.action === "STATUS_CHANGE" ? "Status geändert"
+                            : log.description || log.action}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{new Date(log.createdAt || log.timestamp).toLocaleString("de-CH")}</span>
+                          <span>•</span>
+                          <span>{log.user ? `${log.user.firstName} ${log.user.lastName}`.trim() : "System"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -648,6 +658,12 @@ const PurchaseOrderDetail = () => {
                 <span className="text-muted-foreground">Positionen</span>
                 <span className="font-medium">{orderData.positions.length}</span>
               </div>
+              {orderData.createdByName && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Ersteller</span>
+                  <span className="font-medium">{orderData.createdByName}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Bestellwert</span>
