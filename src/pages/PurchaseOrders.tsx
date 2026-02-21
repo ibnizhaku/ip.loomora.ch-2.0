@@ -51,7 +51,7 @@ const statusConfig: Record<string, { color: string; icon: any; label: string }> 
   "CANCELLED": { color: "bg-destructive/10 text-destructive", icon: Package, label: "Storniert" },
 };
 
-const statusOptions = Object.values(statusConfig).map(s => s.label);
+const statusOptions = Object.keys(statusConfig); // API codes: DRAFT, SENT, ...
 
 const stats = [
   { title: "Offene Bestellungen", value: "12", change: "+3 diese Woche" },
@@ -87,8 +87,7 @@ const PurchaseOrders = () => {
     const orderNum = order.number || order.id || '';
     const matchesSearch = orderNum.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplierStr.toLowerCase().includes(searchTerm.toLowerCase());
-    const statusLabel = statusConfig[order.status]?.label || '';
-    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(statusLabel);
+    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(order.status);
     return matchesSearch && matchesStatus;
   });
 
@@ -161,22 +160,22 @@ const PurchaseOrders = () => {
                 )}
               </div>
               <div className="space-y-2">
-                {statusOptions.map((status) => {
-                  const config = statusConfig[status];
+                {statusOptions.map((statusCode) => {
+                  const config = statusConfig[statusCode];
                   const StatusIcon = config.icon;
                   return (
-                    <div key={status} className="flex items-center space-x-2">
+                    <div key={statusCode} className="flex items-center space-x-2">
                       <Checkbox
-                        id={`status-${status}`}
-                        checked={selectedStatuses.includes(status)}
-                        onCheckedChange={() => toggleStatus(status)}
+                        id={`status-${statusCode}`}
+                        checked={selectedStatuses.includes(statusCode)}
+                        onCheckedChange={() => toggleStatus(statusCode)}
                       />
                       <label
-                        htmlFor={`status-${status}`}
+                        htmlFor={`status-${statusCode}`}
                         className="flex items-center gap-2 text-sm cursor-pointer flex-1"
                       >
                         <StatusIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                        {status}
+                        {config.label}
                       </label>
                     </div>
                   );
