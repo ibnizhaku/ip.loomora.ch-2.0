@@ -355,4 +355,86 @@ export class PdfService {
   async generateCreditNotePdf(creditNote: any): Promise<Buffer> {
     return this.generateInvoicePdf({ ...creditNote, title: 'GUTSCHRIFT' });
   }
+
+  async generatePurchaseOrderPdf(order: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const buffers: Buffer[] = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const parseDate = (d: any): string | null => {
+        if (!d) return null;
+        try {
+          const dt = new Date(d);
+          if (isNaN(dt.getTime())) return null;
+          return dt.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch { return null; }
+      };
+
+      doc.fontSize(20).text('EINKAUFSBESTELLUNG', { align: 'right' });
+      doc.moveDown();
+
+      doc.fontSize(10);
+      doc.text(`Nummer: ${order.number}`, { align: 'right' });
+      const formattedDate = parseDate(order.date || order.createdAt);
+      if (formattedDate) doc.text(`Datum: ${formattedDate}`, { align: 'right' });
+      const formattedExpected = parseDate(order.expectedDate);
+      if (formattedExpected) doc.text(`Erwartete Lieferung: ${formattedExpected}`, { align: 'right' });
+      doc.moveDown(2);
+
+      // Supplier address
+      doc.fontSize(10);
+      doc.text(order.supplier?.companyName || order.supplier?.name || 'Lieferant');
+      if (order.supplier?.street) doc.text(order.supplier.street);
+      if (order.supplier?.zipCode && order.supplier?.city) doc.text(`${order.supplier.zipCode} ${order.supplier.city}`);
+      if (order.supplier?.email) doc.text(order.supplier.email);
+      doc.moveDown(2);
+
+      // Items table
+      const tableTop = doc.y;
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Pos', 50, tableTop);
+      doc.text('Beschreibung', 80, tableTop, { width: 220 });
+      doc.text('Menge', 310, tableTop);
+      doc.text('Einheit', 360, tableTop);
+      doc.text('Preis', 400, tableTop, { width: 80, align: 'right' });
+      doc.text('Total', 480, tableTop, { width: 80, align: 'right' });
+      doc.moveTo(50, tableTop + 15).lineTo(560, tableTop + 15).stroke();
+
+      let y = tableTop + 20;
+      doc.font('Helvetica');
+      (order.items || []).forEach((item: any, index: number) => {
+        doc.text(String(index + 1), 50, y);
+        doc.text(item.description || '', 80, y, { width: 220 });
+        doc.text(String(item.quantity || 0), 310, y);
+        doc.text(item.unit || 'Stk', 360, y);
+        doc.text(`${Number(item.unitPrice || 0).toFixed(2)}`, 400, y, { width: 80, align: 'right' });
+        doc.text(`${Number(item.total || (item.quantity * item.unitPrice) || 0).toFixed(2)}`, 480, y, { width: 80, align: 'right' });
+        y += 20;
+      });
+
+      const totalsX = 400;
+      let totalsY = y + 20;
+      doc.text('Zwischensumme:', totalsX, totalsY);
+      doc.text(`CHF ${Number(order.subtotal || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+      totalsY += 15;
+      doc.text('MwSt 8.1%:', totalsX, totalsY);
+      doc.text(`CHF ${Number(order.vatAmount || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+      totalsY += 15;
+      doc.font('Helvetica-Bold');
+      doc.text('Gesamtbetrag:', totalsX, totalsY);
+      doc.text(`CHF ${Number(order.total || 0).toFixed(2)}`, 480, totalsY, { width: 80, align: 'right' });
+
+      if (order.notes) {
+        doc.moveDown(3);
+        doc.font('Helvetica').fontSize(9);
+        doc.text('Bemerkungen:', 50);
+        doc.text(order.notes, 50);
+      }
+
+      doc.end();
+    });
+  }
 }

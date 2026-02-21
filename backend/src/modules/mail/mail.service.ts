@@ -238,6 +238,18 @@ export class MailService {
         const pdfBuffer = await this.pdfService.generateReminderPdf({ ...doc, company });
         return { pdfBuffer, filename: `Mahnung-${doc.number}.pdf` };
       }
+      case 'purchase-order': {
+        const doc = await this.prisma.purchaseOrder.findFirst({
+          where: { id: documentId, companyId },
+          include: {
+            supplier: true,
+            items: true,
+          },
+        });
+        if (!doc) throw new NotFoundException('Einkaufsbestellung nicht gefunden');
+        const pdfBuffer = await this.pdfService.generatePurchaseOrderPdf(doc);
+        return { pdfBuffer, filename: `Einkaufsbestellung-${doc.number}.pdf` };
+      }
       default:
         throw new BadRequestException(`Unbekannter Dokumenttyp: ${documentType}`);
     }
@@ -252,6 +264,7 @@ export class MailService {
       'delivery-note': AuditModule.INVOICES,
       'credit-note': AuditModule.INVOICES,
       reminder: AuditModule.INVOICES,
+      'purchase-order': AuditModule.ORDERS,
     };
     return map[documentType] ?? AuditModule.SYSTEM;
   }
