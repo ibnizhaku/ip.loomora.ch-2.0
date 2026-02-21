@@ -158,7 +158,7 @@ function _buildPurchaseOrderPDF(doc: jsPDF, data: PurchaseOrderData): void {
     `CHF ${item.total.toLocaleString('de-CH', { minimumFractionDigits: 2 })}`,
   ]);
 
-  const tableResult = autoTable(doc, {
+  autoTable(doc, {
     startY: y,
     head: [['Pos.', 'Art.-Nr.', 'Bezeichnung', 'Menge', 'Einzelpreis', 'Total']],
     body: tableData,
@@ -177,7 +177,7 @@ function _buildPurchaseOrderPDF(doc: jsPDF, data: PurchaseOrderData): void {
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
 
-  y = (tableResult as any).finalY + 10;
+  y = ((doc as any).lastAutoTable?.finalY ?? (y + 50)) + 10;
   const totalsX = 130;
   const totalsValueX = pageWidth - margin;
   doc.setFontSize(10);
