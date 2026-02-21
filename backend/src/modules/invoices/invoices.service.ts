@@ -6,7 +6,7 @@ import { InvoiceStatus, PaymentStatus, PaymentType } from '@prisma/client';
 import { mapInvoiceResponse } from '../../common/mappers/response.mapper';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/dto/notification.dto';
-import { generateSwissQrReference } from '../../common/utils/swiss-qr-reference.util';
+import { generateSwissQrReference, generateInvoiceReference } from '../../common/utils/swiss-qr-reference.util';
 
 @Injectable()
 export class InvoicesService {
@@ -172,9 +172,12 @@ export class InvoicesService {
     const vatAmount = subtotal * this.VAT_RATE;
     const total = subtotal + vatAmount;
 
-    // QR-Referenz nach SIX Swiss Payment Standard (QRR, 27 Stellen, MOD10 rekursiv)
-    const invoiceCount = await this.prisma.invoice.count({ where: { companyId } });
-    const qrReference = generateSwissQrReference(invoiceCount + 1);
+    // QR-Referenz: QRR wenn QR-IBAN konfiguriert, sonst SCOR (ISO 11649)
+    const [invoiceCount, company] = await Promise.all([
+      this.prisma.invoice.count({ where: { companyId } }),
+      this.prisma.company.findFirst({ where: { id: companyId }, select: { qrIban: true } }),
+    ]);
+    const qrReference = generateInvoiceReference(invoiceCount + 1, number!, (company as any)?.qrIban);
 
     const created = await this.prisma.invoice.create({
       data: {
@@ -632,9 +635,12 @@ export class InvoicesService {
       const lastNum = lastInvoice?.number ? parseInt(lastInvoice.number.split('-')[2] || '0') : 0;
       const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
 
-      // QR-Referenz nach SIX Swiss Payment Standard (QRR, 27 Stellen, MOD10 rekursiv)
-      const invoiceCount = await tx.invoice.count({ where: { companyId } });
-      const qrReference = generateSwissQrReference(invoiceCount + 1);
+      // QR-Referenz: QRR wenn QR-IBAN konfiguriert, sonst SCOR (ISO 11649)
+      const [invoiceCount, companyForRef] = await Promise.all([
+        tx.invoice.count({ where: { companyId } }),
+        tx.company.findFirst({ where: { id: companyId }, select: { qrIban: true } }),
+      ]);
+      const qrReference = generateInvoiceReference(invoiceCount + 1, invoiceNumber, (companyForRef as any)?.qrIban);
 
       // Create invoice
       const invoice = await tx.invoice.create({
@@ -696,14 +702,37 @@ export class InvoicesService {
   async backfillQrReferences() {
     const invoices = await this.prisma.invoice.findMany({
       where: { qrReference: null },
-      select: { id: true, number: true },
+      select: { id: true, number: true, companyId: true },
       orderBy: { createdAt: 'asc' },
     });
     let count = 0;
     for (const inv of invoices) {
-      const numeric = inv.number.replace(/\D/g, '');
-      const base = numeric.padStart(26, '0').substring(0, 26);
-      const qrReference = generateSwissQrReference(parseInt(numeric, 10) || count + 1);
+      const company = await this.prisma.company.findFirst({
+        where: { id: inv.companyId },
+        select: { qrIban: true },
+      });
+      const numeric = parseInt(inv.number.replace(/\D/g, ''), 10) || count + 1;
+      const qrReference = generateInvoiceReference(numeric, inv.number, (company as any)?.qrIban);
+      await this.prisma.invoice.update({ where: { id: inv.id }, data: { qrReference } });
+      count++;
+    }
+    return { updated: count };
+  }
+
+  // Alle Rechnungen einer Firma neu referenzieren (QRR↔SCOR je nach qrIban-Konfiguration)
+  async regenerateAllReferences(companyId: string) {
+    const [invoices, company] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: { companyId },
+        select: { id: true, number: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.company.findFirst({ where: { id: companyId }, select: { qrIban: true } }),
+    ]);
+    let count = 0;
+    for (const inv of invoices) {
+      const numeric = parseInt(inv.number.replace(/\D/g, ''), 10) || count + 1;
+      const qrReference = generateInvoiceReference(numeric, inv.number, (company as any)?.qrIban);
       await this.prisma.invoice.update({ where: { id: inv.id }, data: { qrReference } });
       count++;
     }
