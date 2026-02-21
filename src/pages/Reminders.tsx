@@ -171,7 +171,7 @@ const HistoryTab = () => {
                   {r.status === "SENT" ? "Versendet" : r.status === "PAID" ? "Bezahlt" : "Storniert"}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right font-medium">{formatCHF(r.totalAmount)}</TableCell>
+              <TableCell className="text-right font-medium">{formatCHF(r.totalWithFee ?? r.totalAmount)}</TableCell>
               <TableCell className="text-muted-foreground">
                 {r.createdAt ? new Date(r.createdAt).toLocaleDateString("de-CH") : "—"}
               </TableCell>
