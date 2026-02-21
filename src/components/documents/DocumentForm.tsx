@@ -296,6 +296,26 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
       setNotes(raw.notes);
     }
 
+    // Pre-fill project
+    if (raw.projectId) {
+      setSelectedProjectId(raw.projectId);
+    }
+
+    // Pre-fill delivery address
+    if (raw.deliveryAddress) {
+      const da = typeof raw.deliveryAddress === 'string' ? JSON.parse(raw.deliveryAddress) : raw.deliveryAddress;
+      if (da && (da.street || da.company || da.city)) {
+        setUseCustomDeliveryAddress(true);
+        setDeliveryAddress({
+          company: da.company || "",
+          street: da.street || "",
+          zipCode: da.zipCode || "",
+          city: da.city || "",
+          country: da.country || "CH",
+        });
+      }
+    }
+
     setSourceApplied(true);
   }, [sourceOrder, sourceQuote, sourceApplied, editMode, positions.length, selectedCustomer, notes]);
 

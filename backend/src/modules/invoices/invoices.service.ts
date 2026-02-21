@@ -136,7 +136,7 @@ export class InvoicesService {
     }
 
     // #region agent log
-    console.error('[DEBUG_INVOICE_FINDONE]', JSON.stringify({ id, hasProject: !!(invoice as any).project, projectId: (invoice as any).projectId, project: (invoice as any).project, hasDeliveryAddress: !!(invoice as any).deliveryAddress, deliveryAddress: (invoice as any).deliveryAddress, timestamp: Date.now() }));
+    console.error('[DEBUG_INVOICE_FINDONE]', JSON.stringify({ id, hasProject: !!(invoice as any).project, projectId: (invoice as any).projectId, hasDeliveryAddress: !!(invoice as any).deliveryAddress, hasCreatedBy: !!(invoice as any).createdBy, createdBy: (invoice as any).createdBy, timestamp: Date.now() }));
     // #endregion
 
     const enriched = {
