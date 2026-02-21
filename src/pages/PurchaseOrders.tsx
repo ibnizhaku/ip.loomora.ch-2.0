@@ -205,7 +205,7 @@ const PurchaseOrders = () => {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => {
-                const status = statusConfig[order.status] || statusConfig["Entwurf"];
+                const status = statusConfig[order.status] || statusConfig["DRAFT"];
                 const StatusIcon = status.icon;
                 return (
                   <TableRow 
