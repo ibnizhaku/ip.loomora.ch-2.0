@@ -233,12 +233,12 @@ export function mapReminderResponse(reminder: any) {
 export function mapPurchaseOrderResponse(purchaseOrder: any) {
   if (!purchaseOrder) return purchaseOrder;
   
-  const { date, totalAmount, ...rest } = purchaseOrder;
+  const { date, total, ...rest } = purchaseOrder;
   
   return {
     ...rest,
     orderDate: date,
-    total: totalAmount ? Number(totalAmount) : 0,
+    total: total ? Number(total) : 0,
     supplierName: purchaseOrder.supplier?.name,
     projectName: purchaseOrder.project?.name,
     subtotal: purchaseOrder.subtotal ? Number(purchaseOrder.subtotal) : 0,

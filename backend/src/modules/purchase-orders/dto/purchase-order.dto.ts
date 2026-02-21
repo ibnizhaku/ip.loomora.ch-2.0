@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsArray, ValidateNested, IsNumber, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { PartialType } from '@nestjs/swagger';
 
 export enum PurchaseOrderStatus {
@@ -19,6 +19,7 @@ export class PurchaseOrderItemDto {
   @IsString()
   description: string;
 
+  @Transform(({ value }) => parseFloat(value))
   @IsNumber()
   quantity: number;
 
@@ -26,10 +27,12 @@ export class PurchaseOrderItemDto {
   @IsString()
   unit?: string;
 
+  @Transform(({ value }) => parseFloat(value))
   @IsNumber()
   unitPrice: number;
 
   @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseFloat(value) : undefined)
   @IsNumber()
   vatRate?: number;
 }
