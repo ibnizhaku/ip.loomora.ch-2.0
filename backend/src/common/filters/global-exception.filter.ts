@@ -83,6 +83,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
+    // #region agent log - debug 400 validation errors for purchase-orders
+    if (status === 400 && request.url?.includes('purchase-order')) {
+      console.error(`[PO_400_DEBUG] ${request.method} ${request.url} | message: ${JSON.stringify(message)}`);
+    }
+    // #endregion
+
     response.status(status).json({
       statusCode: status,
       error,
