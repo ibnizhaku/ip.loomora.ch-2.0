@@ -135,10 +135,6 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    // #region agent log
-    console.error('[DEBUG_INVOICE_FINDONE]', JSON.stringify({ id, hasProject: !!(invoice as any).project, projectId: (invoice as any).projectId, hasDeliveryAddress: !!(invoice as any).deliveryAddress, hasCreatedBy: !!(invoice as any).createdBy, createdBy: (invoice as any).createdBy, timestamp: Date.now() }));
-    // #endregion
-
     const enriched = {
       ...invoice,
       qrIban: (invoice as any).qrIban || company?.qrIban || null,
