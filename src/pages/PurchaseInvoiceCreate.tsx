@@ -342,8 +342,8 @@ export default function PurchaseInvoiceCreate() {
                       <TableHead className="min-w-[180px]">Beschreibung</TableHead>
                       <TableHead className="w-16">Menge</TableHead>
                       <TableHead className="w-20">Einheit</TableHead>
-                      <TableHead className="w-24">Preis</TableHead>
                       <TableHead className="w-20">MwSt.</TableHead>
+                      <TableHead className="w-24">Einzelpreis</TableHead>
                       <TableHead className="text-right w-24">Gesamt</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
@@ -360,12 +360,8 @@ export default function PurchaseInvoiceCreate() {
                             onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))} />
                         </TableCell>
                         <TableCell>
-                          <Input className="h-8 w-18" value={item.unit}
+                          <Input className="h-8 w-20" value={item.unit}
                             onChange={(e) => updateItem(item.id, "unit", e.target.value)} />
-                        </TableCell>
-                        <TableCell>
-                          <Input type="number" min={0} step={0.01} className="h-8 w-24" value={item.unitPrice}
-                            onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))} />
                         </TableCell>
                         <TableCell>
                           <Select value={String(item.vatRate)} onValueChange={(v) => updateItem(item.id, "vatRate", Number(v))}>
@@ -376,6 +372,10 @@ export default function PurchaseInvoiceCreate() {
                               {VAT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" min={0} step={0.01} className="h-8 w-24" value={item.unitPrice}
+                            onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))} />
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           CHF {(item.quantity * item.unitPrice * (1 + item.vatRate / 100)).toFixed(2)}
