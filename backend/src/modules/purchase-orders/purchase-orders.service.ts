@@ -108,7 +108,7 @@ export class PurchaseOrdersService {
     // Generate number
     const count = await this.prisma.purchaseOrder.count({ where: { companyId } });
     const year = new Date().getFullYear();
-    const number = `BE-${year}-${String(count + 1).padStart(4, '0')}`;
+    const number = `BE-${year}-${String(count + 1).padStart(3, '0')}`;
 
     const created = await this.prisma.purchaseOrder.create({
       data: {

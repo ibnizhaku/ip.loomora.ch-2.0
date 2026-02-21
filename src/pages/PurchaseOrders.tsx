@@ -82,8 +82,9 @@ const PurchaseOrders = () => {
   const hasActiveFilters = selectedStatuses.length > 0;
 
   const filteredOrders = purchaseOrders.filter(order => {
+    const supplierStr = typeof order.supplier === 'string' ? order.supplier : (order.supplierName || '');
     const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+      supplierStr.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(order.status);
     return matchesSearch && matchesStatus;
   });
@@ -215,7 +216,7 @@ const PurchaseOrders = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
-                        {order.supplier}
+                        {typeof order.supplier === 'string' ? order.supplier : order.supplierName}
                       </div>
                     </TableCell>
                     <TableCell>{order.date}</TableCell>

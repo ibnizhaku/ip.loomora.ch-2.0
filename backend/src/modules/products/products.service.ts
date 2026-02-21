@@ -50,6 +50,9 @@ export class ProductsService {
     // Calculate margin and available stock
     const enrichedData = data.map((product) => ({
       ...product,
+      purchasePrice: Number(product.purchasePrice || 0),
+      salePrice: Number(product.salePrice || 0),
+      stockQuantity: Number(product.stockQuantity || 0),
       margin: Number(product.purchasePrice) > 0 
         ? ((Number(product.salePrice) - Number(product.purchasePrice)) / Number(product.purchasePrice)) * 100 
         : 100,
