@@ -42,15 +42,16 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const statusConfig: Record<string, { color: string; icon: any }> = {
-  "Entwurf": { color: "bg-muted text-muted-foreground", icon: ShoppingCart },
-  "Bestellt": { color: "bg-info/10 text-info", icon: Clock },
-  "In Transit": { color: "bg-warning/10 text-warning", icon: Truck },
-  "Geliefert": { color: "bg-success/10 text-success", icon: CheckCircle2 },
-  "Storniert": { color: "bg-destructive/10 text-destructive", icon: Package },
+const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
+  "DRAFT":     { color: "bg-muted text-muted-foreground", icon: ShoppingCart, label: "Entwurf" },
+  "SENT":      { color: "bg-info/10 text-info", icon: Clock, label: "Bestellt" },
+  "CONFIRMED": { color: "bg-primary/10 text-primary", icon: CheckCircle2, label: "Auftragsbestätigt" },
+  "PARTIAL":   { color: "bg-warning/10 text-warning", icon: Truck, label: "Teilweise geliefert" },
+  "RECEIVED":  { color: "bg-success/10 text-success", icon: CheckCircle2, label: "Vollständig geliefert" },
+  "CANCELLED": { color: "bg-destructive/10 text-destructive", icon: Package, label: "Storniert" },
 };
 
-const statusOptions = Object.keys(statusConfig);
+const statusOptions = Object.values(statusConfig).map(s => s.label);
 
 const stats = [
   { title: "Offene Bestellungen", value: "12", change: "+3 diese Woche" },
@@ -83,9 +84,11 @@ const PurchaseOrders = () => {
 
   const filteredOrders = purchaseOrders.filter(order => {
     const supplierStr = typeof order.supplier === 'string' ? order.supplier : (order.supplierName || '');
-    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const orderNum = order.number || order.id || '';
+    const matchesSearch = orderNum.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplierStr.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(order.status);
+    const statusLabel = statusConfig[order.status]?.label || '';
+    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(statusLabel);
     return matchesSearch && matchesStatus;
   });
 
@@ -211,7 +214,7 @@ const PurchaseOrders = () => {
                     onClick={() => navigate(`/purchase-orders/${order.id}`)}
                   >
                     <TableCell>
-                      <span className="font-medium">{order.id}</span>
+                      <span className="font-medium">{order.number || order.id}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -219,14 +222,18 @@ const PurchaseOrders = () => {
                         {typeof order.supplier === 'string' ? order.supplier : order.supplierName}
                       </div>
                     </TableCell>
-                    <TableCell>{order.date}</TableCell>
+                    <TableCell>
+                      {order.orderDate ? new Date(order.orderDate).toLocaleDateString('de-CH') : order.createdAt ? new Date(order.createdAt).toLocaleDateString('de-CH') : '—'}
+                    </TableCell>
                     <TableCell className="text-right">{Array.isArray(order.items) ? order.items.length : (order.items || 0)}</TableCell>
-                    <TableCell className="text-right font-medium">CHF {(order.total || 0).toLocaleString("de-CH")}</TableCell>
-                    <TableCell>{order.expectedDelivery}</TableCell>
+                    <TableCell className="text-right font-medium">CHF {(order.total || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>
+                      {order.expectedDate ? new Date(order.expectedDate).toLocaleDateString('de-CH') : '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge className={status.color}>
                         <StatusIcon className="h-3 w-3 mr-1" />
-                        {order.status}
+                        {status.label}
                       </Badge>
                     </TableCell>
                     <TableCell>

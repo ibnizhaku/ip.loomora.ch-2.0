@@ -121,10 +121,11 @@ export default function PurchaseOrderCreate() {
   
   // Delivery dialog state
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
-  const [deliveryStep, setDeliveryStep] = useState<"select" | "sending" | "done">("select");
+  const [deliveryStep, setDeliveryStep] = useState<"select" | "email" | "sending" | "done">("select");
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState<DeliveryMethod[]>([]);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [orderNumber, setOrderNumber] = useState("");
+  const [emailForm, setEmailForm] = useState({ recipient: "", subject: "", message: "" });
 
   const createOrder = useCreatePurchaseOrder();
   const sendOrder = useSendPurchaseOrder();
@@ -229,11 +230,23 @@ export default function PurchaseOrderCreate() {
     setDeliveryStep("select");
     setSelectedDeliveryMethods([]);
     setSendingProgress(0);
+    setEmailForm({ recipient: "", subject: "", message: "" });
   };
 
   const processDelivery = async () => {
     if (selectedDeliveryMethods.length === 0) {
       toast.error("Bitte wählen Sie mindestens eine Versandart");
+      return;
+    }
+
+    // If email is selected, show email form first
+    if (selectedDeliveryMethods.includes("email") && deliveryStep === "select") {
+      setEmailForm({
+        recipient: (selectedSupplier as any)?.email || "",
+        subject: `Einkaufsbestellung von ${new Date().toLocaleDateString('de-CH')}`,
+        message: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie unsere Einkaufsbestellung.\n\nBitte bestätigen Sie den Erhalt und das voraussichtliche Lieferdatum.\n\nFreundliche Grüsse`,
+      });
+      setDeliveryStep("email");
       return;
     }
 
@@ -298,7 +311,7 @@ export default function PurchaseOrderCreate() {
 
       if (selectedDeliveryMethods.includes("email") && created?.id) {
         try {
-          await sendOrder.mutateAsync({ id: created.id, method: "EMAIL" });
+          await sendOrder.mutateAsync({ id: created.id, method: "EMAIL", recipientEmail: emailForm.recipient, message: emailForm.message });
         } catch {
           toast.error("E-Mail konnte nicht gesendet werden");
         }
@@ -819,15 +832,58 @@ export default function PurchaseOrderCreate() {
           <DialogHeader>
             <DialogTitle>
               {deliveryStep === "select" && "Bestellung versenden"}
+              {deliveryStep === "email" && "E-Mail an Lieferanten"}
               {deliveryStep === "sending" && "Bestellung wird verarbeitet..."}
               {deliveryStep === "done" && "Bestellung erfolgreich!"}
             </DialogTitle>
             <DialogDescription>
-              {deliveryStep === "select" && `Bestellung ${orderNumber} an ${selectedSupplier?.name}`}
+              {deliveryStep === "select" && `Bestellung an ${selectedSupplier?.name}`}
+              {deliveryStep === "email" && `Bestellung wird per E-Mail an ${selectedSupplier?.name} gesendet`}
               {deliveryStep === "sending" && "Bitte warten Sie, während Ihre Bestellung verarbeitet wird."}
               {deliveryStep === "done" && `Ihre Bestellung ${orderNumber} wurde erfolgreich erstellt.`}
             </DialogDescription>
           </DialogHeader>
+
+          {deliveryStep === "email" && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Empfänger *</Label>
+                <Input
+                  type="email"
+                  placeholder="lieferant@firma.ch"
+                  value={emailForm.recipient}
+                  onChange={(e) => setEmailForm({ ...emailForm, recipient: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Betreff</Label>
+                <Input
+                  value={emailForm.subject}
+                  onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nachricht</Label>
+                <textarea
+                  className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={emailForm.message}
+                  onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setDeliveryStep("select")}>
+                  Zurück
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={processDelivery}
+                  disabled={!emailForm.recipient}
+                >
+                  Bestellung aufgeben & senden
+                </Button>
+              </div>
+            </div>
+          )}
 
           {deliveryStep === "select" && (
             <div className="space-y-4">
