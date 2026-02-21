@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { downloadPdf } from "@/lib/api";
+import { downloadPurchaseInvoicePDF, printPurchaseInvoicePDF } from "@/lib/pdf/purchase-invoice-pdf";
 import { 
   ArrowLeft, 
   FileText, 
@@ -97,6 +97,31 @@ const PurchaseInvoiceDetail = () => {
   const outstanding = Number(pi.openAmount ?? (pi.total - (pi.paidAmount || 0))) || 0;
 
   const isCancellable = pi.status !== "CANCELLED" && pi.status !== "PAID";
+
+  const pdfData = useMemo(() => ({
+    supplierName: pi.supplier?.name || pi.supplier?.companyName || "Unbekannt",
+    supplierAddress: pi.supplier?.address || pi.supplier?.street,
+    supplierCity: pi.supplier?.city ? `${pi.supplier?.zipCode || ""} ${pi.supplier?.city}`.trim() : undefined,
+    supplierVatNumber: pi.supplier?.vatNumber,
+    invoiceNumber: pi.number || pi.id,
+    externalNumber: pi.externalNumber,
+    invoiceDate: pi.invoiceDate || new Date().toISOString(),
+    dueDate: pi.dueDate,
+    items: (pi.items || []).map((item: any) => ({
+      description: item.description || "",
+      quantity: Number(item.quantity) || 1,
+      unit: item.unit || "Stk",
+      unitPrice: Number(item.unitPrice) || 0,
+      total: Number(item.total || item.quantity * item.unitPrice) || 0,
+    })),
+    subtotal: Number(pi.subtotal) || 0,
+    vatRate: 8.1,
+    vatAmount: Number(pi.vatAmount) || 0,
+    total: Number(pi.total) || 0,
+    paidAmount: Number(pi.paidAmount) || 0,
+    notes: pi.notes,
+    purchaseOrderNumber: pi.purchaseOrder?.number,
+  }), [pi]);
 
   const handleSubmitForReview = () => {
     updateInvoice.mutate(
@@ -225,14 +250,11 @@ const PurchaseInvoiceDetail = () => {
               Zahlung erfassen
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => {
-            downloadPdf('purchase-invoices', id || '', `Einkaufsrechnung-${pi.number || pi.id}.pdf`);
-            toast.success("PDF wird heruntergeladen");
-          }}>
+          <Button variant="outline" size="sm" onClick={() => { downloadPurchaseInvoicePDF(pdfData); toast.success("PDF wird heruntergeladen"); }}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={() => printPurchaseInvoicePDF(pdfData)}>
             <Printer className="h-4 w-4 mr-2" />
             Drucken
           </Button>

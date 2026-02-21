@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { extractInvoiceFromPDF, type ExtractedInvoiceData } from "@/lib/pdf/pdf-extractor";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   Plus,
@@ -17,6 +18,8 @@ import {
   X,
   File,
   SendHorizonal,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,12 +128,16 @@ export default function PurchaseInvoices() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedData, setExtractedData] = useState<ExtractedInvoiceData | null>(null);
   const [importData, setImportData] = useState({
     supplier: "",
     supplierNumber: "",
     netAmount: "",
     invoiceDate: "",
     dueDate: "",
+    vatNumber: "",
+    iban: "",
   });
 
   // Filter invoices
@@ -155,34 +162,48 @@ export default function PurchaseInvoices() {
     .filter((i) => i.status === "paid")
     .reduce((sum, i) => sum + i.grossAmount, 0);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== "application/pdf") {
-        toast.error("Nur PDF-Dateien erlaubt");
-        return;
-      }
-      setUploadedFile(file);
-      setImportDialogOpen(true);
-      // Simulate OCR extraction (in real app, this would call an API)
-      toast.info("PDF wird analysiert...");
-      setTimeout(() => {
-        toast.success("Daten aus PDF extrahiert");
-      }, 1500);
+    if (!file) return;
+    if (file.type !== "application/pdf") { toast.error("Nur PDF-Dateien erlaubt"); return; }
+    setUploadedFile(file);
+    setImportDialogOpen(true);
+    setIsExtracting(true);
+    toast.info("PDF wird analysiert...", { duration: 2000 });
+    try {
+      const data = await extractInvoiceFromPDF(file);
+      setExtractedData(data);
+      setImportData({
+        supplier: data.supplierName || "",
+        supplierNumber: data.externalNumber || "",
+        netAmount: data.netAmount || "",
+        invoiceDate: data.invoiceDate || "",
+        dueDate: data.dueDate || "",
+        vatNumber: data.vatNumber || "",
+        iban: data.iban || "",
+      });
+      toast.success("Daten aus PDF extrahiert – bitte prüfen und bestätigen");
+    } catch (err) {
+      toast.error("PDF konnte nicht gelesen werden. Bitte manuell ausfüllen.");
+    } finally {
+      setIsExtracting(false);
     }
   };
 
   const handleImportInvoice = () => {
-    if (!importData.supplier || !importData.netAmount) {
-      toast.error("Bitte Pflichtfelder ausfüllen");
-      return;
-    }
-    // TODO: Wire to useCreatePurchaseInvoice once backend supports direct import
+    if (!importData.netAmount) { toast.error("Bitte Betrag angeben"); return; }
+    const params = new URLSearchParams();
+    if (importData.supplier) params.set("supplier", importData.supplier);
+    if (importData.supplierNumber) params.set("externalNumber", importData.supplierNumber);
+    if (importData.netAmount) params.set("netAmount", importData.netAmount);
+    if (importData.invoiceDate) params.set("invoiceDate", importData.invoiceDate);
+    if (importData.dueDate) params.set("dueDate", importData.dueDate);
     setImportDialogOpen(false);
     setUploadedFile(null);
-    setImportData({ supplier: "", supplierNumber: "", netAmount: "", invoiceDate: "", dueDate: "" });
-    toast.success("Rechnung importiert – bitte manuell vervollständigen");
-    navigate("/purchase-invoices/new?supplierId=" + importData.supplier);
+    setExtractedData(null);
+    setImportData({ supplier: "", supplierNumber: "", netAmount: "", invoiceDate: "", dueDate: "", vatNumber: "", iban: "" });
+    toast.success("Daten übernommen – Rechnung wird geöffnet");
+    navigate("/purchase-invoices/new?" + params.toString());
   };
 
   const handleSubmitForReview = (id: string, e: React.MouseEvent) => {
@@ -498,97 +519,113 @@ export default function PurchaseInvoices() {
 
       {/* PDF Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>PDF-Rechnung importieren</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              PDF-Rechnung importieren
+            </DialogTitle>
           </DialogHeader>
-          
+
+          {/* Datei-Info */}
           {uploadedFile && (
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-              <File className="h-8 w-8 text-primary" />
+              <File className="h-8 w-8 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{uploadedFile.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {(uploadedFile.size / 1024).toFixed(1)} KB
-                </p>
+                <p className="text-sm text-muted-foreground">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setUploadedFile(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {isExtracting ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : extractedData ? (
+                <Badge className="bg-success/10 text-success gap-1">
+                  <Sparkles className="h-3 w-3" /> Erkannt
+                </Badge>
+              ) : null}
             </div>
           )}
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Lieferant *</Label>
-              <Select
-                value={importData.supplier}
-                onValueChange={(value) => setImportData({ ...importData, supplier: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Lieferant auswählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier} value={supplier}>
-                      {supplier}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {isExtracting && (
+            <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>PDF wird analysiert...</span>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-4">
+          {!isExtracting && (
+            <div className="space-y-4 py-2">
+              {extractedData && (
+                <div className="p-3 rounded-lg bg-success/5 border border-success/20 text-sm text-success">
+                  <Sparkles className="h-4 w-4 inline mr-1" />
+                  Daten automatisch erkannt – bitte prüfen und ggf. korrigieren.
+                  {extractedData.vatNumber && <span className="ml-2 font-mono text-xs">{extractedData.vatNumber}</span>}
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label>Lieferanten-Rechnungsnr.</Label>
+                <Label>Lieferant (Name aus PDF)</Label>
                 <Input
-                  value={importData.supplierNumber}
-                  onChange={(e) => setImportData({ ...importData, supplierNumber: e.target.value })}
-                  placeholder="R-12345"
+                  value={importData.supplier}
+                  onChange={(e) => setImportData({ ...importData, supplier: e.target.value })}
+                  placeholder="Lieferantenname"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Netto-Betrag (CHF) *</Label>
-                <Input
-                  type="number"
-                  value={importData.netAmount}
-                  onChange={(e) => setImportData({ ...importData, netAmount: e.target.value })}
-                  placeholder="0.00"
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Lieferanten-Rechnungsnr.</Label>
+                  <Input
+                    value={importData.supplierNumber}
+                    onChange={(e) => setImportData({ ...importData, supplierNumber: e.target.value })}
+                    placeholder="R-12345"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Netto-Betrag (CHF) *</Label>
+                  <Input
+                    type="number"
+                    value={importData.netAmount}
+                    onChange={(e) => setImportData({ ...importData, netAmount: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Rechnungsdatum</Label>
+                  <Input
+                    type="date"
+                    value={importData.invoiceDate}
+                    onChange={(e) => setImportData({ ...importData, invoiceDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fälligkeitsdatum</Label>
+                  <Input
+                    type="date"
+                    value={importData.dueDate}
+                    onChange={(e) => setImportData({ ...importData, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {importData.iban && (
+                <div className="space-y-2">
+                  <Label>IBAN (aus PDF erkannt)</Label>
+                  <Input value={importData.iban} readOnly className="font-mono bg-muted" />
+                </div>
+              )}
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Rechnungsdatum</Label>
-                <Input
-                  type="date"
-                  value={importData.invoiceDate}
-                  onChange={(e) => setImportData({ ...importData, invoiceDate: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fälligkeitsdatum</Label>
-                <Input
-                  type="date"
-                  value={importData.dueDate}
-                  onChange={(e) => setImportData({ ...importData, dueDate: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => { setImportDialogOpen(false); setExtractedData(null); }}>
               Abbrechen
             </Button>
-            <Button onClick={handleImportInvoice} className="gap-2">
+            <Button onClick={handleImportInvoice} className="gap-2" disabled={isExtracting}>
               <Upload className="h-4 w-4" />
-              Importieren
+              Importieren & weiterbearbeiten
             </Button>
           </div>
         </DialogContent>
