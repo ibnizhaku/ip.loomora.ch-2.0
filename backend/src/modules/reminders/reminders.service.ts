@@ -5,6 +5,7 @@ import {
   UpdateReminderDto, 
   SendReminderDto,
   CreateBatchRemindersDto,
+  RecordPaymentDto,
   ReminderStatus,
   ReminderLevel,
   REMINDER_FEES,
@@ -140,7 +141,19 @@ export class RemindersService {
       throw new BadRequestException('Mahnstufe muss zwischen 1 und 5 liegen');
     }
 
-    // Calculate fee based on level
+    // 10-Tage-Mindestfrist seit letzter Mahnung (Schweizer Mahnpraxis)
+    if (lastReminder && lastReminder.status === ReminderStatus.SENT) {
+      const daysSinceLast = Math.floor(
+        (Date.now() - new Date(lastReminder.sentAt || lastReminder.createdAt).getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysSinceLast < 10) {
+        throw new BadRequestException(
+          `Zwischen Mahnungen müssen mindestens 10 Tage liegen. Letzte Mahnung vor ${daysSinceLast} Tagen.`,
+        );
+      }
+    }
+
+    // Mahngebühr nach Stufe (Stufe 5 = Letzte Mahnung inkl. Inkasso-Gebühr)
     const fee = REMINDER_FEES[level] || 0;
 
     // Calculate interest (OR Art. 104: default 5% p.a.)
@@ -216,18 +229,44 @@ export class RemindersService {
   async update(id: string, companyId: string, dto: UpdateReminderDto, userId?: string) {
     const reminder = await this.findOne(id, companyId);
 
-    if (reminder.status === ReminderStatus.SENT) {
+    if (reminder.status === ReminderStatus.SENT && !dto.status) {
       throw new BadRequestException('Versendete Mahnung kann nicht bearbeitet werden');
     }
 
-    const oldValues = { status: reminder.status, dueDate: reminder.dueDate, notes: reminder.notes };
+    const oldValues = { status: reminder.status, dueDate: reminder.dueDate, notes: reminder.notes, fee: reminder.fee };
+
+    // Gebühr und Zinsen neu berechnen wenn fee oder interestRate geändert werden
+    let newFee = dto.fee !== undefined ? dto.fee : undefined;
+    let newInterestRate = dto.interestRate !== undefined ? dto.interestRate : undefined;
+    let newTotalWithFee: number | undefined;
+
+    if (newFee !== undefined || newInterestRate !== undefined) {
+      const currentFee = newFee ?? Number(reminder.fee);
+      const currentInterestAmount = Number(reminder.interestAmount ?? 0);
+      const invoice = await (this.prisma.invoice as any).findFirst({
+        where: { id: reminder.invoiceId },
+        select: { totalAmount: true, paidAmount: true, dueDate: true },
+      });
+      const openAmount = Number(invoice?.totalAmount ?? 0) - Number(invoice?.paidAmount ?? 0);
+
+      let interestAmt = currentInterestAmount;
+      if (newInterestRate !== undefined) {
+        const invoiceDueDate = invoice?.dueDate ? new Date(invoice.dueDate) : new Date();
+        const overdueDays = Math.max(0, Math.floor((Date.now() - invoiceDueDate.getTime()) / (1000 * 60 * 60 * 24)));
+        interestAmt = overdueDays > 0 ? Math.round(openAmount * (newInterestRate / 100) * (overdueDays / 365) * 100) / 100 : 0;
+      }
+      newTotalWithFee = openAmount + currentFee + interestAmt;
+    }
 
     const updated = await this.prisma.reminder.update({
       where: { id },
       data: {
-        status: dto.status,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-        notes: dto.notes,
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.dueDate ? { dueDate: new Date(dto.dueDate) } : {}),
+        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+        ...(newFee !== undefined ? { fee: newFee } : {}),
+        ...(newInterestRate !== undefined ? { interestRate: newInterestRate } : {}),
+        ...(newTotalWithFee !== undefined ? { totalWithFee: newTotalWithFee } : {}),
       },
       include: {
         invoice: {
@@ -251,6 +290,7 @@ export class RemindersService {
               status: updated.status,
               dueDate: updated.dueDate,
               notes: updated.notes,
+              fee: updated.fee,
             },
             retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
             companyId,
@@ -261,6 +301,67 @@ export class RemindersService {
     }
 
     return updated;
+  }
+
+  async recordPayment(id: string, companyId: string, dto: RecordPaymentDto, userId?: string) {
+    const reminder = await this.findOne(id, companyId);
+
+    if (reminder.status === ReminderStatus.PAID) {
+      throw new BadRequestException('Zahlung wurde bereits erfasst');
+    }
+    if (reminder.status === ReminderStatus.CANCELLED) {
+      throw new BadRequestException('Stornierte Mahnung kann nicht als bezahlt markiert werden');
+    }
+
+    const paymentDate = dto.paymentDate ? new Date(dto.paymentDate) : new Date();
+
+    // Mahnung als bezahlt markieren
+    const updatedReminder = await this.prisma.reminder.update({
+      where: { id },
+      data: {
+        status: ReminderStatus.PAID,
+        notes: dto.notes ? `${reminder.notes ? reminder.notes + '\n' : ''}Zahlung ${dto.amount} CHF am ${paymentDate.toLocaleDateString('de-CH')} erfasst: ${dto.notes}` : reminder.notes,
+      },
+      include: { invoice: { include: { customer: true } } },
+    });
+
+    // Rechnung paidAmount aktualisieren
+    const invoice = await (this.prisma.invoice as any).findFirst({
+      where: { id: reminder.invoiceId },
+      select: { totalAmount: true, paidAmount: true },
+    });
+    if (invoice) {
+      const newPaidAmount = Math.min(
+        Number(invoice.totalAmount),
+        Number(invoice.paidAmount ?? 0) + dto.amount,
+      );
+      const newStatus = newPaidAmount >= Number(invoice.totalAmount) ? 'PAID' : 'PARTIAL';
+      await (this.prisma.invoice as any).update({
+        where: { id: reminder.invoiceId },
+        data: { paidAmount: newPaidAmount, status: newStatus },
+      });
+    }
+
+    if (userId) {
+      try {
+        await this.prisma.auditLog.create({
+          data: {
+            module: 'REMINDERS' as any,
+            entityType: 'REMINDER',
+            entityId: updatedReminder.id,
+            entityName: updatedReminder.number || '',
+            action: 'UPDATE' as any,
+            description: `Zahlung CHF ${dto.amount} für Mahnung "${updatedReminder.number}" erfasst`,
+            newValues: { status: ReminderStatus.PAID, amount: dto.amount, paymentDate },
+            retentionUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+            companyId,
+            userId,
+          },
+        });
+      } catch (e) { /* audit log failure should not break main operation */ }
+    }
+
+    return updatedReminder;
   }
 
   async send(id: string, companyId: string, dto: SendReminderDto, userId?: string) {

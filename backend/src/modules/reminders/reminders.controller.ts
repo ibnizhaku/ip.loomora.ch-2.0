@@ -1,18 +1,23 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CompanyGuard } from '../auth/guards/company.guard';
 import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RemindersService } from './reminders.service';
-import { CreateReminderDto, UpdateReminderDto, SendReminderDto, CreateBatchRemindersDto } from './dto/reminder.dto';
+import { PdfService } from '../../common/services/pdf.service';
+import { CreateReminderDto, UpdateReminderDto, SendReminderDto, CreateBatchRemindersDto, RecordPaymentDto } from './dto/reminder.dto';
 
 @ApiTags('Reminders')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('reminders')
 export class RemindersController {
-  constructor(private readonly remindersService: RemindersService) {}
+  constructor(
+    private readonly remindersService: RemindersService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Get()
   @RequirePermissions('reminders:read')
@@ -98,6 +103,50 @@ export class RemindersController {
     @CurrentUser() user: any,
   ) {
     return this.remindersService.send(id, user.companyId, dto, user.userId);
+  }
+
+  @Post(':id/payment')
+  @RequirePermissions('reminders:write')
+  @ApiOperation({ summary: 'Record payment for a reminder' })
+  recordPayment(
+    @Param('id') id: string,
+    @Body() dto: RecordPaymentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.remindersService.recordPayment(id, user.companyId, dto, user.userId);
+  }
+
+  @Get(':id/pdf')
+  @RequirePermissions('reminders:read')
+  @ApiOperation({ summary: 'Download reminder as PDF' })
+  async downloadPdf(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Res() res: Response,
+  ) {
+    const reminder = await this.remindersService.findOne(id, user.companyId);
+    const pdfBuffer = await this.pdfService.generateInvoicePdf({
+      ...reminder,
+      title: 'MAHNUNG',
+      number: (reminder as any).number,
+      issueDate: (reminder as any).createdAt,
+      dueDate: (reminder as any).dueDate,
+      customer: (reminder as any).invoice?.customer,
+      items: (reminder as any).invoice?.items || [],
+      totalAmount: (reminder as any).totalWithFee,
+      subtotal: (reminder as any).totalWithFee,
+      fee: (reminder as any).fee,
+      interestAmount: (reminder as any).interestAmount,
+      level: (reminder as any).level,
+      notes: (reminder as any).notes,
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Mahnung_${(reminder as any).number}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.send(pdfBuffer);
   }
 
   @Delete(':id')

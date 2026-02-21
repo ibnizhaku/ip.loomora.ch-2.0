@@ -131,3 +131,12 @@ export function useDeleteReminder() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+export function useRecordPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { amount: number; paymentDate?: string; notes?: string } }) =>
+      api.post<Reminder>(`/reminders/${id}/payment`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
