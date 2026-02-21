@@ -51,7 +51,7 @@ export interface DeliveryAddressInfo {
 }
 
 export interface SalesDocumentData {
-  type: 'quote' | 'order' | 'invoice' | 'delivery-note' | 'credit-note';
+  type: 'quote' | 'order' | 'invoice' | 'delivery-note' | 'credit-note' | 'reminder';
   number: string;
   date: string;
   dueDate?: string;
@@ -84,6 +84,13 @@ export interface SalesDocumentData {
   earlyPaymentDiscount?: number;
   earlyPaymentDays?: number;
   originalInvoiceNumber?: string;
+
+  // Reminder-specific fields
+  reminderLevel?: number;
+  reminderFee?: number;
+  reminderInterestRate?: number;
+  reminderInterestAmount?: number;
+  reminderInvoiceTotal?: number;
 }
 
 const documentTitles: Record<string, { de: string }> = {
@@ -92,6 +99,7 @@ const documentTitles: Record<string, { de: string }> = {
   'invoice': { de: 'Rechnung' },
   'delivery-note': { de: 'Lieferschein' },
   'credit-note': { de: 'Gutschrift' },
+  'reminder': { de: 'Mahnung' },
 };
 
 function formatAmount(amount: number): string {
@@ -308,32 +316,61 @@ export function generateSalesDocumentPDF(data: SalesDocumentData): jsPDF {
     
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("Zwischensumme netto:", totalsX, totalsY);
-    doc.text(`CHF ${formatAmount(data.subtotal)}`, pageWidth - margin, totalsY, { align: "right" });
-    
-    if (data.discountAmount && data.discountAmount > 0) {
+
+    if (data.type === 'reminder') {
+      // Mahnung: Rechnungsbetrag + Mahngebühr + Verzugszins = Gesamtforderung
+      doc.text("Rechnungsbetrag:", totalsX, totalsY);
+      doc.text(`CHF ${formatAmount(data.reminderInvoiceTotal ?? data.subtotal)}`, pageWidth - margin, totalsY, { align: "right" });
+
+      if (data.reminderFee && data.reminderFee > 0) {
+        const levelNames: Record<number, string> = { 1: 'Zahlungserinnerung', 2: '1. Mahnung', 3: '2. Mahnung', 4: '3. Mahnung', 5: 'Letzte Mahnung' };
+        totalsY += 5;
+        doc.text(`Mahngebühr (${levelNames[data.reminderLevel || 1] || `Stufe ${data.reminderLevel}`}):`, totalsX, totalsY);
+        doc.text(`CHF ${formatAmount(data.reminderFee)}`, pageWidth - margin, totalsY, { align: "right" });
+      }
+
+      if (data.reminderInterestAmount && data.reminderInterestAmount > 0) {
+        totalsY += 5;
+        doc.text(`Verzugszins (${data.reminderInterestRate ?? 5}% p.a.):`, totalsX, totalsY);
+        doc.text(`CHF ${formatAmount(data.reminderInterestAmount)}`, pageWidth - margin, totalsY, { align: "right" });
+      }
+
+      totalsY += 3;
+      doc.setDrawColor(0);
+      doc.line(totalsX, totalsY, pageWidth - margin, totalsY);
+      totalsY += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Gesamtforderung:", totalsX, totalsY);
+      doc.text(`CHF ${formatAmount(data.total)}`, pageWidth - margin, totalsY, { align: "right" });
+    } else {
+      doc.text("Zwischensumme netto:", totalsX, totalsY);
+      doc.text(`CHF ${formatAmount(data.subtotal)}`, pageWidth - margin, totalsY, { align: "right" });
+      
+      if (data.discountAmount && data.discountAmount > 0) {
+        totalsY += 5;
+        const discountLabel = data.discountPercent
+          ? `Rabatt ${data.discountPercent}%:`
+          : 'Rabatt:';
+        doc.text(discountLabel, totalsX, totalsY);
+        doc.text(`- CHF ${formatAmount(data.discountAmount)}`, pageWidth - margin, totalsY, { align: "right" });
+      }
+      
       totalsY += 5;
-      const discountLabel = data.discountPercent
-        ? `Rabatt ${data.discountPercent}%:`
-        : 'Rabatt:';
-      doc.text(discountLabel, totalsX, totalsY);
-      doc.text(`- CHF ${formatAmount(data.discountAmount)}`, pageWidth - margin, totalsY, { align: "right" });
+      doc.text(`MwSt. ${data.vatRate}%:`, totalsX, totalsY);
+      doc.text(`CHF ${formatAmount(data.vatAmount)}`, pageWidth - margin, totalsY, { align: "right" });
+      
+      // Draw line
+      totalsY += 3;
+      doc.setDrawColor(0);
+      doc.line(totalsX, totalsY, pageWidth - margin, totalsY);
+      
+      totalsY += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Gesamtbetrag:", totalsX, totalsY);
+      doc.text(`CHF ${formatAmount(data.total)}`, pageWidth - margin, totalsY, { align: "right" });
     }
-    
-    totalsY += 5;
-    doc.text(`MwSt. ${data.vatRate}%:`, totalsX, totalsY);
-    doc.text(`CHF ${formatAmount(data.vatAmount)}`, pageWidth - margin, totalsY, { align: "right" });
-    
-    // Draw line
-    totalsY += 3;
-    doc.setDrawColor(0);
-    doc.line(totalsX, totalsY, pageWidth - margin, totalsY);
-    
-    totalsY += 6;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Gesamtbetrag:", totalsX, totalsY);
-    doc.text(`CHF ${formatAmount(data.total)}`, pageWidth - margin, totalsY, { align: "right" });
   }
   
   // Notes Section

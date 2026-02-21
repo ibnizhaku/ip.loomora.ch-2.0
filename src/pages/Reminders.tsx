@@ -69,16 +69,16 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders, useReminders, useUpdateReminder, useSendReminder } from "@/hooks/use-reminders";
+import { useOverdueInvoices, useCreateReminder, useCreateBatchReminders, useReminders, useUpdateReminder, useSendReminder, useRecordPayment } from "@/hooks/use-reminders";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 
-// Swiss 5-stage reminder system with fees (Schweizer Mahnwesen)
+// Swiss 5-stage reminder system with fees (Schweizer Mahnwesen) – synchronisiert mit Backend REMINDER_FEES
 const levelConfig: Record<number, { label: string; color: string; fee: number; days: number }> = {
-  1: { label: "1. Mahnung", color: "bg-muted text-muted-foreground", fee: 0, days: 10 },
-  2: { label: "2. Mahnung", color: "bg-warning/10 text-warning", fee: 20, days: 10 },
-  3: { label: "3. Mahnung", color: "bg-orange-500/10 text-orange-500", fee: 30, days: 10 },
-  4: { label: "4. Mahnung", color: "bg-destructive/10 text-destructive", fee: 50, days: 10 },
-  5: { label: "Inkasso", color: "bg-destructive text-destructive-foreground", fee: 100, days: 0 },
+  1: { label: "Zahlungserinnerung", color: "bg-muted text-muted-foreground", fee: 0, days: 10 },
+  2: { label: "1. Mahnung", color: "bg-warning/10 text-warning", fee: 20, days: 10 },
+  3: { label: "2. Mahnung", color: "bg-orange-500/10 text-orange-500", fee: 30, days: 10 },
+  4: { label: "3. Mahnung", color: "bg-destructive/10 text-destructive", fee: 50, days: 10 },
+  5: { label: "Letzte Mahnung", color: "bg-destructive text-destructive-foreground", fee: 100, days: 0 },
 };
 
 interface Reminder {
@@ -179,7 +179,7 @@ const HistoryTab = () => {
                   {r.status === "SENT" ? "Versendet" : r.status === "PAID" ? "Bezahlt" : "Storniert"}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right font-medium">{formatCHF(r.totalAmount)}</TableCell>
+              <TableCell className="text-right font-medium">{formatCHF(r.totalWithFee ?? r.totalAmount)}</TableCell>
               <TableCell className="text-muted-foreground">
                 {r.createdAt ? new Date(r.createdAt).toLocaleDateString("de-CH") : "—"}
               </TableCell>
@@ -260,12 +260,14 @@ const Reminders = () => {
   const hasActiveFilters = levelFilters.length > 0;
 
   const filteredReminders = reminders.filter((r) => {
+    // "Aktive Mahnungen" zeigt nur DRAFT und SENT – PAID/CANCELLED gehen in den Verlauf
+    const isActive = r.status === "DRAFT" || r.status === "SENT";
     const matchesSearch =
       (r.displayNumber || r.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (r.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (r.invoiceNumber || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesLevel = levelFilters.length === 0 || levelFilters.includes(r.level);
-    return matchesSearch && matchesLevel;
+    return isActive && matchesSearch && matchesLevel;
   });
 
   const selectedReminderData = reminders.filter((r) => selectedReminders.includes(r.id));
@@ -362,8 +364,35 @@ const Reminders = () => {
   };
 
   const handleRecordPayment = (reminder: Reminder) => {
-    queryClient.invalidateQueries({ queryKey: ["/reminders"] });
-    toast.success(`Zahlung für ${reminder.invoice} erfasst`);
+    setPaymentReminder(reminder);
+    setPaymentAmount(String(reminder.amount ?? ""));
+    setPaymentDate(new Date().toISOString().split("T")[0]);
+    setPaymentNotes("");
+    setPaymentDialogOpen(true);
+  };
+
+  const confirmRecordPayment = async () => {
+    if (!paymentReminder || !paymentAmount) return;
+    try {
+      await recordPaymentMutation.mutateAsync({
+        id: paymentReminder.id,
+        data: {
+          amount: parseFloat(paymentAmount),
+          paymentDate: paymentDate || undefined,
+          notes: paymentNotes || undefined,
+        },
+      });
+      // Beide Query-Keys invalidieren: useReminders-Hook (['reminders']) + direkte Abfrage (["/reminders"])
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      // Rechnungen auch aktualisieren (paidAmount wurde verändert)
+      queryClient.invalidateQueries({ queryKey: ["/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success(`Zahlung CHF ${paymentAmount} für ${paymentReminder.displayNumber || paymentReminder.id} erfasst`);
+      setPaymentDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Fehler beim Erfassen der Zahlung");
+    }
   };
 
   const [extendDialogOpen, setExtendDialogOpen] = useState(false);
@@ -371,6 +400,14 @@ const Reminders = () => {
   const [extendDate, setExtendDate] = useState("");
   const updateReminderMutation = useUpdateReminder();
   const [emailReminderTarget, setEmailReminderTarget] = useState<Reminder | null>(null);
+
+  // Zahlungserfassung Dialog
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentReminder, setPaymentReminder] = useState<Reminder | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const recordPaymentMutation = useRecordPayment();
 
   const handleExtendDeadline = (reminder: Reminder) => {
     setExtendReminder(reminder);
@@ -1280,6 +1317,60 @@ const Reminders = () => {
             <Button onClick={confirmExtendDeadline} disabled={!extendDate || updateReminderMutation.isPending}>
               {updateReminderMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calendar className="h-4 w-4 mr-2" />}
               Frist verlängern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zahlungserfassung Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Zahlung erfassen</DialogTitle>
+            <DialogDescription>
+              Zahlung für {paymentReminder?.displayNumber || "die Mahnung"} ({paymentReminder?.customerName}) erfassen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label>Betrag (CHF)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="mt-2"
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label>Zahlungsdatum</Label>
+              <Input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label>Bemerkung (optional)</Label>
+              <Input
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                className="mt-2"
+                placeholder="z.B. Banküberweisung"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Abbrechen</Button>
+            <Button
+              onClick={confirmRecordPayment}
+              disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || recordPaymentMutation.isPending}
+            >
+              {recordPaymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Banknote className="h-4 w-4 mr-2" />}
+              Zahlung erfassen
             </Button>
           </DialogFooter>
         </DialogContent>

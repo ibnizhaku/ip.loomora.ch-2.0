@@ -49,6 +49,53 @@ export function validateQrReference(reference: string): boolean {
 }
 
 /**
+ * Generiert eine ISO 11649 Creditor Reference (SCOR) aus einer Rechnungsnummer.
+ *
+ * Format: RF + 2 Prüfziffern (MOD97-10) + Referenz (max 21 alphanumerische Zeichen)
+ * Kompatibel mit regulärer IBAN (kein QR-IBAN erforderlich).
+ */
+export function generateScorReference(invoiceNumber: string): string {
+  // Nur alphanumerische Zeichen, max 21 Stellen, Grossbuchstaben
+  const ref = invoiceNumber.replace(/[^A-Z0-9]/gi, '').toUpperCase().substring(0, 21);
+  if (!ref) throw new Error('Rechnungsnummer muss mindestens ein alphanumerisches Zeichen enthalten');
+
+  // ISO 11649: ref + "RF00" → Buchstaben in Zahlen umwandeln (A=10 … Z=35)
+  const toCheck = ref + 'RF00';
+  const numericStr = toCheck
+    .split('')
+    .map((c) => {
+      const code = c.charCodeAt(0);
+      return code >= 65 && code <= 90 ? (code - 55).toString() : c;
+    })
+    .join('');
+
+  // MOD 97 iterativ berechnen
+  let remainder = 0;
+  for (const char of numericStr) {
+    remainder = (remainder * 10 + parseInt(char, 10)) % 97;
+  }
+
+  const checkDigits = (98 - remainder).toString().padStart(2, '0');
+  return `RF${checkDigits}${ref}`;
+}
+
+/**
+ * Wählt automatisch die beste Referenzart:
+ * - Mit QR-IBAN → QRR (27-stellig, MOD10 rekursiv)
+ * - Ohne QR-IBAN → SCOR (ISO 11649, RF-Prefix)
+ */
+export function generateInvoiceReference(
+  invoiceCounter: number,
+  invoiceNumber: string,
+  companyQrIban?: string | null,
+): string {
+  if (companyQrIban && isQrIban(companyQrIban)) {
+    return generateSwissQrReference(invoiceCounter);
+  }
+  return generateScorReference(invoiceNumber);
+}
+
+/**
  * Prüft ob eine IBAN eine gültige QR-IBAN ist (IID 30000-31999, Schweiz/Liechtenstein).
  */
 export function isQrIban(iban: string): boolean {

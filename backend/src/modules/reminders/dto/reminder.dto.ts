@@ -22,16 +22,16 @@ export enum SendMethod {
   BOTH = 'BOTH',
 }
 
-// Fee structure per Swiss standard
+// Mahngebühren nach Schweizer Praxis (synchronisiert mit Frontend)
 export const REMINDER_FEES: Record<number, number> = {
-  1: 0,      // Zahlungserinnerung - keine Gebühr
-  2: 15,     // 1. Mahnung - CHF 15
-  3: 25,     // 2. Mahnung - CHF 25
-  4: 30,     // 3. Mahnung - CHF 30
-  5: 50,     // Letzte Mahnung - CHF 50
+  1: 0,    // Zahlungserinnerung - keine Gebühr
+  2: 20,   // 1. Mahnung - CHF 20
+  3: 30,   // 2. Mahnung - CHF 30
+  4: 50,   // 3. Mahnung - CHF 50
+  5: 100,  // Letzte Mahnung vor Inkasso - CHF 100
 };
 
-export const INKASSO_FEE = 100; // Additional collection agency fee
+export const INKASSO_FEE = 100; // Inkasso-Bearbeitungsgebühr
 
 export class CreateReminderDto {
   @IsString()
@@ -66,6 +66,14 @@ export class UpdateReminderDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsNumber()
+  fee?: number;
+
+  @IsOptional()
+  @IsNumber()
+  interestRate?: number;
 }
 
 export class SendReminderDto {
@@ -89,4 +97,17 @@ export class CreateBatchRemindersDto {
   @IsOptional()
   @IsEnum(SendMethod)
   sendMethod?: SendMethod;
+}
+
+export class RecordPaymentDto {
+  @IsNumber()
+  amount: number;
+
+  @IsOptional()
+  @IsDateString()
+  paymentDate?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

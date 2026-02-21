@@ -62,6 +62,13 @@ export class InvoicesController {
     return this.invoicesService.backfillQrReferences();
   }
 
+  @Post('regenerate-qr-references')
+  @RequirePermissions('invoices:write')
+  @ApiOperation({ summary: 'Re-generate all QR references based on current qrIban setting (QRR or SCOR)' })
+  regenerateAllReferences(@CurrentUser() user: CurrentUserPayload) {
+    return this.invoicesService.regenerateAllReferences(user.companyId);
+  }
+
   @Get('stats')
   @RequirePermissions('invoices:read')
   @ApiOperation({ summary: 'Get invoice statistics' })

@@ -4,7 +4,7 @@ import { CreateOrderDto, UpdateOrderDto } from './dto/order.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { DocumentStatus, InvoiceStatus } from '@prisma/client';
 import { mapOrderResponse } from '../../common/mappers/response.mapper';
-import { generateSwissQrReference } from '../../common/utils/swiss-qr-reference.util';
+import { generateInvoiceReference } from '../../common/utils/swiss-qr-reference.util';
 
 // Gemeinsames Full-Include für alle Order-Abfragen
 const ORDER_FULL_INCLUDE = {
@@ -288,13 +288,12 @@ export class OrdersService {
         : 0;
       const invoiceNumber = `RE-${year}-${String(lastNum + 1).padStart(3, '0')}`;
 
-      // QR-Referenz nach SIX Swiss Payment Standard (QRR, 27 Stellen, MOD10 rekursiv)
-      const invoiceCount = await tx.invoice.count({ where: { companyId } });
-      const qrReference = generateSwissQrReference(invoiceCount + 1);
-
-      // #region agent log
-      console.error('[DEBUG_CREATE_INVOICE_FROM_ORDER]', JSON.stringify({ orderId: id, orderProjectId: order.projectId, hasDeliveryAddress: !!(order as any).deliveryAddress, deliveryAddress: (order as any).deliveryAddress, hasBillingAddress: !!(order as any).billingAddress, timestamp: Date.now() }));
-      // #endregion
+      // QR-Referenz: QRR wenn QR-IBAN konfiguriert, sonst SCOR (ISO 11649)
+      const [invoiceCount, companyForRef] = await Promise.all([
+        tx.invoice.count({ where: { companyId } }),
+        tx.company.findFirst({ where: { id: companyId }, select: { qrIban: true } }),
+      ]);
+      const qrReference = generateInvoiceReference(invoiceCount + 1, invoiceNumber, (companyForRef as any)?.qrIban);
 
       const invoice = await tx.invoice.create({
         data: {
