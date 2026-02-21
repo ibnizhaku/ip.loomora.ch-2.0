@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -109,6 +110,8 @@ type DeliveryMethod = "email" | "pdf" | "print";
 export default function PurchaseOrderCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const currentUserName = user ? `${user.firstName} ${user.lastName}`.trim() : undefined;
   const defaultSupplierId = searchParams.get("supplierId") || "";
   const [step, setStep] = useState<"supplier" | "products" | "review">("supplier");
   const [supplierOpen, setSupplierOpen] = useState(false);
@@ -294,6 +297,7 @@ export default function PurchaseOrderCreate() {
           reference: reference || undefined,
           notes: notes || undefined,
           project: projectData,
+          createdBy: currentUserName,
         });
       }
 
@@ -319,6 +323,7 @@ export default function PurchaseOrderCreate() {
             reference: reference || undefined,
             notes: notes || undefined,
             project: projectData,
+            createdBy: currentUserName,
           });
           setEmailPdfBase64(base64);
         } catch { /* email still works without attachment */ }

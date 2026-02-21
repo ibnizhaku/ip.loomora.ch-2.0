@@ -697,9 +697,10 @@ model User {
   // Assigned orders (M2M)
   assignedOrders      Order[]         @relation("OrderAssignedUsers")
   updatedOrders       Order[]         @relation("OrderUpdatedBy")
-  createdDeliveryNotes DeliveryNote[] @relation("DeliveryNoteCreator")
-  createdCreditNotes   CreditNote[]  @relation("CreditNoteCreator")
-  createdReminders     Reminder[]    @relation("ReminderCreator")
+  createdDeliveryNotes  DeliveryNote[]  @relation("DeliveryNoteCreator")
+  createdCreditNotes    CreditNote[]    @relation("CreditNoteCreator")
+  createdReminders      Reminder[]      @relation("ReminderCreator")
+  createdPurchaseOrders PurchaseOrder[] @relation("PurchaseOrderCreator")
 
   @@index([companyId])
   @@index([email])
@@ -1512,6 +1513,9 @@ model PurchaseOrder {
   
   notes           String?
   
+  createdById     String?
+  createdBy       User?    @relation("PurchaseOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   

@@ -235,6 +235,10 @@ export function mapPurchaseOrderResponse(purchaseOrder: any) {
   
   const { date, total, ...rest } = purchaseOrder;
   
+  const createdByName = purchaseOrder.createdBy
+    ? `${purchaseOrder.createdBy.firstName} ${purchaseOrder.createdBy.lastName}`.trim()
+    : null;
+
   return {
     ...rest,
     orderDate: date,
@@ -243,6 +247,7 @@ export function mapPurchaseOrderResponse(purchaseOrder: any) {
     projectName: purchaseOrder.project?.name,
     subtotal: purchaseOrder.subtotal ? Number(purchaseOrder.subtotal) : 0,
     vatAmount: purchaseOrder.vatAmount ? Number(purchaseOrder.vatAmount) : 0,
+    createdByName,
   };
 }
 

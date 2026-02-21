@@ -40,6 +40,7 @@ export class PurchaseOrdersService {
         include: {
           supplier: { select: { id: true, name: true, email: true } },
           project: { select: { id: true, name: true, number: true } },
+          createdBy: { select: { firstName: true, lastName: true } },
           items: true,
         },
       }),
@@ -61,6 +62,7 @@ export class PurchaseOrdersService {
       include: {
         supplier: true,
         project: { select: { id: true, name: true, number: true } },
+        createdBy: { select: { firstName: true, lastName: true } },
         items: true,
         purchaseInvoices: { select: { id: true, number: true, status: true, totalAmount: true } },
       },
@@ -115,6 +117,7 @@ export class PurchaseOrdersService {
         companyId,
         supplierId: dto.supplierId,
         projectId: dto.projectId,
+        ...(userId ? { createdById: userId } : {}),
         number,
         status: 'DRAFT',
         expectedDate: dto.expectedDate ? new Date(dto.expectedDate) : null,
@@ -129,6 +132,7 @@ export class PurchaseOrdersService {
       include: {
         supplier: true,
         project: { select: { id: true, name: true } },
+        createdBy: { select: { firstName: true, lastName: true } },
         items: true,
       },
     });

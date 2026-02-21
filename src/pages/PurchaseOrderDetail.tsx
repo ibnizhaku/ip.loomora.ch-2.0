@@ -267,6 +267,7 @@ const PurchaseOrderDetail = () => {
     items: (orderData.positions || []).map(pos => ({ sku: pos.sku || '', name: pos.description || '', quantity: pos.quantity, unit: pos.unit || 'Stk', unitPrice: pos.price, total: pos.total })),
     subtotal: orderData.subtotal, vat: orderData.tax, total: orderData.total,
     expectedDelivery: orderData.expectedDelivery, project: orderData.project, notes: orderData.notes,
+    createdBy: orderData.createdByName || null,
   });
 
   // PDF handlers

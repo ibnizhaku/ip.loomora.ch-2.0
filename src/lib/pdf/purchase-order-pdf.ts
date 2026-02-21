@@ -33,6 +33,7 @@ interface PurchaseOrderData {
   reference?: string;
   notes?: string;
   project?: Project | null;
+  createdBy?: string | null;
 }
 
 // Company info - in real app this would come from settings
@@ -141,6 +142,14 @@ function _buildPurchaseOrderPDF(doc: jsPDF, data: PurchaseOrderData): void {
     doc.text('Projekt:', infoX, y);
     doc.setFont('helvetica', 'normal');
     doc.text(`${data.project.number}`, valueX, y);
+  }
+
+  if (data.createdBy) {
+    y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Ersteller:', infoX, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.createdBy, valueX, y);
   }
 
   y = 145;
