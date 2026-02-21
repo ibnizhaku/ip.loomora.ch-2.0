@@ -253,6 +253,9 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
   // Pre-fill from source order or quote (new document creation)
   const [sourceApplied, setSourceApplied] = useState(false);
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DocumentForm.tsx:255',message:'source-prefill-effect',data:{sourceApplied,editMode,hasSourceOrder:!!sourceOrder,hasSourceQuote:!!sourceQuote,sourceOrderProjectId:(sourceOrder as any)?.projectId,sourceOrderDeliveryAddress:(sourceOrder as any)?.deliveryAddress,sourceOrderId:(sourceOrder as any)?.id},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (sourceApplied || editMode) return;
     const source = sourceOrder || sourceQuote;
     if (!source) return;
@@ -297,6 +300,9 @@ export function DocumentForm({ type, editMode = false, initialData, onSave, defa
     }
 
     // Pre-fill project
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DocumentForm.tsx:299',message:'source-prefill-after-early-checks',data:{rawProjectId:raw.projectId,rawDeliveryAddress:raw.deliveryAddress,rawNotes:!!raw.notes,itemsCount:(raw.items||raw.positions||[]).length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (raw.projectId) {
       setSelectedProjectId(raw.projectId);
     }
