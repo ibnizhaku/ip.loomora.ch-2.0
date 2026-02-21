@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { extractInvoiceFromPDF, type ExtractedInvoiceData } from "@/lib/pdf/pdf-extractor";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useSuppliers } from "@/hooks/use-suppliers";
 import {
   Plus,
   Search,
@@ -99,6 +100,10 @@ export default function PurchaseInvoices() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // Lieferanten für Import-Dialog
+  const { data: suppliersData } = useSuppliers({ pageSize: 200 });
+  const suppliers = useMemo(() => (suppliersData as any)?.data || [], [suppliersData]);
+
   // API mutations
   const approveMutation = useApprovePurchaseInvoice();
   const updateMutation = useUpdatePurchaseInvoice();
@@ -131,13 +136,12 @@ export default function PurchaseInvoices() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedInvoiceData | null>(null);
   const [importData, setImportData] = useState({
-    supplier: "",
-    supplierNumber: "",
-    netAmount: "",
+    supplierId: "",        // ID aus Dropdown
+    supplierNumber: "",    // Rechnungsnummer Lieferant
+    grossAmount: "",       // Zahlungsbetrag (Brutto)
+    vatRate: "8.1",
     invoiceDate: "",
     dueDate: "",
-    vatNumber: "",
-    iban: "",
   });
 
   // Filter invoices
@@ -173,35 +177,71 @@ export default function PurchaseInvoices() {
     try {
       const data = await extractInvoiceFromPDF(file);
       setExtractedData(data);
+
+      // Lieferant per Fuzzy-Match aus Stammdaten finden
+      let matchedSupplierId = "";
+      if (data.supplierName && suppliers.length > 0) {
+        const nameLower = data.supplierName.toLowerCase();
+        const match = suppliers.find((s: any) => {
+          const n = (s.companyName || s.name || "").toLowerCase();
+          return n.includes(nameLower) || nameLower.includes(n);
+        });
+        if (match) matchedSupplierId = match.id;
+      }
+
       setImportData({
-        supplier: data.supplierName || "",
+        supplierId: matchedSupplierId,
         supplierNumber: data.externalNumber || "",
-        netAmount: data.netAmount || "",
+        grossAmount: data.grossAmount || "",
+        vatRate: data.vatRate || "8.1",
         invoiceDate: data.invoiceDate || "",
         dueDate: data.dueDate || "",
-        vatNumber: data.vatNumber || "",
-        iban: data.iban || "",
       });
-      toast.success("Daten aus PDF extrahiert – bitte prüfen und bestätigen");
-    } catch (err) {
+      toast.success("Daten aus PDF erkannt – bitte prüfen");
+    } catch {
       toast.error("PDF konnte nicht gelesen werden. Bitte manuell ausfüllen.");
     } finally {
       setIsExtracting(false);
     }
   };
 
-  const handleImportInvoice = () => {
-    if (!importData.netAmount) { toast.error("Bitte Betrag angeben"); return; }
-    const params = new URLSearchParams();
-    if (importData.supplier) params.set("supplier", importData.supplier);
-    if (importData.supplierNumber) params.set("externalNumber", importData.supplierNumber);
-    if (importData.netAmount) params.set("netAmount", importData.netAmount);
-    if (importData.invoiceDate) params.set("invoiceDate", importData.invoiceDate);
-    if (importData.dueDate) params.set("dueDate", importData.dueDate);
+  const resetImportDialog = () => {
     setImportDialogOpen(false);
     setUploadedFile(null);
     setExtractedData(null);
-    setImportData({ supplier: "", supplierNumber: "", netAmount: "", invoiceDate: "", dueDate: "", vatNumber: "", iban: "" });
+    setImportData({ supplierId: "", supplierNumber: "", grossAmount: "", vatRate: "8.1", invoiceDate: "", dueDate: "" });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImportInvoice = () => {
+    if (!importData.supplierId) { toast.error("Bitte Lieferant auswählen"); return; }
+    if (!importData.grossAmount) { toast.error("Bitte Betrag angeben"); return; }
+
+    // Positionen + rohe PDF-Daten via sessionStorage übergeben (URL zu lang)
+    if (extractedData?.positions) {
+      sessionStorage.setItem("pdf-import-positions", JSON.stringify(extractedData.positions));
+    }
+    if (uploadedFile) {
+      // Dateiname für später speichern
+      sessionStorage.setItem("pdf-import-filename", uploadedFile.name);
+      // PDF als Base64 für Anhang
+      const reader = new FileReader();
+      reader.onload = () => {
+        sessionStorage.setItem("pdf-import-base64", (reader.result as string).split(",")[1] || "");
+      };
+      reader.readAsDataURL(uploadedFile);
+    }
+
+    const params = new URLSearchParams({
+      from: "pdf-import",
+      supplierId: importData.supplierId,
+      externalNumber: importData.supplierNumber,
+      grossAmount: importData.grossAmount,
+      vatRate: importData.vatRate,
+      invoiceDate: importData.invoiceDate,
+      dueDate: importData.dueDate,
+    });
+    resetImportDialog();
     toast.success("Daten übernommen – Rechnung wird geöffnet");
     navigate("/purchase-invoices/new?" + params.toString());
   };
@@ -517,9 +557,9 @@ export default function PurchaseInvoices() {
         )}
       </div>
 
-      {/* PDF Import Dialog */}
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      {/* PDF Import Dialog – kompakt, kein Scroll */}
+      <Dialog open={importDialogOpen} onOpenChange={(open) => { if (!open) resetImportDialog(); }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -529,103 +569,79 @@ export default function PurchaseInvoices() {
 
           {/* Datei-Info */}
           {uploadedFile && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-              <File className="h-8 w-8 text-primary shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{uploadedFile.name}</p>
-                <p className="text-sm text-muted-foreground">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
-              </div>
-              {isExtracting ? (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              ) : extractedData ? (
-                <Badge className="bg-success/10 text-success gap-1">
-                  <Sparkles className="h-3 w-3" /> Erkannt
-                </Badge>
-              ) : null}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-sm">
+              <File className="h-4 w-4 text-primary shrink-0" />
+              <span className="truncate flex-1 text-muted-foreground">{uploadedFile.name}</span>
+              {isExtracting
+                ? <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                : extractedData && <Badge className="bg-success/10 text-success text-xs shrink-0"><Sparkles className="h-3 w-3 mr-1" />Erkannt</Badge>
+              }
             </div>
           )}
 
-          {isExtracting && (
-            <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+          {isExtracting ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span>PDF wird analysiert...</span>
             </div>
-          )}
-
-          {!isExtracting && (
-            <div className="space-y-4 py-2">
-              {extractedData && (
-                <div className="p-3 rounded-lg bg-success/5 border border-success/20 text-sm text-success">
-                  <Sparkles className="h-4 w-4 inline mr-1" />
-                  Daten automatisch erkannt – bitte prüfen und ggf. korrigieren.
-                  {extractedData.vatNumber && <span className="ml-2 font-mono text-xs">{extractedData.vatNumber}</span>}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Lieferant (Name aus PDF)</Label>
-                <Input
-                  value={importData.supplier}
-                  onChange={(e) => setImportData({ ...importData, supplier: e.target.value })}
-                  placeholder="Lieferantenname"
-                />
+          ) : (
+            <div className="space-y-3">
+              {/* Lieferant – Dropdown aus Stammdaten */}
+              <div className="space-y-1.5">
+                <Label>Lieferant *</Label>
+                <Select value={importData.supplierId} onValueChange={(v) => setImportData({ ...importData, supplierId: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Lieferant auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.companyName || s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {extractedData?.supplierName && (
+                  <p className="text-xs text-muted-foreground">
+                    <Sparkles className="h-3 w-3 inline mr-1 text-success" />
+                    Erkannt: <span className="font-medium">{extractedData.supplierName}</span>
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Lieferanten-Rechnungsnr.</Label>
-                  <Input
-                    value={importData.supplierNumber}
-                    onChange={(e) => setImportData({ ...importData, supplierNumber: e.target.value })}
-                    placeholder="R-12345"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Rechnungsnr. (Lieferant)</Label>
+                  <Input value={importData.supplierNumber} placeholder="358630"
+                    onChange={(e) => setImportData({ ...importData, supplierNumber: e.target.value })} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Netto-Betrag (CHF) *</Label>
-                  <Input
-                    type="number"
-                    value={importData.netAmount}
-                    onChange={(e) => setImportData({ ...importData, netAmount: e.target.value })}
-                    placeholder="0.00"
-                  />
+                <div className="space-y-1.5">
+                  <Label>Zahlungsbetrag (CHF) *</Label>
+                  <Input type="number" step="0.01" value={importData.grossAmount} placeholder="0.00"
+                    onChange={(e) => setImportData({ ...importData, grossAmount: e.target.value })} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label>Rechnungsdatum</Label>
-                  <Input
-                    type="date"
-                    value={importData.invoiceDate}
-                    onChange={(e) => setImportData({ ...importData, invoiceDate: e.target.value })}
-                  />
+                  <Input type="date" value={importData.invoiceDate}
+                    onChange={(e) => setImportData({ ...importData, invoiceDate: e.target.value })} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Fälligkeitsdatum</Label>
-                  <Input
-                    type="date"
-                    value={importData.dueDate}
-                    onChange={(e) => setImportData({ ...importData, dueDate: e.target.value })}
-                  />
+                <div className="space-y-1.5">
+                  <Label>Fällig am</Label>
+                  <Input type="date" value={importData.dueDate}
+                    onChange={(e) => setImportData({ ...importData, dueDate: e.target.value })} />
                 </div>
               </div>
-
-              {importData.iban && (
-                <div className="space-y-2">
-                  <Label>IBAN (aus PDF erkannt)</Label>
-                  <Input value={importData.iban} readOnly className="font-mono bg-muted" />
-                </div>
-              )}
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => { setImportDialogOpen(false); setExtractedData(null); }}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleImportInvoice} className="gap-2" disabled={isExtracting}>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" size="sm" onClick={resetImportDialog}>Abbrechen</Button>
+            <Button size="sm" onClick={handleImportInvoice} className="gap-2" disabled={isExtracting}>
               <Upload className="h-4 w-4" />
-              Importieren & weiterbearbeiten
+              Weiterbearbeiten
             </Button>
           </div>
         </DialogContent>

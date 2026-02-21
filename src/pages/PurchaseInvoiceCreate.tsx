@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Upload, Building2, Receipt, FolderKanban, Plus, Trash2, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Upload, Building2, Receipt, FolderKanban, Plus, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,19 +21,56 @@ interface InvoiceItem {
   unitPrice: number;
 }
 
+// Swiss KMU Standardkontenrahmen (Aufwandkonten)
+const SWISS_ACCOUNTS = [
+  { code: "4000", label: "4000 – Materialaufwand" },
+  { code: "4200", label: "4200 – Handelswarenaufwand" },
+  { code: "4400", label: "4400 – Fremdleistungen" },
+  { code: "4900", label: "4900 – Übrige direkte Kosten" },
+  { code: "5000", label: "5000 – Personalaufwand" },
+  { code: "6000", label: "6000 – Raumaufwand" },
+  { code: "6100", label: "6100 – Unterhalt Sachanlagen" },
+  { code: "6200", label: "6200 – Fahrzeugaufwand" },
+  { code: "6300", label: "6300 – Versicherungsaufwand" },
+  { code: "6400", label: "6400 – Energieaufwand" },
+  { code: "6500", label: "6500 – Verwaltungsaufwand" },
+  { code: "6600", label: "6600 – IT & Software" },
+  { code: "6700", label: "6700 – Werbeaufwand" },
+  { code: "6800", label: "6800 – Sonstiger Betriebsaufwand" },
+  { code: "6900", label: "6900 – Finanzaufwand" },
+  { code: "7000", label: "7000 – Abschreibungen" },
+];
+
 export default function PurchaseInvoiceCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // URL-Parameter (von normalem Flow oder PDF-Import)
-  const defaultSupplierId = searchParams.get("supplierId") || "";
+  // URL-Parameter (normal oder PDF-Import)
+  const defaultSupplierId     = searchParams.get("supplierId") || "";
   const defaultPurchaseOrderId = searchParams.get("purchaseOrderId") || "";
-  const importedSupplierName = searchParams.get("supplier") || "";    // aus PDF-Import
-  const importedExtNumber   = searchParams.get("externalNumber") || "";
-  const importedNetAmount   = searchParams.get("netAmount") || "";
-  const importedInvoiceDate = searchParams.get("invoiceDate") || "";
-  const importedDueDate     = searchParams.get("dueDate") || "";
-  const isFromPdfImport = !!(importedSupplierName || importedExtNumber || importedNetAmount);
+  const isFromPdfImport       = searchParams.get("from") === "pdf-import";
+  const importedExtNumber     = searchParams.get("externalNumber") || "";
+  const importedGrossAmount   = searchParams.get("grossAmount") || "";
+  const importedVatRate       = searchParams.get("vatRate") || "8.1";
+  const importedInvoiceDate   = searchParams.get("invoiceDate") || "";
+  const importedDueDate       = searchParams.get("dueDate") || "";
+  const importedFilename      = isFromPdfImport ? (sessionStorage.getItem("pdf-import-filename") || "") : "";
+
+  // Positionen aus sessionStorage (von PDF-Import)
+  const importedPositions: InvoiceItem[] = useMemo(() => {
+    if (!isFromPdfImport) return [];
+    try {
+      const raw = sessionStorage.getItem("pdf-import-positions");
+      if (!raw) return [];
+      return (JSON.parse(raw) as any[]).map((p, i) => ({
+        id: i + 1,
+        description: p.description || "",
+        quantity: Number(p.quantity) || 1,
+        unit: p.unit || "Stk",
+        unitPrice: Number(p.unitPrice) || Number(p.total) || 0,
+      }));
+    } catch { return []; }
+  }, [isFromPdfImport]);
 
   const [formData, setFormData] = useState({
     supplierId: defaultSupplierId,
@@ -44,18 +81,14 @@ export default function PurchaseInvoiceCreate() {
     description: "",
     projectId: "",
     accountCode: "",
-    vatRate: "8.1",
+    vatRate: importedVatRate,
   });
 
-  const [items, setItems] = useState<InvoiceItem[]>([
-    {
-      id: 1,
-      description: importedSupplierName ? `Rechnung ${importedExtNumber || ""}`.trim() : "",
-      quantity: 1,
-      unit: "Stück",
-      unitPrice: importedNetAmount ? Number(importedNetAmount) : 0,
-    },
-  ]);
+  const defaultItems: InvoiceItem[] = importedPositions.length > 0
+    ? importedPositions
+    : [{ id: 1, description: "", quantity: 1, unit: "Stück", unitPrice: 0 }];
+
+  const [items, setItems] = useState<InvoiceItem[]>(defaultItems);
 
   // Hooks
   const { data: projectsData, isLoading: projectsLoading } = useProjects({ pageSize: 100 });
@@ -64,18 +97,14 @@ export default function PurchaseInvoiceCreate() {
   const suppliers = useMemo(() => (suppliersData as any)?.data || [], [suppliersData]);
   const createInvoice = useCreatePurchaseInvoice();
 
-  // Auto-Match Lieferant anhand des PDF-Namens sobald Lieferanten geladen sind
+  // PDF-Bruttobetrag: Netto berechnen für Positionen falls keine Positionen extrahiert
   useEffect(() => {
-    if (!importedSupplierName || formData.supplierId || suppliers.length === 0) return;
-    const nameLower = importedSupplierName.toLowerCase();
-    const match = suppliers.find((s: any) => {
-      const n = (s.companyName || s.name || "").toLowerCase();
-      return n.includes(nameLower) || nameLower.includes(n);
-    });
-    if (match) {
-      setFormData(prev => ({ ...prev, supplierId: match.id }));
-    }
-  }, [suppliers, importedSupplierName, formData.supplierId]);
+    if (!isFromPdfImport || importedPositions.length > 0 || !importedGrossAmount) return;
+    const gross = parseFloat(importedGrossAmount);
+    const rate = parseFloat(importedVatRate) / 100;
+    const net = rate === 0 ? gross : gross / (1 + rate);
+    setItems([{ id: 1, description: "Leistung gemäss Rechnung", quantity: 1, unit: "Pauschal", unitPrice: parseFloat(net.toFixed(2)) }]);
+  }, [isFromPdfImport, importedGrossAmount, importedVatRate, importedPositions.length]);
 
   const addItem = () => setItems(prev => [...prev, { id: Date.now(), description: "", quantity: 1, unit: "Stück", unitPrice: 0 }]);
   const removeItem = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
@@ -152,10 +181,10 @@ export default function PurchaseInvoiceCreate() {
           <div>
             <p className="font-medium text-success">Daten aus PDF importiert</p>
             <p className="text-muted-foreground mt-1">
-              Folgende Felder wurden automatisch befüllt – bitte prüfen und ergänzen:
-              {importedSupplierName && <span className="ml-1 font-medium">Lieferant: {importedSupplierName}</span>}
+              Felder automatisch befüllt – bitte prüfen.
               {importedExtNumber && <span className="ml-2 font-medium">RgNr: {importedExtNumber}</span>}
-              {importedNetAmount && <span className="ml-2 font-medium">Netto: CHF {Number(importedNetAmount).toFixed(2)}</span>}
+              {importedGrossAmount && <span className="ml-2 font-medium">Brutto: CHF {Number(importedGrossAmount).toFixed(2)}</span>}
+              {importedFilename && <span className="ml-2">· <FileText className="h-3 w-3 inline" /> {importedFilename}</span>}
             </p>
           </div>
         </div>
@@ -416,7 +445,7 @@ export default function PurchaseInvoiceCreate() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Aufwandkonto</Label>
+                <Label>Aufwandkonto (Swiss KMU)</Label>
                 <Select
                   value={formData.accountCode}
                   onValueChange={(v) => setFormData(prev => ({ ...prev, accountCode: v }))}
@@ -425,9 +454,9 @@ export default function PurchaseInvoiceCreate() {
                     <SelectValue placeholder="Konto wählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="4000">4000 - Materialaufwand</SelectItem>
-                    <SelectItem value="6000">6000 - Raumaufwand</SelectItem>
-                    <SelectItem value="6500">6500 - Verwaltungsaufwand</SelectItem>
+                    {SWISS_ACCOUNTS.map(a => (
+                      <SelectItem key={a.code} value={a.code}>{a.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
