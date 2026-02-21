@@ -251,12 +251,14 @@ const Reminders = () => {
   const hasActiveFilters = levelFilters.length > 0;
 
   const filteredReminders = reminders.filter((r) => {
+    // "Aktive Mahnungen" zeigt nur DRAFT und SENT – PAID/CANCELLED gehen in den Verlauf
+    const isActive = r.status === "DRAFT" || r.status === "SENT";
     const matchesSearch =
       (r.displayNumber || r.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (r.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (r.invoiceNumber || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesLevel = levelFilters.length === 0 || levelFilters.includes(r.level);
-    return matchesSearch && matchesLevel;
+    return isActive && matchesSearch && matchesLevel;
   });
 
   const selectedReminderData = reminders.filter((r) => selectedReminders.includes(r.id));
@@ -371,6 +373,12 @@ const Reminders = () => {
           notes: paymentNotes || undefined,
         },
       });
+      // Beide Query-Keys invalidieren: useReminders-Hook (['reminders']) + direkte Abfrage (["/reminders"])
+      queryClient.invalidateQueries({ queryKey: ["/reminders"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      // Rechnungen auch aktualisieren (paidAmount wurde verändert)
+      queryClient.invalidateQueries({ queryKey: ["/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
       toast.success(`Zahlung CHF ${paymentAmount} für ${paymentReminder.displayNumber || paymentReminder.id} erfasst`);
       setPaymentDialogOpen(false);
     } catch (err: any) {
