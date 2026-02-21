@@ -24,7 +24,8 @@ export type DocumentType =
   | "delivery-note"
   | "reminder"
   | "credit-note"
-  | "order";
+  | "order"
+  | "purchase-order";
 
 interface SendEmailModalProps {
   open: boolean;
@@ -45,6 +46,7 @@ const documentTypeLabels: Record<DocumentType, string> = {
   reminder: "Zahlungserinnerung",
   "credit-note": "Gutschrift",
   order: "Auftragsbestätigung",
+  "purchase-order": "Einkaufsbestellung",
 };
 
 function getSubject(type: DocumentType, number?: string, company?: string): string {
@@ -56,7 +58,8 @@ function getSubject(type: DocumentType, number?: string, company?: string): stri
     case "delivery-note": return `Lieferschein${num}${from}`;
     case "reminder":      return `Zahlungserinnerung${num}${from}`;
     case "credit-note":   return `Gutschrift${num}${from}`;
-    case "order":         return `Auftragsbestätigung${num}${from}`;
+    case "order":          return `Auftragsbestätigung${num}${from}`;
+    case "purchase-order": return `Einkaufsbestellung${num}${from}`;
   }
 }
 

@@ -62,6 +62,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useProjects } from "@/hooks/use-projects";
 import { useProducts } from "@/hooks/use-products";
@@ -121,11 +122,12 @@ export default function PurchaseOrderCreate() {
   
   // Delivery dialog state
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
-  const [deliveryStep, setDeliveryStep] = useState<"select" | "email" | "sending" | "done">("select");
+  const [deliveryStep, setDeliveryStep] = useState<"select" | "sending" | "done">("select");
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState<DeliveryMethod[]>([]);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [orderNumber, setOrderNumber] = useState("");
-  const [emailForm, setEmailForm] = useState({ recipient: "", subject: "", message: "" });
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const createOrder = useCreatePurchaseOrder();
   const sendOrder = useSendPurchaseOrder();
@@ -230,23 +232,12 @@ export default function PurchaseOrderCreate() {
     setDeliveryStep("select");
     setSelectedDeliveryMethods([]);
     setSendingProgress(0);
-    setEmailForm({ recipient: "", subject: "", message: "" });
+    setCreatedOrderId(null);
   };
 
   const processDelivery = async () => {
     if (selectedDeliveryMethods.length === 0) {
       toast.error("Bitte wählen Sie mindestens eine Versandart");
-      return;
-    }
-
-    // If email is selected, show email form first
-    if (selectedDeliveryMethods.includes("email") && deliveryStep === "select") {
-      setEmailForm({
-        recipient: (selectedSupplier as any)?.email || "",
-        subject: `Einkaufsbestellung von ${new Date().toLocaleDateString('de-CH')}`,
-        message: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie unsere Einkaufsbestellung.\n\nBitte bestätigen Sie den Erhalt und das voraussichtliche Lieferdatum.\n\nFreundliche Grüsse`,
-      });
-      setDeliveryStep("email");
       return;
     }
 
@@ -273,6 +264,7 @@ export default function PurchaseOrderCreate() {
 
       const createdNumber = created?.number || created?.id || "";
       setOrderNumber(createdNumber);
+      setCreatedOrderId(created?.id || null);
       setSendingProgress(60);
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:order-created',message:'Order created',data:{createdNumber,createdId:created?.id},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
@@ -309,16 +301,13 @@ export default function PurchaseOrderCreate() {
       // #endregion
       setSendingProgress(80);
 
-      if (selectedDeliveryMethods.includes("email") && created?.id) {
-        try {
-          await sendOrder.mutateAsync({ id: created.id, method: "EMAIL", recipientEmail: emailForm.recipient, message: emailForm.message });
-        } catch {
-          toast.error("E-Mail konnte nicht gesendet werden");
-        }
-      }
-
       setSendingProgress(100);
       setDeliveryStep("done");
+
+      // After order created, show email modal if email was selected
+      if (selectedDeliveryMethods.includes("email") && created?.id) {
+        setShowEmailModal(true);
+      }
     } catch (err: any) {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:catch',message:'processDelivery error',data:{error:err?.message,stack:err?.stack?.substring(0,300),response:err?.response?.data},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
@@ -826,64 +815,36 @@ export default function PurchaseOrderCreate() {
         </div>
       )}
 
+      {/* Email Modal (existing component, same as invoices) */}
+      <SendEmailModal
+        open={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onSuccess={() => {
+          setShowEmailModal(false);
+          navigate("/purchase-orders");
+        }}
+        documentType="purchase-order"
+        documentId={createdOrderId || ""}
+        documentNumber={orderNumber}
+        defaultRecipient={(selectedSupplier as any)?.email || ""}
+        companyName={selectedSupplier?.name}
+      />
+
       {/* Delivery Method Dialog */}
       <Dialog open={showDeliveryDialog} onOpenChange={setShowDeliveryDialog}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {deliveryStep === "select" && "Bestellung versenden"}
-              {deliveryStep === "email" && "E-Mail an Lieferanten"}
               {deliveryStep === "sending" && "Bestellung wird verarbeitet..."}
               {deliveryStep === "done" && "Bestellung erfolgreich!"}
             </DialogTitle>
             <DialogDescription>
               {deliveryStep === "select" && `Bestellung an ${selectedSupplier?.name}`}
-              {deliveryStep === "email" && `Bestellung wird per E-Mail an ${selectedSupplier?.name} gesendet`}
               {deliveryStep === "sending" && "Bitte warten Sie, während Ihre Bestellung verarbeitet wird."}
               {deliveryStep === "done" && `Ihre Bestellung ${orderNumber} wurde erfolgreich erstellt.`}
             </DialogDescription>
           </DialogHeader>
-
-          {deliveryStep === "email" && (
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label>Empfänger *</Label>
-                <Input
-                  type="email"
-                  placeholder="lieferant@firma.ch"
-                  value={emailForm.recipient}
-                  onChange={(e) => setEmailForm({ ...emailForm, recipient: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Betreff</Label>
-                <Input
-                  value={emailForm.subject}
-                  onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Nachricht</Label>
-                <textarea
-                  className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={emailForm.message}
-                  onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setDeliveryStep("select")}>
-                  Zurück
-                </Button>
-                <Button
-                  className="flex-1"
-                  onClick={processDelivery}
-                  disabled={!emailForm.recipient}
-                >
-                  Bestellung aufgeben & senden
-                </Button>
-              </div>
-            </div>
-          )}
 
           {deliveryStep === "select" && (
             <div className="space-y-4">

@@ -62,9 +62,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { generatePurchaseOrderPDF } from "@/lib/pdf/purchase-order-pdf";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { usePurchaseOrder, useUpdatePurchaseOrder, useSendPurchaseOrder } from "@/hooks/use-purchase-orders";
+import { usePurchaseOrder, useUpdatePurchaseOrder } from "@/hooks/use-purchase-orders";
 
 type OrderStatus = 'Entwurf' | 'Bestellt' | 'Auftragsbestätigt' | 'Teilweise geliefert' | 'Vollständig geliefert' | 'Storniert';
 
@@ -121,7 +122,6 @@ const PurchaseOrderDetail = () => {
   // API hooks
   const { data: apiData, isLoading, error } = usePurchaseOrder(id || "");
   const updateOrder = useUpdatePurchaseOrder();
-  const sendOrder = useSendPurchaseOrder();
   
   // Dialog states
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -276,16 +276,6 @@ const PurchaseOrderDetail = () => {
 
   const handlePrint = () => { window.print(); toast.info("Druckdialog geöffnet"); };
 
-  // Email handler
-  const handleSendEmail = () => {
-    sendOrder.mutate({ id: id || "", method: "EMAIL", recipientEmail: emailForm.recipient, message: emailForm.message }, {
-      onSuccess: () => {
-        toast.success("E-Mail gesendet", { description: `Bestellung wurde an ${emailForm.recipient} gesendet` });
-        setEmailDialogOpen(false);
-      },
-      onError: () => toast.error("Fehler beim Senden"),
-    });
-  };
 
   // Goods receipt handler
   const handleGoodsReceipt = () => {
@@ -716,43 +706,16 @@ const PurchaseOrderDetail = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Email Dialog */}
-      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Bestellung per E-Mail senden</DialogTitle>
-            <DialogDescription>Senden Sie die Bestellung an den Lieferanten</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Empfänger</Label>
-              <Input type="email" value={emailForm.recipient} onChange={(e) => setEmailForm({...emailForm, recipient: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Betreff</Label>
-              <Input value={emailForm.subject} onChange={(e) => setEmailForm({...emailForm, subject: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Nachricht</Label>
-              <Textarea rows={6} value={emailForm.message} onChange={(e) => setEmailForm({...emailForm, message: e.target.value})} />
-            </div>
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Bestellung_{orderData.id}.pdf</p>
-                <p className="text-xs text-muted-foreground">Wird als Anhang mitgesendet</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleSendEmail} disabled={sendOrder.isPending}>
-              {sendOrder.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-              Senden
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Email Modal (same as invoices) */}
+      <SendEmailModal
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        documentType="purchase-order"
+        documentId={id || ""}
+        documentNumber={orderData.id}
+        defaultRecipient={orderData.supplier.email}
+        companyName={orderData.supplier.name}
+      />
 
       {/* Goods Receipt Dialog */}
       <Dialog open={goodsReceiptDialogOpen} onOpenChange={setGoodsReceiptDialogOpen}>
