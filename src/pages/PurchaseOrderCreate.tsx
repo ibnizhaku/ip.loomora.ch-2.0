@@ -249,9 +249,6 @@ export default function PurchaseOrderCreate() {
     setSendingProgress(20);
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:processDelivery-start',message:'Starting processDelivery',data:{methods:selectedDeliveryMethods,itemCount:items.length,subtotal,vat,total},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       const created: any = await createOrder.mutateAsync({
         supplierId: selectedSupplier!.id,
         projectId: selectedProject && selectedProject !== "none" ? selectedProject : undefined,
@@ -270,18 +267,12 @@ export default function PurchaseOrderCreate() {
       setOrderNumber(createdNumber);
       setCreatedOrderId(created?.id || null);
       setSendingProgress(60);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:order-created',message:'Order created',data:{createdNumber,createdId:created?.id},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       const projectData = selectedProject && selectedProject !== "none"
         ? projects.find(p => p.id === selectedProject) || null
         : null;
 
       if (selectedDeliveryMethods.includes("pdf") || selectedDeliveryMethods.includes("print")) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:before-pdf',message:'Calling generatePurchaseOrderPDF',data:{subtotal,vat,total,itemCount:items.length},hypothesisId:'H2b',timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         generatePurchaseOrderPDF({
           orderNumber: createdNumber,
           supplier: {
@@ -301,9 +292,6 @@ export default function PurchaseOrderCreate() {
         });
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:after-pdf',message:'PDF step done',hypothesisId:'H2b',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       setSendingProgress(80);
 
       setSendingProgress(100);
@@ -330,9 +318,6 @@ export default function PurchaseOrderCreate() {
         setShowEmailModal(true);
       }
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderCreate.tsx:catch',message:'processDelivery error',data:{error:err?.message,stack:err?.stack?.substring(0,300),response:err?.response?.data},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       toast.error("Fehler beim Erstellen der Bestellung");
       setDeliveryStep("select");
     }

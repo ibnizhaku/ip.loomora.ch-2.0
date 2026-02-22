@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Target, TrendingUp, TrendingDown, BarChart3, PieChart, Loader2 } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, TrendingDown, BarChart3, PieChart, Loader2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function CostCenterDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/cost-centers")}><ArrowLeft className="h-5 w-5" /></Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <span className="font-mono text-lg text-muted-foreground">{cc.code}</span>
@@ -44,7 +44,13 @@ export default function CostCenterDetail() {
           </div>
           {cc.description && <p className="text-muted-foreground">{cc.description}</p>}
         </div>
-        <Button variant="outline" className="gap-2"><BarChart3 className="h-4 w-4" />Bericht erstellen</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate(`/cost-centers/${id}/edit`)}>
+            <Edit className="h-4 w-4" />
+            Bearbeiten
+          </Button>
+          <Button variant="outline" className="gap-2"><BarChart3 className="h-4 w-4" />Bericht erstellen</Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">

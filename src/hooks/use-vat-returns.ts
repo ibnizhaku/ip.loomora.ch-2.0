@@ -113,8 +113,8 @@ export function useCalculateVatReturn() {
 export function useSubmitVatReturn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data?: { method?: string; notes?: string } }) =>
-      api.post(`/vat-returns/${id}/submit`, data || {}),
+    mutationFn: ({ id, data }: { id: string; data?: { submissionDate?: string; submissionMethod?: string; reference?: string } }) =>
+      api.post(`/vat-returns/${id}/submit`, data ?? { submissionDate: new Date().toISOString().split("T")[0] }),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

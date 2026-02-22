@@ -247,6 +247,10 @@ export default function CustomerDetail() {
             <DropdownMenuItem onClick={() => navigate(`/projects/new?customerId=${id}`)}>
               Projekt anlegen
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/debtors")}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Zu Debitoren (Offene Posten)
+            </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
               <Trash2 className="h-4 w-4 mr-2" />
               Löschen

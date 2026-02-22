@@ -117,7 +117,7 @@ export default function ChartOfAccounts() {
             "flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer",
             level > 0 && "ml-6"
           )}
-          onClick={() => hasChildren && toggleExpand(account.id)}
+          onClick={() => hasChildren ? toggleExpand(account.id) : navigate(`/general-ledger/${account.id}`)}
         >
           <div className="flex items-center gap-3">
             {hasChildren ? (
@@ -164,9 +164,15 @@ export default function ChartOfAccounts() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {!hasChildren && (
+                  <DropdownMenuItem onClick={() => navigate(`/general-ledger/${account.id}`)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Hauptbuch anzeigen
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => navigate(`/chart-of-accounts/${account.id}`)}>
                   <Edit className="h-4 w-4 mr-2" />
-                  Bearbeiten
+                  Konto anzeigen
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-destructive" onClick={() => toast.success("Konto gelöscht")}>
                   <Trash2 className="h-4 w-4 mr-2" />

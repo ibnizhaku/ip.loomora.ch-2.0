@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Building2, Mail, Phone, MapPin, Calendar, TrendingUp, MessageSquare, FileText, Star, Plus } from "lucide-react";
+import { ArrowLeft, User, Building2, Mail, Phone, MapPin, Calendar, TrendingUp, MessageSquare, FileText, Star, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,44 +11,31 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useLead, useLeadActivities, useConvertLead, useCreateLeadActivity } from "@/hooks/use-marketing";
 
-const leadData = {
-  id: "LEAD-2024-0234",
-  firma: "Stahl & Technik GmbH",
-  ansprechpartner: "Dr. Martin Keller",
-  position: "Geschäftsführer",
-  email: "m.keller@stahl-technik.ch",
-  telefon: "+41 44 567 89 00",
-  mobile: "+41 79 234 56 78",
-  adresse: "Industriestrasse 45, 8005 Zürich",
-  website: "www.stahl-technik.ch",
-  branche: "Maschinenbau",
-  mitarbeiter: "50-100",
-  quelle: "Messe Swissbau 2024",
-  status: "qualifiziert",
-  bewertung: 4,
-  potenzial: 85000,
-  wahrscheinlichkeit: 70,
-  nächsteAktion: "Angebot erstellen",
-  nächsterTermin: "05.02.2024",
-  zuständig: "Peter Schneider",
-  erstelltAm: "18.01.2024",
+const activityTypeToApi: Record<string, string> = {
+  Anruf: "CALL",
+  "E-Mail": "EMAIL",
+  Besuch: "MEETING",
+  Meeting: "MEETING",
+  Messe: "NOTE",
+};
+const activityTypeFromApi: Record<string, string> = {
+  CALL: "Anruf",
+  EMAIL: "E-Mail",
+  MEETING: "Meeting",
+  NOTE: "Notiz",
+  TASK: "Aufgabe",
 };
 
-const aktivitäten = [
-  { datum: "30.01.2024", typ: "Besuch", beschreibung: "Vor-Ort-Besichtigung der Produktionshalle durchgeführt", user: "PS" },
-  { datum: "25.01.2024", typ: "E-Mail", beschreibung: "Produktkatalog und Referenzliste zugesendet", user: "PS" },
-  { datum: "22.01.2024", typ: "Anruf", beschreibung: "Erstgespräch: Interesse an Stahlkonstruktion für Hallenerweiterung", user: "PS" },
-  { datum: "18.01.2024", typ: "Messe", beschreibung: "Erstkontakt auf der Swissbau, Visitenkarte erhalten", user: "LW" },
-];
-
 const statusConfig: Record<string, { label: string; color: string }> = {
-  neu: { label: "Neu", color: "bg-info/10 text-info" },
-  kontaktiert: { label: "Kontaktiert", color: "bg-warning/10 text-warning" },
-  qualifiziert: { label: "Qualifiziert", color: "bg-success/10 text-success" },
-  angebot: { label: "Angebot", color: "bg-primary/10 text-primary" },
-  verloren: { label: "Verloren", color: "bg-destructive/10 text-destructive" },
-  gewonnen: { label: "Gewonnen", color: "bg-success/10 text-success" },
+  NEW: { label: "Neu", color: "bg-info/10 text-info" },
+  CONTACTED: { label: "Kontaktiert", color: "bg-warning/10 text-warning" },
+  QUALIFIED: { label: "Qualifiziert", color: "bg-success/10 text-success" },
+  PROPOSAL: { label: "Angebot", color: "bg-primary/10 text-primary" },
+  NEGOTIATION: { label: "Verhandlung", color: "bg-primary/10 text-primary" },
+  LOST: { label: "Verloren", color: "bg-destructive/10 text-destructive" },
+  WON: { label: "Gewonnen", color: "bg-success/10 text-success" },
 };
 
 const typIcons: Record<string, string> = {
@@ -57,6 +44,11 @@ const typIcons: Record<string, string> = {
   Besuch: "🏢",
   Messe: "🎪",
   Meeting: "👥",
+  CALL: "📞",
+  EMAIL: "✉️",
+  MEETING: "👥",
+  NOTE: "📌",
+  TASK: "✅",
 };
 
 export default function LeadDetail() {
@@ -66,7 +58,12 @@ export default function LeadDetail() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [activityType, setActivityType] = useState("Anruf");
   const [activityNote, setActivityNote] = useState("");
-  const [activities, setActivities] = useState(aktivitäten);
+
+  const { data: lead, isLoading } = useLead(id);
+  const { data: activitiesFromApi = [] } = useLeadActivities(id);
+  const activities = ((lead as { activities?: typeof activitiesFromApi })?.activities ?? activitiesFromApi) as Array<{ id?: string; type: string; description: string; activityDate: string | Date }>;
+  const convertLead = useConvertLead();
+  const createActivity = useCreateLeadActivity();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
@@ -75,35 +72,96 @@ export default function LeadDetail() {
     }).format(value);
   };
 
-  const gewichtetesPotenzial = leadData.potenzial * (leadData.wahrscheinlichkeit / 100);
+  const formatDate = (d: string | Date) =>
+    new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-  const handleAddActivity = () => {
-    if (!activityNote.trim()) {
+  const leadData = lead
+    ? {
+        firma: (lead as { companyName?: string }).companyName || lead.company || "—",
+        ansprechpartner: (lead as { name?: string }).name || `${(lead as { firstName?: string }).firstName || ""} ${(lead as { lastName?: string }).lastName || ""}`.trim() || "—",
+        position: (lead as { position?: string }).position || "—",
+        email: lead.email || "—",
+        telefon: lead.phone || "—",
+        status: lead.status,
+        bewertung: (lead as { score?: number }).score ?? 0,
+        potenzial: Number((lead as { estimatedValue?: number }).estimatedValue ?? (lead as { expectedValue?: number }).expectedValue ?? 0),
+        wahrscheinlichkeit: (lead as { probability?: number }).probability ?? 50,
+        zuständig: (lead as { assignedTo?: { firstName?: string; lastName?: string } }).assignedTo
+          ? `${((lead as { assignedTo?: { firstName?: string } }).assignedTo?.firstName || "")} ${((lead as { assignedTo?: { lastName?: string } }).assignedTo?.lastName || "")}`.trim()
+          : "—",
+        erstelltAm: formatDate(lead.createdAt),
+        nextFollowUp: (lead as { nextFollowUp?: string | Date }).nextFollowUp ? formatDate((lead as { nextFollowUp: string }).nextFollowUp) : null,
+        quelle: (lead as { source?: string }).source || "—",
+        customer: (lead as { customer?: { id: string } }).customer,
+        nächsteAktion: (lead as { notes?: string }).notes || "—",
+        nächsterTermin: (lead as { nextFollowUp?: string | Date }).nextFollowUp ? formatDate((lead as { nextFollowUp: string }).nextFollowUp) : "—",
+        id: lead.id,
+        branche: (lead as { industry?: string }).industry || "—",
+        mitarbeiter: (lead as { employeeCount?: string }).employeeCount || "—",
+        website: (lead as { website?: string }).website || "—",
+        adresse: (lead as { address?: string }).address || "—",
+        mobile: (lead as { mobile?: string }).mobile || lead.phone || "—",
+      }
+    : null;
+
+  const gewichtetesPotenzial = leadData ? leadData.potenzial * (leadData.wahrscheinlichkeit / 100) : 0;
+
+  const handleAddActivity = async () => {
+    if (!activityNote.trim() || !id) {
       toast.error("Bitte geben Sie eine Beschreibung ein");
       return;
     }
-    const newActivity = {
-      datum: new Date().toLocaleDateString("de-CH"),
-      typ: activityType,
-      beschreibung: activityNote,
-      user: "PS",
-    };
-    setActivities([newActivity, ...activities]);
-    setActivityDialogOpen(false);
-    setActivityNote("");
-    toast.success("Aktivität wurde hinzugefügt");
+    try {
+      await createActivity.mutateAsync({
+        leadId: id,
+        type: activityTypeToApi[activityType] || "NOTE",
+        description: activityNote,
+      });
+      setActivityDialogOpen(false);
+      setActivityNote("");
+      toast.success("Aktivität wurde hinzugefügt");
+    } catch {
+      toast.error("Aktivität konnte nicht gespeichert werden");
+    }
   };
 
   const handleCreateQuote = () => {
-    toast.success("Angebot wird erstellt...");
-    navigate("/quotes/new");
+    navigate(id ? `/quotes/new?leadId=${id}` : "/quotes/new");
   };
 
-  const handleConvertToCustomer = () => {
-    toast.success(`${leadData.firma} wurde als Kunde angelegt`);
-    setConvertDialogOpen(false);
-    navigate("/customers");
+  const handleConvertToCustomer = async () => {
+    if (!id) return;
+    try {
+      const result = await convertLead.mutateAsync({ leadId: id });
+      setConvertDialogOpen(false);
+      const customerId = (result as { customer?: { id: string } })?.customer?.id;
+      toast.success("Lead wurde als Kunde angelegt");
+      navigate(customerId ? `/customers/${customerId}` : "/customers");
+    } catch {
+      toast.error("Konvertierung fehlgeschlagen");
+    }
   };
+
+  if (isLoading || !lead) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        {isLoading ? (
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        ) : (
+          <div className="text-center">
+            <p className="text-muted-foreground">Lead nicht gefunden</p>
+            <Button variant="outline" className="mt-4" asChild>
+              <Link to="/leads">Zurück zu Leads</Link>
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!leadData) return null;
+
+  const statusCfg = statusConfig[leadData.status] || { label: leadData.status, color: "bg-muted text-muted-foreground" };
 
   return (
     <div className="space-y-6">
@@ -117,8 +175,8 @@ export default function LeadDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">{leadData.firma}</h1>
-            <Badge className={statusConfig[leadData.status].color}>
-              {statusConfig[leadData.status].label}
+            <Badge className={statusCfg.color}>
+              {statusCfg.label}
             </Badge>
             <div className="flex items-center gap-0.5">
               {[...Array(5)].map((_, i) => (
@@ -140,10 +198,12 @@ export default function LeadDetail() {
             <FileText className="mr-2 h-4 w-4" />
             Angebot
           </Button>
-          <Button onClick={() => setConvertDialogOpen(true)}>
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Zu Kunde konvertieren
-          </Button>
+          {leadData.status !== "WON" && (
+            <Button onClick={() => setConvertDialogOpen(true)} disabled={convertLead.isPending}>
+              {convertLead.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
+              Zu Kunde konvertieren
+            </Button>
+          )}
         </div>
       </div>
 
@@ -259,9 +319,13 @@ export default function LeadDetail() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Website</p>
-                <a href={`https://${leadData.website}`} target="_blank" className="text-primary hover:underline">
-                  {leadData.website}
-                </a>
+                {leadData.website && leadData.website !== "—" ? (
+                  <a href={leadData.website.startsWith("http") ? leadData.website : `https://${leadData.website}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    {leadData.website}
+                  </a>
+                ) : (
+                  <span>{leadData.website}</span>
+                )}
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Lead-Quelle</p>
@@ -304,21 +368,22 @@ export default function LeadDetail() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {activities.map((akt, i) => (
-              <div key={i} className="flex gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
-                <div className="text-2xl">{typIcons[akt.typ] || "📌"}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{akt.typ}</Badge>
-                    <span className="text-sm text-muted-foreground">{akt.datum}</span>
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine Aktivitäten erfasst.</p>
+            ) : (
+              activities.map((akt: { id?: string; type: string; description: string; activityDate: string | Date }) => (
+                <div key={akt.id ?? akt.activityDate} className="flex gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
+                  <div className="text-2xl">{typIcons[akt.type] || "📌"}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{activityTypeFromApi[akt.type] || akt.type}</Badge>
+                      <span className="text-sm text-muted-foreground">{formatDate(akt.activityDate)}</span>
+                    </div>
+                    <p className="mt-1">{akt.description}</p>
                   </div>
-                  <p className="mt-1">{akt.beschreibung}</p>
                 </div>
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">{akt.user}</AvatarFallback>
-                </Avatar>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -361,7 +426,8 @@ export default function LeadDetail() {
             <Button variant="outline" onClick={() => setActivityDialogOpen(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleAddActivity}>
+            <Button onClick={handleAddActivity} disabled={createActivity.isPending}>
+              {createActivity.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Aktivität speichern
             </Button>
           </DialogFooter>

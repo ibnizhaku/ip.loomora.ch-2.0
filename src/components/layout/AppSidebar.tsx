@@ -131,7 +131,7 @@ const crmItems: NavItem[] = [
     url: "/suppliers",
     icon: Handshake,
     keywords: ["supplier", "kreditor", "zulieferer"],
-    permission: "customers",
+    permission: "suppliers",
   },
 ];
 
@@ -236,6 +236,10 @@ const accountingItems: NavItem[] = [
     icon: Landmark,
     keywords: ["bank", "konto", "sepa", "camt", "iso20022"],
     permission: "finance",
+    subItems: [
+      { title: "Bankkonten", url: "/bank-accounts", icon: Landmark },
+      { title: "SEPA-Zahlungen", url: "/sepa-payments", icon: CreditCard },
+    ],
   },
   {
     title: "Finanzbuchhaltung",
@@ -247,6 +251,7 @@ const accountingItems: NavItem[] = [
       { title: "Kontenplan", url: "/chart-of-accounts", icon: BookOpen },
       { title: "Buchungsjournal", url: "/journal-entries", icon: FileText },
       { title: "Hauptbuch", url: "/general-ledger", icon: Receipt },
+      { title: "Offene Posten", url: "/open-items", icon: FileText },
     ],
   },
   {

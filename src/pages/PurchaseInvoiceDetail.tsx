@@ -408,13 +408,11 @@ const PurchaseInvoiceDetail = () => {
                       </span>
                     </div>
                   ))}
-                  {pi.status !== "CANCELLED" && pi.status !== "PAID" && (
-                  {isOwner && (
+                  {pi.status !== "CANCELLED" && pi.status !== "PAID" && isOwner && (
                     <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setPaymentDialogOpen(true)}>
                       <CreditCard className="h-4 w-4 mr-2" />
                       Weitere Zahlung erfassen
                     </Button>
-                  )}
                   )}
                 </div>
               )}

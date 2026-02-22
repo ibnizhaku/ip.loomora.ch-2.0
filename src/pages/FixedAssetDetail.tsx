@@ -7,90 +7,41 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
-  Building2,
-  Calendar,
   Edit,
   Download,
   FileText,
   MapPin,
   Tag,
   TrendingDown,
-  Wrench,
-  AlertTriangle,
+  Loader2,
 } from "lucide-react";
+import { useFixedAsset, useDepreciationSchedule } from "@/hooks/use-fixed-assets";
 
-const assetData = {
-  id: "ANL-2024-0015",
-  name: "CNC-Fräsmaschine DMG MORI",
-  category: "Maschinen",
-  type: "Produktionsanlage",
-  status: "active" as const,
-  serialNumber: "DMG-2024-CH-45892",
-  manufacturer: "DMG MORI",
-  model: "CMX 600 V",
-  location: "Werkstatt Halle 2",
-  responsiblePerson: "Thomas Meier",
-  costCenter: "KST-200 Produktion",
-  bookingAccount: "1500 Maschinen",
-  acquisition: {
-    date: "2024-01-05",
-    supplier: "DMG MORI Schweiz AG",
-    invoiceNumber: "ER-2024-0012",
-    purchasePrice: 185000.00,
-    additionalCosts: 5500.00, // Installation, Transport
-    totalCost: 190500.00,
-  },
-  depreciation: {
-    method: "linear",
-    years: 8,
-    startDate: "2024-01-01",
-    monthlyAmount: 1984.38,
-    yearlyAmount: 23812.50,
-    accumulatedDepreciation: 1984.38,
-    residualValue: 0,
-    bookValue: 188515.62,
-  },
-  insurance: {
-    company: "Helvetia",
-    policyNumber: "POL-2024-45678",
-    insuredValue: 200000.00,
-    premium: 1200.00,
-    validUntil: "2025-01-31",
-  },
-  maintenance: {
-    lastService: "2024-01-15",
-    nextService: "2024-07-15",
-    serviceInterval: "6 Monate",
-    serviceProvider: "DMG MORI Service",
-  },
-  depreciationSchedule: [
-    { year: 2024, opening: 190500.00, depreciation: 23812.50, closing: 166687.50 },
-    { year: 2025, opening: 166687.50, depreciation: 23812.50, closing: 142875.00 },
-    { year: 2026, opening: 142875.00, depreciation: 23812.50, closing: 119062.50 },
-    { year: 2027, opening: 119062.50, depreciation: 23812.50, closing: 95250.00 },
-    { year: 2028, opening: 95250.00, depreciation: 23812.50, closing: 71437.50 },
-    { year: 2029, opening: 71437.50, depreciation: 23812.50, closing: 47625.00 },
-    { year: 2030, opening: 47625.00, depreciation: 23812.50, closing: 23812.50 },
-    { year: 2031, opening: 23812.50, depreciation: 23812.50, closing: 0 },
-  ],
-  documents: [
-    { name: "Rechnung DMG MORI", type: "invoice", date: "2024-01-05" },
-    { name: "Garantieschein", type: "warranty", date: "2024-01-05" },
-    { name: "Bedienungsanleitung", type: "manual", date: "2024-01-05" },
-    { name: "Serviceprotokoll", type: "service", date: "2024-01-15" },
-  ],
+const categoryLabels: Record<string, string> = {
+  BUILDINGS: "Immobilien",
+  MACHINERY: "Maschinen & Geräte",
+  VEHICLES: "Fahrzeuge",
+  FURNITURE: "Büromöbel",
+  IT_EQUIPMENT: "IT & EDV",
+  SOFTWARE: "Software",
+  TOOLS: "Werkzeuge",
+  OTHER: "Sonstige",
 };
 
 const getStatusConfig = (status: string) => {
   switch (status) {
-    case "active":
+    case "ACTIVE":
       return { label: "In Betrieb", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" };
-    case "maintenance":
+    case "FULLY_DEPRECIATED":
+      return { label: "Voll abgeschrieben", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" };
+    case "MAINTENANCE":
       return { label: "In Wartung", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" };
-    case "disposed":
+    case "DISPOSED":
       return { label: "Ausgeschieden", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" };
+    case "SOLD":
+      return { label: "Verkauft", color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300" };
     default:
-      return { label: status, color: "bg-gray-100 text-gray-800" };
+      return { label: status || "—", color: "bg-gray-100 text-gray-800" };
   }
 };
 
@@ -104,10 +55,36 @@ const formatCurrency = (amount: number) => {
 export default function FixedAssetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: asset, isLoading: assetLoading, error: assetError } = useFixedAsset(id || "");
+  const { data: scheduleData } = useDepreciationSchedule(id || "");
 
-  const statusConfig = getStatusConfig(assetData.status);
-  const depreciationProgress = ((assetData.acquisition.totalCost - assetData.depreciation.bookValue) / assetData.acquisition.totalCost) * 100;
-  const yearsRemaining = assetData.depreciation.years - Math.ceil(depreciationProgress / (100 / assetData.depreciation.years));
+  if (assetLoading || !asset) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (assetError) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/fixed-assets")}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <p className="text-destructive">Anlagegut konnte nicht geladen werden.</p>
+      </div>
+    );
+  }
+
+  const a = asset as any;
+  const totalCost = Number(a.acquisitionCost ?? 0);
+  const bookValue = Number(a.bookValue ?? a.currentBookValue ?? 0);
+  const totalDepreciation = Number(a.totalDepreciation ?? 0);
+  const depreciationProgress = totalCost > 0 ? (totalDepreciation / totalCost) * 100 : 0;
+  const yearlyAmount = totalCost > 0 && a.usefulLife > 0 ? (totalCost - Number(a.residualValue ?? 0)) / a.usefulLife : 0;
+  const yearsRemaining = Number(a.remainingLife ?? 0);
+  const statusConfig = getStatusConfig(a.status || "ACTIVE");
+  const schedule = (scheduleData as any)?.schedule ?? [];
 
   return (
     <div className="space-y-6">
@@ -119,13 +96,13 @@ export default function FixedAssetDetail() {
           </Button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight">{assetData.name}</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{a.name}</h1>
               <Badge className={statusConfig.color} variant="secondary">
                 {statusConfig.label}
               </Badge>
             </div>
             <p className="text-muted-foreground">
-              {assetData.id} • {assetData.category}
+              {a.number} • {categoryLabels[a.category] || a.category}
             </p>
           </div>
         </div>
@@ -148,7 +125,7 @@ export default function FixedAssetDetail() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Anschaffungswert</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(assetData.acquisition.totalCost)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -156,7 +133,7 @@ export default function FixedAssetDetail() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Buchwert</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(assetData.depreciation.bookValue)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(bookValue)}</p>
             <p className="text-xs text-muted-foreground">
               {(100 - depreciationProgress).toFixed(1)}% Restwert
             </p>
@@ -169,7 +146,7 @@ export default function FixedAssetDetail() {
           <CardContent>
             <div className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
-              <p className="text-2xl font-bold">{formatCurrency(assetData.depreciation.yearlyAmount)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(yearlyAmount)}</p>
             </div>
           </CardContent>
         </Card>
@@ -180,7 +157,7 @@ export default function FixedAssetDetail() {
           <CardContent>
             <p className="text-2xl font-bold">{yearsRemaining} Jahre</p>
             <p className="text-xs text-muted-foreground">
-              von {assetData.depreciation.years} Jahren
+              von {a.usefulLife ?? 0} Jahren
             </p>
           </CardContent>
         </Card>
@@ -194,7 +171,7 @@ export default function FixedAssetDetail() {
             Abschreibungsfortschritt
           </CardTitle>
           <CardDescription>
-            Lineare Abschreibung über {assetData.depreciation.years} Jahre
+            {a.depreciationMethod === "LINEAR" ? "Lineare" : "Degressive"} Abschreibung über {a.usefulLife ?? 0} Jahre
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -202,7 +179,7 @@ export default function FixedAssetDetail() {
             <div className="flex justify-between mb-2">
               <span className="text-sm">Abgeschrieben: {depreciationProgress.toFixed(1)}%</span>
               <span className="text-sm text-muted-foreground">
-                {formatCurrency(assetData.depreciation.accumulatedDepreciation)} von {formatCurrency(assetData.acquisition.totalCost)}
+                {formatCurrency(totalDepreciation)} von {formatCurrency(totalCost)}
               </span>
             </div>
             <Progress value={depreciationProgress} className="h-3" />
@@ -228,51 +205,45 @@ export default function FixedAssetDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {assetData.depreciationSchedule.map((row, index) => (
-                    <TableRow key={row.year} className={index === 0 ? "bg-muted/50" : ""}>
-                      <TableCell className="font-medium">
-                        {row.year}
-                        {index === 0 && <Badge variant="outline" className="ml-2">Aktuell</Badge>}
+                  {schedule.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        Kein Abschreibungsplan vorhanden
                       </TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.opening)}</TableCell>
-                      <TableCell className="text-right text-red-600">-{formatCurrency(row.depreciation)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.closing)}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    schedule.map((row: any, index: number) => (
+                      <TableRow key={row.year} className={row.status === "COMPLETED" ? "bg-muted/30" : ""}>
+                        <TableCell className="font-medium">
+                          {row.year}
+                          {row.status === "PENDING" && <Badge variant="outline" className="ml-2">Offen</Badge>}
+                          {row.status === "COMPLETED" && <Badge variant="secondary" className="ml-2">Erledigt</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.bookValueStart ?? 0)}</TableCell>
+                        <TableCell className="text-right text-red-600">-{formatCurrency(row.depreciation ?? 0)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.bookValueEnd ?? 0)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
 
-          {/* Dokumente */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Dokumente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {assetData.documents.map((doc, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-sm">{doc.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(doc.date).toLocaleDateString("de-CH")}
-                        </p>
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Beschreibung */}
+          {a.description && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Beschreibung
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{a.description}</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -286,97 +257,43 @@ export default function FixedAssetDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">Seriennummer</p>
-                <p className="font-medium font-mono">{assetData.serialNumber}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Hersteller / Modell</p>
-                <p className="font-medium">{assetData.manufacturer} {assetData.model}</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-muted-foreground">Standort</p>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  <p className="font-medium">{assetData.location}</p>
+              {a.serialNumber && (
+                <div>
+                  <p className="text-muted-foreground">Seriennummer</p>
+                  <p className="font-medium font-mono">{a.serialNumber}</p>
                 </div>
-              </div>
+              )}
               <div>
-                <p className="text-muted-foreground">Verantwortlich</p>
-                <p className="font-medium">{assetData.responsiblePerson}</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-muted-foreground">Kostenstelle</p>
-                <p className="font-medium">{assetData.costCenter}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Buchungskonto</p>
-                <p className="font-medium">{assetData.bookingAccount}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Wartung */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                Wartung
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">Letzte Wartung</p>
+                <p className="text-muted-foreground">Anschaffungsdatum</p>
                 <p className="font-medium">
-                  {new Date(assetData.maintenance.lastService).toLocaleDateString("de-CH")}
+                  {a.acquisitionDate
+                    ? new Date(a.acquisitionDate).toLocaleDateString("de-CH")
+                    : "—"}
                 </p>
               </div>
-              <div>
-                <p className="text-muted-foreground">Nächste Wartung</p>
-                <p className="font-medium">
-                  {new Date(assetData.maintenance.nextService).toLocaleDateString("de-CH")}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Intervall</p>
-                <p className="font-medium">{assetData.maintenance.serviceInterval}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Servicepartner</p>
-                <p className="font-medium">{assetData.maintenance.serviceProvider}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Versicherung */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Versicherung
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">Versicherer</p>
-                <p className="font-medium">{assetData.insurance.company}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Versicherungswert</p>
-                <p className="font-medium">{formatCurrency(assetData.insurance.insuredValue)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Jahresprämie</p>
-                <p className="font-medium">{formatCurrency(assetData.insurance.premium)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Gültig bis</p>
-                <p className="font-medium">
-                  {new Date(assetData.insurance.validUntil).toLocaleDateString("de-CH")}
-                </p>
-              </div>
+              {a.location && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-muted-foreground">Standort</p>
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      <p className="font-medium">{a.location}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+              {a.costCenter && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-muted-foreground">Kostenstelle</p>
+                    <p className="font-medium">
+                      {a.costCenter?.number} {a.costCenter?.name}
+                    </p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

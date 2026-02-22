@@ -47,7 +47,7 @@ export default function BudgetDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline"><Edit className="h-4 w-4 mr-2" />Bearbeiten</Button>
+          <Button variant="outline" onClick={() => navigate(`/budgets/${id}/edit`)}><Edit className="h-4 w-4 mr-2" />Bearbeiten</Button>
           <Button variant="outline"><Download className="h-4 w-4 mr-2" />Exportieren</Button>
         </div>
       </div>

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { useProjects } from "@/hooks/use-projects";
 import { useSuppliers } from "@/hooks/use-suppliers";
+import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useCreatePurchaseInvoice } from "@/hooks/use-purchase-invoices";
 
 interface InvoiceItem {
@@ -105,6 +106,8 @@ export default function PurchaseInvoiceCreate() {
   const projects = useMemo(() => projectsData?.data || [], [projectsData]);
   const { data: suppliersData, isLoading: suppliersLoading } = useSuppliers({ pageSize: 200 });
   const suppliers = useMemo(() => (suppliersData as any)?.data || [], [suppliersData]);
+  const { data: purchaseOrdersData } = usePurchaseOrders({ pageSize: 200, supplierId: formData.supplierId || undefined });
+  const purchaseOrders = useMemo(() => (purchaseOrdersData as any)?.data || [], [purchaseOrdersData]);
   const createInvoice = useCreatePurchaseInvoice();
 
   // Fallback: wenn keine Positionen aus PDF, Bruttobetrag als eine Position setzen
@@ -116,6 +119,10 @@ export default function PurchaseInvoiceCreate() {
     setItems([{ id: 1, description: "Leistung gemäss Rechnung", quantity: 1, unit: "Pauschal", unitPrice: parseFloat(net.toFixed(2)), vatRate: rate }]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, purchaseOrderId: defaultPurchaseOrderId || prev.purchaseOrderId }));
+  }, [defaultPurchaseOrderId]);
 
   const addItem = () => setItems(prev => [...prev, { id: Date.now(), description: "", quantity: 1, unit: "Stück", unitPrice: 0, vatRate: 8.1 }]);
   const removeItem = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
@@ -237,12 +244,27 @@ export default function PurchaseInvoiceCreate() {
                     </SelectContent>
                   </Select>
                 </div>
-                {defaultPurchaseOrderId && (
-                  <div className="space-y-2">
-                    <Label>Bezug Bestellung</Label>
-                    <Input value={defaultPurchaseOrderId} disabled className="font-mono" />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label>Bezug Bestellung (optional)</Label>
+                  <Select
+                    value={formData.purchaseOrderId || "__none__"}
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, purchaseOrderId: v === "__none__" ? "" : v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Bestellung zuordnen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {purchaseOrders
+                        .filter((po: any) => !formData.supplierId || po.supplierId === formData.supplierId)
+                        .map((po: any) => (
+                          <SelectItem key={po.id} value={po.id}>
+                            {po.number} – {po.supplier?.companyName || po.supplier?.name || "—"}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>

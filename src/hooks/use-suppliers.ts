@@ -49,6 +49,7 @@ export function useCreateSupplier() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["/suppliers/creditors"] });
     },
   });
 }

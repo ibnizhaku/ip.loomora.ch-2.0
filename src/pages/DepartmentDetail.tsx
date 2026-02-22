@@ -1,7 +1,7 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { ArrowLeft, Building2, Users, Mail, Phone, Loader2 } from "lucide-react";
+import { ArrowLeft, Building2, Users, Mail, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function DepartmentDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { data: department, isLoading, error } = useQuery({
     queryKey: ["/departments", id],
@@ -39,19 +40,25 @@ export default function DepartmentDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link to="/departments">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">{department.name}</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link to="/departments">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-2xl font-bold">{department.name}</h1>
             <Badge variant="outline">{employees.length} Mitarbeiter</Badge>
           </div>
           <p className="text-muted-foreground">{department.description || "Keine Beschreibung"}</p>
         </div>
+        </div>
+        <Button variant="outline" onClick={() => navigate(`/departments/${id}/edit`)}>
+          <Pencil className="h-4 w-4 mr-2" />
+          Bearbeiten
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -134,11 +134,15 @@ export class SubscriptionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Zahls.ch Konfigurationsstatus prüfen' })
   async getConfigStatus(@CurrentUser() user: CurrentUserPayload) {
+    const skipPayment = this.subscriptionsService.isSkipPaymentEnabled();
     return {
       zahlsConfigured: this.subscriptionsService.isZahlsConfigured(),
-      message: this.subscriptionsService.isZahlsConfigured() 
-        ? 'Zahls.ch ist konfiguriert und bereit'
-        : 'Zahls.ch ist NICHT konfiguriert. ZAHLS_API_KEY und ZAHLS_WEBHOOK_SECRET müssen gesetzt werden.',
+      skipPaymentEnabled: skipPayment,
+      message: skipPayment
+        ? 'LOOMORA_SKIP_PAYMENT ist aktiv – Zahlung wird übersprungen.'
+        : this.subscriptionsService.isZahlsConfigured()
+          ? 'Zahls.ch ist konfiguriert und bereit'
+          : 'Zahls.ch ist NICHT konfiguriert. ZAHLS_API_KEY und ZAHLS_WEBHOOK_SECRET müssen gesetzt werden.',
     };
   }
 }

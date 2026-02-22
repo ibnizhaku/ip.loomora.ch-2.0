@@ -458,8 +458,7 @@ export class CustomersService {
           status,
           invoiceCount: invoices.length,
         };
-      })
-      .filter((d: any) => d.totalReceivables > 0 || d.openAmount > 0);
+      });
   }
 
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +74,7 @@ const formatCurrency = (amount: number) => {
 export default function TrainingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const { data: apiTraining, isLoading } = useTraining(id);
   const updateMutation = useUpdateTraining();
@@ -88,6 +89,17 @@ export default function TrainingDetail() {
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddParticipantsDialog, setShowAddParticipantsDialog] = useState(false);
+
+  useEffect(() => {
+    if (apiTraining && searchParams.get("edit") === "1") {
+      setShowEditDialog(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("edit");
+        return next;
+      }, { replace: true });
+    }
+  }, [apiTraining, searchParams, setSearchParams]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [editForm, setEditForm] = useState({
     title: "",

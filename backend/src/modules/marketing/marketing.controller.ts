@@ -24,6 +24,13 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class MarketingController {
   constructor(private marketingService: MarketingService) {}
 
+  @Get()
+  @RequirePermissions('marketing:read')
+  @ApiOperation({ summary: 'Get marketing overview (newsletters, templates, lists)' })
+  getOverview(@CurrentUser() user: CurrentUserPayload) {
+    return this.marketingService.getMarketingOverview(user.companyId);
+  }
+
   // ============== CAMPAIGNS ==============
   @Get('campaigns')
   @RequirePermissions('marketing:read')

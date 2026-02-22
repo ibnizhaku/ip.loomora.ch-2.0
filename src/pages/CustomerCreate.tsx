@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import { useCreateCustomer } from "@/hooks/use-customers";
 
 export default function CustomerCreate() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromDebtors = (location.state as any)?.from === "debtors";
   const createCustomer = useCreateCustomer();
   const [formData, setFormData] = useState({
     name: "",
@@ -51,7 +53,7 @@ export default function CustomerCreate() {
         notes: formData.notes || undefined,
       });
       toast.success("Kunde erfolgreich erstellt");
-      navigate("/customers");
+      navigate(fromDebtors ? "/debtors" : "/customers");
     } catch (error) {
       toast.error("Fehler beim Erstellen des Kunden");
     }
@@ -65,17 +67,17 @@ export default function CustomerCreate() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to="/customers">
+        <Link to={fromDebtors ? "/debtors" : "/customers"}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
         <div className="flex-1">
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Neuer Kunde
+            {fromDebtors ? "Neuer Debitor (Kunde)" : "Neuer Kunde"}
           </h1>
           <p className="text-muted-foreground">
-            Erfassen Sie einen neuen Kunden
+            {fromDebtors ? "Neuen Kunden als Debitor anlegen" : "Erfassen Sie einen neuen Kunden"}
           </p>
         </div>
       </div>

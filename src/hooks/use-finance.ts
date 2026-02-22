@@ -84,6 +84,7 @@ export function useCreateAccount() {
     mutationFn: (data: Partial<Account>) => api.post<Account>('/finance/accounts', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['/finance/accounts'] });
     },
   });
 }

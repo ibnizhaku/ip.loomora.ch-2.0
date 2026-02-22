@@ -8,11 +8,20 @@ import {
   Wallet,
   PiggyBank,
   Filter,
+  Plus,
+  CreditCard,
+  Target,
+  Landmark,
+  BookOpen,
+  FileText,
+  Scale,
+  Calculator,
+  UserPlus2,
+  UserMinus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AddTransactionDialog } from "@/components/finance/AddTransactionDialog";
 import { useFinanceMonthlySummary } from "@/hooks/use-finance";
 import { useJournalEntries } from "@/hooks/use-journal-entries";
 
@@ -48,7 +57,15 @@ export default function Finance() {
             Übersicht über Ihre Einnahmen und Ausgaben
           </p>
         </div>
-        <AddTransactionDialog onTransactionAdded={() => {}} />
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/cash-book")}>
+            Kassenbuch
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/journal-entries/new")}>
+            <Plus className="h-4 w-4" />
+            Transaktion hinzufügen
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -102,6 +119,69 @@ export default function Finance() {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Buchhaltung Quick Links */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h3 className="font-display font-semibold text-lg mb-4">Buchhaltung – Schnellzugriff</h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <button onClick={() => navigate("/cash-book")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <Wallet className="h-6 w-6 text-primary" />
+            <span>Kassenbuch</span>
+          </button>
+          <button onClick={() => navigate("/cost-centers")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <Target className="h-6 w-6 text-primary" />
+            <span>Kostenstellen</span>
+          </button>
+          <button onClick={() => navigate("/budgets")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <PiggyBank className="h-6 w-6 text-primary" />
+            <span>Budgets</span>
+          </button>
+          <button onClick={() => navigate("/debtors")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <UserPlus2 className="h-6 w-6 text-primary" />
+            <span>Debitoren</span>
+          </button>
+          <button onClick={() => navigate("/creditors")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <UserMinus className="h-6 w-6 text-primary" />
+            <span>Kreditoren</span>
+          </button>
+          <button onClick={() => navigate("/bank-accounts")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <Landmark className="h-6 w-6 text-primary" />
+            <span>Bankkonten</span>
+          </button>
+          <button onClick={() => navigate("/sepa-payments")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <CreditCard className="h-6 w-6 text-primary" />
+            <span>SEPA-Zahlungen</span>
+          </button>
+          <button onClick={() => navigate("/chart-of-accounts")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <BookOpen className="h-6 w-6 text-primary" />
+            <span>Kontenplan</span>
+          </button>
+          <button onClick={() => navigate("/journal-entries")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <FileText className="h-6 w-6 text-primary" />
+            <span>Buchungsjournal</span>
+          </button>
+          <button onClick={() => navigate("/general-ledger")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <FileText className="h-6 w-6 text-primary" />
+            <span>Hauptbuch</span>
+          </button>
+          <button onClick={() => navigate("/open-items")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <FileText className="h-6 w-6 text-primary" />
+            <span>Offene Posten</span>
+          </button>
+          <button onClick={() => navigate("/balance-sheet")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <Scale className="h-6 w-6 text-primary" />
+            <span>Bilanz & GuV</span>
+          </button>
+          <button onClick={() => navigate("/vat-returns")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <Calculator className="h-6 w-6 text-primary" />
+            <span>MWST-Abrechnung</span>
+          </button>
+          <button onClick={() => navigate("/fixed-assets")} className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all text-left">
+            <PiggyBank className="h-6 w-6 text-primary" />
+            <span>Anlagenbuchhaltung</span>
+          </button>
         </div>
       </div>
 

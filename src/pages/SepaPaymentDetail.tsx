@@ -27,14 +27,14 @@ export default function SepaPaymentDetail() {
   const { data: raw, isLoading, error } = usePayment(id || "");
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
-  if (error || !raw) return <div className="flex flex-col items-center justify-center h-64 text-muted-foreground"><p>Zahlung nicht gefunden</p><Button variant="link" onClick={() => navigate(-1)}>Zurück</Button></div>;
+  if (error || !raw) return <div className="flex flex-col items-center justify-center h-64 text-muted-foreground"><p>Zahlung nicht gefunden</p><Button variant="link" onClick={() => navigate("/sepa-payments")}>Zurück</Button></div>;
 
   const p = raw as any;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/sepa-payments")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">

@@ -17,6 +17,34 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class MarketingService {
   constructor(private prisma: PrismaService) {}
 
+  async getMarketingOverview(companyId: string) {
+    const [campaigns] = await Promise.all([
+      this.prisma.emailCampaign.findMany({
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    ]);
+
+    const newsletters = campaigns.map((c: any) => ({
+      id: c.id,
+      subject: c.subject,
+      status: (c.status || 'DRAFT').toLowerCase() === 'sent' ? 'sent' : (c.status || 'DRAFT').toLowerCase() === 'scheduled' ? 'scheduled' : 'draft',
+      sentAt: c.sentAt ? c.sentAt.toISOString().split('T')[0] : null,
+      recipients: 0,
+      opens: 0,
+      clicks: 0,
+      unsubscribes: 0,
+      bounces: 0,
+    }));
+
+    return {
+      newsletters,
+      templates: [],
+      lists: [],
+    };
+  }
+
   // ============== CAMPAIGNS ==============
   async findAllCampaigns(companyId: string, query: PaginationDto) {
     const { page: rawPage = 1, pageSize: rawPageSize = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;

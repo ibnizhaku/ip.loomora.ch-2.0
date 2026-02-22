@@ -69,17 +69,21 @@ const formatCHF = (amount: number) => {
   return amount.toLocaleString("de-CH", { minimumFractionDigits: 2 });
 };
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
+  calculated: "bg-blue-500/10 text-blue-600",
   submitted: "bg-blue-500/10 text-blue-600",
   accepted: "bg-success/10 text-success",
+  rejected: "bg-destructive/10 text-destructive",
   overdue: "bg-destructive/10 text-destructive",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   draft: "Entwurf",
+  calculated: "Berechnet",
   submitted: "Übermittelt",
   accepted: "Akzeptiert",
+  rejected: "Abgelehnt",
   overdue: "Überfällig",
 };
 
@@ -93,7 +97,6 @@ export default function VatReturns() {
     queryFn: () => api.get<any>("/vat-returns"),
   });
   const vatPeriods = apiData?.data || [];
-
   const currentPeriod = vatPeriods.find((p) => p.period === selectedPeriod);
 
   const totalOutputVat = vatPeriods
@@ -258,8 +261,8 @@ export default function VatReturns() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge className={statusStyles[period.status]}>
-                    {statusLabels[period.status]}
+                  <Badge className={statusStyles[period.status] ?? statusStyles.draft}>
+                    {statusLabels[period.status] ?? period.status}
                   </Badge>
                 </div>
               </div>

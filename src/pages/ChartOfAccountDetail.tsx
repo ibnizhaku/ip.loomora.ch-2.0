@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, FileText, Download, Filter, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,11 +41,44 @@ export default function ChartOfAccountDetail() {
     queryFn: () => api.get<any>(`/finance/accounts/${id}`),
     enabled: !!id,
   });
-  
-  const account = apiData?.data || null;
-  
-  const totalDebit = account?.transactions?.reduce((acc: number, t: any) => acc + (t.debit || 0), 0) || 0;
-  const totalCredit = account?.transactions?.reduce((acc: number, t: any) => acc + (t.credit || 0), 0) || 0;
+  const { data: journalData } = useQuery({
+    queryKey: ["journal-entries", "account", id],
+    queryFn: () => api.get<any>(`/journal-entries?accountId=${id}&pageSize=500`),
+    enabled: !!id,
+  });
+
+  const account = apiData?.data ?? apiData ?? null;
+  const journalEntriesRaw = (journalData as any)?.data ?? journalData ?? [];
+  const journalEntries = [...journalEntriesRaw].sort(
+    (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  const transactions: { id?: string; date?: string; document?: string; reference?: string; description?: string; debit?: number; credit?: number; balance?: number; journalEntryId?: string }[] = [];
+  let runningBalance = 0;
+  const isAssetOrExpense = account?.type === "asset" || account?.type === "expense";
+
+  journalEntries.forEach((entry: any) => {
+    const lines = entry.lines ?? [];
+    const relevantLines = lines.filter((l: any) => l.accountId === id);
+    relevantLines.forEach((line: any) => {
+      const debit = Number(line.debit ?? 0);
+      const credit = Number(line.credit ?? 0);
+      runningBalance += isAssetOrExpense ? debit - credit : credit - debit;
+      transactions.push({
+        id: line.id,
+        journalEntryId: entry.id,
+        date: entry.date ? new Date(entry.date).toLocaleDateString("de-CH") : undefined,
+        document: entry.number,
+        reference: entry.reference ?? entry.number,
+        description: line.description ?? entry.description,
+        debit,
+        credit,
+        balance: runningBalance,
+      });
+    });
+  });
+
+  const totalDebit = transactions.reduce((acc, t) => acc + (t.debit ?? 0), 0);
+  const totalCredit = transactions.reduce((acc, t) => acc + (t.credit ?? 0), 0);
   const netChange = totalDebit - totalCredit;
 
   const formatCHF = (amount: number) => {
@@ -55,7 +88,7 @@ export default function ChartOfAccountDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/chart-of-accounts")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
@@ -142,22 +175,28 @@ export default function ChartOfAccountDetail() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(account?.transactions || []).map((tx: any, index: number) => (
+              {transactions.map((tx: any, index: number) => (
                 <TableRow key={tx.id} className="animate-fade-in" style={{ animationDelay: `${index * 30}ms` }}>
                   <TableCell>{tx.date}</TableCell>
                   <TableCell>
-                    <span className="font-mono text-sm text-primary cursor-pointer hover:underline">
-                      {tx.document}
-                    </span>
+                    {tx.journalEntryId ? (
+                      <Link to={`/journal-entries/${tx.journalEntryId}`} className="font-mono text-sm text-primary hover:underline">
+                        {tx.document ?? tx.reference ?? "—"}
+                      </Link>
+                    ) : (
+                      <span className="font-mono text-sm text-muted-foreground">
+                        {tx.document ?? tx.reference ?? "—"}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>{tx.description}</TableCell>
-                  <TableCell className={cn("text-right font-mono", tx.debit > 0 && "text-success font-medium")}>
-                    {tx.debit > 0 ? formatCHF(tx.debit) : "-"}
+                  <TableCell className={cn("text-right font-mono", (tx.debit ?? 0) > 0 && "text-success font-medium")}>
+                    {(tx.debit ?? 0) > 0 ? formatCHF(tx.debit!) : "-"}
                   </TableCell>
-                  <TableCell className={cn("text-right font-mono", tx.credit > 0 && "text-destructive font-medium")}>
-                    {tx.credit > 0 ? formatCHF(tx.credit) : "-"}
+                  <TableCell className={cn("text-right font-mono", (tx.credit ?? 0) > 0 && "text-destructive font-medium")}>
+                    {(tx.credit ?? 0) > 0 ? formatCHF(tx.credit!) : "-"}
                   </TableCell>
-                  <TableCell className="text-right font-mono font-medium">{formatCHF(tx.balance)}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">{formatCHF(tx.balance ?? 0)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -87,7 +87,8 @@ export default function Creditors() {
     queryFn: () => api.get<any>("/suppliers/creditors"),
   });
 
-  const creditorsList: Creditor[] = (apiData?.data || []).map((c: any) => ({
+  const rawList = Array.isArray(apiData) ? apiData : (apiData?.data ?? []);
+  const creditorsList: Creditor[] = rawList.map((c: any) => ({
     id: c.id,
     number: c.number || `KRE-${c.id.slice(-5)}`,
     name: c.name,
@@ -131,10 +132,24 @@ export default function Creditors() {
             <CreditCard className="mr-2 h-4 w-4" />
             SEPA-Zahlung
           </Button>
-          <Button onClick={() => navigate("/suppliers/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Neuer Kreditor
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Neuer Kreditor
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate("/suppliers/new", { state: { from: "creditors" } })}>
+                <Plus className="mr-2 h-4 w-4" />
+                Neuen Lieferanten anlegen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/suppliers")}>
+                <Eye className="mr-2 h-4 w-4" />
+                Bestehenden Lieferanten auswählen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ZahlsService } from './zahls.service';
 import { 
   CreateCheckoutDto, 
   ChangePlanDto, 
@@ -17,15 +18,22 @@ export class SubscriptionsService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private zahlsService: ZahlsService,
   ) {}
 
   /**
-   * Prüft ob Zahls.ch konfiguriert ist
+   * Prüft ob Zahls.ch vollständig konfiguriert ist (API Key für Checkout, Webhook Secret für Bestätigungen)
    */
   isZahlsConfigured(): boolean {
-    const apiKey = this.configService.get('ZAHLS_API_KEY');
     const webhookSecret = this.configService.get('ZAHLS_WEBHOOK_SECRET');
-    return !!(apiKey && webhookSecret);
+    return this.zahlsService.isConfigured() && !!webhookSecret;
+  }
+
+  /**
+   * Dev/Demo bypass: Skip payment flow, activate company directly
+   */
+  isSkipPaymentEnabled(): boolean {
+    return this.configService.get('LOOMORA_SKIP_PAYMENT') === 'true';
   }
 
   /**
@@ -111,7 +119,7 @@ export class SubscriptionsService {
 
   /**
    * Checkout-Session erstellen
-   * HINWEIS: Zahls.ch Integration noch nicht aktiv!
+   * Bei LOOMORA_SKIP_PAYMENT=true: Aktiviert Company direkt und gibt successUrl zurück
    */
   async createCheckout(companyId: string, userId: string, dto: CreateCheckoutDto): Promise<CheckoutResponse> {
     // Plan validieren
@@ -121,17 +129,6 @@ export class SubscriptionsService {
 
     if (!plan || !plan.isActive) {
       throw new NotFoundException('Plan nicht gefunden oder nicht aktiv');
-    }
-
-    // Prüfen ob Zahls.ch konfiguriert ist
-    if (!this.isZahlsConfigured()) {
-      this.logger.warn('Zahls.ch ist nicht konfiguriert. Checkout nicht möglich.');
-      
-      return {
-        success: false,
-        message: 'Zahlungssystem noch nicht konfiguriert. Bitte kontaktieren Sie den Administrator.',
-        requiresZahlsConfiguration: true,
-      };
     }
 
     // Subscription aktualisieren oder erstellen
@@ -159,20 +156,77 @@ export class SubscriptionsService {
       });
     }
 
-    // TODO: Zahls.ch API aufrufen wenn konfiguriert
-    // const checkoutSession = await this.zahlsClient.createCheckoutSession({
-    //   priceId: dto.billingCycle === 'YEARLY' ? plan.externalPriceIdYearly : plan.externalPriceIdMonthly,
-    //   successUrl: dto.successUrl,
-    //   cancelUrl: dto.cancelUrl,
-    //   metadata: { companyId, userId, subscriptionId: subscription.id },
-    // });
+    // Dev/Demo bypass: Keine Zahlung, Company sofort aktivieren
+    if (this.isSkipPaymentEnabled()) {
+      const periodEnd = new Date();
+      periodEnd.setMonth(periodEnd.getMonth() + (dto.billingCycle === 'YEARLY' ? 12 : 1));
+      await this.prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: 'ACTIVE',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: periodEnd,
+        },
+      });
+      await this.prisma.company.update({
+        where: { id: companyId },
+        data: { status: 'ACTIVE' },
+      });
+      this.logger.log(`[SKIP_PAYMENT] Company ${companyId} und Subscription aktiviert`);
+      const frontendUrl = this.configService.get('LOOMORA_FRONTEND_URL') || this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+      const successUrl = dto.successUrl || `${frontendUrl}/payment-pending?success=1`;
+      return {
+        success: true,
+        message: 'Zahlung übersprungen (LOOMORA_SKIP_PAYMENT).',
+        checkoutUrl: successUrl,
+      };
+    }
 
-    this.logger.log(`Checkout für Company ${companyId} vorbereitet, Plan: ${plan.name}`);
+    // Zahls.ch nicht konfiguriert
+    if (!this.isZahlsConfigured()) {
+      this.logger.warn('Zahls.ch ist nicht konfiguriert. Checkout nicht möglich.');
+      return {
+        success: false,
+        message: 'Zahlungssystem noch nicht konfiguriert. Bitte kontaktieren Sie den Administrator.',
+        requiresZahlsConfiguration: true,
+      };
+    }
 
+    // Betrag berechnen (CHF in Rappen)
+    const priceChf = dto.billingCycle === 'YEARLY' ? Number(plan.priceYearly) : Number(plan.priceMonthly);
+    const amountCents = Math.round(priceChf * 100);
+
+    const frontendUrl = this.configService.get('LOOMORA_FRONTEND_URL') || this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+    const successUrl = dto.successUrl || `${frontendUrl}/payment-pending?success=1`;
+    const cancelUrl = dto.cancelUrl || `${frontendUrl}/payment-pending`;
+
+    const zahlsResult = await this.zahlsService.createCheckout({
+      amount: amountCents,
+      currency: plan.currency || 'CHF',
+      successUrl,
+      cancelUrl,
+      description: `Loomora ${plan.name} - ${dto.billingCycle || 'MONTHLY'}`,
+      metadata: {
+        companyId,
+        userId,
+        subscriptionId: subscription.id,
+        planId: plan.id,
+      },
+    });
+
+    if (!zahlsResult?.url) {
+      this.logger.error(`Zahls checkout failed for Company ${companyId}`);
+      return {
+        success: false,
+        message: 'Checkout konnte nicht erstellt werden. Bitte später erneut versuchen.',
+      };
+    }
+
+    this.logger.log(`Checkout für Company ${companyId} erstellt, Plan: ${plan.name}`);
     return {
       success: true,
-      message: 'Checkout vorbereitet. Zahls.ch Integration steht noch aus.',
-      // checkoutUrl: checkoutSession.url, // Später
+      message: 'Checkout erstellt',
+      checkoutUrl: zahlsResult.url,
     };
   }
 

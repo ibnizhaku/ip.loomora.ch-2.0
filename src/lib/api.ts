@@ -311,7 +311,7 @@ export const auth = {
 
 // PDF & E-Mail helpers
 export async function downloadPdf(
-  entityType: 'invoices' | 'quotes' | 'credit-notes' | 'delivery-notes' | 'reminders' | 'purchase-invoices',
+  entityType: 'invoices' | 'quotes' | 'credit-notes' | 'delivery-notes' | 'reminders' | 'purchase-invoices' | 'service-tickets',
   entityId: string,
   filename?: string
 ) {

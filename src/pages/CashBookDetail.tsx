@@ -38,8 +38,8 @@ export default function CashBookDetail() {
     );
   }
 
-  const amount = Number(entry.amount || 0);
-  const isIncome = entry.type === "INCOME" || entry.type === "income" || amount > 0;
+  const amount = Math.abs(Number(entry.amount || 0));
+  const isIncome = entry.type === "RECEIPT" || entry.type === "INCOME" || entry.type === "income" || Number(entry.amount || 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -52,7 +52,7 @@ export default function CashBookDetail() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold">
-              {entry.number || `Eintrag ${entry.id}`}
+              {entry.number ?? entry.documentNumber ?? `Eintrag ${entry.id}`}
             </h1>
             <Badge className={isIncome ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}>
               {isIncome ? "Einnahme" : "Ausgabe"}
@@ -90,10 +90,10 @@ export default function CashBookDetail() {
                   <span className="font-medium">{entry.reference}</span>
                 </div>
               )}
-              {entry.account && (
+              {(entry.account?.name ?? entry.account) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Konto</span>
-                  <span className="font-medium">{entry.account}</span>
+                  <span className="font-medium">{typeof entry.account === "object" ? entry.account?.name : entry.account}</span>
                 </div>
               )}
             </CardContent>

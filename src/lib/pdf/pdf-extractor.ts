@@ -11,6 +11,11 @@
  *   - QR-/ESR-Zahlschein (unten, y min) → "CHF xxx.xx"
  */
 
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
 export interface ExtractedPosition {
   description: string;
   quantity: number;
@@ -43,10 +48,6 @@ interface TextLine {
 }
 
 async function extractLines(file: File): Promise<TextLine[]> {
-  const pdfjsLib = await import('pdfjs-dist');
-  const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 

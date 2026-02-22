@@ -269,7 +269,7 @@ export default function SepaPayments() {
                       key={payment.id}
                       className="animate-fade-in cursor-pointer hover:bg-muted/50"
                       style={{ animationDelay: `${index * 50}ms` }}
-                      onClick={() => navigate(`/payments/${payment.id}`)}
+                      onClick={() => navigate(`/sepa-payments/${payment.id}`)}
                     >
                       <TableCell>
                         <span className="font-mono font-medium">{payment.reference || payment.number || "—"}</span>
@@ -308,13 +308,13 @@ export default function SepaPayments() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/sepa-payments/${payment.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Details
                             </DropdownMenuItem>
                             {(payment.status === "draft" || payment.status === "PENDING") && (
                               <>
-                                <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
+                                <DropdownMenuItem onClick={() => navigate(`/sepa-payments/${payment.id}`)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Bearbeiten
                                 </DropdownMenuItem>
@@ -365,7 +365,7 @@ export default function SepaPayments() {
                       key={payment.id}
                       className="animate-fade-in cursor-pointer hover:bg-muted/50"
                       style={{ animationDelay: `${index * 50}ms` }}
-                      onClick={() => navigate(`/payments/${payment.id}`)}
+                      onClick={() => navigate(`/sepa-payments/${payment.id}`)}
                     >
                       <TableCell>
                         <span className="font-mono font-medium">{payment.reference || payment.number || "—"}</span>
@@ -404,11 +404,11 @@ export default function SepaPayments() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/sepa-payments/${payment.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/payments/${payment.id}`)}>
+                            <DropdownMenuItem onClick={() => navigate(`/sepa-payments/${payment.id}`)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Bearbeiten
                             </DropdownMenuItem>

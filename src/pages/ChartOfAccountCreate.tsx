@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Save, Info } from "lucide-react";
+import { ArrowLeft, FileText, Save, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,69 +14,63 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useCreateAccount } from "@/hooks/use-finance";
 
-const parentAccounts = [
-  { id: "1", number: "1", name: "Aktiven" },
-  { id: "2", number: "2", name: "Passiven" },
-  { id: "3", number: "28", name: "Eigenkapital" },
-  { id: "4", number: "3", name: "Betriebsertrag aus Lieferungen und Leistungen" },
-  { id: "5", number: "4", name: "Aufwand für Material, Handelswaren, Dienstleistungen" },
-  { id: "6", number: "5", name: "Personalaufwand" },
-  { id: "7", number: "6", name: "Übriger betrieblicher Aufwand" },
-  { id: "8", number: "7", name: "Betrieblicher Nebenerfolg" },
-  { id: "9", number: "8", name: "Betriebsfremder und ausserordentlicher Erfolg" },
-  { id: "10", number: "9", name: "Abschluss" },
+const TYPE_OPTIONS = [
+  { value: "ASSET", label: "Aktiven" },
+  { value: "LIABILITY", label: "Passiven" },
+  { value: "EQUITY", label: "Eigenkapital" },
+  { value: "REVENUE", label: "Erlöse" },
+  { value: "EXPENSE", label: "Aufwand" },
 ];
 
 export default function ChartOfAccountCreate() {
   const navigate = useNavigate();
+  const createAccount = useCreateAccount();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: accountsData } = useQuery({
+    queryKey: ["/finance/accounts"],
+    queryFn: () => api.get<any>("/finance/accounts?pageSize=500"),
+  });
+  const accounts = (accountsData as any)?.data ?? [];
 
   const [formData, setFormData] = useState({
     number: "",
     name: "",
-    type: "",
-    parentId: "",
-    currency: "CHF",
-    openingBalance: "",
+    type: "ASSET",
+    parentId: "__none__",
     description: "",
     taxRelevant: false,
     costCenterRequired: false,
   });
 
-  const getAccountType = (parentId: string) => {
-    switch (parentId) {
-      case "1": return "asset";
-      case "2": return "liability";
-      case "3": return "equity";
-      case "4": return "revenue";
-      case "5":
-      case "6":
-      case "7": return "expense";
-      default: return "";
-    }
-  };
-
-  const handleParentChange = (parentId: string) => {
-    const type = getAccountType(parentId);
-    setFormData({ ...formData, parentId, type });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.number || !formData.name || !formData.parentId) {
+    if (!formData.number || !formData.name) {
       toast.error("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
     setIsSubmitting(true);
-
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await createAccount.mutateAsync({
+        number: formData.number.trim(),
+        name: formData.name.trim(),
+        type: formData.type as any,
+        parentId: formData.parentId && formData.parentId !== "__none__" ? formData.parentId : undefined,
+        description: formData.description?.trim() || undefined,
+      });
       toast.success("Konto erfolgreich angelegt");
       navigate("/chart-of-accounts");
-    }, 1000);
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Anlegen des Kontos");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -106,19 +100,39 @@ export default function ChartOfAccountCreate() {
 
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="parentId">Übergeordnete Kontogruppe *</Label>
+              <Label htmlFor="type">Kontotyp *</Label>
               <Select
-                value={formData.parentId}
-                onValueChange={handleParentChange}
+                value={formData.type}
+                onValueChange={(v) => setFormData({ ...formData, type: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Kontogruppe wählen" />
+                  <SelectValue placeholder="Typ auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {parentAccounts.map((parent) => (
-                    <SelectItem key={parent.id} value={parent.id}>
-                      <span className="font-mono mr-2">{parent.number}</span>
-                      {parent.name}
+                  {TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentId">Übergeordnetes Konto (optional)</Label>
+              <Select
+                value={formData.parentId || "__none__"}
+                onValueChange={(v) => setFormData({ ...formData, parentId: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Konto auswählen (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Keines —</SelectItem>
+                  {accounts.map((a: any) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="font-mono mr-2">{a.number}</span>
+                      {a.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -146,35 +160,6 @@ export default function ChartOfAccountCreate() {
                 placeholder="z.B. Bank Raiffeisen"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="currency">Währung</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(value) => setFormData({ ...formData, currency: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CHF">CHF - Schweizer Franken</SelectItem>
-                  <SelectItem value="EUR">EUR - Euro</SelectItem>
-                  <SelectItem value="USD">USD - US Dollar</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="openingBalance">Anfangssaldo</Label>
-              <Input
-                id="openingBalance"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.openingBalance}
-                onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
               />
             </div>
 
@@ -233,7 +218,11 @@ export default function ChartOfAccountCreate() {
             Abbrechen
           </Button>
           <Button type="submit" disabled={isSubmitting} className="gap-2">
-            <Save className="h-4 w-4" />
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             {isSubmitting ? "Wird gespeichert..." : "Konto anlegen"}
           </Button>
         </div>

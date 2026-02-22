@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useUpdateLead } from "@/hooks/use-marketing";
 
 interface Lead {
   id: string;
@@ -97,10 +98,13 @@ const getNextStage = (currentStatus: string): string | null => {
 type SortField = "name" | "score" | "value" | "createdAt";
 type SortOrder = "asc" | "desc";
 
+const toBackendStatus = (s: string) => s.toUpperCase() as "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL" | "NEGOTIATION" | "WON" | "LOST";
+
 export default function Leads() {
   const navigate = useNavigate();
   const { canWrite, canDelete } = usePermissions();
   const queryClient = useQueryClient();
+  const updateLead = useUpdateLead();
 
   // Fetch data from API
   const { data: apiData } = useQuery({
@@ -192,27 +196,34 @@ export default function Leads() {
     window.location.href = `mailto:${lead.email}`;
   };
 
+  const persistStatusChange = async (
+    leadId: string,
+    newStatus: string,
+    leadName: string,
+    successMsg?: string
+  ) => {
+    try {
+      await updateLead.mutateAsync({ id: leadId, data: { status: toBackendStatus(newStatus) } });
+      queryClient.invalidateQueries({ queryKey: ["/marketing/leads"] });
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus as Lead["status"] } : l));
+      toast.success(successMsg ?? `${leadName} auf "${pipelineStages.find(s => s.id === newStatus)?.label || newStatus}" gesetzt`);
+    } catch {
+      toast.error("Status konnte nicht aktualisiert werden");
+    }
+  };
+
   const handleMoveToNextStage = (e: React.MouseEvent, lead: Lead) => {
     e.stopPropagation();
     const nextStage = getNextStage(lead.status);
     if (nextStage) {
-      setLeads(prev => prev.map(l => 
-        l.id === lead.id ? { ...l, status: nextStage as Lead["status"] } : l
-      ));
       const nextLabel = pipelineStages.find(s => s.id === nextStage)?.label;
-      toast.success(`${lead.name} nach "${nextLabel}" verschoben`);
+      persistStatusChange(lead.id, nextStage, lead.name, `${lead.name} nach "${nextLabel}" verschoben`);
     }
   };
 
   const handleChangeStatus = (leadId: string, newStatus: string) => {
-    setLeads(prev => prev.map(l => 
-      l.id === leadId ? { ...l, status: newStatus as Lead["status"] } : l
-    ));
     const lead = leads.find(l => l.id === leadId);
-    const statusLabel = pipelineStages.find(s => s.id === newStatus)?.label;
-    if (lead) {
-      toast.success(`${lead.name} auf "${statusLabel}" gesetzt`);
-    }
+    if (lead) persistStatusChange(leadId, newStatus, lead.name);
   };
 
   const handleSort = (field: SortField) => {
@@ -249,11 +260,8 @@ export default function Leads() {
   const handleDrop = (e: React.DragEvent, targetStageId: string) => {
     e.preventDefault();
     if (draggedLead && draggedLead.status !== targetStageId) {
-      setLeads(prev => prev.map(l => 
-        l.id === draggedLead.id ? { ...l, status: targetStageId as Lead["status"] } : l
-      ));
       const targetLabel = pipelineStages.find(s => s.id === targetStageId)?.label;
-      toast.success(`${draggedLead.name} nach "${targetLabel}" verschoben`);
+      persistStatusChange(draggedLead.id, targetStageId, draggedLead.name, `${draggedLead.name} nach "${targetLabel}" verschoben`);
     }
     setDraggedLead(null);
     setDragOverStage(null);
@@ -261,18 +269,12 @@ export default function Leads() {
 
   const handleMarkAsWon = (e: React.MouseEvent, lead: Lead) => {
     e.stopPropagation();
-    setLeads(prev => prev.map(l => 
-      l.id === lead.id ? { ...l, status: "won" } : l
-    ));
-    toast.success(`🎉 ${lead.name} als gewonnen markiert!`);
+    persistStatusChange(lead.id, "won", lead.name, `🎉 ${lead.name} als gewonnen markiert!`);
   };
 
   const handleMarkAsLost = (e: React.MouseEvent, lead: Lead) => {
     e.stopPropagation();
-    setLeads(prev => prev.map(l => 
-      l.id === lead.id ? { ...l, status: "lost" } : l
-    ));
-    toast.info(`${lead.name} als verloren markiert`);
+    persistStatusChange(lead.id, "lost", lead.name, `${lead.name} als verloren markiert`);
   };
 
   return (

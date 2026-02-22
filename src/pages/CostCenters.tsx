@@ -96,11 +96,18 @@ export default function CostCenters() {
     queryKey: ["/cost-centers"],
     queryFn: () => api.get<any>("/cost-centers"),
   });
+  const formatManager = (raw: any) => {
+    const m = raw?.manager;
+    if (!m) return raw?.managerName || raw?.manager || "–";
+    if (typeof m === "string") return m;
+    const parts = [m.firstName, m.lastName].filter(Boolean);
+    return parts.length ? parts.join(" ") : "–";
+  };
   const costCenters = (apiData?.data || []).map((raw: any) => ({
     id: raw.id || "",
     number: raw.number || "",
     name: raw.name || "–",
-    manager: raw.manager?.name || raw.managerName || raw.manager || "–",
+    manager: formatManager(raw),
     budget: Number(raw.budget || 0),
     actual: Number(raw.actual || raw.actualCost || 0),
     variance: Number(raw.variance || 0),
@@ -427,7 +434,7 @@ export default function CostCenters() {
                           <Eye className="h-4 w-4 mr-2" />
                           Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/cost-centers/${center.id}`)}>
+                        <DropdownMenuItem onClick={() => navigate(`/cost-centers/${center.id}/edit`)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>

@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CompanyGuard } from '../auth/guards/company.guard';
 import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ServiceTicketsService } from './service-tickets.service';
+import { PdfService } from '../../common/services/pdf.service';
 import { 
   CreateServiceTicketDto, 
   UpdateServiceTicketDto, 
@@ -17,7 +19,10 @@ import {
 @UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
 @Controller('service-tickets')
 export class ServiceTicketsController {
-  constructor(private readonly serviceTicketsService: ServiceTicketsService) {}
+  constructor(
+    private readonly serviceTicketsService: ServiceTicketsService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Get()
   @RequirePermissions('service-tickets:read')
@@ -87,6 +92,32 @@ export class ServiceTicketsController {
       startDate,
       endDate,
     );
+  }
+
+  @Get(':id/pdf')
+  @RequirePermissions('service-tickets:read')
+  @ApiOperation({ summary: 'Generate service ticket PDF' })
+  async generatePdf(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Res() res: Response,
+  ) {
+    const ticket = await this.serviceTicketsService.findOne(id, user.companyId);
+    const invoiceLike = {
+      title: 'SERVICE-TICKET',
+      number: ticket.number,
+      date: ticket.createdAt,
+      issueDate: ticket.createdAt,
+      customer: ticket.customer,
+      items: [{ description: ticket.title || ticket.description || '-', quantity: 1, unit: 'Stk', unitPrice: 0, total: 0 }],
+      hidePrices: true,
+    };
+    const pdfBuffer = await this.pdfService.generateInvoicePdf(invoiceLike);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="Service-Ticket-${ticket.number}.pdf"`,
+    });
+    res.send(pdfBuffer);
   }
 
   @Get(':id')

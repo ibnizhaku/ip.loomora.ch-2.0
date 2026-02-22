@@ -292,7 +292,10 @@ export function Header() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             
-            <DropdownMenuItem onClick={() => navigate("/users/me")} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={() => user?.id && navigate(`/users/${user.id}`)}
+              className="cursor-pointer"
+            >
               <User className="mr-2 h-4 w-4" />
               <span>Mein Profil</span>
             </DropdownMenuItem>

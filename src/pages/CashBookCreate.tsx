@@ -24,14 +24,6 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const costCenters = [
-  { value: "verwaltung", label: "Verwaltung" },
-  { value: "vertrieb", label: "Vertrieb" },
-  { value: "produktion", label: "Produktion" },
-  { value: "fuhrpark", label: "Fuhrpark" },
-  { value: "marketing", label: "Marketing" },
-];
-
 const taxRates = [
   { value: "0", label: "0% (steuerfrei)" },
   { value: "2.6", label: "2.6% (reduziert)" },
@@ -66,6 +58,12 @@ export default function CashBookCreate() {
   const registers = registersData?.data || registersData || [];
   const defaultRegister = registers[0];
 
+  const { data: costCentersData } = useQuery({
+    queryKey: ["/cost-centers"],
+    queryFn: () => api.get<any>("/cost-centers?pageSize=100"),
+  });
+  const costCentersList = (costCentersData as any)?.data ?? costCentersData ?? [];
+
   const [formData, setFormData] = useState({
     type: "" as "income" | "expense" | "",
     date: new Date().toISOString().split("T")[0],
@@ -73,7 +71,7 @@ export default function CashBookCreate() {
     description: "",
     category: "",
     taxRate: "8.1",
-    costCenter: "",
+    costCenterId: "",
     notes: "",
   });
 
@@ -107,6 +105,7 @@ export default function CashBookCreate() {
         category: formData.category || undefined,
         vatRate: vatRateMap[formData.taxRate] || "STANDARD",
         reference: formData.notes || undefined,
+        costCenterId: formData.costCenterId || undefined,
       };
 
       const result = await api.post<any>(
@@ -318,18 +317,19 @@ export default function CashBookCreate() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="costCenter">Kostenstelle</Label>
+                  <Label htmlFor="costCenterId">Kostenstelle</Label>
                   <Select
-                    value={formData.costCenter}
-                    onValueChange={(value) => setFormData({ ...formData, costCenter: value })}
+                    value={formData.costCenterId || "__none__"}
+                    onValueChange={(v) => setFormData({ ...formData, costCenterId: v === "__none__" ? "" : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Optional wählen..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {costCenters.map((cc) => (
-                        <SelectItem key={cc.value} value={cc.value}>
-                          {cc.label}
+                      <SelectItem value="__none__">—</SelectItem>
+                      {costCentersList.map((cc: any) => (
+                        <SelectItem key={cc.id} value={cc.id}>
+                          {cc.number} – {cc.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

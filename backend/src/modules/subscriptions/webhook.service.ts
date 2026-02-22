@@ -76,26 +76,33 @@ export class WebhookService {
     });
 
     try {
-      // Event-spezifische Verarbeitung
-      switch (event.type) {
+      // Event-spezifische Verarbeitung (Zahls.ch / Stripe-kompatible Event-Namen)
+      const eventType = event.type?.toLowerCase() || '';
+      switch (eventType) {
         case 'checkout.session.completed':
-          await this.handleCheckoutCompleted(event.data.object);
+        case 'transaction.completed':
+        case 'payment.completed':
+          await this.handleCheckoutCompleted(event.data?.object || event.data || event);
           break;
 
         case 'invoice.paid':
-          await this.handleInvoicePaid(event.data.object);
+          await this.handleInvoicePaid(event.data?.object || event.data || event);
           break;
 
         case 'invoice.payment_failed':
-          await this.handlePaymentFailed(event.data.object);
+        case 'payment.failed':
+          await this.handlePaymentFailed(event.data?.object || event.data || event);
           break;
 
         case 'customer.subscription.updated':
-          await this.handleSubscriptionUpdated(event.data.object);
+        case 'subscription.updated':
+          await this.handleSubscriptionUpdated(event.data?.object || event.data || event);
           break;
 
         case 'customer.subscription.deleted':
-          await this.handleSubscriptionDeleted(event.data.object);
+        case 'subscription.deleted':
+        case 'subscription.cancelled':
+          await this.handleSubscriptionDeleted(event.data?.object || event.data || event);
           break;
 
         default:
@@ -130,12 +137,14 @@ export class WebhookService {
 
   /**
    * Checkout abgeschlossen - Subscription und Company aktivieren
+   * Unterstützt verschiedene Payload-Strukturen (Zahls.ch, Stripe-ähnlich)
    */
   private async handleCheckoutCompleted(data: any): Promise<void> {
-    const companyId = data.metadata?.companyId;
-    const subscriptionId = data.metadata?.subscriptionId;
-    const externalSubscriptionId = data.subscription;
-    const externalCustomerId = data.customer;
+    if (!data) throw new BadRequestException('Webhook payload data fehlt');
+    const companyId = data.metadata?.companyId || data.companyId || data.metadata?.company_id;
+    const subscriptionId = data.metadata?.subscriptionId || data.metadata?.subscription_id;
+    const externalSubscriptionId = data.subscription || data.subscriptionId || data.transaction_id;
+    const externalCustomerId = data.customer || data.customerId;
 
     if (!companyId) {
       throw new BadRequestException('companyId fehlt in Metadata');

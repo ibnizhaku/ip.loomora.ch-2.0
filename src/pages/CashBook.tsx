@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -70,15 +70,21 @@ export default function CashBook() {
   const entries: any[] = apiData?.data || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [month, setMonth] = useState("2024-01");
-  const [entryList, setEntryList] = useState(entries);
+  const [entryList, setEntryList] = useState<any[]>([]);
+
+  useEffect(() => {
+    setEntryList(entries);
+  }, [entries]);
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [filterCostCenter, setFilterCostCenter] = useState<string[]>([]);
 
   const costCenterOptions = Array.from(new Set(entries.filter((e: any) => e.costCenter).map((e: any) => String(e.costCenter))));
 
   const filteredEntries = entryList.filter((entry) => {
-    const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.documentNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const desc = String(entry.description ?? "");
+    const docNum = String(entry.documentNumber ?? "");
+    const matchesSearch = desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      docNum.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === "all" || entry.type === typeFilter;
     const matchesCostCenter = filterCostCenter.length === 0 || (entry.costCenter && filterCostCenter.includes(entry.costCenter));
     return matchesSearch && matchesType && matchesCostCenter;
@@ -330,6 +336,7 @@ export default function CashBook() {
                 key={entry.id}
                 className="animate-fade-in cursor-pointer hover:bg-muted/50"
                 style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/cash-book/${entry.id}`)}
               >
                 <TableCell>{entry.date}</TableCell>
                 <TableCell>
@@ -375,9 +382,9 @@ export default function CashBook() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/cash-book/${entry.id}`)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
+                        Details
                       </DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(e, entry.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />

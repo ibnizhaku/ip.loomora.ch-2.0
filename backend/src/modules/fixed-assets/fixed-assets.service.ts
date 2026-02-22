@@ -47,7 +47,7 @@ export class FixedAssetsService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [raw, total] = await Promise.all([
       this.prisma.fixedAsset.findMany({
         where,
         skip,
@@ -55,11 +55,41 @@ export class FixedAssetsService {
         orderBy: [{ acquisitionDate: 'desc' }, { number: 'asc' }],
         include: {
           costCenter: { select: { id: true, number: true, name: true } },
-          _count: { select: { depreciations: true } },
+          depreciations: true,
         },
       }),
       this.prisma.fixedAsset.count({ where }),
     ]);
+
+    const data = raw.map((a: any) => {
+      const accumulatedDepreciation = (a.depreciations || []).reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
+      const bookValue = Number(a.acquisitionCost || 0) - accumulatedDepreciation;
+      const categoryMap: Record<string, string> = {
+        BUILDINGS: 'buildings',
+        MACHINERY: 'machinery',
+        VEHICLES: 'vehicles',
+        FURNITURE: 'equipment',
+        IT_EQUIPMENT: 'equipment',
+        SOFTWARE: 'software',
+        TOOLS: 'equipment',
+        OTHER: 'equipment',
+      };
+      const statusMap: Record<string, string> = {
+        ACTIVE: 'active',
+        FULLY_DEPRECIATED: 'fully-depreciated',
+        DISPOSED: 'disposed',
+        SOLD: 'disposed',
+      };
+      return {
+        ...a,
+        inventoryNumber: a.number,
+        acquisitionCost: Number(a.acquisitionCost || 0),
+        bookValue,
+        accumulatedDepreciation,
+        status: statusMap[a.status] || 'active',
+        category: categoryMap[a.category] || 'equipment',
+      };
+    });
 
     return {
       data,

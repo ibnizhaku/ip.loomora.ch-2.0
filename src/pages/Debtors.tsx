@@ -126,10 +126,24 @@ export default function Debtors() {
             <ExternalLink className="mr-2 h-4 w-4" />
             Zu Kunden
           </Button>
-          <Button onClick={() => navigate("/customers/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Neuer Debitor
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Neuer Debitor
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate("/customers/new", { state: { from: "debtors" } })}>
+                <Plus className="mr-2 h-4 w-4" />
+                Neuen Kunden anlegen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/customers")}>
+                <Eye className="mr-2 h-4 w-4" />
+                Bestehenden Kunden auswählen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

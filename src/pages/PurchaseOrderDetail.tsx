@@ -143,9 +143,6 @@ const PurchaseOrderDetail = () => {
   // Map API data
   const orderData = useMemo(() => {
     if (!apiData) return null;
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/39c4cabc-a26e-46a6-b94c-e3d0b0dd881c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PurchaseOrderDetail.tsx:apiData',message:'API data received',data:{total:apiData.total,subtotal:apiData.subtotal,vatAmount:apiData.vatAmount,totalAmount:(apiData as any).totalAmount},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const displayStatus = apiStatusToDisplay[apiData.status] || "Entwurf";
     const items = (apiData.items || []).map((item: any, idx: number) => ({
       id: idx + 1,

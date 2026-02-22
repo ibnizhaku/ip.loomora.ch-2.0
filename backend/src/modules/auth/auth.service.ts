@@ -4,11 +4,13 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TokenService } from './services/token.service';
 import { MembershipService } from './services/membership.service';
 import { AccountingSeedService } from '../finance/accounting-seed.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { 
   LoginDto, 
   RegisterDto, 
@@ -35,6 +37,8 @@ export class AuthService {
     private tokenService: TokenService,
     private membershipService: MembershipService,
     private accountingSeedService: AccountingSeedService,
+    private configService: ConfigService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -376,13 +380,77 @@ export class AuthService {
         },
       });
 
-      return { user, company };
+      return { user, company, defaultPlan };
     });
 
     // Buchhaltungs-Setup asynchron starten (nicht blockierend)
     this.accountingSeedService.seedCompany(result.company.id).catch(err => {
       console.error('AccountingSeed failed for new company', result.company.id, err);
     });
+
+    const skipPayment = this.configService.get('LOOMORA_SKIP_PAYMENT') === 'true';
+
+    if (skipPayment) {
+      // Dev/Demo: Company sofort aktivieren, Tokens zurückgeben
+      const periodEnd = new Date();
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      await this.prisma.subscription.updateMany({
+        where: { companyId: result.company.id },
+        data: {
+          status: 'ACTIVE',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: periodEnd,
+        },
+      });
+      await this.prisma.company.update({
+        where: { id: result.company.id },
+        data: { status: 'ACTIVE' },
+      });
+      const loginResponse = await this.generateFullLoginResponse(
+        result.user.id,
+        result.company.id,
+        {
+          id: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          avatarUrl: undefined,
+          status: result.user.status,
+        },
+      );
+      return {
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          status: result.user.status,
+        },
+        company: {
+          id: result.company.id,
+          name: result.company.name,
+          slug: result.company.slug,
+          status: 'ACTIVE',
+        },
+        requiresPayment: false,
+        accessToken: (loginResponse as any).accessToken,
+        refreshToken: (loginResponse as any).refreshToken,
+        activeCompany: (loginResponse as any).activeCompany,
+      };
+    }
+
+    // Checkout-URL erstellen für Zahlung
+    const frontendUrl = this.configService.get('LOOMORA_FRONTEND_URL') || this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+    const checkoutResult = await this.subscriptionsService.createCheckout(
+      result.company.id,
+      result.user.id,
+      {
+        planId: result.defaultPlan.id,
+        billingCycle: 'MONTHLY',
+        successUrl: `${frontendUrl}/payment-pending?success=1`,
+        cancelUrl: `${frontendUrl}/payment-pending`,
+      },
+    );
 
     return {
       user: {
@@ -399,8 +467,7 @@ export class AuthService {
         status: result.company.status,
       },
       requiresPayment: true,
-      // checkoutUrl wird später von Zahls.ch gesetzt
-      checkoutUrl: undefined,
+      checkoutUrl: checkoutResult.checkoutUrl,
     };
   }
 

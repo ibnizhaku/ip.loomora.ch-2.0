@@ -13,9 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function BankAccountCreate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -24,26 +27,40 @@ export default function BankAccountCreate() {
     iban: "",
     bic: "",
     type: "",
-    currency: "EUR",
+    currency: "CHF",
     openingBalance: "",
     isDefault: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.bank || !formData.iban || !formData.type) {
-      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
+    if (!formData.name || !formData.bank || !formData.iban) {
+      toast.error("Bitte füllen Sie alle Pflichtfelder aus (Bezeichnung, Bank, IBAN)");
       return;
     }
 
     setIsSubmitting(true);
     
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await api.post("/bank-accounts", {
+        name: formData.name.trim(),
+        bankName: formData.bank.trim(),
+        iban: formData.iban.replace(/\s/g, "").trim(),
+        bic: formData.bic?.trim() || undefined,
+        currency: formData.currency || "CHF",
+        balance: formData.openingBalance ? parseFloat(formData.openingBalance) : 0,
+        isDefault: formData.isDefault,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/bank-accounts"] });
       toast.success("Bankkonto erfolgreich angelegt");
       navigate("/bank-accounts");
-    }, 1000);
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "Fehler beim Anlegen";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,7 +132,7 @@ export default function BankAccountCreate() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type">Kontotyp *</Label>
+              <Label htmlFor="type">Kontotyp</Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) => setFormData({ ...formData, type: value })}

@@ -15,6 +15,7 @@ import {
   Edit,
   Trash2,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +151,10 @@ const SupplierDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate("/creditors")}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Zu Kreditoren (Offene Posten)
+              </DropdownMenuItem>
               {supplier.email && (
                 <DropdownMenuItem onClick={() => window.location.href = `mailto:${supplier.email}`}>
                   <Mail className="h-4 w-4 mr-2" />

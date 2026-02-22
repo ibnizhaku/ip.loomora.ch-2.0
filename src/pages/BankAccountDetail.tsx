@@ -104,9 +104,9 @@ export default function BankAccountDetail() {
             <Download className="h-4 w-4 mr-2" />
             Kontoauszug
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate(`/bank-accounts/${id}/edit`)}>
             <Settings className="h-4 w-4 mr-2" />
-            Einstellungen
+            Bearbeiten
           </Button>
         </div>
       </div>

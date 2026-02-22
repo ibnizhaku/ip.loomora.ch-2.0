@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useCreateGoodsReceipt } from "@/hooks/use-goods-receipts";
-import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
+import { usePurchaseOrder, usePurchaseOrders } from "@/hooks/use-purchase-orders";
+import { useProducts } from "@/hooks/use-products";
 
 interface ReceiptItem {
   id: number;
@@ -35,19 +36,23 @@ export default function GoodsReceiptCreate() {
   ]);
 
   const createReceipt = useCreateGoodsReceipt();
+  const { data: purchaseOrdersData } = usePurchaseOrders({ pageSize: 200 });
+  const purchaseOrders = (purchaseOrdersData as any)?.data ?? [];
+  const { data: productsData } = useProducts({ pageSize: 500 });
+  const products = (productsData as any)?.data ?? [];
 
   // Load purchase order data when purchaseOrderId is provided
   const { data: poData, isLoading: poLoading } = usePurchaseOrder(selectedPurchaseOrderId);
 
-  // Pre-fill items from purchase order
+  // Pre-fill items from purchase order (productId must be selected by user - PO items may not have product link)
   useEffect(() => {
     if (poData && (poData as any).items?.length > 0) {
       const poItems = ((poData as any).items || []).map((item: any, idx: number) => ({
         id: idx + 1,
-        productId: item.productId || item.id || "",
-        article: item.description || item.name || "",
-        ordered: item.quantity || 0,
-        received: item.quantity || 0, // Default to full quantity
+        productId: item.productId || "",
+        article: item.description || item.product?.name || "",
+        ordered: Number(item.quantity) || 0,
+        received: Number(item.quantity) || 0,
         unit: item.unit || "Stück",
       }));
       setItems(poItems);
@@ -60,6 +65,8 @@ export default function GoodsReceiptCreate() {
   const removeItem = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
   const updateItem = (id: number, field: keyof ReceiptItem, value: string | number) =>
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+  const updateItemMultiple = (id: number, updates: Partial<ReceiptItem>) =>
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
 
   const supplierName = useMemo(() => {
     const d = poData as any;
@@ -71,9 +78,14 @@ export default function GoodsReceiptCreate() {
       toast.error("Bitte eine Bestellung auswählen");
       return;
     }
-    const validItems = items.filter(i => i.productId || i.article);
+    const validItems = items.filter(i => i.productId && (i.ordered > 0 || i.received > 0));
     if (validItems.length === 0) {
-      toast.error("Bitte mindestens eine Position erfassen");
+      toast.error("Bitte mindestens eine Position mit Produkt und Menge erfassen");
+      return;
+    }
+    const missingProduct = items.find(i => (i.ordered > 0 || i.received > 0) && !i.productId);
+    if (missingProduct) {
+      toast.error("Bitte für jede Position ein Produkt auswählen");
       return;
     }
 
@@ -84,11 +96,10 @@ export default function GoodsReceiptCreate() {
         deliveryNoteNumber: deliveryNoteNumber || undefined,
         notes: notes || undefined,
         items: validItems.map(i => ({
-          productId: i.productId || undefined,
-          description: i.article,
-          expectedQuantity: i.ordered,
+          productId: i.productId!,
+          orderedQuantity: i.ordered,
           receivedQuantity: i.received,
-          unit: i.unit,
+          unit: i.unit || "Stück",
         })),
       } as any,
       {
@@ -122,13 +133,23 @@ export default function GoodsReceiptCreate() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Bestellnummer *</Label>
-                  <Input
-                    placeholder="Bestellungs-ID eingeben"
-                    value={selectedPurchaseOrderId}
-                    onChange={(e) => setSelectedPurchaseOrderId(e.target.value)}
-                    className="font-mono"
-                  />
+                  <Label>Bestellung *</Label>
+                  <Select
+                    value={selectedPurchaseOrderId || "__none__"}
+                    onValueChange={(v) => setSelectedPurchaseOrderId(v === "__none__" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Bestellung auswählen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {purchaseOrders.map((po: any) => (
+                        <SelectItem key={po.id} value={po.id}>
+                          {po.number} – {po.supplier?.companyName || po.supplier?.name || "—"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {poLoading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Lade Bestellung...</p>}
                   {supplierName && <p className="text-xs text-muted-foreground">Lieferant: <strong>{supplierName}</strong></p>}
                 </div>
@@ -176,7 +197,7 @@ export default function GoodsReceiptCreate() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Artikel</TableHead>
+                    <TableHead>Produkt *</TableHead>
                     <TableHead className="w-[100px]">Bestellt</TableHead>
                     <TableHead className="w-[100px]">Erhalten</TableHead>
                     <TableHead className="w-[80px]">Einheit</TableHead>
@@ -187,12 +208,28 @@ export default function GoodsReceiptCreate() {
                   {items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <Input
-                          placeholder="Artikelbezeichnung"
-                          className="h-8"
-                          value={item.article}
-                          onChange={(e) => updateItem(item.id, "article", e.target.value)}
-                        />
+                        <Select
+                          value={item.productId || "__none__"}
+                          onValueChange={(v) => {
+                            const prod = products.find((p: any) => p.id === v);
+                            updateItemMultiple(item.id, {
+                              productId: v === "__none__" ? "" : v,
+                              article: prod ? (prod.name || "") : item.article,
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Produkt wählen..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— Produkt wählen —</SelectItem>
+                            {products.map((p: any) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.sku ? `${p.sku} – ` : ""}{p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Input

@@ -337,12 +337,18 @@ export default function Service() {
 
   const handleCreateReport = (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
-    navigate(`/service/${ticket.id}/report`);
+    navigate(`/service/${ticket.id}`);
   };
 
-  const handlePrint = (e: React.MouseEvent, ticket: ServiceTicket) => {
+  const handlePrint = async (e: React.MouseEvent, ticket: ServiceTicket) => {
     e.stopPropagation();
-    window.open(`/api/service-tickets/${ticket.id}/pdf`, "_blank");
+    try {
+      const { downloadPdf } = await import('@/lib/api');
+      await downloadPdf('service-tickets', ticket.id, `Service-Ticket-${ticket.number}.pdf`);
+      toast.success('PDF heruntergeladen');
+    } catch {
+      toast.error('PDF konnte nicht geladen werden');
+    }
   };
 
   return (

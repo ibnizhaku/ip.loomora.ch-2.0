@@ -404,7 +404,7 @@ const Training = () => {
                                 <Users className="mr-2 h-4 w-4" />
                                 Teilnehmer verwalten
                             </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}/edit`); }}>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}?edit=1`); }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Bearbeiten
                               </DropdownMenuItem>

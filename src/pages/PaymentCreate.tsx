@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -20,6 +20,7 @@ import { useCreatePayment } from "@/hooks/use-payments";
 
 export default function PaymentCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const createPayment = useCreatePayment();
   const [formData, setFormData] = useState({
     type: "OUTGOING" as "INCOMING" | "OUTGOING",
@@ -35,6 +36,13 @@ export default function PaymentCreate() {
     purchaseInvoiceId: "",
   });
 
+  useEffect(() => {
+    const invoiceId = searchParams.get("invoiceId");
+    const purchaseInvoiceId = searchParams.get("purchaseInvoiceId");
+    if (invoiceId) setFormData((prev) => ({ ...prev, invoiceId, type: "INCOMING" as const }));
+    if (purchaseInvoiceId) setFormData((prev) => ({ ...prev, purchaseInvoiceId, type: "OUTGOING" as const }));
+  }, [searchParams]);
+
   const { data: customersData } = useQuery({
     queryKey: ["/customers"],
     queryFn: () => api.get<any>("/customers?pageSize=200"),
@@ -47,10 +55,20 @@ export default function PaymentCreate() {
     queryKey: ["/bank-accounts"],
     queryFn: () => api.get<any>("/bank-accounts"),
   });
+  const { data: invoicesData } = useQuery({
+    queryKey: ["/invoices", "payment-create"],
+    queryFn: () => api.get<any>("/invoices?pageSize=200"),
+  });
+  const { data: purchaseInvoicesData } = useQuery({
+    queryKey: ["/purchase-invoices", "payment-create"],
+    queryFn: () => api.get<any>("/purchase-invoices?pageSize=200"),
+  });
 
   const customers = customersData?.data || [];
   const suppliers = suppliersData?.data || [];
-  const bankAccounts = bankAccountsData?.data || [];
+  const bankAccounts = Array.isArray(bankAccountsData) ? bankAccountsData : (bankAccountsData?.data || []);
+  const invoices = (invoicesData as any)?.data || [];
+  const purchaseInvoices = (purchaseInvoicesData as any)?.data || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,14 +213,14 @@ export default function PaymentCreate() {
                 <div className="space-y-2">
                   <Label>Bankkonto</Label>
                   <Select
-                    value={formData.bankAccountId}
-                    onValueChange={(v) => setFormData({ ...formData, bankAccountId: v })}
+                    value={formData.bankAccountId || "__none__"}
+                    onValueChange={(v) => setFormData({ ...formData, bankAccountId: v === "__none__" ? "" : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Optional wählen" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">—</SelectItem>
+                      <SelectItem value="__none__">—</SelectItem>
                       {bankAccounts.map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
                           {b.name} ({b.iban})
@@ -212,46 +230,88 @@ export default function PaymentCreate() {
                   </Select>
                 </div>
                 {formData.type === "OUTGOING" && (
-                  <div className="space-y-2">
-                    <Label>Lieferant</Label>
-                    <Select
-                      value={formData.supplierId}
-                      onValueChange={(v) => setFormData({ ...formData, supplierId: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Optional wählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">—</SelectItem>
-                        {suppliers.map((s: any) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.companyName || s.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label>Einkaufsrechnung</Label>
+                      <Select
+                        value={formData.purchaseInvoiceId || "__none__"}
+                        onValueChange={(v) => setFormData({ ...formData, purchaseInvoiceId: v === "__none__" ? "" : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Rechnung zuordnen..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {purchaseInvoices.map((inv: any) => (
+                            <SelectItem key={inv.id} value={inv.id}>
+                              {inv.number} – {inv.supplier?.name || "—"} – CHF {(inv.totalAmount ?? 0).toLocaleString("de-CH")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Lieferant</Label>
+                      <Select
+                        value={formData.supplierId || "__none__"}
+                        onValueChange={(v) => setFormData({ ...formData, supplierId: v === "__none__" ? "" : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Optional wählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {suppliers.map((s: any) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.companyName || s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
                 )}
                 {formData.type === "INCOMING" && (
-                  <div className="space-y-2">
-                    <Label>Kunde</Label>
-                    <Select
-                      value={formData.customerId}
-                      onValueChange={(v) => setFormData({ ...formData, customerId: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Optional wählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">—</SelectItem>
-                        {customers.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.companyName || c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label>Rechnung (Verkauf)</Label>
+                      <Select
+                        value={formData.invoiceId || "__none__"}
+                        onValueChange={(v) => setFormData({ ...formData, invoiceId: v === "__none__" ? "" : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Rechnung zuordnen..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {invoices.map((inv: any) => (
+                            <SelectItem key={inv.id} value={inv.id}>
+                              {inv.number} – {inv.customer?.companyName || inv.customer?.name || "—"} – CHF {(inv.totalAmount ?? 0).toLocaleString("de-CH")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Kunde</Label>
+                      <Select
+                        value={formData.customerId || "__none__"}
+                        onValueChange={(v) => setFormData({ ...formData, customerId: v === "__none__" ? "" : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Optional wählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {customers.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.companyName || c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

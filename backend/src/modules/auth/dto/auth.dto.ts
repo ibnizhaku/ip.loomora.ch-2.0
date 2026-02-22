@@ -227,11 +227,20 @@ export class RegistrationResponseDto {
   @ApiProperty({ description: 'Payment required before access' })
   requiresPayment: boolean;
 
-  @ApiPropertyOptional({ description: 'Checkout URL (when Zahls.ch is configured)' })
+  @ApiPropertyOptional({ description: 'Checkout URL (when payment required)' })
   checkoutUrl?: string;
 
   @ApiPropertyOptional({ description: 'Temporary token for payment flow' })
   temporaryToken?: string;
+
+  @ApiPropertyOptional({ description: 'Access token (when LOOMORA_SKIP_PAYMENT, no payment required)' })
+  accessToken?: string;
+
+  @ApiPropertyOptional({ description: 'Refresh token (when skip payment)' })
+  refreshToken?: string;
+
+  @ApiPropertyOptional({ description: 'Active company info (when skip payment)' })
+  activeCompany?: ActiveCompanyInfo;
 }
 
 export class InvitationInfoDto {

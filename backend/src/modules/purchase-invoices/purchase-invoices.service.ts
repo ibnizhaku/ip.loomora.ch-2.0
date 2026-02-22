@@ -8,6 +8,7 @@ import {
   PurchaseInvoiceStatus,
   OcrExtractedDataDto,
 } from './dto/purchase-invoice.dto';
+import { InvoiceStatus } from '@prisma/client';
 import { mapPurchaseInvoiceResponse } from '../../common/mappers/response.mapper';
 
 @Injectable()
@@ -15,6 +16,29 @@ export class PurchaseInvoicesService {
   constructor(private prisma: PrismaService) {}
 
   private readonly VAT_RATE = 8.1;
+
+  async getOpenItems(companyId: string) {
+    const openInvoices = await this.prisma.purchaseInvoice.findMany({
+      where: {
+        companyId,
+        status: { notIn: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED] },
+      },
+      include: {
+        supplier: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    return openInvoices
+      .map((inv) => ({
+        ...inv,
+        openAmount: Number(inv.totalAmount) - Number(inv.paidAmount),
+        daysOverdue: Math.max(0, Math.floor((Date.now() - new Date(inv.dueDate).getTime()) / (1000 * 60 * 60 * 24))),
+      }))
+      .filter((inv) => inv.openAmount > 0);
+  }
 
   async findAll(companyId: string, params: {
     page?: number;

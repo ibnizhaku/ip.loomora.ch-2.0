@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Calendar, Check, Clock, Download, Edit, Send, Calculator, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useVatReturn } from "@/hooks/use-vat-returns";
+import { useVatReturn, useSubmitVatReturn, useCalculateVatReturn } from "@/hooks/use-vat-returns";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   DRAFT: { label: "Entwurf", color: "bg-muted text-muted-foreground" },
@@ -23,6 +23,8 @@ export default function VatReturnDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: raw, isLoading, error } = useVatReturn(id || "");
+  const submitVat = useSubmitVatReturn();
+  const calculateVat = useCalculateVatReturn();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (error || !raw) return <div className="flex flex-col items-center justify-center h-64 text-muted-foreground"><p>MwSt-Abrechnung nicht gefunden</p><Link to="/vat-returns" className="text-primary hover:underline mt-2">Zurück</Link></div>;
@@ -47,7 +49,38 @@ export default function VatReturnDetail() {
           <Button variant="outline"><Edit className="h-4 w-4 mr-2" />Bearbeiten</Button>
           <Button variant="outline"><Download className="h-4 w-4 mr-2" />PDF Export</Button>
           {v.status === "DRAFT" && (
-            <Button onClick={() => toast.info("Wird an ESTV gesendet...")}><Send className="h-4 w-4 mr-2" />An ESTV senden</Button>
+            <Button
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  await calculateVat.mutateAsync(id);
+                  toast.success("MwSt-Abrechnung wurde berechnet");
+                } catch {
+                  toast.error("Berechnung fehlgeschlagen");
+                }
+              }}
+              disabled={calculateVat.isPending}
+            >
+              {calculateVat.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calculator className="h-4 w-4 mr-2" />}
+              Berechnen
+            </Button>
+          )}
+          {v.status === "CALCULATED" && (
+            <Button
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  await submitVat.mutateAsync({ id, data: { submissionDate: new Date().toISOString().split("T")[0] } });
+                  toast.success("MwSt-Abrechnung wurde eingereicht");
+                } catch {
+                  toast.error("Einreichung fehlgeschlagen");
+                }
+              }}
+              disabled={submitVat.isPending}
+            >
+              {submitVat.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              An ESTV senden
+            </Button>
           )}
         </div>
       </div>

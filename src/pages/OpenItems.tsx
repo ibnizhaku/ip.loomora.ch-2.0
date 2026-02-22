@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Filter,
@@ -48,6 +49,8 @@ interface OpenItem {
   openAmount: number;
   status: "open" | "overdue" | "partial" | "due-soon";
   daysOverdue?: number;
+  invoiceId?: string;
+  purchaseInvoiceId?: string;
 }
 
 
@@ -65,19 +68,65 @@ const statusLabels = {
   partial: "Teilbezahlt",
 };
 
+function mapToOpenItem(
+  item: any,
+  type: "receivable" | "payable",
+  partnerType: "customer" | "supplier"
+): OpenItem {
+  const openAmt = Number(item.openAmount ?? (Number(item.totalAmount) - Number(item.paidAmount ?? 0)));
+  const amount = Number(item.totalAmount ?? 0);
+  const daysOver = item.daysOverdue ?? 0;
+  const dueDate = item.dueDate ? new Date(item.dueDate).toLocaleDateString("de-CH") : "—";
+  const issueDate = item.date ? new Date(item.date).toLocaleDateString("de-CH") : item.issueDate ?? "—";
+  const partner = item.customer?.name ?? item.customer?.companyName ?? item.supplier?.name ?? item.partner ?? "—";
+
+  let status: OpenItem["status"] = "open";
+  if (daysOver > 0) status = "overdue";
+  else if (openAmt < amount && openAmt > 0) status = "partial";
+  else if (openAmt > 0) status = "due-soon";
+
+  return {
+    id: item.id,
+    type,
+    documentNumber: item.number ?? item.documentNumber ?? "—",
+    documentType: (item.documentType as OpenItem["documentType"]) ?? "invoice",
+    partner,
+    partnerType,
+    issueDate,
+    dueDate,
+    amount,
+    openAmount: openAmt,
+    status,
+    daysOverdue: daysOver,
+    invoiceId: item.id,
+    purchaseInvoiceId: type === "payable" ? item.id : undefined,
+  };
+}
+
 export default function OpenItems() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("receivables");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch data from API
-  const { data: apiData } = useQuery({
-    queryKey: ["/invoices"],
-    queryFn: () => api.get<any>("/invoices"),
+  const { data: receivablesData } = useQuery({
+    queryKey: ["/invoices/open-items"],
+    queryFn: () => api.get<any>("/invoices/open-items"),
   });
-  const openItems = apiData?.data || [];
+  const { data: payablesData } = useQuery({
+    queryKey: ["/purchase-invoices/open-items"],
+    queryFn: () => api.get<any>("/purchase-invoices/open-items"),
+  });
 
-  const receivables = openItems.filter((i) => i.type === "receivable");
-  const payables = openItems.filter((i) => i.type === "payable");
+  const receivablesRaw = Array.isArray(receivablesData) ? receivablesData : receivablesData?.data ?? [];
+  const payablesRaw = Array.isArray(payablesData) ? payablesData : payablesData?.data ?? [];
+
+  const receivables: OpenItem[] = receivablesRaw.map((i: any) =>
+    mapToOpenItem(i, "receivable", "customer")
+  );
+  const payables: OpenItem[] = payablesRaw.map((i: any) =>
+    mapToOpenItem(i, "payable", "supplier")
+  );
+  const openItems = [...receivables, ...payables];
 
   const totalReceivables = receivables.reduce((acc, i) => acc + i.openAmount, 0);
   const totalPayables = payables.reduce((acc, i) => acc + i.openAmount, 0);
@@ -148,16 +197,34 @@ export default function OpenItems() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const docId = item.invoiceId ?? item.purchaseInvoiceId ?? item.id;
+                    if (!docId) return;
+                    if (item.documentType === "credit-note") {
+                      navigate(`/credit-notes/${docId}`);
+                    } else if (item.partnerType === "supplier" || item.type === "payable") {
+                      navigate(`/purchase-invoices/${docId}`);
+                    } else {
+                      navigate(`/invoices/${docId}`);
+                    }
+                  }}>
                     <Eye className="h-4 w-4 mr-2" />
                     Beleg anzeigen
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const docId = item.invoiceId ?? item.purchaseInvoiceId ?? item.id;
+                    const param = item.type === "payable" || item.partnerType === "supplier" ? "purchaseInvoiceId" : "invoiceId";
+                    navigate(`/sepa-payments/new${docId ? `?${param}=${docId}` : ""}`);
+                  }}>
                     <CreditCard className="h-4 w-4 mr-2" />
                     Zahlung erfassen
                   </DropdownMenuItem>
                   {item.type === "receivable" && item.status === "overdue" && (
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      const invId = item.invoiceId ?? item.id;
+                      if (invId) navigate(`/invoices/${invId}`);
+                      else navigate("/reminders");
+                    }}>
                       <Mail className="h-4 w-4 mr-2" />
                       Mahnung senden
                     </DropdownMenuItem>

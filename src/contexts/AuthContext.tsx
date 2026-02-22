@@ -57,7 +57,7 @@ interface RegisterData {
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<{ requiresCompanySelection: boolean; availableCompanies?: CompanySummary[]; requires2FA?: boolean; tempToken?: string }>;
-  register: (data: RegisterData) => Promise<{ requiresPayment: boolean; checkoutUrl?: string }>;
+  register: (data: RegisterData) => Promise<{ requiresPayment: boolean; checkoutUrl?: string; accessToken?: string; refreshToken?: string; user?: UserInfo; activeCompany?: ActiveCompanyInfo }>;
   logout: () => Promise<void>;
   selectCompany: (companyId: string) => Promise<void>;
   switchCompany: (companyId: string) => Promise<void>;
@@ -277,23 +277,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return { requiresCompanySelection: false };
   };
 
-  const register = async (data: RegisterData): Promise<{ requiresPayment: boolean; checkoutUrl?: string }> => {
+  const register = async (data: RegisterData): Promise<{ requiresPayment: boolean; checkoutUrl?: string; accessToken?: string; refreshToken?: string; user?: UserInfo; activeCompany?: ActiveCompanyInfo }> => {
     const response = await api.post<{
       user: UserInfo;
       company: { id: string; name: string; slug: string; status: string };
       requiresPayment: boolean;
       checkoutUrl?: string;
       temporaryToken?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      activeCompany?: ActiveCompanyInfo;
     }>('/auth/register', data);
 
-    // After registration, user typically needs to pay or verify
     if (response.temporaryToken) {
       localStorage.setItem('temp_token', response.temporaryToken);
+    }
+
+    // Skip payment: backend returned tokens directly
+    if (!response.requiresPayment && response.accessToken && response.refreshToken && response.user && response.activeCompany) {
+      saveAuthState(response.user, response.activeCompany, [], response.accessToken, response.refreshToken);
+      setState({
+        user: response.user,
+        activeCompany: response.activeCompany,
+        availableCompanies: [],
+        isAuthenticated: true,
+        isLoading: false,
+        requiresCompanySelection: false,
+      });
     }
 
     return {
       requiresPayment: response.requiresPayment,
       checkoutUrl: response.checkoutUrl,
+      accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
+      user: response.user,
+      activeCompany: response.activeCompany,
     };
   };
 

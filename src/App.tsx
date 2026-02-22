@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, Outlet } from "react-router-dom";
 import React from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -69,6 +69,7 @@ import AbsenceCreate from "./pages/AbsenceCreate";
 import Departments from "./pages/Departments";
 import DepartmentCreate from "./pages/DepartmentCreate";
 import DepartmentDetail from "./pages/DepartmentDetail";
+import DepartmentEdit from "./pages/DepartmentEdit";
 import Recruiting from "./pages/Recruiting";
 import CandidateDetail from "./pages/CandidateDetail";
 import JobPostingCreate from "./pages/JobPostingCreate";
@@ -131,12 +132,15 @@ import PayslipDetail from "./pages/PayslipDetail";
 import BankAccounts from "./pages/BankAccounts";
 import BankAccountDetail from "./pages/BankAccountDetail";
 import BankAccountCreate from "./pages/BankAccountCreate";
+import BankAccountEdit from "./pages/BankAccountEdit";
 import Budgets from "./pages/Budgets";
 import BudgetDetail from "./pages/BudgetDetail";
 import BudgetCreate from "./pages/BudgetCreate";
+import BudgetEdit from "./pages/BudgetEdit";
 import FixedAssets from "./pages/FixedAssets";
 import FixedAssetDetail from "./pages/FixedAssetDetail";
 import FixedAssetCreate from "./pages/FixedAssetCreate";
+import FixedAssetEdit from "./pages/FixedAssetEdit";
 import VatReturns from "./pages/VatReturns";
 import VatReturnDetail from "./pages/VatReturnDetail";
 import Discounts from "./pages/Discounts";
@@ -178,6 +182,7 @@ import PaymentCreate from "./pages/PaymentCreate";
 import CostCenters from "./pages/CostCenters";
 import CostCenterDetail from "./pages/CostCenterDetail";
 import CostCenterCreate from "./pages/CostCenterCreate";
+import CostCenterEdit from "./pages/CostCenterEdit";
 import Products from "./pages/Products";
 import ProductCreate from "./pages/ProductCreate";
 import ProductEdit from "./pages/ProductEdit";
@@ -201,6 +206,7 @@ import GoodsReceiptCreate from "./pages/GoodsReceiptCreate";
 import GoodsReceiptDetail from "./pages/GoodsReceiptDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import PaymentPending from "./pages/PaymentPending";
 import AuthPage from "./pages/AuthPage";
 import SelectCompany from "./pages/SelectCompany";
 import Activity from "./pages/Activity";
@@ -297,6 +303,7 @@ const App = () => (
               {/* Public Routes - No Auth Required */}
               <Route path="/login" element={<AuthPage />} />
               <Route path="/register" element={<AuthPage />} />
+              <Route path="/payment-pending" element={<PaymentPending />} />
               <Route path="/select-company" element={<SelectCompany />} />
               
               {/* Protected Routes - Wrapped with Layout */}
@@ -371,9 +378,11 @@ const App = () => (
               
               {/* Finanzen & Buchhaltung */}
               <Route path="/finance" element={<ProtectedLayout><PermissionGuard module="finance"><Finance /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/chart-of-accounts" element={<ProtectedLayout><PermissionGuard module="finance"><ChartOfAccounts /></PermissionGuard></ProtectedLayout>} />
-              <Route path="/chart-of-accounts/new" element={<ProtectedLayout><ChartOfAccountCreate /></ProtectedLayout>} />
-              <Route path="/chart-of-accounts/:id" element={<ProtectedLayout><ChartOfAccountDetail /></ProtectedLayout>} />
+              <Route path="/chart-of-accounts" element={<ProtectedLayout><Outlet /></ProtectedLayout>}>
+                <Route index element={<PermissionGuard module="finance"><ChartOfAccounts /></PermissionGuard>} />
+                <Route path="new" element={<PermissionGuard module="finance" action="write"><ChartOfAccountCreate /></PermissionGuard>} />
+                <Route path=":id" element={<PermissionGuard module="finance"><ChartOfAccountDetail /></PermissionGuard>} />
+              </Route>
               <Route path="/journal-entries" element={<ProtectedLayout><PermissionGuard module="journal-entries"><JournalEntries /></PermissionGuard></ProtectedLayout>} />
               <Route path="/journal-entries/new" element={<ProtectedLayout><PermissionGuard module="journal-entries" action="write"><JournalEntryCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/journal-entries/:id" element={<ProtectedLayout><JournalEntryDetail /></ProtectedLayout>} />
@@ -387,6 +396,7 @@ const App = () => (
               <Route path="/vat-returns/:id" element={<ProtectedLayout><VatReturnDetail /></ProtectedLayout>} />
               <Route path="/fixed-assets" element={<ProtectedLayout><PermissionGuard module="fixed-assets"><FixedAssets /></PermissionGuard></ProtectedLayout>} />
               <Route path="/fixed-assets/new" element={<ProtectedLayout><FixedAssetCreate /></ProtectedLayout>} />
+              <Route path="/fixed-assets/:id/edit" element={<ProtectedLayout><FixedAssetEdit /></ProtectedLayout>} />
               <Route path="/fixed-assets/:id" element={<ProtectedLayout><FixedAssetDetail /></ProtectedLayout>} />
               <Route path="/cash-book" element={<ProtectedLayout><PermissionGuard module="cash-book"><CashBook /></PermissionGuard></ProtectedLayout>} />
               <Route path="/cash-book/new" element={<ProtectedLayout><CashBookCreate /></ProtectedLayout>} />
@@ -394,15 +404,18 @@ const App = () => (
               <Route path="/bank-accounts" element={<ProtectedLayout><PermissionGuard module="bank-accounts"><BankAccounts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/bank-accounts/new" element={<ProtectedLayout><BankAccountCreate /></ProtectedLayout>} />
               <Route path="/bank-accounts/:id" element={<ProtectedLayout><BankAccountDetail /></ProtectedLayout>} />
+              <Route path="/bank-accounts/:id/edit" element={<ProtectedLayout><BankAccountEdit /></ProtectedLayout>} />
               <Route path="/sepa-payments" element={<ProtectedLayout><PermissionGuard module="payments"><SepaPayments /></PermissionGuard></ProtectedLayout>} />
               <Route path="/sepa-payments/new" element={<ProtectedLayout><PermissionGuard module="payments" action="write"><PaymentCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/sepa-payments/:id" element={<ProtectedLayout><SepaPaymentDetail /></ProtectedLayout>} />
               <Route path="/cost-centers" element={<ProtectedLayout><PermissionGuard module="cost-centers"><CostCenters /></PermissionGuard></ProtectedLayout>} />
               <Route path="/cost-centers/new" element={<ProtectedLayout><CostCenterCreate /></ProtectedLayout>} />
+              <Route path="/cost-centers/:id/edit" element={<ProtectedLayout><CostCenterEdit /></ProtectedLayout>} />
               <Route path="/cost-centers/:id" element={<ProtectedLayout><CostCenterDetail /></ProtectedLayout>} />
               <Route path="/budgets" element={<ProtectedLayout><PermissionGuard module="budgets"><Budgets /></PermissionGuard></ProtectedLayout>} />
               <Route path="/budgets/new" element={<ProtectedLayout><BudgetCreate /></ProtectedLayout>} />
               <Route path="/budgets/:id" element={<ProtectedLayout><BudgetDetail /></ProtectedLayout>} />
+              <Route path="/budgets/:id/edit" element={<ProtectedLayout><BudgetEdit /></ProtectedLayout>} />
               <Route path="/contracts" element={<ProtectedLayout><PermissionGuard module="contracts"><Contracts /></PermissionGuard></ProtectedLayout>} />
               <Route path="/contracts/new" element={<ProtectedLayout><ContractCreate /></ProtectedLayout>} />
               <Route path="/contracts/:id" element={<ProtectedLayout><ContractDetail /></ProtectedLayout>} />
@@ -467,6 +480,7 @@ const App = () => (
               <Route path="/departments" element={<ProtectedLayout><PermissionGuard module="employees"><Departments /></PermissionGuard></ProtectedLayout>} />
               <Route path="/departments/new" element={<ProtectedLayout><PermissionGuard module="employees" action="write"><DepartmentCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/departments/:id" element={<ProtectedLayout><DepartmentDetail /></ProtectedLayout>} />
+              <Route path="/departments/:id/edit" element={<ProtectedLayout><PermissionGuard module="employees" action="write"><DepartmentEdit /></PermissionGuard></ProtectedLayout>} />
               <Route path="/recruiting" element={<ProtectedLayout><PermissionGuard module="recruiting"><Recruiting /></PermissionGuard></ProtectedLayout>} />
               <Route path="/recruiting/new" element={<ProtectedLayout><PermissionGuard module="recruiting" action="write"><JobPostingCreate /></PermissionGuard></ProtectedLayout>} />
               <Route path="/recruiting/jobs/:jobId" element={<ProtectedLayout><PermissionGuard module="recruiting"><JobPostingDetail /></PermissionGuard></ProtectedLayout>} />

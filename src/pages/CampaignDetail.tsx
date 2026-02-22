@@ -1,76 +1,81 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Megaphone, Users, Mail, TrendingUp, Calendar, Target, BarChart3, Eye, ChevronRight } from "lucide-react";
+import { ArrowLeft, Megaphone, Users, Mail, TrendingUp, Calendar, Target, BarChart3, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-
-const campaignData = {
-  id: "CAMP-2024-0012",
-  name: "Frühjahrsaktion Metallbau 2024",
-  beschreibung: "Spezialangebote für Stahlkonstruktionen und Geländer mit 15% Rabatt auf Standardprodukte",
-  status: "aktiv",
-  typ: "E-Mail & Direktmailing",
-  zielgruppe: "Architekten & Bauunternehmen",
-  startDatum: "15.01.2024",
-  endDatum: "31.03.2024",
-  budget: 8500,
-  ausgaben: 3240,
-  verantwortlich: "Lisa Weber",
-};
-
-const kennzahlen = {
-  empfänger: 1250,
-  geöffnet: 487,
-  geklickt: 156,
-  konvertiert: 23,
-  umsatz: 145000,
-};
-
-const leads = [
-  { firma: "Architektur Meier GmbH", kontakt: "Dr. Stefan Meier", status: "qualifiziert", wert: 28000, datum: "22.01.2024" },
-  { firma: "Bau & Konstruktion AG", kontakt: "Andrea Keller", status: "angebot", wert: 45000, datum: "25.01.2024" },
-  { firma: "Planungsbüro Zürich", kontakt: "Thomas Brunner", status: "kontaktiert", wert: 18000, datum: "28.01.2024" },
-  { firma: "Immobilien Invest SA", kontakt: "Marie Dubois", status: "neu", wert: 32000, datum: "29.01.2024" },
-];
-
-const aktivitäten = [
-  { datum: "29.01.2024", aktion: "Follow-up E-Mail versendet", empfänger: 487 },
-  { datum: "22.01.2024", aktion: "Reminder E-Mail versendet", empfänger: 763 },
-  { datum: "15.01.2024", aktion: "Initiale Kampagne gestartet", empfänger: 1250 },
-];
+import { useCampaign } from "@/hooks/use-marketing";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 
 const statusColors: Record<string, string> = {
   aktiv: "bg-success/10 text-success",
+  active: "bg-success/10 text-success",
+  ACTIVE: "bg-success/10 text-success",
   geplant: "bg-info/10 text-info",
+  scheduled: "bg-info/10 text-info",
+  SCHEDULED: "bg-info/10 text-info",
+  draft: "bg-muted text-muted-foreground",
+  DRAFT: "bg-muted text-muted-foreground",
   beendet: "bg-muted text-muted-foreground",
+  completed: "bg-muted text-muted-foreground",
+  COMPLETED: "bg-muted text-muted-foreground",
   pausiert: "bg-warning/10 text-warning",
+  paused: "bg-warning/10 text-warning",
+  PAUSED: "bg-warning/10 text-warning",
 };
 
 const leadStatusColors: Record<string, string> = {
   neu: "bg-info/10 text-info",
+  NEW: "bg-info/10 text-info",
   kontaktiert: "bg-warning/10 text-warning",
+  CONTACTED: "bg-warning/10 text-warning",
   qualifiziert: "bg-success/10 text-success",
+  QUALIFIED: "bg-success/10 text-success",
   angebot: "bg-primary/10 text-primary",
+  PROPOSAL: "bg-primary/10 text-primary",
 };
 
 export default function CampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: campaign, isLoading } = useCampaign(id);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("de-CH", {
       style: "currency",
       currency: "CHF",
-    }).format(value);
+    }).format(value ?? 0);
   };
 
-  const öffnungsrate = (kennzahlen.geöffnet / kennzahlen.empfänger) * 100;
-  const klickrate = (kennzahlen.geklickt / kennzahlen.geöffnet) * 100;
-  const konversionsrate = (kennzahlen.konvertiert / kennzahlen.geklickt) * 100;
-  const roi = ((kennzahlen.umsatz - campaignData.ausgaben) / campaignData.ausgaben) * 100;
+  const campaignData = campaign as any;
+  const leads = (campaignData?.leads ?? []) as any[];
+  const leadCount = campaignData?._count?.leads ?? leads.length;
+  const budget = Number(campaignData?.budget ?? 0);
+  const spent = Number(campaignData?.spent ?? 0);
+  const actualReach = campaignData?.actualReach ?? leadCount;
+  const conversions = campaignData?.conversions ?? 0;
+  const roi = budget > 0 ? ((spent / budget) * 100) : 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!campaign) {
+    return (
+      <div className="p-6">
+        <Button variant="ghost" asChild>
+          <Link to="/campaigns">Zurück zu Kampagnen</Link>
+        </Button>
+        <p className="mt-4 text-muted-foreground">Kampagne nicht gefunden.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -83,19 +88,19 @@ export default function CampaignDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold">{campaignData.name}</h1>
-            <Badge className={statusColors[campaignData.status]}>
-              {campaignData.status.charAt(0).toUpperCase() + campaignData.status.slice(1)}
+            <h1 className="font-display text-2xl font-bold">{campaignData?.name}</h1>
+            <Badge className={statusColors[campaignData?.status] ?? statusColors.draft}>
+              {(campaignData?.status || "DRAFT").charAt(0).toUpperCase() + (campaignData?.status || "").slice(1).toLowerCase()}
             </Badge>
           </div>
-          <p className="text-muted-foreground">{campaignData.id} • {campaignData.typ}</p>
+          <p className="text-muted-foreground">{campaignData?.id} • {campaignData?.type}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate("/reports")}>
             <BarChart3 className="mr-2 h-4 w-4" />
             Report
           </Button>
-          <Button>
+          <Button onClick={() => navigate("/email-marketing")}>
             <Mail className="mr-2 h-4 w-4" />
             E-Mail senden
           </Button>
@@ -108,56 +113,44 @@ export default function CampaignDetail() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Empfänger
+              Leads / Reichweite
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{kennzahlen.empfänger.toLocaleString("de-CH")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Öffnungsrate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{öffnungsrate.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground">{kennzahlen.geöffnet} geöffnet</p>
+            <p className="text-2xl font-bold">{leadCount.toLocaleString("de-CH")}</p>
+            <p className="text-xs text-muted-foreground">{actualReach} Reichweite</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Target className="h-4 w-4" />
-              Klickrate
+              Konversionen
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{klickrate.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground">{kennzahlen.geklickt} Klicks</p>
+            <p className="text-2xl font-bold text-success">{conversions}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Konversionen
+              Budget / Ausgaben
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-success">{kennzahlen.konvertiert}</p>
-            <p className="text-xs text-muted-foreground">{konversionsrate.toFixed(1)}% Rate</p>
+            <p className="text-2xl font-bold">{formatCurrency(spent)}</p>
+            <p className="text-xs text-muted-foreground">von {formatCurrency(budget)}</p>
           </CardContent>
         </Card>
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Generierter Umsatz</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Budgetnutzung</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(kennzahlen.umsatz)}</p>
-            <p className="text-xs text-muted-foreground">ROI: {roi.toFixed(0)}%</p>
+            <p className="text-2xl font-bold text-primary">{roi.toFixed(0)}%</p>
+            <p className="text-xs text-muted-foreground">ausgegeben</p>
           </CardContent>
         </Card>
       </div>
@@ -170,12 +163,12 @@ export default function CampaignDetail() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
-              <Progress value={(campaignData.ausgaben / campaignData.budget) * 100} className="flex-1 h-3" />
-              <span className="font-medium">{((campaignData.ausgaben / campaignData.budget) * 100).toFixed(0)}%</span>
+              <Progress value={budget > 0 ? (spent / budget) * 100 : 0} className="flex-1 h-3" />
+              <span className="font-medium">{budget > 0 ? ((spent / budget) * 100).toFixed(0) : 0}%</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Ausgaben: {formatCurrency(campaignData.ausgaben)}</span>
-              <span className="text-muted-foreground">Budget: {formatCurrency(campaignData.budget)}</span>
+              <span className="text-muted-foreground">Ausgaben: {formatCurrency(spent)}</span>
+              <span className="text-muted-foreground">Budget: {formatCurrency(budget)}</span>
             </div>
           </CardContent>
         </Card>
@@ -187,19 +180,21 @@ export default function CampaignDetail() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Zeitraum</p>
-                <p className="font-medium">{campaignData.startDatum} - {campaignData.endDatum}</p>
+                <p className="font-medium">
+                  {campaignData?.startDate ? format(new Date(campaignData.startDate), "dd.MM.yyyy", { locale: de }) : "—"} - {campaignData?.endDate ? format(new Date(campaignData.endDate), "dd.MM.yyyy", { locale: de }) : "—"}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Zielgruppe</p>
-                <p className="font-medium">{campaignData.zielgruppe}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Verantwortlich</p>
-                <p className="font-medium">{campaignData.verantwortlich}</p>
+                <p className="font-medium">{campaignData?.targetAudience || "—"}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Typ</p>
-                <Badge variant="outline">{campaignData.typ}</Badge>
+                <Badge variant="outline">{campaignData?.type || "—"}</Badge>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Beschreibung</p>
+                <p className="font-medium line-clamp-2">{campaignData?.description || "—"}</p>
               </div>
             </div>
           </CardContent>
@@ -226,22 +221,28 @@ export default function CampaignDetail() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {leads.map((lead, i) => (
+              {leads.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    Noch keine Leads zu dieser Kampagne.
+                  </TableCell>
+                </TableRow>
+              ) : leads.map((lead) => (
                 <TableRow 
-                  key={i} 
+                  key={lead.id} 
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/leads/${i + 1}`)}
+                  onClick={() => navigate(`/leads/${lead.id}`)}
                 >
-                  <TableCell className="font-medium">{lead.firma}</TableCell>
-                  <TableCell>{lead.kontakt}</TableCell>
+                  <TableCell className="font-medium">{lead.companyName || "—"}</TableCell>
+                  <TableCell>{lead.name || "—"}</TableCell>
                   <TableCell>
-                    <Badge className={leadStatusColors[lead.status]}>
-                      {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                    <Badge className={leadStatusColors[lead.status] ?? leadStatusColors.neu}>
+                      {(lead.status || "NEW").charAt(0) + (lead.status || "").slice(1).toLowerCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{formatCurrency(lead.wert)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(Number(lead.estimatedValue ?? 0))}</TableCell>
                   <TableCell className="text-muted-foreground flex items-center justify-between">
-                    {lead.datum}
+                    {lead.createdAt ? format(new Date(lead.createdAt), "dd.MM.yyyy", { locale: de }) : "—"}
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </TableCell>
                 </TableRow>
@@ -251,23 +252,19 @@ export default function CampaignDetail() {
         </CardContent>
       </Card>
 
-      {/* Aktivitäten */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Kampagnen-Aktivitäten</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {aktivitäten.map((akt, i) => (
-              <div key={i} className="flex items-center gap-4 pb-3 border-b last:border-0">
-                <div className="text-sm text-muted-foreground w-24">{akt.datum}</div>
-                <div className="flex-1">{akt.aktion}</div>
-                <Badge variant="outline">{akt.empfänger.toLocaleString("de-CH")} Empfänger</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Kampagnen-Info */}
+      {campaignData?.createdAt && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Erstellt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(campaignData.createdAt), "dd.MM.yyyy HH:mm", { locale: de })}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

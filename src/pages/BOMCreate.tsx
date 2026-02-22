@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useCreateBom } from "@/hooks/use-bom";
+import { useProducts } from "@/hooks/use-products";
 import { toast } from "sonner";
 
 interface BomItemRow {
   tempId: number;
   type: "MATERIAL" | "LABOR" | "EXTERNAL";
+  productId?: string;
   description: string;
   quantity: number;
   unit: string;
@@ -25,6 +27,8 @@ interface BomItemRow {
 export default function BOMCreate() {
   const navigate = useNavigate();
   const createBom = useCreateBom();
+  const { data: productsData } = useProducts({ pageSize: 500 });
+  const products = (productsData as any)?.data ?? [];
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -43,7 +47,22 @@ export default function BOMCreate() {
   };
 
   const updateItem = (tempId: number, field: keyof BomItemRow, value: any) => {
-    setItems(items.map((i) => (i.tempId === tempId ? { ...i, [field]: value } : i)));
+    setItems((prev) => prev.map((i) => (i.tempId === tempId ? { ...i, [field]: value } : i)));
+  };
+  const updateItemFromProduct = (tempId: number, prod: any) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.tempId === tempId
+          ? {
+              ...i,
+              productId: prod.id,
+              description: prod.name || i.description,
+              unit: prod.unit || "Stk",
+              unitPrice: Number(prod.salePrice ?? prod.unitPrice ?? 0),
+            }
+          : i
+      )
+    );
   };
 
   const handleSave = () => {
@@ -65,6 +84,7 @@ export default function BOMCreate() {
         category: category.trim() || undefined,
         items: validItems.map((item) => ({
           type: item.type,
+          productId: item.productId || undefined,
           description: item.description,
           quantity: item.type === "LABOR" ? 1 : item.quantity,
           unit: item.type === "LABOR" ? "Std" : item.unit,
@@ -179,12 +199,36 @@ export default function BOMCreate() {
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Input
-                      placeholder="Beschreibung"
-                      className="h-8"
-                      value={item.description}
-                      onChange={(e) => updateItem(item.tempId, "description", e.target.value)}
-                    />
+                    <div className="flex flex-col gap-1">
+                      {(item.type === "MATERIAL" || item.type === "EXTERNAL") && products.length > 0 && (
+                        <Select
+                          value={item.productId || "__none__"}
+                          onValueChange={(v) => {
+                            const prod = products.find((p: any) => p.id === v);
+                            if (prod) updateItemFromProduct(item.tempId, prod);
+                            else updateItem(item.tempId, "productId", "");
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="Produkt..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— Produkt —</SelectItem>
+                            {products.filter((p: any) => !p.isService).map((p: any) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.sku ? `${p.sku} – ` : ""}{p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Input
+                        placeholder="Beschreibung"
+                        className="h-8"
+                        value={item.description}
+                        onChange={(e) => updateItem(item.tempId, "description", e.target.value)}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell>
                     {item.type === "LABOR" ? (

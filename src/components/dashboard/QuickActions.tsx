@@ -1,4 +1,4 @@
-import { Plus, FileText, Users, FolderPlus, Clock } from "lucide-react";
+import { Plus, FileText, Users, FolderPlus, Clock, CreditCard, ShoppingCart, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +43,30 @@ const actions: QuickAction[] = [
     color: "text-warning",
     bgColor: "bg-warning/10 group-hover:bg-warning/20",
     path: "/time-tracking",
+  },
+  {
+    title: "Finanzen",
+    description: "Buchhaltung",
+    icon: CreditCard,
+    color: "text-primary",
+    bgColor: "bg-primary/10 group-hover:bg-primary/20",
+    path: "/finance",
+  },
+  {
+    title: "Einkauf",
+    description: "Bestellungen",
+    icon: ShoppingCart,
+    color: "text-info",
+    bgColor: "bg-info/10 group-hover:bg-info/20",
+    path: "/purchase-orders",
+  },
+  {
+    title: "Lager",
+    description: "Inventar",
+    icon: Package,
+    color: "text-muted-foreground",
+    bgColor: "bg-muted/50 group-hover:bg-muted",
+    path: "/inventory",
   },
 ];
 

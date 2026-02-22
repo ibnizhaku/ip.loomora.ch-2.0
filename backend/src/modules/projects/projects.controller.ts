@@ -14,12 +14,14 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto, UpdateProjectDto, ProjectQueryDto } from './dto/project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CompanyGuard } from '../auth/guards/company.guard';
+import { SubscriptionGuard } from '../auth/guards/subscription.guard';
 import { PermissionGuard, RequirePermissions } from '../auth/guards/permission.guard';
+import { CheckPlanLimit, PlanLimitsGuard } from '../auth/guards/plan-limits.guard';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Projects')
 @Controller('projects')
-@UseGuards(JwtAuthGuard, CompanyGuard, PermissionGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard, SubscriptionGuard, PermissionGuard)
 @ApiBearerAuth()
 export class ProjectsController {
   constructor(private projectsService: ProjectsService) {}
@@ -46,6 +48,8 @@ export class ProjectsController {
   }
 
   @Post()
+  @UseGuards(PlanLimitsGuard)
+  @CheckPlanLimit('max_projects')
   @RequirePermissions('projects:write')
   @ApiOperation({ summary: 'Create new project' })
   create(

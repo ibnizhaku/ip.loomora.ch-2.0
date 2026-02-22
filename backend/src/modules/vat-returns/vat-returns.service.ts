@@ -36,7 +36,7 @@ export class VatReturnsService {
     if (year) where.year = year;
     if (period) where.period = period;
 
-    const [data, total] = await Promise.all([
+    const [raw, total] = await Promise.all([
       this.prisma.vatReturn.findMany({
         where,
         skip,
@@ -45,6 +45,27 @@ export class VatReturnsService {
       }),
       this.prisma.vatReturn.count({ where }),
     ]);
+
+    // Map to frontend VatPeriod shape
+    const data = raw.map((vr: any) => {
+      const periodStr = vr.quarter ? `${vr.year}-Q${vr.quarter}` : vr.month ? `${vr.year}-${String(vr.month).padStart(2, '0')}` : `${vr.year}-Q1`;
+      const periodLabel = vr.quarter ? `Q${vr.quarter} ${vr.year}` : vr.month ? `${vr.month}/${vr.year}` : `${vr.year}`;
+      const dueMonth = vr.quarter ? vr.quarter * 3 + 1 : (vr.month || 1) + 1;
+      const dueYear = dueMonth > 12 ? vr.year + 1 : vr.year;
+      const dueDate = new Date(dueYear, dueMonth, 0); // last day of month (dueMonth 1-based)
+
+      return {
+        id: vr.id,
+        period: periodStr,
+        periodLabel,
+        dueDate: dueDate.toISOString().split('T')[0],
+        outputVat: Number(vr.totalOutputTax ?? 0),
+        inputVat: Number(vr.totalInputTax ?? 0),
+        payable: Number(vr.vatPayable ?? 0),
+        status: (vr.status || 'DRAFT').toLowerCase(),
+        submittedDate: vr.submittedAt ? new Date(vr.submittedAt).toISOString().split('T')[0] : undefined,
+      };
+    });
 
     return {
       data,

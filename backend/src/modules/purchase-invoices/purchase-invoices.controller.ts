@@ -46,6 +46,13 @@ export class PurchaseInvoicesController {
     return this.purchaseInvoicesService.getStatistics(user.companyId);
   }
 
+  @Get('open-items')
+  @RequirePermissions('purchase-invoices:read')
+  @ApiOperation({ summary: 'Get open purchase invoices (creditors)' })
+  getOpenItems(@CurrentUser() user: any) {
+    return this.purchaseInvoicesService.getOpenItems(user.companyId);
+  }
+
   @Get(':id')
   @RequirePermissions('purchase-invoices:read')
   @ApiOperation({ summary: 'Get purchase invoice by ID' })

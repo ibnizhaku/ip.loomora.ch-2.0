@@ -35,6 +35,17 @@ export class SubscriptionGuard implements CanActivate {
       throw new ForbiddenException('Keine Subscription gefunden. Bitte ein Abonnement abschliessen.');
     }
 
+    // Periodenende prüfen (auch bei ACTIVE)
+    if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
+      if (subscription.status === 'ACTIVE' || subscription.status === 'PAST_DUE') {
+        await this.prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { status: 'EXPIRED' },
+        });
+      }
+      throw new ForbiddenException('Abonnement abgelaufen. Bitte erneuern.');
+    }
+
     // Status prüfen
     switch (subscription.status) {
       case 'PENDING':

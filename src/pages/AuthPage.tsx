@@ -119,7 +119,31 @@ export default function AuthPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.info("Registrierung ist derzeit nicht verfügbar. Bitte kontaktieren Sie uns für einen Zugang.");
+    if (!validateReg()) return;
+    setIsRegLoading(true);
+    try {
+      const result = await register({
+        email: regData.email.trim(),
+        password: regData.password,
+        firstName: regData.firstName.trim(),
+        lastName: regData.lastName.trim(),
+        companyName: regData.companyName.trim(),
+        companySlug: regData.companySlug?.trim() || undefined,
+      });
+      if (!result.requiresPayment && result.accessToken) {
+        toast.success("Registrierung erfolgreich");
+        navigate(from || "/", { replace: true });
+      } else if (result.requiresPayment && result.checkoutUrl) {
+        toast.success("Weiterleitung zur Zahlung...");
+        window.location.href = result.checkoutUrl;
+      } else if (result.requiresPayment) {
+        navigate("/payment-pending", { replace: true });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Registrierung fehlgeschlagen");
+    } finally {
+      setIsRegLoading(false);
+    }
   };
 
   // ── Branding panel ──

@@ -174,13 +174,14 @@ export default function JournalEntryCreate() {
                       <TableRow key={idx}>
                         <TableCell>
                           <Select
-                            value={line.accountId}
-                            onValueChange={(v) => updateLine(idx, "accountId", v)}
+                            value={line.accountId || "__none__"}
+                            onValueChange={(v) => updateLine(idx, "accountId", v === "__none__" ? "" : v)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Konto wählen" />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="__none__">— Konto wählen —</SelectItem>
                               {accounts.map((a) => (
                                 <SelectItem key={a.id} value={a.id}>
                                   {a.number} – {a.name}

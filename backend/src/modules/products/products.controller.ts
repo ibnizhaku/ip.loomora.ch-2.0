@@ -56,6 +56,13 @@ export class ProductsController {
     return this.productsService.createCategory(user.companyId, data);
   }
 
+  @Get('low-stock')
+  @RequirePermissions('products:read')
+  @ApiOperation({ summary: 'Get products below reorder point (Nachbestellliste)' })
+  getLowStock(@CurrentUser() user: CurrentUserPayload) {
+    return this.productsService.getLowStockProducts(user.companyId);
+  }
+
   @Get(':id')
   @RequirePermissions('products:read')
   @ApiOperation({ summary: 'Get product by ID' })
@@ -90,13 +97,6 @@ export class ProductsController {
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.productsService.adjustStock(id, user.companyId, dto, user.userId);
-  }
-
-  @Get('low-stock')
-  @RequirePermissions('products:read')
-  @ApiOperation({ summary: 'Get products below reorder point (Nachbestellliste)' })
-  getLowStock(@CurrentUser() user: CurrentUserPayload) {
-    return this.productsService.getLowStockProducts(user.companyId);
   }
 
   @Delete(':id')

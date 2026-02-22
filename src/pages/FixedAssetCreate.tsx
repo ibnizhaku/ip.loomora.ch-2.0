@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Building2, Car, Monitor, Wrench, HardDrive } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +24,14 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+const CATEGORY_MAP: Record<string, string> = {
+  buildings: "BUILDINGS",
+  machinery: "MACHINERY",
+  vehicles: "VEHICLES",
+  equipment: "FURNITURE",
+  software: "SOFTWARE",
+};
+
 const categories = [
   { value: "buildings", label: "Gebäude & Grundstücke", icon: Building2, usefulLife: 33 },
   { value: "machinery", label: "Maschinen & Anlagen", icon: Wrench, usefulLife: 10 },
@@ -35,17 +45,9 @@ const depreciationMethods = [
   { value: "degressive", label: "Degressiv (abnehmend)" },
 ];
 
-const accounts = [
-  { value: "1500", label: "1500 - Maschinen und Apparate" },
-  { value: "1510", label: "1510 - Mobiliar und Einrichtungen" },
-  { value: "1520", label: "1520 - Büromaschinen, IT" },
-  { value: "1530", label: "1530 - Fahrzeuge" },
-  { value: "1540", label: "1540 - Werkzeuge und Geräte" },
-  { value: "1600", label: "1600 - Geschäftsliegenschaften" },
-];
-
 export default function FixedAssetCreate() {
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -53,13 +55,31 @@ export default function FixedAssetCreate() {
     acquisitionCost: "",
     usefulLife: "",
     depreciationMethod: "linear",
-    account: "",
+    assetAccountId: "",
+    costCenterId: "",
+    purchaseInvoiceId: "",
     location: "",
     serialNumber: "",
-    supplier: "",
-    invoiceNumber: "",
     notes: "",
   });
+
+  const { data: purchaseInvoicesData } = useQuery({
+    queryKey: ["/purchase-invoices"],
+    queryFn: () => api.get<any>("/purchase-invoices?pageSize=200"),
+  });
+  const { data: costCentersData } = useQuery({
+    queryKey: ["/cost-centers"],
+    queryFn: () => api.get<any>("/cost-centers?pageSize=100"),
+  });
+  const { data: accountsData } = useQuery({
+    queryKey: ["/finance/accounts"],
+    queryFn: () => api.get<any>("/finance/accounts?pageSize=500"),
+  });
+
+  const purchaseInvoices = (purchaseInvoicesData as any)?.data ?? [];
+  const costCenters = (costCentersData as any)?.data ?? [];
+  const chartAccounts = (accountsData as any)?.data ?? [];
+  const assetAccounts = chartAccounts.filter((a: any) => ["ASSET", "asset"].includes(a.type?.toUpperCase()));
 
   const handleCategoryChange = (value: string) => {
     const category = categories.find((c) => c.value === value);
@@ -70,20 +90,37 @@ export default function FixedAssetCreate() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.category || !formData.acquisitionDate || !formData.acquisitionCost) {
+    if (!formData.name || !formData.category || !formData.acquisitionDate || !formData.acquisitionCost || !formData.usefulLife) {
       toast.error("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
-    // Generate inventory number
-    const year = new Date().getFullYear();
-    const inventoryNumber = `AV-${year}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`;
-
-    toast.success(`Anlage ${inventoryNumber} erfolgreich erfasst`);
-    navigate("/fixed-assets");
+    setIsSubmitting(true);
+    try {
+      const res = await api.post("/fixed-assets", {
+        name: formData.name.trim(),
+        category: CATEGORY_MAP[formData.category] || formData.category.toUpperCase(),
+        acquisitionDate: formData.acquisitionDate,
+        acquisitionCost: parseFloat(formData.acquisitionCost),
+        usefulLife: parseInt(formData.usefulLife, 10),
+        depreciationMethod: formData.depreciationMethod === "degressive" ? "DECLINING" : "LINEAR",
+        serialNumber: formData.serialNumber?.trim() || undefined,
+        location: formData.location?.trim() || undefined,
+        purchaseInvoiceId: formData.purchaseInvoiceId || undefined,
+        costCenterId: formData.costCenterId || undefined,
+        assetAccountId: formData.assetAccountId || undefined,
+        description: formData.notes?.trim() || undefined,
+      });
+      toast.success("Anlage erfolgreich erfasst");
+      navigate(`/fixed-assets/${res?.id || ""}`);
+    } catch (err: any) {
+      toast.error(err?.message || "Fehler beim Speichern");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const selectedCategory = categories.find((c) => c.value === formData.category);
@@ -196,25 +233,24 @@ export default function FixedAssetCreate() {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">Lieferant</Label>
-                  <Input
-                    id="supplier"
-                    placeholder="Name des Lieferanten"
-                    value={formData.supplier}
-                    onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invoiceNumber">Rechnungsnummer</Label>
-                  <Input
-                    id="invoiceNumber"
-                    placeholder="z.B. RE-2024-001"
-                    value={formData.invoiceNumber}
-                    onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Einkaufsrechnung (Lieferant)</Label>
+                <Select
+                  value={formData.purchaseInvoiceId || "__none__"}
+                  onValueChange={(v) => setFormData({ ...formData, purchaseInvoiceId: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Rechnung auswählen..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    {purchaseInvoices.map((inv: any) => (
+                      <SelectItem key={inv.id} value={inv.id}>
+                        {inv.number} – {inv.supplier?.name || "—"} – CHF {(inv.totalAmount ?? 0).toLocaleString("de-CH")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -292,18 +328,38 @@ export default function FixedAssetCreate() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="account">Anlagekonto</Label>
+                  <Label>Anlagekonto</Label>
                   <Select
-                    value={formData.account}
-                    onValueChange={(value) => setFormData({ ...formData, account: value })}
+                    value={formData.assetAccountId || "__none__"}
+                    onValueChange={(v) => setFormData({ ...formData, assetAccountId: v === "__none__" ? "" : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Konto wählen..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {accounts.map((acc) => (
-                        <SelectItem key={acc.value} value={acc.value}>
-                          {acc.label}
+                      <SelectItem value="__none__">—</SelectItem>
+                      {assetAccounts.map((acc: any) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.number} – {acc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Kostenstelle</Label>
+                  <Select
+                    value={formData.costCenterId || "__none__"}
+                    onValueChange={(v) => setFormData({ ...formData, costCenterId: v === "__none__" ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Optional..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {costCenters.map((cc: any) => (
+                        <SelectItem key={cc.id} value={cc.id}>
+                          {cc.number} – {cc.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -319,9 +375,9 @@ export default function FixedAssetCreate() {
           <Button type="button" variant="outline" onClick={() => navigate("/fixed-assets")}>
             Abbrechen
           </Button>
-          <Button type="submit" className="gap-2">
+          <Button type="submit" className="gap-2" disabled={isSubmitting}>
             <Save className="h-4 w-4" />
-            Anlage erfassen
+            {isSubmitting ? "Wird gespeichert..." : "Anlage erfassen"}
           </Button>
         </div>
       </form>

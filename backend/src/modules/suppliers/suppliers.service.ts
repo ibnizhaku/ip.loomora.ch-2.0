@@ -297,7 +297,7 @@ export class SuppliersService {
 
     const now = new Date();
 
-    return suppliers
+    const creditors = suppliers
       .map((s: any) => {
         const invoices = s.purchaseInvoices || [];
         const totalPayables = invoices.reduce((sum: number, inv: any) => sum + Number(inv.totalAmount), 0);
@@ -331,8 +331,9 @@ export class SuppliersService {
           invoiceCount: invoices.length,
           bankAccount: s.iban || null,
         };
-      })
-      .filter((c: any) => c.totalPayables > 0 || c.openAmount > 0);
+      });
+
+    return { data: creditors };
   }
 
 }
