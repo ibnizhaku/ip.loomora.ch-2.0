@@ -19,6 +19,15 @@
 | Create new payment | [https://app.loomora.ch/sepa-payments/new](https://app.loomora.ch/sepa-payments/new) | Form loads, customer/supplier selection, amount, save |
 | Access from sidebar | Finance → SEPA-Zahlungen | "Neue SEPA-Zahlung" links to `/sepa-payments/new` |
 
+### Debtors (/debtors)
+| Test | URL | What to check |
+|------|-----|---------------|
+| View debtors list | [https://app.loomora.ch/debtors](https://app.loomora.ch/debtors) | Shows customers with open receivables |
+| **How to get test data:** | | |
+| Option 1 | Full seed | `cd backend && npx prisma db seed` — creates customers + invoices |
+| Option 2 | Quick test debtor | `cd backend && npx tsx scripts/seed-debtors.ts` — adds one test customer with unpaid invoice |
+| Option 3 | Via app | Create customer → Create invoice (status SENT, paidAmount &lt; total) → appears on /debtors |
+
 ### Discount edit
 | Test | URL | What to check |
 |------|-----|---------------|

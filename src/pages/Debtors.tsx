@@ -86,7 +86,8 @@ export default function Debtors() {
     queryFn: () => api.get<any>("/customers/debtors"),
   });
 
-  const debtorsList: Debtor[] = (apiData?.data || []).map((d: any) => ({
+  const rawList = Array.isArray(apiData) ? apiData : (apiData?.data || []);
+  const debtorsList: Debtor[] = rawList.map((d: any) => ({
     id: d.id,
     number: d.number || `DEB-${d.id.slice(-5)}`,
     name: d.name,
